@@ -3,6 +3,7 @@
 // Hooks y modales (ModalPortal, ConfirmModal, OverlayModal) de OwnerAdminServices.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { IconButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
@@ -182,23 +183,7 @@ export function ConfirmModal({
               {title}
             </span>
 
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={loading}
-              aria-label={cancelLabel}
-              style={{
-                border: "none",
-                background: "none",
-                color: "#fff",
-                cursor: loading ? "default" : "pointer",
-                display: "grid",
-                placeItems: "center",
-                justifySelf: "end",
-                padding: 4,
-                opacity: loading ? 0.5 : 1,
-              }}
-            >
+            <IconButton label={cancelLabel} size="sm" tone="bare" shape="square" style={{ placeItems: "center", justifySelf: "end" }} onClick={onCancel} disabled={loading}>
               <svg
                 width="18"
                 height="18"
@@ -211,7 +196,7 @@ export function ConfirmModal({
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
-            </button>
+            </IconButton>
           </div>
 
           {/* Contenido con scroll */}

@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import LogoutButton from "@/app/LogoutButton";
+import { TextButton } from "@/components/ui";
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import BlockedAccountsOverlay from "@/components/profile/BlockedAccountsOverlay";
 import SessionsOverlay from "@/components/profile/SessionsOverlay";
@@ -648,20 +649,10 @@ export default function ProfileSettingsTab({
             </div>
 
             {canChangeName ? (
-              <button
-                type="button"
-                style={{
-                  justifySelf: "center",
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  color: "#a855f7",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  fontFamily: fontStack,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                }}
+              <TextButton
+                tone="brand"
+                size="sm"
+                style={{ justifySelf: "center", fontFamily: fontStack, whiteSpace: "nowrap" }}
                 onClick={() => {
                   setErr(null);
                   setMsg(null);
@@ -670,7 +661,7 @@ export default function ProfileSettingsTab({
                 }}
               >
                 {tProfile("changeNameLabel")}
-              </button>
+              </TextButton>
             ) : (
               <div
                 style={{
@@ -713,30 +704,9 @@ export default function ProfileSettingsTab({
               </div>
             </div>
 
-            <button
-              type="button"
-              style={{
-                justifySelf: "center",
-                alignSelf: "center",
-                border: "none",
-                background: "transparent",
-                padding: 0,
-                color: "#a855f7",
-                fontSize: 12,
-                fontWeight: 700,
-                fontFamily: fontStack,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-              onClick={() => {
-                setErr(null);
-                setMsg(null);
-                setDraftBio(bio ?? "");
-                setEditBioOpen(true);
-              }}
-            >
+            <TextButton tone="brand" size="sm" style={{ justifySelf: "center", alignSelf: "center", fontFamily: fontStack, whiteSpace: "nowrap" }} onClick={() => { setErr(null); setMsg(null); setDraftBio(bio ?? ""); setEditBioOpen(true); }}>
               {tProfile("editLabel")}
-            </button>
+            </TextButton>
           </div>
         )}
 
@@ -760,21 +730,10 @@ export default function ProfileSettingsTab({
               </div>
             </div>
 
-            <button
-              type="button"
-              style={{
-                justifySelf: "center",
-                alignSelf: "center",
-                border: "none",
-                background: "transparent",
-                padding: 0,
-                color: "#a855f7",
-                fontSize: 12,
-                fontWeight: 700,
-                fontFamily: fontStack,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
+            <TextButton
+              tone="brand"
+              size="sm"
+              style={{ justifySelf: "center", alignSelf: "center", fontFamily: fontStack, whiteSpace: "nowrap" }}
               onClick={() => {
                 setErr(null);
                 setMsg(null);
@@ -785,7 +744,7 @@ export default function ProfileSettingsTab({
               }}
             >
               {tProfile("editLabel")}
-            </button>
+            </TextButton>
           </div>
         )}
 
@@ -818,26 +777,7 @@ export default function ProfileSettingsTab({
               </div>
             )}
 
-            <button
-              type="button"
-              style={{
-                justifySelf: passwordSent ? "center" : "end",
-                alignSelf: "center",
-                border: "none",
-                background: "transparent",
-                padding: 0,
-                color: "#a855f7",
-                fontSize: 12,
-                fontWeight: 700,
-                fontFamily: fontStack,
-                cursor:
-                  sendingPassword || pwdCooldown > 0 ? "not-allowed" : "pointer",
-                opacity: sendingPassword || pwdCooldown > 0 ? 0.6 : 1,
-                whiteSpace: "nowrap",
-              }}
-              disabled={sendingPassword || pwdCooldown > 0}
-              onClick={handlePasswordReset}
-            >
+            <TextButton tone="brand" size="sm" style={{ justifySelf: passwordSent ? "center" : "end", alignSelf: "center", fontFamily: fontStack, whiteSpace: "nowrap" }} disabled={sendingPassword || pwdCooldown > 0} onClick={handlePasswordReset}>
               {sendingPassword
                 ? tCommon("sending")
                 : pwdCooldown > 0
@@ -845,7 +785,7 @@ export default function ProfileSettingsTab({
                 : passwordSent
                 ? tProfile("sendNewEmail")
                 : tProfile("changePasswordLabel")}
-            </button>
+            </TextButton>
           </div>
         </div>
 
@@ -889,29 +829,9 @@ export default function ProfileSettingsTab({
             </div>
           </div>
 
-          <button
-            type="button"
-            style={{
-              justifySelf: "center",
-              alignSelf: "center",
-              border: "none",
-              background: "transparent",
-              padding: 0,
-              color: "#a855f7",
-              fontSize: 12,
-              fontWeight: 700,
-              fontFamily: fontStack,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-            onClick={() => {
-              setErr(null);
-              setMsg(null);
-              setBlockedAccountsOpen(true);
-            }}
-          >
+          <TextButton tone="brand" size="sm" style={{ justifySelf: "center", alignSelf: "center", fontFamily: fontStack, whiteSpace: "nowrap" }} onClick={() => { setErr(null); setMsg(null); setBlockedAccountsOpen(true); }}>
             {tCommon("viewLabel")}
-          </button>
+          </TextButton>
         </div>
 
         <div className="profile-setting-item profile-setting-item--action" style={item}>
@@ -932,29 +852,9 @@ export default function ProfileSettingsTab({
             </div>
           </div>
 
-          <button
-            type="button"
-            style={{
-              justifySelf: "center",
-              alignSelf: "center",
-              border: "none",
-              background: "transparent",
-              padding: 0,
-              color: "#a855f7",
-              fontSize: 12,
-              fontWeight: 700,
-              fontFamily: fontStack,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-            onClick={() => {
-              setErr(null);
-              setMsg(null);
-              setSessionsOpen(true);
-            }}
-          >
+          <TextButton tone="brand" size="sm" style={{ justifySelf: "center", alignSelf: "center", fontFamily: fontStack, whiteSpace: "nowrap" }} onClick={() => { setErr(null); setMsg(null); setSessionsOpen(true); }}>
             {tCommon("viewLabel")}
-          </button>
+          </TextButton>
         </div>
 
         <div

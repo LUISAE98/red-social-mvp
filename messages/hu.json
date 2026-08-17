@@ -2012,7 +2012,9 @@
     "countsPlain": "Frissítve {updated}, kihagyva {skipped}.",
     "countsReminder": "Eltávolítva {removed}, értesítve {reminder}, kihagyva {skipped}.",
     "transitionFailed": "A tagok átállítását nem sikerült befejezni.",
-    "configAllSaved": "Előfizetés, katalógus és adomány elmentve."
+    "configAllSaved": "Előfizetés, katalógus és adomány elmentve.",
+    "prompterTitle": "Súgógép",
+    "prompterPlaceholder": "Írd ide, mit szeretnél mondani"
   },
   "live": {
     "accessTicket": "Belépőjegy",

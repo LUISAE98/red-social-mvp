@@ -7,6 +7,7 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { TextButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useVisualViewport } from "@/lib/hooks/useVisualViewport";
 import { createPortal } from "react-dom";
@@ -20,7 +21,7 @@ import type {
 import PostCommentThread from "./PostCommentThread";
 import MentionTextarea from "./mentions/MentionTextarea";
 import { CommentAttachButton } from "./CommentImageUI";
-import { CommentSkeletonList } from "@/app/components/PostSkeleton/CommentSkeleton";
+import { CommentSkeleton, CommentSkeletonList } from "@/app/components/PostSkeleton/CommentSkeleton";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import VibraSendIcon from "@/app/components/VibraServiceIcons/VibraSendIcon";
 
@@ -507,7 +508,7 @@ export default function PostCommentsPanel({
 
             {!loading &&
               displayedComments?.map((comment) => (
-                <PostReveal key={comment.id}>
+                <PostReveal key={comment.id} skeleton={<CommentSkeleton />}>
                   <PostCommentThread
                     postId={postId}
                     groupId={groupId}
@@ -536,26 +537,19 @@ export default function PostCommentsPanel({
 
             {/* Load more (older comments) */}
             {!loading && hasMore && onLoadMore && (
-              <button
-                type="button"
+              <TextButton
+                tone="mute"
+                size="sm"
                 onClick={onLoadMore}
                 style={{
                   alignSelf: "start",
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  color: "rgba(255,255,255,0.52)",
-                  fontSize: 11.5,
-                  fontWeight: 500,
                   fontFamily: fontStack,
-                  cursor: "pointer",
-                  letterSpacing: "-0.01em",
                   textDecoration: "underline",
                   textUnderlineOffset: 2,
                 }}
               >
                 {tPosts("viewMoreComments")}
-              </button>
+              </TextButton>
             )}
           </div>
 
@@ -873,7 +867,7 @@ export default function PostCommentsPanel({
 
               {!loading &&
                 comments?.slice(0, mobileVisibleCount).map((comment) => (
-                  <PostReveal key={comment.id}>
+                  <PostReveal key={comment.id} skeleton={<CommentSkeleton />}>
                     <PostCommentThread
                       postId={postId}
                       groupId={groupId}

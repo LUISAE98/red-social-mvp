@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { IconButton } from "@/components/ui";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 
 type Props = {
@@ -83,44 +84,15 @@ export default function CoverSearchBar({ onSubmit, onClose, placeholder }: Props
           lineHeight: 1.5,
         }}
       />
-      <button
-        type="submit"
-        aria-label={placeholder}
-        style={{
-          flexShrink: 0,
-          border: "none",
-          background: "none",
-          padding: 0,
-          cursor: "pointer",
-          color: "#fff",
-          display: "grid",
-          placeItems: "center",
-        }}
-      >
+      <IconButton label={placeholder} size="sm" tone="bare" shape="square" style={{ placeItems: "center" }} type="submit">
         <VibraNavigationIcon type="search" size={20} strokeWidth={2.2} />
-      </button>
-      <button
-        type="button"
-        onClick={handleClose}
-        aria-label="Cerrar"
-        style={{
-          flexShrink: 0,
-          width: 26,
-          height: 26,
-          border: "none",
-          background: "none",
-          padding: 0,
-          cursor: "pointer",
-          color: "rgba(255,255,255,0.7)",
-          display: "grid",
-          placeItems: "center",
-        }}
-      >
+      </IconButton>
+      <IconButton label="Cerrar" size="sm" tone="bare" shape="square" style={{ placeItems: "center" }} onClick={handleClose}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
-      </button>
+      </IconButton>
 
       <style jsx>{`
         .cover-search-input::placeholder {

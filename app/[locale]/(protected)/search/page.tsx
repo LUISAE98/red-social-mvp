@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { IconButton } from "@/components/ui";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -649,13 +650,9 @@ function SearchPageContent() {
               aria-label={tCommon("searchPlaceholder")}
               enterKeyHint="search"
             />
-            <button
-              type="submit"
-              className="search-query-lupa"
-              aria-label={tCommon("searchPlaceholder")}
-            >
+            <IconButton label={tCommon("searchPlaceholder")} size="sm" tone="bare" shape="square" style={{ placeItems: "center" }} type="submit" className="search-query-lupa">
               <VibraNavigationIcon type="search" size={20} strokeWidth={2.2} />
-            </button>
+            </IconButton>
           </form>
 
           {activeTab === "stories" && (

@@ -344,7 +344,8 @@ service cloud.firestore {
       allow read: if signedIn()
         && (docId == request.auth.uid + '_post'
             || docId == request.auth.uid + '_comment'
-            || docId == request.auth.uid + '_story');
+            || docId == request.auth.uid + '_story'
+            || docId == request.auth.uid + '_dm');
 
       // ── B8-H03 ─────────────────────────────────────────────────────────────
       //
@@ -379,7 +380,8 @@ service cloud.firestore {
       // encontrando. Aquí la autorización sigue viviendo en UN solo sitio.
       allow create: if signedIn()
         && (docId == request.auth.uid + '_comment'
-            || docId == request.auth.uid + '_story')
+            || docId == request.auth.uid + '_story'
+            || docId == request.auth.uid + '_dm')
         && validRateLimitShape()
         && request.resource.data.windowStart == request.time
         && request.resource.data.count == 1;
@@ -394,6 +396,13 @@ service cloud.firestore {
         && (
           (docId == request.auth.uid + '_comment' && contadorAvanza(3, 1, 60))
           || (docId == request.auth.uid + '_story' && contadorAvanza(0, 24, 20))
+          // Mensajes directos: 1 s entre uno y otro, 300 por hora. B9-alto.
+          //
+          // Un participante de un hilo activo podía generar mensajes, triggers y
+          // avisos sin límite ninguno. El tope es holgado a propósito —una
+          // conversación viva de verdad no se acerca— y lo que corta es el chorro
+          // automático, no la charla.
+          || (docId == request.auth.uid + '_dm' && contadorAvanza(1, 1, 300))
         );
 
       // ⚠️ Sin esto, borrar el documento reinicia el contador.
@@ -4979,9 +4988,25 @@ function canUpdateReplyCount(delta) {
         // desconocido podría vaciar su bandeja encima de alguien que ni
         // siquiera le ha contestado todavía. El destinatario sí escribe libre:
         // si responde, es que la acepta.
+        /**
+         * ⚠️ B9-medio. Se quitó la escapatoria `createdBy != request.auth.uid`.
+         *
+         * Esa cláusula dejaba al DESTINATARIO de una solicitud escribir todo lo
+         * que quisiera sin que el hilo pasara nunca a `active`. La regla decía
+         * que responder implica aceptar, y no lo exigía: el hilo se quedaba en un
+         * estado contradictorio —"pendiente" con conversación dentro— y el resto
+         * de las reglas deciden mirando ese estado.
+         *
+         * Ahora, mientras el hilo siga en `request` DESPUÉS de la escritura, solo
+         * cabe el único mensaje declarado en `firstMessageId`. Responder de
+         * verdad obliga a cambiar el estado en el MISMO lote, y entonces
+         * `convAfter().status` ya es `active` y pasa por la primera cláusula.
+         *
+         * `convAfter()` es `getAfter`, o sea el estado resultante: eso es lo que
+         * permite exigir que las dos cosas ocurran juntas.
+         */
         function allowedInPendingRequest() {
           return convAfter().status != "request"
-            || convAfter().createdBy != request.auth.uid
             || messageId == convAfter().firstMessageId;
         }
 
@@ -4998,8 +5023,7 @@ function canUpdateReplyCount(delta) {
         }
 
         // Solo se guardan RUTAS: la URL la firma la Cloud Function
-        // `getDirectMessageImageUrls` y caduca. `url`/`thumbnailUrl` siguen
-        // admitidos solo por los primeros mensajes, anteriores a ese cambio.
+        // `getDirectMessageImageUrls` y caduca.
         /**
          * ⚠️ B9-C02. La ruta tiene que llevar el uid de QUIEN ENVÍA, no solo el
          * de la conversación.
@@ -5053,6 +5077,21 @@ function canUpdateReplyCount(delta) {
             && request.resource.data.replyTo != null;
         }
 
+        /**
+         * B9-alto. Ni los mensajes ni las solicitudes tenían freno: un
+         * participante de un hilo activo podía generar mensajes, escrituras,
+         * disparadores y avisos sin límite, y con política `everyone` se podía
+         * montar una campaña contra mucha gente a la vez.
+         *
+         * Mismo mecanismo que comentarios e historias: el contador viaja en el
+         * MISMO lote atómico y esto lo exige. 1 s entre mensajes, 300 por hora.
+         */
+        function frenoDeMensajeEnElMismoLote() {
+          return getAfter(
+            /databases/$(database)/documents/rateLimits/$(request.auth.uid + '_dm')
+          ).data.lastAt == request.time;
+        }
+
         function rutaMensajeCitado() {
           return /databases/$(database)/documents/conversations/$(convId)/messages/$(request.resource.data.replyTo.messageId);
         }
@@ -5096,6 +5135,7 @@ function canUpdateReplyCount(delta) {
           && notAnonymous()
           && convAfter().status != "blocked"
           && sinBloqueoEntreLosDos()
+          && frenoDeMensajeEnElMismoLote()
           && allowedInPendingRequest()
           && request.resource.data.senderId == request.auth.uid
           && request.resource.data.text is string

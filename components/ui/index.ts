@@ -4,6 +4,17 @@
 export { Button } from "./Button";
 export type { ButtonProps, ButtonVariant, ButtonSize } from "./Button";
 
+export { TextButton } from "./TextButton";
+export type { TextButtonProps, TextButtonTone, TextButtonSize } from "./TextButton";
+
+export { IconButton } from "./IconButton";
+export type {
+  IconButtonProps,
+  IconButtonTone,
+  IconButtonSize,
+  IconButtonShape,
+} from "./IconButton";
+
 export { Input } from "./Input";
 export type { InputProps } from "./Input";
 

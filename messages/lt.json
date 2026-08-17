@@ -2012,7 +2012,9 @@
     "countsPlain": "Atnaujinta {updated}, praleista {skipped}.",
     "countsReminder": "Pašalinta {removed}, informuota {reminder}, praleista {skipped}.",
     "transitionFailed": "Narių perkėlimo nepavyko užbaigti.",
-    "configAllSaved": "Prenumerata, katalogas ir auka išsaugoti."
+    "configAllSaved": "Prenumerata, katalogas ir auka išsaugoti.",
+    "prompterTitle": "Suflerius",
+    "prompterPlaceholder": "Parašyk čia, ką nori pasakyti"
   },
   "live": {
     "accessTicket": "Prieigos bilietas",

@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
@@ -1251,29 +1252,7 @@ boxShadow:
 
 {canShowLinkAction && (
   isInviteEligible ? (
-    <button
-      type="button"
-      onClick={(e) => { e.stopPropagation(); setInviteGroupId(g.id); }}
-      title={tGroups("generateInviteLink")}
-      aria-label={tGroups("generateInviteLink")}
-      style={{
-        flexShrink: 0,
-        marginInlineStart: "auto",
-        width: 24,
-        height: 24,
-        border: "none",
-        background: "transparent",
-        color: "#fff",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 0,
-        cursor: "pointer",
-        opacity: isMobile ? 0.85 : 0.65,
-        position: "relative",
-        overflow: "visible",
-      }}
-    >
+    <IconButton label={tGroups("generateInviteLink")} size="sm" tone="bare" shape="square" style={{ marginInlineStart: "auto", position: "relative", overflow: "visible" }} onClick={(e) => { e.stopPropagation(); setInviteGroupId(g.id); }}>
       <VibraNavigationIcon type="copyLink" size={21} />
 
       <span aria-hidden="true" className="ownerInviteMagicOrbit">
@@ -1284,7 +1263,7 @@ boxShadow:
           />
         ))}
       </span>
-    </button>
+    </IconButton>
   ) : (
     <div
       onClick={(e) => e.stopPropagation()}

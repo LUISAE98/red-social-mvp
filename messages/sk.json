@@ -2012,7 +2012,9 @@
     "countsPlain": "Aktualizovaní {updated}, preskočení {skipped}.",
     "countsReminder": "Odstránení {removed}, upozornení {reminder}, preskočení {skipped}.",
     "transitionFailed": "Prechod členov sa nepodarilo dokončiť.",
-    "configAllSaved": "Predplatné, katalóg a dar uložené."
+    "configAllSaved": "Predplatné, katalóg a dar uložené.",
+    "prompterTitle": "Teleprompter",
+    "prompterPlaceholder": "Napíš sem, čo chceš povedať"
   },
   "live": {
     "accessTicket": "Vstupenka",

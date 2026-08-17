@@ -2,6 +2,7 @@
 
 import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 
+import { TextButton, IconButton } from "@/components/ui";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -46,6 +47,33 @@ import { Avatar } from "./PostImageViewer.components";
 // (2147483647) para reservar cabecera al menú de acciones del post, que debe
 // poder mostrarse POR ENCIMA del viewer cuando se abre desde sus 3 puntos.
 const VIEWER_OVERLAY_Z = 2147480000;
+
+/**
+ * Salida del visor en celular: la imagen o el video se deslizan hacia abajo y se
+ * desvanecen. Mismo tiempo y misma curva que `CommentImageLightbox`, el visor de
+ * las imágenes de comentarios y mensajes, para que el gesto se sienta igual en
+ * toda la plataforma.
+ *
+ * El video sigue reproduciéndose: mientras corre la animación el elemento
+ * `<video>` sigue vivo, y al terminar `handleMobileClose` lo devuelve a su hueco
+ * del feed con la posición intacta.
+ */
+const MOBILE_CLOSE_MS = 240;
+const MOBILE_CLOSE_EASE = "ease-in";
+
+/** Recorrido del dedo, en px, que apaga del todo el velo. */
+const MOBILE_DRAG_FADE_PX = 320;
+
+/**
+ * Tamaño de la caja del medio en laptop.
+ *
+ * La altura es quien manda: un medio vertical crece hasta este alto y su ancho
+ * sale de la proporción. Los apaisados se topan antes con el ancho disponible,
+ * así que el margen lateral del overlay va emparejado aquí: subir la altura sin
+ * bajar el margen no agranda un video 16:9, solo le deja franjas negras.
+ */
+const DESKTOP_MEDIA_HEIGHT = "min(86dvh, 826px)";
+const DESKTOP_OVERLAY_PADDING = "16px 4vw";
 
 type ImageMedia = {
   url: string;
@@ -180,8 +208,10 @@ export default function PostImageViewer({
   const [desktopSpeedMenuOpen, setDesktopSpeedMenuOpen] = useState(false);
   const [mobileSpeedMenuOpen, setMobileSpeedMenuOpen] = useState(false);
   const [videoMuted, setVideoMuted] = useState(false);
-  const [heroPhase, setHeroPhase] = useState<"entering" | "open" | "exiting">("open");
-  const heroTimerRef = useRef<number | null>(null);
+  // Solo entrada: la caja crece desde la miniatura del feed hasta pantalla
+  // completa. La salida NO usa fases —se cierra deslizando hacia abajo, igual
+  // que el visor de imágenes de comentarios y mensajes (`CommentImageLightbox`).
+  const [heroPhase, setHeroPhase] = useState<"entering" | "open">("open");
   const [mobileSpeedGestureActive, setMobileSpeedGestureActive] =
     useState(false);
   const [desktopControlsVisible, setDesktopControlsVisible] = useState(true);
@@ -345,10 +375,31 @@ const currentMediaKey = currentMedia
     mediaAspectRatioRef.current = mediaAspectRatio;
   }, [mediaAspectRatio]);
 
+  /**
+   * Proporción real del video, leída del propio elemento.
+   *
+   * Es lo que hace que la carcasa de escritorio se ajuste a un video vertical en
+   * vez de abrirse apaisada, igual que ya ocurría con las imágenes. Los tres
+   * caminos que montan video (el del escritorio, el de celular y el elemento que
+   * se muda desde el feed) pasan por aquí.
+   */
+  function applyVideoAspectRatio(el: HTMLVideoElement | null | undefined) {
+    if (!el) return;
+    const { videoWidth: w, videoHeight: h } = el;
+    if (w > 0 && h > 0) setMediaAspectRatio(w / h);
+  }
+
   // Reset aspect ratio when media changes
   useEffect(() => {
     setMediaAspectRatio(null);
-  }, [currentMedia?.url]);
+    // Un video que llega ya cargado —el que se muda desde el feed— no volverá a
+    // emitir `loadedmetadata`, así que si esperásemos al evento se quedaría sin
+    // medir y la carcasa saldría apaisada. Se lee a mano.
+    if (currentMedia?.type === "video") {
+      const el = externalVideoElement ?? videoRef.current;
+      if (el && el.readyState >= 1) applyVideoAspectRatio(el);
+    }
+  }, [currentMedia?.url, currentMedia?.type, externalVideoElement]);
 
   // Load image natural dimensions to compute precise clip-path
   useEffect(() => {
@@ -787,6 +838,7 @@ const previousMedia =
     function onLoadedMetadata() {
       const d = externalVideoElement!.duration;
       if (Number.isFinite(d) && d > 0) setVideoDuration(d);
+      applyVideoAspectRatio(externalVideoElement);
       setVideoReady(true);
     }
 
@@ -802,6 +854,7 @@ const previousMedia =
     if (externalVideoElement.readyState >= 1) {
       const d = externalVideoElement.duration;
       if (Number.isFinite(d) && d > 0) setVideoDuration(d);
+      applyVideoAspectRatio(externalVideoElement);
       setVideoReady(true);
     }
 
@@ -916,13 +969,6 @@ const previousMedia =
     return () => cancelAnimationFrame(id);
   }, [heroPhase]);
 
-  // Cleanup hero timer on unmount
-  useEffect(() => {
-    return () => {
-      if (heroTimerRef.current) clearTimeout(heroTimerRef.current);
-    };
-  }, []);
-
   function handleMobileClose() {
     if (onVideoClose && videoRef.current && isCurrentVideo) {
       onVideoClose(videoRef.current.currentTime);
@@ -940,7 +986,6 @@ const previousMedia =
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const r = sourceRect!;
-    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
     const ease = "cubic-bezier(0.22,1,0.36,1)";
     const dur = 340;
 
@@ -948,14 +993,31 @@ const previousMedia =
       return { insetInlineStart: r.left, top: r.top, width: r.width, height: r.height, borderRadius: 12, background: "transparent", transition: undefined as string | undefined };
     }
 
-    if (heroPhase === "exiting") {
-      return { insetInlineStart: r.left, top: r.top, width: r.width, height: r.height, borderRadius: 12, background: "transparent", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 260ms ease` };
-    }
-
-    // "open" — may have drag in progress
+    // "open" — may have drag in progress.
+    //
+    // Al arrastrar hacia abajo el contenedor NO se encoge hacia la miniatura: se
+    // queda a pantalla completa haciendo de velo, y quien baja es la superficie
+    // de dentro (ver `renderCurrentMedia`). Antes se movía y encogía aquí Y la
+    // imagen volvía a trasladarse dentro, así que el gesto avanzaba al doble y
+    // en diagonal. El velo se aclara con la distancia recorrida —mismos números
+    // que `CommentImageLightbox`: 320px de recorrido, hasta un 85%.
     if (mobileDragOffsetY > 0) {
-      const t = Math.min(1, mobileDragOffsetY / vh);
-      return { insetInlineStart: lerp(0, r.left, t), top: mobileDragOffsetY, width: lerp(vw, r.width, t), height: lerp(vh, r.height, t), borderRadius: 12 * t, background: `rgba(0,0,0,${1 - t * 0.85})`, transition: undefined as string | undefined };
+      const t = Math.min(1, mobileDragOffsetY / MOBILE_DRAG_FADE_PX);
+      return {
+        insetInlineStart: 0,
+        top: 0,
+        width: vw,
+        height: vh,
+        borderRadius: 0,
+        background: mobileVerticalClosing
+          ? "rgba(0,0,0,0)"
+          : `rgba(0,0,0,${1 - t * 0.85})`,
+        // Durante el arrastre el velo sigue al dedo sin transición; al soltar,
+        // se apaga acompañando a la salida.
+        transition: mobileSwipeAnimating
+          ? `background ${MOBILE_CLOSE_MS}ms ease`
+          : (undefined as string | undefined),
+      };
     }
 
     // Fullscreen
@@ -1073,10 +1135,37 @@ const liveBtnStyle: CSSProperties = {
   const mobileVerticalProgress = useMobileLayout
     ? Math.min(1, Math.max(0, mobileDragOffsetY / Math.max(1, window.innerHeight)))
     : 0;
+  // El medio se apaga a la par que el velo: mismo recorrido de referencia
+  // (`MOBILE_DRAG_FADE_PX`) y misma pendiente. Antes se medía contra el alto de
+  // la pantalla, así que en el umbral de cierre apenas había bajado a 0.79 y el
+  // desvanecimiento no se notaba; ahora cae de forma continua mientras el dedo
+  // baja, y cuanto más lejos, más transparente.
+  const mobileFadeProgress = useMobileLayout
+    ? Math.min(1, Math.max(0, mobileDragOffsetY / MOBILE_DRAG_FADE_PX))
+    : 0;
   const mobileOverlayOpacity = mobileVerticalClosing
     ? 0
-    : 1 - Math.min(0.72, mobileVerticalProgress * 1.4);
+    : 1 - mobileFadeProgress * 0.85;
   const mobileVerticalScale = 1 - Math.min(0.08, mobileVerticalProgress * 0.12);
+
+  // ¿La superficie se está moviendo en vertical? Incluye el cierre, no solo el
+  // arrastre: `onTouchEnd` pone el eje a null antes de lanzar la salida, así que
+  // mirando solo el eje la superficie perdía el desplazamiento y volvía a subir
+  // justo cuando debía irse hacia abajo.
+  const mobileVerticalActive =
+    mobileGestureAxis === "vertical" || mobileVerticalClosing;
+
+  // Transición de la superficie que sigue al gesto. Al cerrar hacia abajo toma
+  // el tiempo y la curva de `CommentImageLightbox` y arrastra también la
+  // opacidad (antes saltaba a 0 de golpe). La opacidad va también en el caso
+  // corto: es el que devuelve el medio a su sitio cuando sueltas sin llegar al
+  // umbral, y sin ella el brillo volvería de golpe mientras la posición aún
+  // está viajando.
+  const mobileSurfaceTransition = mobileSwipeAnimating
+    ? mobileVerticalClosing
+      ? `transform ${MOBILE_CLOSE_MS}ms ${MOBILE_CLOSE_EASE}, opacity ${MOBILE_CLOSE_MS}ms ${MOBILE_CLOSE_EASE}`
+      : "transform 180ms ease, opacity 180ms ease"
+    : undefined;
 
   function renderMediaPreview(media: ViewerMediaItem | null, label: string) {
     if (!media) return null;
@@ -1295,12 +1384,12 @@ const previewUrl = media.url;
           style={{
             position: "absolute",
             inset: 0,
-            transform: mobileGestureAxis === "vertical"
-              ? heroActive
-                ? `translate3d(0, 0, 0) scale(1)`
-                : `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
+            // Con o sin hero, la superficie es la que baja: el contenedor de
+            // fuera se queda quieto haciendo de velo.
+            transform: mobileVerticalActive
+              ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
               : `translate3d(${mobileDragOffsetX * dirX}px, 0, 0) scale(1)`,
-            transition: mobileSwipeAnimating ? "transform 180ms ease" : undefined,
+            transition: mobileSurfaceTransition,
             opacity: mobileOverlayOpacity,
             background: "#000",
           }}
@@ -1316,10 +1405,10 @@ const previewUrl = media.url;
         style={{
           position: "absolute",
           inset: 0,
-          transform: mobileGestureAxis === "vertical"
+          transform: mobileVerticalActive
             ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
             : `translate3d(${mobileDragOffsetX * dirX}px, 0, 0) scale(1)`,
-          transition: mobileSwipeAnimating ? "transform 180ms ease" : undefined,
+          transition: mobileSurfaceTransition,
           opacity: mobileOverlayOpacity,
           background: "#000",
         }}
@@ -1507,31 +1596,25 @@ const previewUrl = media.url;
           const diffY = touch.clientY - startY;
 
           if (axis === "vertical" && diffY > 120) {
-            if (heroActive) {
-              // Hero close: animate container back to sourceRect, then close
-              setMobileSwipeAnimating(false);
-              setMobileDragOffsetX(0);
+            // Salida única: se va hacia abajo y se desvanece, venga de una
+            // miniatura del feed (hero) o no. Antes, con hero, se encogía de
+            // vuelta al hueco del feed; el gesto de bajar el dedo y ver la
+            // imagen irse en diagonal no acompañaba.
+            //
+            // `handleMobileClose` (y no `onClose` a secas) es obligatorio: es
+            // quien entrega la posición del video al feed para que siga
+            // reproduciéndose donde iba.
+            setMobileVerticalClosing(true);
+            setMobileSwipeAnimating(true);
+            setMobileDragOffsetX(0);
+            setMobileDragOffsetY(window.innerHeight);
+            window.setTimeout(() => {
+              handleMobileClose();
               setMobileDragOffsetY(0);
-              setMobileVerticalClosing(false);
-              setHeroPhase("exiting");
-              if (heroTimerRef.current) clearTimeout(heroTimerRef.current);
-              heroTimerRef.current = window.setTimeout(() => {
-                handleMobileClose();
-                heroTimerRef.current = null;
-              }, 360);
-            } else {
-              setMobileVerticalClosing(true);
-              setMobileSwipeAnimating(true);
               setMobileDragOffsetX(0);
-              setMobileDragOffsetY(window.innerHeight);
-              window.setTimeout(() => {
-                handleMobileClose();
-                setMobileDragOffsetY(0);
-                setMobileDragOffsetX(0);
-                setMobileVerticalClosing(false);
-                setMobileSwipeAnimating(false);
-              }, 180);
-            }
+              setMobileVerticalClosing(false);
+              setMobileSwipeAnimating(false);
+            }, MOBILE_CLOSE_MS);
             return;
           }
 
@@ -1621,41 +1704,23 @@ const previewUrl = media.url;
           {/* ⋮ menú de acciones del post + PiP · AirPlay — izquierda */}
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           {showActionsMenu && onOpenActionsMenu && (
-            <button
-              type="button"
-              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onOpenActionsMenu(); }}
-              onClick={(e) => { e.stopPropagation(); onOpenActionsMenu(); }}
-              aria-label={tPosts("moreOptions")}
-              style={liveBtnStyle}
-            >
+            <IconButton label={tPosts("moreOptions")} size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onOpenActionsMenu(); }} onClick={(e) => { e.stopPropagation(); onOpenActionsMenu(); }}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <circle cx="12" cy="5" r="2" />
                 <circle cx="12" cy="12" r="2" />
                 <circle cx="12" cy="19" r="2" />
               </svg>
-            </button>
+            </IconButton>
           )}
           {isCurrentVideo && !mobileVideoTrueFullscreen ? (
             <div style={{ display: "flex", alignItems: "center", gap: 4, opacity: mobileChromeVisible ? 1 : 0, transition: "opacity 220ms ease", pointerEvents: mobileChromeVisible ? "auto" : "none" }}>
-              <button
-                type="button"
-                onTouchEnd={(e) => { e.preventDefault(); const v = videoRef.current; if (!v) return; if (document.pictureInPictureElement) { void document.exitPictureInPicture(); } else if (document.pictureInPictureEnabled) { void v.requestPictureInPicture(); } }}
-                onClick={(e) => { e.stopPropagation(); }}
-                aria-label="Picture in Picture"
-                style={liveBtnStyle}
-              >
+              <IconButton label="Picture in Picture" size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onTouchEnd={(e) => { e.preventDefault(); const v = videoRef.current; if (!v) return; if (document.pictureInPictureElement) { void document.exitPictureInPicture(); } else if (document.pictureInPictureEnabled) { void v.requestPictureInPicture(); } }} onClick={(e) => { e.stopPropagation(); }}>
                 <VideoPipIcon size={25} />
-              </button>
+              </IconButton>
               {typeof window !== "undefined" && "WebKitPlaybackTargetAvailabilityEvent" in window && (
-                <button
-                  type="button"
-                  onTouchEnd={(e) => { e.preventDefault(); const v = videoRef.current as HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void }; v?.webkitShowPlaybackTargetPicker?.(); }}
-                  onClick={(e) => { e.stopPropagation(); }}
-                  aria-label="AirPlay"
-                  style={liveBtnStyle}
-                >
+                <IconButton label="AirPlay" size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onTouchEnd={(e) => { e.preventDefault(); const v = videoRef.current as HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void }; v?.webkitShowPlaybackTargetPicker?.(); }} onClick={(e) => { e.stopPropagation(); }}>
                   <VideoAirPlayIcon size={25} />
-                </button>
+                </IconButton>
               )}
             </div>
           ) : null}
@@ -1666,13 +1731,7 @@ const previewUrl = media.url;
             {isCurrentVideo && !mobileVideoTrueFullscreen && (
               <div style={{ display: "flex", alignItems: "center", opacity: mobileChromeVisible ? 1 : 0, transition: "opacity 220ms ease", pointerEvents: mobileChromeVisible ? "auto" : "none" }}>
                 {/* Mute */}
-                <button
-                  type="button"
-                  onTouchEnd={(e) => { e.preventDefault(); setVideoMuted((m) => !m); }}
-                  onClick={() => setVideoMuted((m) => !m)}
-                  aria-label={videoMuted ? tCommon("unmute") : tCommon("muteAriaLabel")}
-                  style={liveBtnStyle}
-                >
+                <IconButton label={videoMuted ? tCommon("unmute") : tCommon("muteAriaLabel")} size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onTouchEnd={(e) => { e.preventDefault(); setVideoMuted((m) => !m); }} onClick={() => setVideoMuted((m) => !m)}>
                   {videoMuted ? (
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -1684,45 +1743,25 @@ const previewUrl = media.url;
                       <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
                     </svg>
                   )}
-                </button>
+                </IconButton>
                 {/* Expand / fullscreen */}
-                <button
-                  type="button"
-                  onTouchEnd={(e) => { e.preventDefault(); void (async () => { const vid = videoRef.current; if (!vid) return; try { if (typeof vid.requestFullscreen === "function") await vid.requestFullscreen(); else if (typeof (vid as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen === "function") (vid as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen(); } catch { /* ignored */ } })(); }}
-                  onClick={async () => {
-                    const vid = videoRef.current;
-                    if (!vid) return;
-                    try {
-                      if (typeof vid.requestFullscreen === "function") await vid.requestFullscreen();
-                      else if (typeof (vid as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen === "function")
-                        (vid as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen();
-                    } catch { /* ignored */ }
-                  }}
-                  aria-label={tCommon("fullscreen")}
-                  style={liveBtnStyle}
-                >
+                <IconButton label={tCommon("fullscreen")} size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onTouchEnd={(e) => { e.preventDefault(); void (async () => { const vid = videoRef.current; if (!vid) return; try { if (typeof vid.requestFullscreen === "function") await vid.requestFullscreen(); else if (typeof (vid as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen === "function") (vid as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen(); } catch { /* ignored */ } })(); }} onClick={async () => { const vid = videoRef.current; if (!vid) return; try { if (typeof vid.requestFullscreen === "function") await vid.requestFullscreen(); else if (typeof (vid as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen === "function") (vid as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen(); } catch { /* ignored */ } }}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <polyline points="15 3 21 3 21 9" />
                     <polyline points="9 21 3 21 3 15" />
                     <line x1="21" y1="3" x2="14" y2="10" />
                     <line x1="3" y1="21" x2="10" y2="14" />
                   </svg>
-                </button>
+                </IconButton>
               </div>
             )}
             {/* Cerrar × */}
-            <button
-              type="button"
-              onTouchEnd={(e) => { e.preventDefault(); handleMobileClose(); }}
-              onClick={handleMobileClose}
-              aria-label={tPosts("closeViewer")}
-              style={liveBtnStyle}
-            >
+            <IconButton label={tPosts("closeViewer")} size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onTouchEnd={(e) => { e.preventDefault(); handleMobileClose(); }} onClick={handleMobileClose}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
-            </button>
+            </IconButton>
           </div>
         </div>
 
@@ -1752,15 +1791,9 @@ const previewUrl = media.url;
             >
               <VideoSkipBackIcon size={40} />
             </button>
-            <button
-              type="button"
-              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleVideoPlayPause(); }}
-              onClick={(e) => { e.stopPropagation(); handleVideoPlayPause(); }}
-              aria-label={videoPlaying ? tPosts("pauseVideo") : tPosts("playVideo")}
-              style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto", WebkitTapHighlightColor: "transparent", outline: "none", boxShadow: "none" }}
-            >
+            <IconButton label={videoPlaying ? tPosts("pauseVideo") : tPosts("playVideo")} size="sm" tone="bare" shape="square" style={{ pointerEvents: "auto", boxShadow: "none" }} onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleVideoPlayPause(); }} onClick={(e) => { e.stopPropagation(); handleVideoPlayPause(); }}>
               {videoPlaying ? <VideoPauseIcon size={44} /> : <VideoPlayIcon size={44} />}
-            </button>
+            </IconButton>
             <button
               type="button"
               onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.min(v.duration, v.currentTime + 10); }}
@@ -1818,30 +1851,9 @@ const previewUrl = media.url;
               >
                 {author.authorName}
               </Link>
-              <button
-                type="button"
-                onClick={() => setShowExactDate((prev) => !prev)}
-                title={exactDate}
-                aria-label={showExactDate ? tPosts("showRelativeDateLabel") : tPosts("showExactDateLabel")}
-                style={{
-                  display: "block",
-                  color: "rgba(255,255,255,0.54)",
-                  fontSize: 10.5,
-                  lineHeight: 1.2,
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  margin: 0,
-                  fontFamily: fontStack,
-                  cursor: "pointer",
-                  textAlign: "start",
-                  WebkitTapHighlightColor: "transparent",
-                  WebkitAppearance: "none",
-                  appearance: "none",
-                }}
-              >
+              <TextButton tone="mute" size="sm" style={{ display: "block", margin: 0, fontFamily: fontStack, textAlign: "start" }} onClick={() => setShowExactDate((prev) => !prev)} title={exactDate} aria-label={showExactDate ? tPosts("showRelativeDateLabel") : tPosts("showExactDateLabel")}>
                 {showExactDate ? exactDate : relativeDate}
-              </button>
+              </TextButton>
             </div>
           </div>
 
@@ -1938,17 +1950,12 @@ const previewUrl = media.url;
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={onOpenComments}
-              aria-label={tPosts("viewComments")}
-              style={actionButtonStyle}
-            >
+            <IconButton label={tPosts("viewComments")} size="sm" tone="bare" shape="square" style={{ gap: 6, fontWeight: 700, boxShadow: "none" }} onClick={onOpenComments}>
               <span aria-hidden="true">
                 <VibraCommentIcon size={20} color="rgba(255,255,255,0.88)" />
               </span>
               <span>{commentsCount}</span>
-            </button>
+            </IconButton>
 
             <div style={{ marginInlineStart: "auto", display: "flex", alignItems: "center", gap: 14 }}>
               <PostSaveButton
@@ -2084,7 +2091,7 @@ const previewUrl = media.url;
         alignItems: "center",
         justifyContent: "center",
         gap: 14,
-        padding: "24px 10vw",
+        padding: DESKTOP_OVERLAY_PADDING,
         boxSizing: "border-box",
       }}
       onClick={onClose}
@@ -2097,8 +2104,8 @@ const previewUrl = media.url;
           onClick={(e) => { e.stopPropagation(); revealDesktopControls(); }}
           style={{
             ...(mediaAspectRatio !== null && mediaAspectRatio < 1
-              ? { flex: "none", aspectRatio: String(mediaAspectRatio), height: "min(72dvh, 688px)", width: "auto" }
-              : { flex: 1, height: "min(72dvh, 688px)" }),
+              ? { flex: "none", aspectRatio: String(mediaAspectRatio), height: DESKTOP_MEDIA_HEIGHT, width: "auto" }
+              : { flex: 1, height: DESKTOP_MEDIA_HEIGHT }),
             position: "relative",
             minWidth: 0,
             minHeight: 0,
@@ -2112,29 +2119,12 @@ const previewUrl = media.url;
             boxShadow: "0 24px 80px rgba(0,0,0,0.64)",
           }}
         >
-          <button
-              type="button"
-              onClick={onClose}
-              aria-label={tPosts("closeViewer")}
-              style={{
-                position: "absolute",
-                top: 14,
-                insetInlineEnd: 14,
-                zIndex: 8,
-                background: "none",
-                border: "none",
-                color: "#fff",
-                cursor: "pointer",
-                padding: 4,
-                display: "grid",
-                placeItems: "center",
-              }}
-            >
+          <IconButton label={tPosts("closeViewer")} size="sm" tone="bare" shape="square" style={{ position: "absolute", top: 14, insetInlineEnd: 14, zIndex: 8, placeItems: "center" }} onClick={onClose}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
-            </button>
+            </IconButton>
 
           {currentMedia.type === "video" ? (
             externalVideoElement ? (
@@ -2165,6 +2155,7 @@ const previewUrl = media.url;
                       ? duration
                       : (currentMedia.duration ?? 0),
                   );
+                  applyVideoAspectRatio(event.currentTarget);
                 }}
                 onTimeUpdate={(event) =>
                   setVideoCurrentTime(event.currentTarget.currentTime)
@@ -2289,14 +2280,9 @@ const previewUrl = media.url;
                   >
                     <VideoSkipBackIcon size={34} />
                   </button>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); handleVideoPlayPause(); }}
-                    aria-label={videoPlaying ? tCommon("pause") : tCommon("play")}
-                    style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto" }}
-                  >
+                  <IconButton label={videoPlaying ? tCommon("pause") : tCommon("play")} size="sm" tone="bare" shape="square" style={{ pointerEvents: "auto" }} onClick={(e) => { e.stopPropagation(); handleVideoPlayPause(); }}>
                     {videoPlaying ? <VideoPauseIcon size={36} /> : <VideoPlayIcon size={36} />}
-                  </button>
+                  </IconButton>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.min(v.duration, v.currentTime + 10); }}
@@ -2407,7 +2393,9 @@ const previewUrl = media.url;
             // Un poco más ancho cuando el post es de comunidad: así el badge de
             // comunidad tras el nombre y el botón de 3 puntos caben sin apretarse.
             width: group ? "min(340px, 30vw)" : "min(304px, 27vw)",
-            height: "min(72dvh, 688px)",
+            // Misma altura que la caja del medio: es el lado contra el que se
+            // alinea, y si se quedan distintas el panel corta a media caja.
+            height: DESKTOP_MEDIA_HEIGHT,
             flexShrink: 0,
             minHeight: 0,
             background: "rgba(14,14,16,0.98)",
@@ -2568,32 +2556,13 @@ const previewUrl = media.url;
             </div>
 
             {showActionsMenu && onOpenActionsMenu && (
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onOpenActionsMenu(); }}
-                aria-label={tPosts("moreOptions")}
-                style={{
-                  flexShrink: 0,
-                  alignSelf: "flex-start",
-                  marginTop: -2,
-                  border: "none",
-                  background: "transparent",
-                  color: "rgba(255,255,255,0.6)",
-                  cursor: "pointer",
-                  padding: 4,
-                  borderRadius: 8,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  WebkitTapHighlightColor: "transparent",
-                }}
-              >
+              <IconButton label={tPosts("moreOptions")} size="sm" tone="bare" shape="square" style={{ alignSelf: "flex-start", marginTop: -2 }} onClick={(e) => { e.stopPropagation(); onOpenActionsMenu(); }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <circle cx="12" cy="5" r="2" />
                   <circle cx="12" cy="12" r="2" />
                   <circle cx="12" cy="19" r="2" />
                 </svg>
-              </button>
+              </IconButton>
             )}
           </div>
 

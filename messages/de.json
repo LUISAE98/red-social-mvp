@@ -2012,7 +2012,9 @@
     "countsPlain": "Aktualisiert {updated}, übersprungen {skipped}.",
     "countsReminder": "Entfernt {removed}, benachrichtigt {reminder}, übersprungen {skipped}.",
     "transitionFailed": "Der Mitgliederwechsel konnte nicht abgeschlossen werden.",
-    "configAllSaved": "Abo, Katalog und Spende gespeichert."
+    "configAllSaved": "Abo, Katalog und Spende gespeichert.",
+    "prompterTitle": "Teleprompter",
+    "prompterPlaceholder": "Schreib hier, was du sagen möchtest"
   },
   "live": {
     "accessTicket": "Zugangsticket",

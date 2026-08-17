@@ -18,6 +18,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { createUserProfileDoc } from "@/lib/auth/profileOnboarding";
 import { isPasswordAcceptable } from "@/lib/auth/passwordPolicy";
+import { TextButton } from "@/components/ui";
 import { enablePush, isPushSupported } from "@/lib/push/fcm";
 import ImageCropperModal from "@/components/media/ImageCropperModal";
 import { uploadProfileImage } from "@/lib/storage/uploadProfileImage";
@@ -502,17 +503,6 @@ export default function RegisterPanel({
     lineHeight: 1.35,
   };
 
-  const registerLinkStyle: React.CSSProperties = {
-    color: vibraPurple,
-    textDecoration: "none",
-    fontSize: 12,
-    fontWeight: 600,
-    background: "transparent",
-    border: "none",
-    padding: 0,
-    cursor: "pointer",
-    fontFamily: "inherit",
-  };
 
   const primaryButtonStyle: React.CSSProperties = {
     width: "100%",
@@ -637,27 +627,20 @@ export default function RegisterPanel({
           </button>
 
           {/* Texto: agregar / cambiar foto de perfil (debajo del avatar). */}
-          <button
-            type="button"
+          <TextButton
+            tone="plain"
+            size="sm"
             onClick={() => avatarInputRef.current?.click()}
             style={{
               position: "absolute",
               insetInlineStart: 0,
               insetInlineEnd: 0,
               top: 156,
-              background: "transparent",
-              border: "none",
-              padding: 0,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 600,
-              textAlign: "center",
+              justifyContent: "center",
             }}
           >
             {avatarPreview ? t("photoChange") : t("photoAdd")}
-          </button>
+          </TextButton>
 
           <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => onPickImage(e, "cover")} style={{ display: "none" }} />
           <input ref={avatarInputRef} type="file" accept="image/*" onChange={(e) => onPickImage(e, "avatar")} style={{ display: "none" }} />
@@ -977,9 +960,9 @@ export default function RegisterPanel({
             flexWrap: "wrap",
           }}
         >
-          <button type="button" onClick={onSwitchToLogin} style={registerLinkStyle}>
+          <TextButton tone="brand" size="sm" onClick={onSwitchToLogin}>
             {t("haveAccount")}
-          </button>
+          </TextButton>
         </div>
 
         <button

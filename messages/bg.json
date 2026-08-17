@@ -2012,7 +2012,9 @@
     "countsPlain": "Обновени {updated}, пропуснати {skipped}.",
     "countsReminder": "Премахнати {removed}, уведомени {reminder}, пропуснати {skipped}.",
     "transitionFailed": "Прехвърлянето на членовете не можа да завърши.",
-    "configAllSaved": "Абонаментът, каталогът и дарението са запазени."
+    "configAllSaved": "Абонаментът, каталогът и дарението са запазени.",
+    "prompterTitle": "Промптер",
+    "prompterPlaceholder": "Напишете тук какво искате да кажете"
   },
   "live": {
     "accessTicket": "Билет за достъп",

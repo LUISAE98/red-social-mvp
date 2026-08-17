@@ -7,15 +7,32 @@ import { useEffect, useRef, useState } from "react";
 // dentro y espera a que todos "asienten" (load o error). Si no hay imágenes,
 // revela de inmediato. Un fallback evita que un post quede invisible si alguna
 // imagen se cuelga o es lazy (fuera de viewport).
+//
+// Con `skeleton` el relevo es un cruce, no un relevo por turnos: el esqueleto se
+// queda encima hasta que el contenido ya está entrando, y se apaga mientras el
+// otro sube. Sin él, el esqueleto de la lista se desmonta en cuanto llegan los
+// datos y el contenido todavía está en opacidad 0 — un hueco vacío que dura lo
+// que tarden las imágenes.
+
+const REVEAL_MS = 380;
+
 export default function PostReveal({
   children,
   fallbackMs = 4000,
+  skeleton = null,
 }: {
   children: React.ReactNode;
   fallbackMs?: number;
+  /**
+   * Esqueleto que cubre el hueco mientras el contenido se revela. Debe tener la
+   * forma de lo que envuelve (`PostSkeleton` para posts, `CommentSkeleton` para
+   * comentarios). Sin él, el componente se comporta como siempre: solo fade-in.
+   */
+  skeleton?: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
+  const [skeletonMounted, setSkeletonMounted] = useState(!!skeleton);
 
   useEffect(() => {
     const el = ref.current;
@@ -68,16 +85,50 @@ export default function PostReveal({
     };
   }, [fallbackMs]);
 
-  return (
+  // Retira el esqueleto solo cuando el cruce terminó. Antes de eso sigue en el
+  // árbol, aunque ya sea invisible: quitarlo a mitad del fundido reabriría el
+  // hueco que este componente existe para tapar.
+  useEffect(() => {
+    if (!ready || !skeletonMounted) return;
+    const t = window.setTimeout(() => setSkeletonMounted(false), REVEAL_MS + 40);
+    return () => window.clearTimeout(t);
+  }, [ready, skeletonMounted]);
+
+  const content = (
     <div
       ref={ref}
       style={{
         opacity: ready ? 1 : 0,
-        transition: "opacity 380ms ease",
+        transition: `opacity ${REVEAL_MS}ms ease`,
         willChange: "opacity",
       }}
     >
       {children}
+    </div>
+  );
+
+  // Sin esqueleto no se añade envoltura: el árbol queda idéntico al de antes.
+  if (!skeleton) return content;
+
+  return (
+    <div style={{ position: "relative" }}>
+      {content}
+      {skeletonMounted ? (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            overflow: "hidden",
+            pointerEvents: "none",
+            opacity: ready ? 0 : 1,
+            transition: `opacity ${REVEAL_MS}ms ease`,
+            willChange: "opacity",
+          }}
+        >
+          {skeleton}
+        </div>
+      ) : null}
     </div>
   );
 }

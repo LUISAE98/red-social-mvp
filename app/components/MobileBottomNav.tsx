@@ -313,6 +313,70 @@ export default function MobileBottomNav({
     };
   }, [startIdleTimer, cancelIdleTimer]);
 
+  /**
+   * Publica el alto REAL del nav en `--vb-bottom-nav-h`, para que el clearance
+   * del contenido no tenga que adivinarlo.
+   *
+   * Hace falta porque el nav no mide siempre lo mismo: se encoge a 0.75 al bajar
+   * o tras cinco segundos quieto. Un clearance de número fijo se calibra con el
+   * nav expandido (70px + safe-area) y, justo cuando llegas al final del scroll
+   * —que es cuando el nav está encogido—, sobran ~23px de vacío. Es el mismo
+   * problema que ya resolvió `ReelFeed` para apartar sus botones.
+   *
+   * ⚠️ El encogido es `transform: scaleY`, y un transform NO dispara
+   * ResizeObserver: solo cambia la caja pintada, no la de layout. Por eso
+   * mientras dura la transición se muestrea cada fotograma. `getBoundingClientRect`
+   * sí devuelve la caja ya transformada.
+   */
+  const navRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+
+    const read = () => {
+      const h = nav.getBoundingClientRect().height;
+      // Altura 0 = el nav no se pinta (laptop, o modal abierto que lo esconde).
+      // Se conserva el último valor bueno: bajarlo a 0 encogería el contenido y
+      // daría un tirón al cerrar el modal.
+      if (h > 0) {
+        document.documentElement.style.setProperty("--vb-bottom-nav-h", `${h}px`);
+      }
+    };
+    read();
+
+    let raf = 0;
+    const follow = () => {
+      read();
+      raf = requestAnimationFrame(follow);
+    };
+    const start = () => {
+      if (!raf) raf = requestAnimationFrame(follow);
+    };
+    const stop = () => {
+      if (!raf) return;
+      cancelAnimationFrame(raf);
+      raf = 0;
+      read();
+    };
+
+    // El transform vive en un hijo, así que los eventos llegan por burbujeo.
+    nav.addEventListener("transitionstart", start);
+    nav.addEventListener("transitionend", stop);
+    nav.addEventListener("transitioncancel", stop);
+
+    // Cubre además lo que sí mueve la caja de layout: rotación, safe-area.
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(read) : null;
+    ro?.observe(nav);
+
+    return () => {
+      stop();
+      nav.removeEventListener("transitionstart", start);
+      nav.removeEventListener("transitionend", stop);
+      nav.removeEventListener("transitioncancel", stop);
+      ro?.disconnect();
+    };
+  }, []);
+
   useEffect(() => {
     async function loadProfileData() {
       if (!user) {
@@ -564,7 +628,11 @@ export default function MobileBottomNav({
         }
       `}</style>
 
-      <nav className="wrap" aria-label={t("mobileNavLabel")}>
+      {/* Anclaje para quien necesite saber cuánto ocupa el nav. El reel lo mide
+          para apartar sus controles: su alto depende del safe-area del aparato y
+          además se encoge al hacer scroll, así que copiarlo como número fijo
+          siempre acaba desfasado. */}
+      <nav ref={navRef} className="wrap" data-vibra-bottom-nav="" aria-label={t("mobileNavLabel")}>
         <div
           className="navShell"
           style={{

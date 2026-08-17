@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import ImageCropperModal from "@/components/media/ImageCropperModal";
+import { TextButton } from "@/components/ui";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
@@ -271,27 +272,20 @@ export default function CompleteProfilePanel({
               </button>
 
               {/* Texto: agregar / cambiar foto de perfil (debajo del avatar). */}
-              <button
-                type="button"
+              <TextButton
+                tone="plain"
+                size="sm"
                 onClick={() => avatarInputRef.current?.click()}
                 style={{
                   position: "absolute",
                   insetInlineStart: 0,
                   insetInlineEnd: 0,
                   top: 156,
-                  background: "transparent",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  color: "#fff",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  textAlign: "center",
+                  justifyContent: "center",
                 }}
               >
                 {avatarPreview ? t("photoChange") : t("photoAdd")}
-              </button>
+              </TextButton>
 
               <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => onPickImage(e, "cover")} style={{ display: "none" }} />
               <input ref={avatarInputRef} type="file" accept="image/*" onChange={(e) => onPickImage(e, "avatar")} style={{ display: "none" }} />

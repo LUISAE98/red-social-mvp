@@ -13,6 +13,7 @@
 // El timbrado real del CFDI (Facturapi) se conecta en el siguiente bloque.
 
 import { useTranslations } from "next-intl";
+import { TextButton, IconButton } from "@/components/ui";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -254,15 +255,12 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
           <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
             Facturar
           </span>
-          <button
-            type="button" onClick={() => { if (!busy) onClose(); }} aria-label="Cerrar"
-            style={{ border: "none", background: "none", color: "#fff", cursor: busy ? "default" : "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4 }}
-          >
+          <IconButton label="Cerrar" size="sm" tone="bare" shape="square" style={{ placeItems: "center", justifySelf: "end" }} onClick={() => { if (!busy) onClose(); }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
-          </button>
+          </IconButton>
         </div>
 
         {/* Contenido con scroll */}
@@ -288,18 +286,9 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
 
               {/* Descargar el PDF de la factura y cerrar. 🔁 CUTOVER: hoy es CFDI de
                   PRUEBA (llave sk_test), aún no fiscal; en producción será el CFDI real. */}
-              <button
-                type="button"
-                onClick={handleDownload}
-                disabled={busy}
-                style={{
-                  background: "none", border: "none", padding: 0, margin: 0,
-                  color: "#c084fc", cursor: busy ? "default" : "pointer",
-                  fontSize: 13, fontWeight: 600, fontFamily: "inherit", lineHeight: 1.4,
-                }}
-              >
+              <TextButton tone="brand" size="md" style={{ margin: 0, fontFamily: "inherit" }} onClick={handleDownload} disabled={busy}>
                 {busy ? "Descargando…" : "Da clic aquí para descargar tu factura"}
-              </button>
+              </TextButton>
             </div>
           ) : (
           <>

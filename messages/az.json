@@ -2012,7 +2012,9 @@
     "countsPlain": "Yenilənən {updated}, ötürülən {skipped}.",
     "countsReminder": "Çıxarılan {removed}, xəbərdar edilən {reminder}, ötürülən {skipped}.",
     "transitionFailed": "Üzv keçidi tamamlana bilmədi.",
-    "configAllSaved": "Abunə, kataloq və ianə yadda saxlanıldı."
+    "configAllSaved": "Abunə, kataloq və ianə yadda saxlanıldı.",
+    "prompterTitle": "Prompter",
+    "prompterPlaceholder": "Demək istədiyinizi buraya yazın"
   },
   "live": {
     "accessTicket": "Giriş bileti",

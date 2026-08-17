@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
+import { TextButton } from "@/components/ui";
 import { useNotifications } from "@/lib/hooks/useNotifications";
 import { useSelfHandle } from "@/lib/hooks/useSelfHandle";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
@@ -108,9 +109,9 @@ export default function NotificationsPage() {
       <div className="notifPageHead">
         <h1 className="notifPageTitle">{t("title")}</h1>
         {unreadCount > 0 ? (
-          <button type="button" className="notifPageMarkAll" onClick={() => markAllRead()}>
+          <TextButton tone="brand" className="notifPageMarkAll" onClick={() => markAllRead()}>
             {t("markAllRead")}
-          </button>
+          </TextButton>
         ) : null}
       </div>
 
@@ -163,14 +164,7 @@ export default function NotificationsPage() {
           color: #fff;
           margin: 0;
         }
-        .notifPageMarkAll {
-          background: transparent;
-          border: none;
-          color: #a855f7;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-        }
+        /* El aspecto sale de TextButton; aquí solo queda el subrayado al pasar. */
         .notifPageMarkAll:hover {
           text-decoration: underline;
         }

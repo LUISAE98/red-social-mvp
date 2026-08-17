@@ -2012,7 +2012,9 @@
     "countsPlain": "යාවත්කාලීන {updated}, මඟහැරි {skipped}.",
     "countsReminder": "ඉවත් කළ {removed}, දැනුම් දුන් {reminder}, මඟහැරි {skipped}.",
     "transitionFailed": "සාමාජික මාරුව සම්පූර්ණ කළ නොහැකි විය.",
-    "configAllSaved": "දායකත්වය, නාමාවලිය සහ පරිත්‍යාගය සුරකින ලදී."
+    "configAllSaved": "දායකත්වය, නාමාවලිය සහ පරිත්‍යාගය සුරකින ලදී.",
+    "prompterTitle": "ප්‍රොම්ප්ටරය",
+    "prompterPlaceholder": "ඔබට කියන්න අවශ්‍ය දේ මෙහි ලියන්න"
   },
   "live": {
     "accessTicket": "ප්‍රවේශ ප්‍රවේශපත්‍රය",

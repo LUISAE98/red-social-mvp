@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { intlLocale } from "@/i18n/locales";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/app/providers";
+import { TextButton, IconButton } from "@/components/ui";
 import WalletSectionShell from "../components/WalletSectionShell";
 import { WalletCard } from "../components/WalletUi";
 import WalletTransactions from "../components/WalletTransactions";
@@ -239,24 +240,7 @@ export default function WalletFinanzasPage() {
                   formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? "MXN" })
                 )}
               </div>
-              <button
-                type="button"
-                onClick={toggleBalanceHidden}
-                aria-label={balanceHidden ? tNav("showAmount") : tNav("hideAmount")}
-                aria-pressed={balanceHidden}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  color: "rgba(255,255,255,0.55)",
-                  cursor: "pointer",
-                  padding: 6,
-                  borderRadius: 8,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  lineHeight: 0,
-                }}
-              >
+              <IconButton label={balanceHidden ? tNav("showAmount") : tNav("hideAmount")} size="sm" tone="bare" shape="square" onClick={toggleBalanceHidden} aria-pressed={balanceHidden}>
                 {balanceHidden ? (
                   <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
@@ -268,7 +252,7 @@ export default function WalletFinanzasPage() {
                     <circle cx="12" cy="12" r="3"/>
                   </svg>
                 )}
-              </button>
+              </IconButton>
             </div>
           </div>
 
@@ -277,28 +261,20 @@ export default function WalletFinanzasPage() {
               completo el 2026-08-13 y su reemplazo (el alta de cuenta Stripe, que trae
               su propio KYC) todavía no existe. Hasta que exista, esto es solo el sitio
               donde va a vivir, con el mismo estilo que tenía el CTA de KYC. */}
-          <button
-            type="button"
+          <TextButton
+            tone="brand"
+            size="sm"
             onClick={() => { /* TODO: iniciar el alta de cuenta Stripe del creador. */ }}
             style={{
               width: "100%",
               marginTop: -14,
-              padding: 0,
-              border: "none",
-              background: "transparent",
-              color: "#c084fc",
-              fontFamily: "inherit",
-              fontSize: 12.5,
-              fontWeight: 600,
               lineHeight: 1.35,
-              letterSpacing: "-0.01em",
               textAlign: "center",
-              cursor: "pointer",
-              WebkitTapHighlightColor: "transparent",
+              justifyContent: "center",
             }}
           >
             {tWallet("stripeAccountCta")}
-          </button>
+          </TextButton>
 
           <VibraToast toast={walletToast} />
 

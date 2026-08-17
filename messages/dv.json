@@ -2012,7 +2012,9 @@
     "countsPlain": "އަޕްޑޭޓްވި {updated}، ދޫކޮށްލި {skipped}.",
     "countsReminder": "ނެގި {removed}، އަންގާލި {reminder}، ދޫކޮށްލި {skipped}.",
     "transitionFailed": "މެންބަރުން ބަދަލުކުރުން ފުރިހަމައެއް ނުކުރެވުނު.",
-    "configAllSaved": "ސަބްސްކްރިޕްޝަން، ކެޓަލޮގް އަދި ހަދިޔާ ރައްކާކުރެވިއްޖެ."
+    "configAllSaved": "ސަބްސްކްރިޕްޝަން، ކެޓަލޮގް އަދި ހަދިޔާ ރައްކާކުރެވިއްޖެ.",
+    "prompterTitle": "ޕްރޮމްޕްޓަރ",
+    "prompterPlaceholder": "ބުނަން ބޭނުންވާ އެއްޗެއް މިތާ ލިޔޭ"
   },
   "live": {
     "accessTicket": "ވަނުމުގެ ޓިކެޓް",

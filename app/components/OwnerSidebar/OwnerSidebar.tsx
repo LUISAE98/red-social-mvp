@@ -44,7 +44,8 @@ import SidebarMessages from "@/components/chat/SidebarMessages";
 import { useChatDock } from "@/components/chat/ChatDockProvider";
 import { useInbox } from "@/lib/chat/useInbox";
 import { getOtherParticipant } from "@/lib/chat/types";
-import OwnerSidebarSettings from "./OwnerSidebarSettings";
+import OwnerSidebarSettings, { SIDEBAR_LOGOUT_BUTTON_STYLE } from "./OwnerSidebarSettings";
+import LogoutButton from "@/app/LogoutButton";
 import CreateCommunityCard from "@/components/groups/CreateCommunityCard";
 import CommunityRail from "@/components/groups/CommunityRail";
 import { useRailSignals, sortRailItems } from "@/lib/hooks/useRailSignals";
@@ -2327,7 +2328,9 @@ return (
   .profile-owner-sidebar-panel--profile-open {
     height: auto !important;
     max-height: none !important;
-    padding: 10px !important;
+    /* Sin padding abajo: en flujo, el hueco del nav lo reserva .mainCol del
+       layout y este se le sumaba. */
+    padding: 10px 10px 0 !important;
     overflow: visible !important;
     background: transparent !important;
     border: none !important;
@@ -2391,6 +2394,12 @@ return (
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;
+  }
+
+  /* Sin contenedor con borde inferior propio, el difuminado no difumina: solo
+     alarga la página. El clearance del nav lo pone .mainCol del layout. */
+  .owner-sidebar-bottom-fade {
+    display: none !important;
   }
 }
       `}</style>
@@ -2626,11 +2635,28 @@ newPostsCounts={newPostsCounts}
       email={viewer.email ?? null}
       onToast={showSidebarToast}
     />
+
+    {/* Cerrar sesión, suelto y debajo del acordeón. Estaba dentro de la lista de
+        Configuración, donde había que desplegarla para llegar; salir de la
+        sesión no es un ajuste más, es una salida y se busca a simple vista. */}
+    <div style={{ padding: "8px 6px 0", minWidth: 0 }}>
+      <LogoutButton variant="settings" style={SIDEBAR_LOGOUT_BUTTON_STYLE} />
+    </div>
   </>
 )}
 
+{/* Difuminado del borde inferior. Solo sirve entre 901 y 1220px, que es donde
+    el sidebar es un contenedor `fixed` anclado a `bottom: 0` con scroll propio
+    y hay un borde real contra el que desvanecer.
+
+    Por debajo de 900px el sidebar pasa a flujo (position: static, scroll de la
+    página) y este bloque deja de difuminar nada: se queda como 72px + safe-area
+    de vacío al final del documento, encima del clearance que ya reserva
+    `.mainCol`. `isMobile` aquí es ≤1220px, así que la distinción no se puede
+    hacer con esa bandera; la hace el CSS, en la misma media query que decide
+    dónde el sidebar deja de ser fixed. */}
 {isMobile && (
-  <div style={{
+  <div className="owner-sidebar-bottom-fade" style={{
     flexShrink: 0,
     height: "calc(72px + var(--vb-safe-bottom, 0px))",
     background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.85) 55%)",

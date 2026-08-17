@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -1659,20 +1660,9 @@ to {
         </div>
         {history.map((entry, i) => {
           const removeBtn = (
-            <button
-              type="button"
-              aria-label={tCommon("removeFromHistory")}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={(e) => {
-                e.stopPropagation();
-                const updated = history.filter((_, j) => j !== i);
-                try { localStorage.setItem(HISTORY_KEY, JSON.stringify(updated)); } catch {}
-                setHistory(updated);
-              }}
-              style={{ flexShrink: 0, background: "none", border: "none", color: "rgba(255,255,255,0.35)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 6, padding: 0 }}
-            >
+            <IconButton label={tCommon("removeFromHistory")} size="sm" tone="bare" shape="square" onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); const updated = history.filter((_, j) => j !== i); try { localStorage.setItem(HISTORY_KEY, JSON.stringify(updated)); } catch {} setHistory(updated); }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+            </IconButton>
           );
 
           if (entry.kind === "text") {

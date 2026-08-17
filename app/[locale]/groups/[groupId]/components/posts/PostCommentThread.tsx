@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { TextButton, IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import Link from "next/link";
 import { Timestamp, doc, getDoc } from "firebase/firestore";
@@ -418,23 +419,6 @@ export default function PostCommentThread({
     }
   }
 
-  const actionButtonStyle: CSSProperties = {
-    border: "none",
-    background: "transparent",
-    padding: 0,
-    color: "rgba(255,255,255,0.58)",
-    fontSize: 11.5,
-    fontWeight: 600,
-    fontFamily: fontStack,
-    cursor: "pointer",
-  };
-
-  const disabledActionButtonStyle: CSSProperties = {
-    ...actionButtonStyle,
-    color: "rgba(255,255,255,0.36)",
-    cursor: "not-allowed",
-  };
-
   const inputStyle: CSSProperties = {
     width: "100%",
     minHeight: 34,
@@ -560,29 +544,7 @@ export default function PostCommentThread({
                   </span>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => setShowExactCommentDate((prev) => !prev)}
-                  title={formatExactDate(comment.createdAt, tCommon)}
-                  aria-label={
-                    showExactCommentDate
-                      ? tPosts("showRelativeCommentDate")
-                      : tPosts("showExactCommentDate")
-                  }
-                  style={{
-                    fontSize: 10.5,
-                    color: "rgba(255,255,255,0.44)",
-                    border: "none",
-                    background: "transparent",
-                    padding: 0,
-                    margin: 0,
-                    fontFamily: fontStack,
-                    cursor: "pointer",
-                    lineHeight: 1.2,
-                    textAlign: "start",
-                    WebkitTapHighlightColor: "transparent",
-                  }}
-                >
+                <TextButton tone="mute" size="sm" style={{ margin: 0, fontFamily: fontStack, textAlign: "start" }} onClick={() => setShowExactCommentDate((prev) => !prev)} title={formatExactDate(comment.createdAt, tCommon)} aria-label={ showExactCommentDate ? tPosts("showRelativeCommentDate") : tPosts("showExactCommentDate") }>
                   {showExactCommentDate
                     ? formatExactDate(comment.createdAt, tCommon)
                     : formatRelativeDate(comment.createdAt, tCommon)}
@@ -591,7 +553,7 @@ export default function PostCommentThread({
                       {" "}{tPosts("editedSuffix")}
                     </span>
                   ) : null}
-                </button>
+                </TextButton>
               </div>
 
               {editingComment ? (
@@ -616,14 +578,9 @@ export default function PostCommentThread({
                     >
                       {savingEditComment ? tCommon("sending") : tCommon("save")}
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleCancelEditComment}
-                      disabled={savingEditComment}
-                      style={actionButtonStyle}
-                    >
+                    <TextButton tone="mute" size="sm" style={{ fontFamily: fontStack }} onClick={handleCancelEditComment} disabled={savingEditComment}>
                       {tCommon("cancel")}
-                    </button>
+                    </TextButton>
                   </div>
                 </div>
               ) : (
@@ -672,30 +629,11 @@ export default function PostCommentThread({
 
             {/* Flame counter */}
             <div style={{ display: "inline-flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={handleToggleCommentFlame}
-                aria-pressed={commentLiked}
-                aria-label={commentLiked ? tPosts("removeFlame") : tPosts("addFlame")}
-                style={{
-                  width: 22,
-                  height: 22,
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  display: "inline-grid",
-                  placeItems: "center",
-                  cursor: "pointer",
-                  transform: commentLiked ? "scale(1.04)" : "scale(1)",
-                  transition: "transform 140ms ease",
-                  WebkitTapHighlightColor: "transparent",
-                  flexShrink: 0,
-                }}
-              >
+              <IconButton label={commentLiked ? tPosts("removeFlame") : tPosts("addFlame")} size="sm" tone="bare" shape="square" style={{ placeItems: "center", transform: commentLiked ? "scale(1.04)" : "scale(1)" }} onClick={handleToggleCommentFlame} aria-pressed={commentLiked}>
                 <span aria-hidden="true" style={{ display: "inline-grid", placeItems: "center", lineHeight: 1 }}>
                   <VibraFlameIcon active={commentLiked} size={18} />
                 </span>
-              </button>
+              </IconButton>
               <span
                 aria-label={tPosts("flameCountLabel", { count: commentLikes })}
                 style={{ minWidth: 8, color: "rgba(255,255,255,0.62)", fontSize: 11.5, fontWeight: 600, lineHeight: 1 }}
@@ -708,11 +646,12 @@ export default function PostCommentThread({
           {/* Comment action row */}
           <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {hasRepliesToLoad && (
-              <button
-                type="button"
+              <TextButton
+                tone="mute"
+                size="sm"
                 onClick={handleLoadReplies}
                 disabled={loadingReplies}
-                style={loadingReplies ? disabledActionButtonStyle : actionButtonStyle}
+                style={{ fontFamily: fontStack }}
               >
                 {/* Mientras cargan, el botón NO cambia a "Cargando…": quien
                     cuenta que vienen en camino es el skeleton que aparece
@@ -720,28 +659,19 @@ export default function PostCommentThread({
                 {replies === null
                   ? tPosts("viewReplies", { count: replyCount })
                   : tPosts("repliesLoaded")}
-              </button>
+              </TextButton>
             )}
 
             {canCommentOnPosts && (
-              <button
-                type="button"
-                onClick={() => setReplyBoxOpen((prev) => !prev)}
-                style={actionButtonStyle}
-              >
+              <TextButton tone="mute" size="sm" style={{ fontFamily: fontStack }} onClick={() => setReplyBoxOpen((prev) => !prev)}>
                 {tPosts("reply")}
-              </button>
+              </TextButton>
             )}
 
             {showCommentActionsMenu && (
-              <button
-                type="button"
-                onClick={() => setCommentMenuOpen(true)}
-                aria-label={tPosts("moreCommentOptions")}
-                style={actionButtonStyle}
-              >
+              <TextButton tone="mute" size="sm" style={{ fontFamily: fontStack }} onClick={() => setCommentMenuOpen(true)} aria-label={tPosts("moreCommentOptions")}>
                 {tPosts("moreOptions")}
-              </button>
+              </TextButton>
             )}
           </div>
 
@@ -784,27 +714,9 @@ export default function PostCommentThread({
                   creatingReply ||
                   (replyText.trim().length === 0 && !replyImageFile);
                 return (
-                  <button
-                    type="button"
-                    onClick={handleCreateReply}
-                    disabled={disabled}
-                    aria-label={tPosts("reply")}
-                    title={tPosts("reply")}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: "4px 6px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      cursor: disabled ? "default" : "pointer",
-                      opacity: disabled ? 0.4 : 1,
-                      transform: "translateY(-2px)",
-                    }}
-                  >
+                  <IconButton label={tPosts("reply")} size="sm" tone="bare" shape="square" style={{ transform: "translateY(-2px)" }} onClick={handleCreateReply} disabled={disabled}>
                     <VibraSendIcon size={21} />
-                  </button>
+                  </IconButton>
                 );
               })()}
             </div>
@@ -919,29 +831,7 @@ export default function PostCommentThread({
                           </span>
                         )}
 
-                        <button
-                          type="button"
-                          onClick={() => setExactReplyDates((prev) => ({ ...prev, [reply.id]: !prev[reply.id] }))}
-                          title={formatExactDate(reply.createdAt, tCommon)}
-                          aria-label={
-                            exactReplyDates[reply.id]
-                              ? tPosts("showRelativeReplyDate")
-                              : tPosts("showExactReplyDate")
-                          }
-                          style={{
-                            fontSize: 10,
-                            color: "rgba(255,255,255,0.42)",
-                            border: "none",
-                            background: "transparent",
-                            padding: 0,
-                            margin: 0,
-                            fontFamily: fontStack,
-                            cursor: "pointer",
-                            lineHeight: 1.2,
-                            textAlign: "start",
-                            WebkitTapHighlightColor: "transparent",
-                          }}
-                        >
+                        <TextButton tone="mute" size="sm" style={{ margin: 0, fontFamily: fontStack, textAlign: "start" }} onClick={() => setExactReplyDates((prev) => ({ ...prev, [reply.id]: !prev[reply.id] }))} title={formatExactDate(reply.createdAt, tCommon)} aria-label={ exactReplyDates[reply.id] ? tPosts("showRelativeReplyDate") : tPosts("showExactReplyDate") }>
                           {exactReplyDates[reply.id]
                             ? formatExactDate(reply.createdAt, tCommon)
                             : formatRelativeDate(reply.createdAt, tCommon)}
@@ -950,7 +840,7 @@ export default function PostCommentThread({
                               {" "}{tPosts("editedSuffix")}
                             </span>
                           ) : null}
-                        </button>
+                        </TextButton>
                       </div>
 
                       {editingReplyId === reply.id ? (
@@ -986,14 +876,9 @@ export default function PostCommentThread({
                             >
                               {savingEditReplyId === reply.id ? tCommon("sending") : tCommon("save")}
                             </button>
-                            <button
-                              type="button"
-                              onClick={handleCancelEditReply}
-                              disabled={savingEditReplyId === reply.id}
-                              style={actionButtonStyle}
-                            >
+                            <TextButton tone="mute" size="sm" style={{ fontFamily: fontStack }} onClick={handleCancelEditReply} disabled={savingEditReplyId === reply.id}>
                               {tCommon("cancel")}
-                            </button>
+                            </TextButton>
                           </div>
                         </div>
                       ) : (
@@ -1042,27 +927,15 @@ export default function PostCommentThread({
                       {/* Reply action row */}
                       <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 12 }}>
                         {canCommentOnPosts && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReplyBoxOpen(true);
-                              setReplyText(`@${replyAuthor.authorName} `);
-                            }}
-                            style={actionButtonStyle}
-                          >
+                          <TextButton tone="mute" size="sm" style={{ fontFamily: fontStack }} onClick={() => { setReplyBoxOpen(true); setReplyText(`@${replyAuthor.authorName} `); }}>
                             {tPosts("reply")}
-                          </button>
+                          </TextButton>
                         )}
 
                         {showReplyActionsMenu && !editingReplyId && (
-                          <button
-                            type="button"
-                            onClick={() => setReplyActionsMenuOpenId(reply.id)}
-                            aria-label={tPosts("moreReplyOptions")}
-                            style={actionButtonStyle}
-                          >
+                          <TextButton tone="mute" size="sm" style={{ fontFamily: fontStack }} onClick={() => setReplyActionsMenuOpenId(reply.id)} aria-label={tPosts("moreReplyOptions")}>
                             {tPosts("moreOptions")}
-                          </button>
+                          </TextButton>
                         )}
                       </div>
                     </div>

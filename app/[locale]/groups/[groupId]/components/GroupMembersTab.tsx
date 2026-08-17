@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { TextButton } from "@/components/ui";
 import { useVibraToast, type ToastType } from "@/lib/hooks/useVibraToast";
 import {
   CSSProperties,
@@ -1031,26 +1032,20 @@ export default function GroupMembersTab({
                   comunidad de suscripción, exigirle pagar para poder moderar no
                   tiene sentido. Nunca en comunidades ocultas. */}
               {canInviteModerators && (
-              <button
-                type="button"
+              <TextButton
+                tone="brand"
+                size={isMobile ? "sm" : "md"}
                 onClick={() => setModeratorPanelOpen(true)}
                 style={{
                   marginTop: 8,
                   justifySelf: "start",
-                  background: "none",
-                  border: "none",
-                  padding: 0,
                   textAlign: "start",
-                  color: "#a855f7",
-                  fontSize: isMobile ? 12 : 13,
-                  fontWeight: 600,
                   fontFamily: fontStack,
                   lineHeight: 1.35,
-                  cursor: "pointer",
                 }}
               >
                 {tGroups("inviteModeratorCta")}
-              </button>
+              </TextButton>
               )}
             </div>
 

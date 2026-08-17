@@ -52,7 +52,11 @@ const CARD_RATIO = "200 / 224";
  * cabiendo cuatro.
  */
 const CARD_WIDTH = `min(${CARD_MAX_W}px, calc((100% - ${RAIL_GAP * (MIN_VISIBLE - 1)}px) / ${MIN_VISIBLE}))`;
-/** Avatar del creador junto a su nombre, bajo la tarjeta. */
+/** Radio de las tarjetas. */
+const CARD_RADIUS = 12;
+/** Cuánto se funde cada orilla del rail. */
+const EDGE_FADE = 28;
+/** Avatar del creador junto a su nombre, dentro de la tarjeta. */
 const AVATAR_SIZE = 16;
 
 // ─── Caché a nivel de módulo, sobrevive a la navegación en la misma pestaña ───
@@ -327,9 +331,113 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
 
   if (!mounted || !isDesktop) return null;
 
-  // Mientras carga NO se pinta nada, para no meter un salto de maquetación en el
-  // home. Vacío de verdad sí se dice, en vez de desaparecer sin más.
-  if (!ready && liveEntities.length === 0) return null;
+  // Mientras carga se pinta el esqueleto, no un hueco: así el rail ocupa desde
+  // el primer instante y el home no da un salto cuando llegan las historias.
+  // Base canónica `.vb-skel` + `vbSkelWave` de vibra_style.md, sin repetir la
+  // animación con valores propios.
+  if (!ready && liveEntities.length === 0) {
+    return (
+      <>
+        <style jsx>{`
+          .skelRail {
+            display: flex;
+            gap: ${RAIL_GAP}px;
+            padding: 0 14px 6px;
+            margin-bottom: 14px;
+            overflow: hidden;
+            mask-image: linear-gradient(
+              to right,
+              transparent 0,
+              #000 ${EDGE_FADE}px,
+              #000 calc(100% - ${EDGE_FADE}px),
+              transparent 100%
+            );
+            -webkit-mask-image: linear-gradient(
+              to right,
+              transparent 0,
+              #000 ${EDGE_FADE}px,
+              #000 calc(100% - ${EDGE_FADE}px),
+              transparent 100%
+            );
+          }
+          .skelCard {
+            width: ${CARD_WIDTH};
+            flex-shrink: 0;
+            position: relative;
+          }
+          /* El autor va DENTRO de la tarjeta, igual que en las reales, para que
+             al llegar el contenido no se mueva nada de sitio. */
+          .skelFoot {
+            position: absolute;
+            inset-inline-start: 0;
+            inset-inline-end: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px;
+            box-sizing: border-box;
+          }
+          .vb-skel {
+            background: linear-gradient(
+              100deg,
+              rgba(255, 255, 255, 0.05) 30%,
+              rgba(255, 255, 255, 0.11) 50%,
+              rgba(255, 255, 255, 0.05) 70%
+            );
+            background-size: 300% 100%;
+            animation: vbSkelWave 1.6s ease-in-out infinite;
+          }
+          @keyframes vbSkelWave {
+            0% {
+              background-position: 180% 0;
+            }
+            100% {
+              background-position: -80% 0;
+            }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .vb-skel {
+              animation: none;
+              background: rgba(255, 255, 255, 0.07);
+            }
+          }
+          .skelMedia {
+            width: 100%;
+            aspect-ratio: ${CARD_RATIO};
+            display: block;
+            border-radius: ${CARD_RADIUS}px;
+          }
+          /* Sobre el bloque de la miniatura hace falta más contraste que el
+             relleno base, o el avatar y el nombre no se distinguen de él. */
+          .skelAvatar {
+            width: ${AVATAR_SIZE}px;
+            height: ${AVATAR_SIZE}px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.22);
+          }
+          .skelName {
+            height: 9px;
+            border-radius: 6px;
+            width: 62%;
+            background: rgba(255, 255, 255, 0.22);
+          }
+        `}</style>
+        <div className="skelRail" aria-hidden="true">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="skelCard">
+              <div className="vb-skel skelMedia" />
+              <div className="skelFoot">
+                <div className="skelAvatar" />
+                <div className="skelName" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
 
   if (ready && stories.length === 0 && liveEntities.length === 0) {
     return (
@@ -337,9 +445,6 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
         style={{
           padding: "14px 16px 10px",
           marginBottom: 14,
-          // Arrastrando no debe seleccionarse el nombre de debajo de las tarjetas.
-          userSelect: "none",
-          WebkitUserSelect: "none",
           color: "rgba(255,255,255,0.45)",
           fontSize: 12.5,
           lineHeight: 1.5,
@@ -377,6 +482,14 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
           WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
           marginBottom: 14,
           alignItems: "flex-start",
+          // Arrastrando no debe seleccionarse el nombre de las tarjetas.
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          // Las orillas se funden en vez de cortarse en seco. Es una MÁSCARA, no
+          // un degradado encima: así funciona sobre cualquier fondo y no hay que
+          // repintar nada cuando el fondo del home cambie.
+          maskImage: `linear-gradient(to right, transparent 0, #000 ${EDGE_FADE}px, #000 calc(100% - ${EDGE_FADE}px), transparent 100%)`,
+          WebkitMaskImage: `linear-gradient(to right, transparent 0, #000 ${EDGE_FADE}px, #000 calc(100% - ${EDGE_FADE}px), transparent 100%)`,
         }}
       >
         {liveEntities.map(({ entityId, entityType }) => {
@@ -435,49 +548,53 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                 setOpenAt(index);
               }}
               style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                gap: 5,
-                background: "none",
+                display: "block",
                 border: "none",
                 padding: 0,
                 cursor: "pointer",
                 WebkitTapHighlightColor: "transparent",
                 flexShrink: 0,
                 width: CARD_WIDTH,
+                borderRadius: CARD_RADIUS,
+                overflow: "hidden",
+                background: "#141420",
+                position: "relative",
+                aspectRatio: CARD_RATIO,
+                boxSizing: "border-box",
               }}
             >
-              <div
-                style={{
-                  width: "100%",
-                  aspectRatio: CARD_RATIO,
-                  // Esquinas rectas, como las tarjetas de recomendaciones.
-                  borderRadius: 0,
-                  overflow: "hidden",
-                  background: "#141420",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  position: "relative",
-                  boxSizing: "border-box",
-                }}
-              >
-                {thumb ? (
-                  <Image src={thumb} alt={name} fill style={{ objectFit: "cover" }} />
-                ) : (
-                  <span style={{ fontSize: 26, lineHeight: 1 }}>👤</span>
-                )}
-              </div>
+              {thumb ? (
+                <Image src={thumb} alt={name} fill style={{ objectFit: "cover" }} />
+              ) : (
+                <span
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: 26,
+                    lineHeight: 1,
+                  }}
+                >
+                  👤
+                </span>
+              )}
 
+              {/* Autor DENTRO de la tarjeta. Encima va un degradado a negro: sin
+                  él, un nombre claro sobre una miniatura clara no se lee. */}
               <span
                 style={{
+                  position: "absolute",
+                  insetInlineStart: 0,
+                  insetInlineEnd: 0,
+                  bottom: 0,
                   display: "flex",
                   alignItems: "center",
-                  gap: 5,
-                  width: "100%",
+                  gap: 6,
+                  padding: "18px 8px 8px",
+                  background:
+                    "linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0) 100%)",
                   minWidth: 0,
-                  paddingInlineStart: 4,
                   boxSizing: "border-box",
                 }}
               >
@@ -488,7 +605,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                     borderRadius: "50%",
                     overflow: "hidden",
                     flexShrink: 0,
-                    background: "rgba(255,255,255,0.12)",
+                    background: "rgba(255,255,255,0.18)",
                     position: "relative",
                     display: "block",
                   }}
@@ -499,9 +616,9 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                 </span>
                 <span
                   style={{
-                    color: "rgba(255,255,255,0.78)",
-                    fontSize: 10.5,
-                    fontWeight: 500,
+                    color: "#fff",
+                    fontSize: 11,
+                    fontWeight: 600,
                     lineHeight: 1.3,
                     letterSpacing: "-0.01em",
                     fontFamily: fontStack,

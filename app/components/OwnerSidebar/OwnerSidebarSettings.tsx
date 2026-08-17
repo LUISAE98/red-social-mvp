@@ -20,12 +20,12 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { TextButton } from "@/components/ui";
 import { useTranslations, useLocale } from "next-intl";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
 
 import { auth, db } from "@/lib/firebase";
-import LogoutButton from "@/app/LogoutButton";
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import BlockedAccountsOverlay from "@/components/profile/BlockedAccountsOverlay";
 import SessionsOverlay from "@/components/profile/SessionsOverlay";
@@ -45,6 +45,34 @@ import { isMessagePolicy, type MessagePolicy } from "@/lib/chat/types";
 import { usePushNotifications } from "@/lib/hooks/usePushNotifications";
 import type { ToastType } from "@/lib/hooks/useVibraToast";
 import { SidebarSettingsIcon } from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
+
+/**
+ * Estilo del botón de cerrar sesión. Vive aquí, junto al resto del vocabulario
+ * visual del menú, pero lo consume `OwnerSidebar`: el botón ya no está dentro
+ * del acordeón de Configuración, sino suelto debajo.
+ *
+ * La variante `settings` de LogoutButton trae fondo morado y un halo morado
+ * (`boxShadow`). El fondo se pisa con gris, pero el halo sobrevivía y quedaba un
+ * brillo morado bajo un botón gris; `boxShadow: "none"` lo apaga. Se hace aquí y
+ * no en LogoutButton para no alterar sus otros usos.
+ */
+export const SIDEBAR_LOGOUT_BUTTON_STYLE: CSSProperties = {
+  width: "100%",
+  minHeight: 40,
+  borderRadius: 6,
+  border: "none",
+  background: "rgba(255,255,255,0.10)",
+  boxShadow: "none",
+  color: "rgba(255,255,255,0.70)",
+  fontWeight: 500,
+  fontSize: 13,
+  fontFamily: "inherit",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  whiteSpace: "nowrap",
+};
 
 type SettingsDoc = {
   displayName: string | null;
@@ -480,28 +508,6 @@ export default function OwnerSidebarSettings({
     cursor: "pointer",
   };
 
-  // La variante `settings` de LogoutButton trae fondo morado y un halo morado
-  // (`boxShadow`). El fondo ya lo pisábamos con gris, pero el halo sobrevivía y
-  // quedaba un brillo morado bajo un botón gris. `boxShadow: "none"` lo apaga.
-  // Se hace aquí y no en LogoutButton para no alterar sus otros usos.
-  const logoutButtonStyle: CSSProperties = {
-    width: "100%",
-    minHeight: 40,
-    borderRadius: 6,
-    border: "none",
-    background: "rgba(255,255,255,0.10)",
-    boxShadow: "none",
-    color: "rgba(255,255,255,0.70)",
-    fontWeight: 500,
-    fontSize: 13,
-    fontFamily: "inherit",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    whiteSpace: "nowrap",
-  };
-
   if (!uid) return null;
 
   return (
@@ -639,18 +645,9 @@ export default function OwnerSidebarSettings({
               </div>
 
               {canChangeName ? (
-                <button
-                  type="button"
-                  style={linkBtn}
-                  onClick={() => {
-                    setDraftName(
-                      resolvedDisplayName === unavailableText ? "" : resolvedDisplayName
-                    );
-                    setEditNameOpen(true);
-                  }}
-                >
+                <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => { setDraftName( resolvedDisplayName === unavailableText ? "" : resolvedDisplayName ); setEditNameOpen(true); }}>
                   {tProfile("changeNameLabel")}
-                </button>
+                </TextButton>
               ) : (
                 <div
                   style={{
@@ -694,16 +691,9 @@ export default function OwnerSidebarSettings({
                 </div>
               </div>
 
-              <button
-                type="button"
-                style={linkBtn}
-                onClick={() => {
-                  setDraftBio(data?.bio ?? "");
-                  setEditBioOpen(true);
-                }}
-              >
+              <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => { setDraftBio(data?.bio ?? ""); setEditBioOpen(true); }}>
                 {tProfile("editLabel")}
-              </button>
+              </TextButton>
             </div>
 
             {/* Correo */}
@@ -763,13 +753,9 @@ export default function OwnerSidebarSettings({
                 <div style={hintStyle}>{tProfile("blockedProfilesHint")}</div>
               </div>
 
-              <button
-                type="button"
-                style={linkBtn}
-                onClick={() => setBlockedAccountsOpen(true)}
-              >
+              <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => setBlockedAccountsOpen(true)}>
                 {tCommon("viewLabel")}
-              </button>
+              </TextButton>
             </div>
 
             {/* Sesiones activas */}
@@ -780,15 +766,14 @@ export default function OwnerSidebarSettings({
                 <div style={hintStyle}>{tProfile("sessionsHint")}</div>
               </div>
 
-              <button type="button" style={linkBtn} onClick={() => setSessionsOpen(true)}>
+              <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => setSessionsOpen(true)}>
                 {tCommon("viewLabel")}
-              </button>
+              </TextButton>
             </div>
 
-            {/* Cerrar sesión */}
-            <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
-              <LogoutButton variant="settings" style={logoutButtonStyle} />
-            </div>
+            {/* Cerrar sesión ya NO va aquí: vive suelto debajo del acordeón, en
+                OwnerSidebar. Salir de la sesión no es un ajuste más de la lista,
+                y escondido dentro del desplegable había que abrirlo para llegar. */}
           </div>
         </div>
       </div>

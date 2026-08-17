@@ -13,12 +13,14 @@
 // reutilizarlo: navega scrolleando en vertical, no tocando los lados.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { IconButton } from "@/components/ui";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
 import ReelStorySlide from "@/components/reels/ReelStorySlide";
+import ScrubBar from "@/components/reels/ScrubBar";
 
 type Props = {
   stories: StoryDoc[];
@@ -36,6 +38,14 @@ type Props = {
   onCloseCarousel?: () => void;
   /** Rectángulo de origen para la animación de apertura (solo celular). */
   sourceRect?: DOMRect | null;
+  /**
+   * Repetir el video en vez de pasar solo a la siguiente historia.
+   *
+   * Lo usa el carrusel de escritorio, que es una superficie de reel: ahí quien
+   * decide cuándo pasar es la persona. Los círculos de perfil y comunidad no lo
+   * pasan, así que conservan el encadenado automático de toda la vida.
+   */
+  loopStory?: boolean;
 };
 
 export function desktopPanelSize(): { width: number; height: number } {
@@ -55,6 +65,7 @@ export default function StoryViewer({
   onPrevGroup,
   onCloseCarousel,
   sourceRect,
+  loopStory = false,
 }: Props) {
   const tCommon = useTranslations("common");
   const [index, setIndex] = useState(initialIndex);
@@ -71,6 +82,11 @@ export default function StoryViewer({
   const [heroExitMs, setHeroExitMs] = useState(190);
   // Mantener pulsado pausa el video. El slide lo aplica; aquí solo se detecta.
   const [holding, setHolding] = useState(false);
+  // Arrastrando la barra el video se detiene, o el indicador pelearía contra el
+  // dedo en cada fotograma reproducido.
+  const [scrubbing, setScrubbing] = useState(false);
+  // El video vive en el slide, así que la función para saltar viene de ahí.
+  const seekRef = useRef<((ratio: number) => void) | null>(null);
 
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
@@ -272,11 +288,25 @@ export default function StoryViewer({
 
   const progressBars = (safeTop: string | number) => (
     <div style={{ position: "absolute", top: safeTop, insetInlineStart: 0, insetInlineEnd: 0, paddingTop: 12, paddingInlineStart: 10, paddingInlineEnd: 10, display: "flex", gap: 4, zIndex: 10 }}>
-      {stories.map((_, i) => (
-        <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.3)", overflow: "hidden" }}>
-          <div style={{ height: "100%", borderRadius: 2, background: "#fff", width: i < index ? "100%" : i === index ? `${Math.round(progress * 100)}%` : "0%", transition: i === index ? "none" : undefined }} />
-        </div>
-      ))}
+      {stories.map((_, i) =>
+        i === index ? (
+          // Solo el segmento en curso se puede manipular: los demás son de otras
+          // historias y ahí saltar no significa nada.
+          <ScrubBar
+            key={i}
+            progress={progress}
+            onSeek={(ratio) => seekRef.current?.(ratio)}
+            onScrubbingChange={setScrubbing}
+            ariaLabel={tCommon("videoProgress")}
+          />
+        ) : (
+          <div key={i} style={{ flex: 1, height: 22, display: "flex", alignItems: "center" }}>
+            <div style={{ width: "100%", height: 3, borderRadius: 2, background: "rgba(255,255,255,0.3)", overflow: "hidden" }}>
+              <div style={{ height: "100%", borderRadius: 2, background: "#fff", width: i < index ? "100%" : "0%" }} />
+            </div>
+          </div>
+        ),
+      )}
     </div>
   );
 
@@ -310,17 +340,12 @@ export default function StoryViewer({
   );
 
   const closeButton = (onCloseOverride?: () => void) => (
-    <button
-      type="button"
-      aria-label={tCommon("closeAriaLabel")}
-      onClick={onCloseOverride ?? onCloseCarousel ?? onClose}
-      style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
-    >
+    <IconButton label={tCommon("closeAriaLabel")} size="sm" tone="bare" shape="square" onClick={onCloseOverride ?? onCloseCarousel ?? onClose}>
       <svg width={isDesktop ? 20 : 24} height={isDesktop ? 20 : 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
         <line x1="18" y1="6" x2="6" y2="18" />
         <line x1="6" y1="6" x2="18" y2="18" />
       </svg>
-    </button>
+    </IconButton>
   );
 
   const renderSlide = (
@@ -345,7 +370,7 @@ export default function StoryViewer({
         key={story.id}
         story={story}
         type={type}
-        paused={holding}
+        paused={holding || scrubbing}
         muted={muted}
         onMutedChange={(next) => {
           setMuted(next);
@@ -360,6 +385,8 @@ export default function StoryViewer({
         topRightActions={
           showClose || onCloseCarousel ? closeButton(onCloseOverride) : null
         }
+        loop={loopStory}
+        seekRef={seekRef}
         onProgress={setProgress}
         onViewed={() => onStoryViewed?.(story.id)}
         onEnded={() => {

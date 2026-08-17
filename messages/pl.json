@@ -2012,7 +2012,9 @@
     "countsPlain": "Zaktualizowani {updated}, pominięci {skipped}.",
     "countsReminder": "Usunięci {removed}, powiadomieni {reminder}, pominięci {skipped}.",
     "transitionFailed": "Nie udało się dokończyć przenoszenia członków.",
-    "configAllSaved": "Subskrypcja, katalog i wsparcie zapisane."
+    "configAllSaved": "Subskrypcja, katalog i wsparcie zapisane.",
+    "prompterTitle": "Prompter",
+    "prompterPlaceholder": "Napisz tutaj, co chcesz powiedzieć"
   },
   "live": {
     "accessTicket": "Bilet wstępu",

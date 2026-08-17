@@ -2012,7 +2012,9 @@
     "countsPlain": "Aġġornati {updated}, maqbuża {skipped}.",
     "countsReminder": "Imneħħija {removed}, mgħarrfa {reminder}, maqbuża {skipped}.",
     "transitionFailed": "It-tranżizzjoni tal-membri ma setgħetx titlesta.",
-    "configAllSaved": "L-abbonament, il-katalgu u d-donazzjoni ġew salvati."
+    "configAllSaved": "L-abbonament, il-katalgu u d-donazzjoni ġew salvati.",
+    "prompterTitle": "Prompter",
+    "prompterPlaceholder": "Ikteb hawn dak li trid tgħid"
   },
   "live": {
     "accessTicket": "Biljett ta' aċċess",

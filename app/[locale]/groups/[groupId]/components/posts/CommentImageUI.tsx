@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import {
   useEffect,
   useLayoutEffect,
@@ -47,21 +48,7 @@ export function CommentImageThumb({
 }) {
   const ref = useRef<HTMLButtonElement>(null);
   return (
-    <button
-      ref={ref}
-      type="button"
-      onClick={() => onOpen(image, ref.current?.getBoundingClientRect() ?? null)}
-      aria-label="Ver imagen"
-      style={{
-        marginTop: 6,
-        padding: 0,
-        border: "none",
-        background: "transparent",
-        cursor: "zoom-in",
-        display: "block",
-        lineHeight: 0,
-      }}
-    >
+    <IconButton label="Ver imagen" size="sm" tone="bare" shape="square" style={{ marginTop: 6 }} ref={ref} onClick={() => onOpen(image, ref.current?.getBoundingClientRect() ?? null)}>
       <span
         style={{
           display: "block",
@@ -82,7 +69,7 @@ export function CommentImageThumb({
           style={{ objectFit: "cover" }}
         />
       </span>
-    </button>
+    </IconButton>
   );
 }
 
@@ -174,26 +161,7 @@ export function CommentAttachButton({
         onChange={handleChange}
         style={{ display: "none" }}
       />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={disabled}
-        aria-label="Adjuntar imagen"
-        title="Adjuntar imagen"
-        style={{
-          flexShrink: 0,
-          width: 34,
-          height: 34,
-          borderRadius: "50%",
-          border: "none",
-          background: "transparent",
-          color: "rgba(255,255,255,0.6)",
-          cursor: disabled ? "default" : "pointer",
-          display: "grid",
-          placeItems: "center",
-          opacity: disabled ? 0.4 : 1,
-        }}
-      >
+      <IconButton label="Adjuntar imagen" size="sm" tone="bare" style={{ placeItems: "center" }} onClick={() => inputRef.current?.click()} disabled={disabled}>
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <rect
             x="3"
@@ -213,7 +181,7 @@ export function CommentAttachButton({
             strokeLinejoin="round"
           />
         </svg>
-      </button>
+      </IconButton>
     </>
   );
 }

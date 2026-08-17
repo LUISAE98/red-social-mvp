@@ -2012,7 +2012,9 @@
     "countsPlain": "Opdateret {updated}, sprunget over {skipped}.",
     "countsReminder": "Fjernet {removed}, varslet {reminder}, sprunget over {skipped}.",
     "transitionFailed": "Medlemsovergangen kunne ikke fuldføres.",
-    "configAllSaved": "Abonnement, katalog og donation er gemt."
+    "configAllSaved": "Abonnement, katalog og donation er gemt.",
+    "prompterTitle": "Teleprompter",
+    "prompterPlaceholder": "Skriv her, hvad du vil sige"
   },
   "live": {
     "accessTicket": "Adgangsbillet",

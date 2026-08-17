@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
@@ -200,13 +201,7 @@ function ViewModeIconButton({
         }
       `}</style>
 
-      <button
-        type="button"
-        className="button"
-        onClick={onClick}
-        title={isList ? tWallet("viewCalendarAriaLabel") : tWallet("viewListAriaLabel")}
-        aria-label={isList ? tWallet("viewCalendarAriaLabel") : tWallet("viewListAriaLabel")}
-      >
+      <IconButton label={isList ? tWallet("viewCalendarAriaLabel") : tWallet("viewListAriaLabel")} size="md" tone="bare" shape="square" className="button" onClick={onClick}>
         {isList ? (
           <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -224,7 +219,7 @@ function ViewModeIconButton({
             <circle cx="3" cy="18" r="1" fill="currentColor" stroke="none" />
           </svg>
         )}
-      </button>
+      </IconButton>
     </>
   );
 }
@@ -880,21 +875,7 @@ function EventsOverlay({
               >
                 {title}
               </h3>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label={tCommon("closeAriaLabel")}
-                style={{
-                  border: "none",
-                  background: "none",
-                  color: "#fff",
-                  cursor: "pointer",
-                  display: "grid",
-                  placeItems: "center",
-                  justifySelf: "end",
-                  padding: 4,
-                }}
-              >
+              <IconButton label={tCommon("closeAriaLabel")} size="sm" tone="bare" shape="square" style={{ placeItems: "center", justifySelf: "end" }} onClick={onClose}>
                 <svg
                   width="18"
                   height="18"
@@ -908,7 +889,7 @@ function EventsOverlay({
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
-              </button>
+              </IconButton>
             </div>
 
             <div

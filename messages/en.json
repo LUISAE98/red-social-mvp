@@ -2012,7 +2012,9 @@
     "countsPlain": "Updated {updated}, skipped {skipped}.",
     "countsReminder": "Removed {removed}, notified {reminder}, skipped {skipped}.",
     "transitionFailed": "The member transition could not be completed.",
-    "configAllSaved": "Subscription, catalogue and donation saved."
+    "configAllSaved": "Subscription, catalogue and donation saved.",
+    "prompterTitle": "Prompter",
+    "prompterPlaceholder": "Write here what you want to say"
   },
   "live": {
     "accessTicket": "Access ticket",

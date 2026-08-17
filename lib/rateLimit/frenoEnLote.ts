@@ -26,7 +26,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export type AccionConFreno = "comment" | "story";
+export type AccionConFreno = "comment" | "story" | "dm";
 
 type Config = {
   /** Mínimo entre dos acciones. 0 = sin espera. */
@@ -48,6 +48,15 @@ const CONFIG: Record<AccionConFreno, Config> = {
     tope: 60,
     mensajeEspera: (s) => `Espera ${s}s antes de comentar de nuevo.`,
     mensajeTope: (n) => `Alcanzaste el límite de ${n} comentarios por hora.`,
+  },
+  dm: {
+    esperaMs: 1_000,
+    ventanaMs: HORA,
+    // Holgado a propósito: una conversación viva no se acerca. Lo que corta es
+    // el chorro automático, no la charla.
+    tope: 300,
+    mensajeEspera: (s) => `Espera ${s}s antes de enviar otro mensaje.`,
+    mensajeTope: (n) => `Alcanzaste el límite de ${n} mensajes por hora.`,
   },
   story: {
     // Sin espera entre una y otra: publicar dos seguidas es normal. Quien manda

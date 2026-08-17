@@ -2012,7 +2012,9 @@
     "countsPlain": "Шинэчилсэн {updated}, алгассан {skipped}.",
     "countsReminder": "Хассан {removed}, мэдэгдсэн {reminder}, алгассан {skipped}.",
     "transitionFailed": "Гишүүдийн шилжилтийг дуусгаж чадсангүй.",
-    "configAllSaved": "Захиалга, каталог, хандивыг хадгаллаа."
+    "configAllSaved": "Захиалга, каталог, хандивыг хадгаллаа.",
+    "prompterTitle": "Промптер",
+    "prompterPlaceholder": "Хэлэхийг хүсэж буй зүйлээ энд бичнэ үү"
   },
   "live": {
     "accessTicket": "Хандах тасалбар",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { IconButton } from "@/components/ui";
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -392,24 +393,7 @@ export default function ConversationPage() {
           borderBottom: "1px solid rgba(255,255,255,0.08)",
         }}
       >
-        <button
-          type="button"
-          onClick={handleBack}
-          aria-label={tCommon("back")}
-          style={{
-            flexShrink: 0,
-            width: 34,
-            height: 34,
-            borderRadius: 999,
-            border: "none",
-            background: "transparent",
-            color: "#fff",
-            cursor: "pointer",
-            display: "grid",
-            placeItems: "center",
-            padding: 0,
-          }}
-        >
+        <IconButton label={tCommon("back")} size="sm" tone="bare" style={{ placeItems: "center" }} onClick={handleBack}>
           <svg width="21" height="21" viewBox="0 0 24 24" aria-hidden>
             <path
               d="M15 5L8 12L15 19"
@@ -420,7 +404,7 @@ export default function ConversationPage() {
               strokeLinejoin="round"
             />
           </svg>
-        </button>
+        </IconButton>
 
         {/* El avatar NO va envuelto en un botón: se pinta él uno propio, y
             anidarlos es HTML inválido.

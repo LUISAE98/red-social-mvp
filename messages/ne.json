@@ -2012,7 +2012,9 @@
     "countsPlain": "अद्यावधिक {updated}, छाडिएका {skipped}।",
     "countsReminder": "हटाइएका {removed}, सूचित {reminder}, छाडिएका {skipped}।",
     "transitionFailed": "सदस्य स्थानान्तरण पूरा गर्न सकिएन।",
-    "configAllSaved": "सदस्यता, सूची र अनुदान सुरक्षित भए।"
+    "configAllSaved": "सदस्यता, सूची र अनुदान सुरक्षित भए।",
+    "prompterTitle": "प्रम्प्टर",
+    "prompterPlaceholder": "तपाईंले भन्न चाहेको कुरा यहाँ लेख्नुहोस्"
   },
   "live": {
     "accessTicket": "पहुँच टिकट",

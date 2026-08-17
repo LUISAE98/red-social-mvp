@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { IconButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
@@ -604,22 +605,13 @@ export default function LiveStreamSetup({
               }}>
                 {tLive("setupConfigure")}
               </span>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label={tCommon("closeAriaLabel")}
-                style={{
-                  border: "none", background: "none", color: "#fff",
-                  cursor: "pointer", display: "grid", placeItems: "center",
-                  justifySelf: "end", padding: 4,
-                }}
-              >
+              <IconButton label={tCommon("closeAriaLabel")} size="sm" tone="bare" shape="square" style={{ placeItems: "center", justifySelf: "end" }} onClick={onClose}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
-              </button>
+              </IconButton>
             </header>
             {scrollContent}
           </section>

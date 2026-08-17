@@ -1,5 +1,9 @@
 "use client";
 
+import React from "react";
+
+import { TextButton } from "./TextButton";
+
 /**
  * "Editar" en texto morado.
  *
@@ -47,11 +51,24 @@ export function avatarEditButtonStyle({
     boxSizing: "border-box",
     padding: `${padY}px 12px`,
     fontSize,
+    /* El botón es `inline-flex` (viene de TextButton), así que quien centra es
+       `justify-content`, no `text-align`: el texto es un hijo flex y align no
+       lo mueve. Se dejan los dos para que también centre si algún día vuelve a
+       ser un bloque normal. */
+    display: "flex",
+    justifyContent: "center",
     textAlign: "center",
     zIndex: 200,
   };
 }
 
+/**
+ * Envoltura fina sobre `TextButton`: mismo aspecto, misma API de siempre.
+ *
+ * Se conserva como pieza propia porque nombra un uso concreto —el "Editar" que
+ * va debajo del avatar— y sus llamadas no tienen por qué saber de tonos ni de
+ * tamaños. El estilo ya no vive aquí: sale del primitivo.
+ */
 export default function EditTextButton({
   children,
   onClick,
@@ -68,30 +85,17 @@ export default function EditTextButton({
   style?: React.CSSProperties;
 }) {
   return (
-    <button
-      type="button"
+    <TextButton
+      tone="brand"
+      size="sm"
+      shadow
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
       title={title}
-      style={{
-        border: "none",
-        background: "transparent",
-        padding: 0,
-        color: "#a855f7",
-        fontSize: 11,
-        fontWeight: 600,
-        lineHeight: 1,
-        fontFamily: "inherit",
-        letterSpacing: "-0.01em",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.6 : 1,
-        textShadow: "0 1px 3px rgba(0,0,0,0.55)",
-        WebkitTapHighlightColor: "transparent",
-        ...style,
-      }}
+      style={style}
     >
       {children}
-    </button>
+    </TextButton>
   );
 }

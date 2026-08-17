@@ -7,6 +7,7 @@
 // reemplaza el cuerpo de este panel por el markdown renderizado del documento.
 
 import { useEffect } from "react";
+import { IconButton } from "@/components/ui";
 import { useTranslations } from "next-intl";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import type { LegalDocId } from "./legalDocs";
@@ -152,12 +153,7 @@ export default function LegalDocPanel({
 
       {/* El clic dentro de la tarjeta no debe cerrar el panel. */}
       <div className="legalPanelCard" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          className="legalPanelClose"
-          aria-label={t("close")}
-          onClick={onClose}
-        >
+        <IconButton label={t("close")} size="sm" tone="bare" shape="square" style={{ position: "absolute", top: "12px", insetInlineEnd: "12px" }} className="legalPanelClose" onClick={onClose}>
           <svg
             width="16"
             height="16"
@@ -170,7 +166,7 @@ export default function LegalDocPanel({
           >
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
-        </button>
+        </IconButton>
 
         <span className="legalPanelBadge">
           <svg

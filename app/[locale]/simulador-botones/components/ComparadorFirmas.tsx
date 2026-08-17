@@ -17,7 +17,7 @@
 
 import { useMemo, useState, type CSSProperties } from "react";
 
-import { CENSO, TOTAL_BOTONES, type Destino, type EntradaCenso, type FirmaActual } from "./censoFirmas";
+import { CENSO, MIGRADOS, TOTAL_BOTONES, type Destino, type EntradaCenso, type FirmaActual } from "./censoFirmas";
 
 /* ── Contenido real del botón ─────────────────────────────────────────── */
 
@@ -254,6 +254,15 @@ export default function ComparadorFirmas() {
         .cmp-lead { margin: 8px 0 0; font-size: 13.5px; color: rgba(255,255,255,0.58); max-width: 720px; line-height: 1.55; }
         .cmp-lead b { color: rgba(255,255,255,0.86); font-weight: 650; }
         .cmp-aviso { margin: 16px 0 0; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(74,222,128,0.28); background: rgba(74,222,128,0.07); font-size: 12.5px; line-height: 1.55; color: rgba(134,239,172,0.95); }
+        .cmp-prog { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 18px; }
+        .cmp-pr { border: 1px solid rgba(255,255,255,0.09); border-radius: 12px; padding: 13px 15px; background: rgba(255,255,255,0.02); }
+        .cmp-pr-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+        .cmp-pr-h b { font-size: 14px; font-weight: 680; font-family: ui-monospace, monospace; }
+        .cmp-pr-h span { font-size: 15px; font-weight: 720; color: #4ade80; font-variant-numeric: tabular-nums; }
+        .cmp-pr-b { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+        .cmp-pr-b i { display: block; height: 100%; background: linear-gradient(90deg, #a855f7, #4ade80); border-radius: 3px; }
+        .cmp-pr-f { display: flex; justify-content: space-between; margin-top: 7px; font-size: 11.5px; color: rgba(255,255,255,0.45); font-variant-numeric: tabular-nums; }
+        .cmp-pr-f .ok { color: rgba(134,239,172,0.9); font-weight: 650; }
         .cmp-ctrl { position: sticky; top: 0; z-index: 5; background: #0b0b0d; padding: 16px 0 12px; margin: 22px 0 0; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
         .cmp-ctrl input { flex: 1 1 220px; min-width: 170px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 10px; padding: 9px 13px; font: inherit; font-size: 13.5px; }
         .cmp-ctrl input:focus { outline: 2px solid #a855f7; outline-offset: 1px; }
@@ -303,10 +312,32 @@ export default function ComparadorFirmas() {
             propuesto.
           </p>
           <p className="cmp-aviso">
-            Esta pantalla no cambia nada. El estilo del producto sigue intacto y los primitivos
-            nuevos todavía no existen: la columna de la derecha se dibuja aquí solo para que puedas
-            mirarla. Si algún «después» no te gusta, se cambia antes de tocar una sola línea.
+            La columna de la derecha es la propuesta. Solo <code>TextButton</code> y{" "}
+            <code>Button</code> existen de verdad; el resto se dibuja aquí para que lo mires. Si
+            algún «después» no te gusta, se cambia antes de tocar nada más.
           </p>
+
+          <div className="cmp-prog">
+            {MIGRADOS.map((m) => {
+              const total = m.usos + m.pendientes;
+              const pct = total > 0 ? Math.round((m.usos / total) * 100) : 0;
+              return (
+                <div className="cmp-pr" key={m.primitivo}>
+                  <div className="cmp-pr-h">
+                    <b>{m.primitivo}</b>
+                    <span>{pct}%</span>
+                  </div>
+                  <div className="cmp-pr-b">
+                    <i style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="cmp-pr-f">
+                    <span className="ok">{m.usos} migrados</span>
+                    <span>{m.pendientes} pendientes</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </header>
 
         <div className="cmp-ctrl">

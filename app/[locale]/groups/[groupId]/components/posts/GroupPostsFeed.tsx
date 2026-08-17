@@ -40,7 +40,7 @@ import {
   type GroupPostsPageCursor,
 } from "@/lib/posts/post-service";
 import GroupPostCard from "./GroupPostCard";
-import { PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
+import { PostSkeleton, PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import GroupPostComposer from "./GroupPostComposer";
 import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "./PostsMediaSubnav";
@@ -1556,7 +1556,7 @@ const shellStyle: CSSProperties = {
               />
             ) : null}
 
-            <PostReveal>
+            <PostReveal skeleton={<PostSkeleton />}>
             <GroupPostCard
               post={post}
               groupId={groupId}

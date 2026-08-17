@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -279,12 +280,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
                 {speechRate}×
               </button>
             )}
-            <button
-              type="button"
-              aria-label={speechState === "playing" ? tServices("pauseReading") : speechState === "paused" ? tServices("resumeReading") : tServices("readContext")}
-              onClick={handleToggleSpeech}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
-            >
+            <IconButton label={speechState === "playing" ? tServices("pauseReading") : speechState === "paused" ? tServices("resumeReading") : tServices("readContext")} size="sm" tone="bare" shape="square" onClick={handleToggleSpeech}>
               {speechState === "playing" ? (
                 <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
                   <rect x="5" y="4" width="4" height="16" rx="1"/>
@@ -295,7 +291,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
                   <polygon points="5,3 19,12 5,21"/>
                 </svg>
               )}
-            </button>
+            </IconButton>
           </div>
           <span
             ref={speechTextRef}
@@ -498,14 +494,11 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
             <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
               {tServices("typeRequested", { type: typeLabel })}
             </h3>
-            <button type="button" onClick={handleClose} aria-label={tCommon("close")} style={{
-              border: "none", background: "none", color: "#fff", cursor: "pointer",
-              display: "grid", placeItems: "center", justifySelf: "end", padding: 4,
-            }}>
+            <IconButton label={tCommon("close")} size="sm" tone="bare" shape="square" style={{ placeItems: "center", justifySelf: "end" }} onClick={handleClose}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
-            </button>
+            </IconButton>
           </header>
 
           <div className="vibra-panel-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 8px" }}>

@@ -2012,7 +2012,9 @@
     "countsPlain": "Uppfært {updated}, sleppt {skipped}.",
     "countsReminder": "Fjarlægt {removed}, látið vita {reminder}, sleppt {skipped}.",
     "transitionFailed": "Ekki tókst að ljúka flutningi meðlima.",
-    "configAllSaved": "Áskrift, listi og framlag vistuð."
+    "configAllSaved": "Áskrift, listi og framlag vistuð.",
+    "prompterTitle": "Textavél",
+    "prompterPlaceholder": "Skrifaðu hér það sem þú vilt segja"
   },
   "live": {
     "accessTicket": "Aðgangsmiði",

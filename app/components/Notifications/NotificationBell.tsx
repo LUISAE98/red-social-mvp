@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
+import { TextButton } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/app/providers";
 import { useNotifications } from "@/lib/hooks/useNotifications";
@@ -214,9 +215,9 @@ export default function NotificationBell({ active }: NotificationBellProps) {
               <div className="notifPanelHead">
                 <span className="notifPanelTitle">{t("title")}</span>
                 {unreadCount > 0 ? (
-                  <button type="button" className="notifMarkAll" onClick={() => markAllRead()}>
+                  <TextButton tone="brand" className="notifMarkAll" onClick={() => markAllRead()}>
                     {t("markAllRead")}
-                  </button>
+                  </TextButton>
                 ) : null}
               </div>
               {showSubnav ? (
@@ -317,14 +318,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
           font-weight: 600;
           color: #fff;
         }
-        .notifMarkAll {
-          background: transparent;
-          border: none;
-          color: #a855f7;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-        }
+        /* El aspecto sale de TextButton; aquí solo queda el subrayado al pasar. */
         .notifMarkAll:hover {
           text-decoration: underline;
         }

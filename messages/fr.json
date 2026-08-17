@@ -2012,7 +2012,9 @@
     "countsPlain": "Mis à jour {updated}, ignorés {skipped}.",
     "countsReminder": "Retirés {removed}, prévenus {reminder}, ignorés {skipped}.",
     "transitionFailed": "La transition des membres n'a pas pu se terminer.",
-    "configAllSaved": "Abonnement, catalogue et don enregistrés."
+    "configAllSaved": "Abonnement, catalogue et don enregistrés.",
+    "prompterTitle": "Prompteur",
+    "prompterPlaceholder": "Écris ici ce que tu veux dire"
   },
   "live": {
     "accessTicket": "Billet d'accès",

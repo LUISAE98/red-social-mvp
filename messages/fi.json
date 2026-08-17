@@ -2012,7 +2012,9 @@
     "countsPlain": "Päivitetty {updated}, ohitettu {skipped}.",
     "countsReminder": "Poistettu {removed}, muistutettu {reminder}, ohitettu {skipped}.",
     "transitionFailed": "Jäsenten siirtoa ei voitu viedä loppuun.",
-    "configAllSaved": "Tilaus, katalogi ja lahjoitus tallennettu."
+    "configAllSaved": "Tilaus, katalogi ja lahjoitus tallennettu.",
+    "prompterTitle": "Teleprompteri",
+    "prompterPlaceholder": "Kirjoita tähän, mitä haluat sanoa"
   },
   "live": {
     "accessTicket": "Pääsylippu",

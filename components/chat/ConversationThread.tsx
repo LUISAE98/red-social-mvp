@@ -2,6 +2,7 @@
 
 import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 
+import { TextButton, IconButton } from "@/components/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -1388,35 +1389,17 @@ export default function ConversationThread({
               ) : null}
 
               {canReply(message) ? (
-                <button
-                  type="button"
-                  className="vibra-msg-action"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startReply(message);
-                  }}
-                  aria-label={tChat("reply")}
-                  title={tChat("reply")}
-                >
+                <IconButton label={tChat("reply")} size="sm" tone="bare" style={{ color: "rgba(255,255,255,0.92)" }} className="vibra-msg-action" onClick={(e) => { e.stopPropagation(); startReply(message); }}>
                   <ActionIcon path={ICON_REPLY} />
-                </button>
+                </IconButton>
               ) : null}
 
               {/* Editar: solo lo tuyo, con texto y dentro de los 10 minutos.
                   Pasado ese punto las rules lo rechazan, así que ni se ofrece. */}
               {mine && withinWindow && message.text && !message.isDeleted ? (
-                <button
-                  type="button"
-                  className="vibra-msg-action"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startEdit(message);
-                  }}
-                  aria-label={tCommon("edit")}
-                  title={tCommon("edit")}
-                >
+                <IconButton label={tCommon("edit")} size="sm" tone="bare" style={{ color: "rgba(255,255,255,0.92)" }} className="vibra-msg-action" onClick={(e) => { e.stopPropagation(); startEdit(message); }}>
                   <ActionIcon path={ICON_PENCIL} />
-                </button>
+                </IconButton>
               ) : null}
             </span>
             ) : null}
@@ -1927,17 +1910,17 @@ export default function ConversationThread({
             }}
           >
             <span style={{ flex: 1, minWidth: 0 }}>{tChat("editingMessage")}</span>
-            <button
-              type="button"
+            <TextButton
+              tone="brand"
+              size="sm"
               onClick={() => {
                 setEditing(null);
                 setDraft("");
                 if (inputRef.current) inputRef.current.style.height = "auto";
               }}
-              style={{ ...messageActionStyle, color: "#a855f7", fontWeight: 600 }}
             >
               {tCommon("cancel")}
-            </button>
+            </TextButton>
           </div>
         ) : null}
 
@@ -1987,24 +1970,7 @@ export default function ConversationThread({
                 {replyingTo.text || (replyingTo.hasImage ? tChat("photoPreview") : "")}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setReplyingTo(null)}
-              aria-label={tChat("cancelReply")}
-              style={{
-                flexShrink: 0,
-                width: 22,
-                height: 22,
-                borderRadius: 999,
-                border: "none",
-                background: "transparent",
-                color: "rgba(255,255,255,0.6)",
-                cursor: "pointer",
-                display: "grid",
-                placeItems: "center",
-                padding: 0,
-              }}
-            >
+            <IconButton label={tChat("cancelReply")} size="sm" tone="bare" style={{ placeItems: "center" }} onClick={() => setReplyingTo(null)}>
               <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden>
                 <path
                   d="M6 6L18 18M18 6L6 18"
@@ -2014,7 +1980,7 @@ export default function ConversationThread({
                   strokeLinecap="round"
                 />
               </svg>
-            </button>
+            </IconButton>
           </div>
         ) : null}
 
@@ -2544,23 +2510,9 @@ export default function ConversationThread({
               justifyContent: "flex-end",
             }}
           >
-            <button
-              type="button"
-              onClick={() => void handleSend()}
-              style={{
-                border: "none",
-                background: "transparent",
-                color: "#a855f7",
-                fontSize: 11.5,
-                fontWeight: 600,
-                fontFamily: "inherit",
-                cursor: "pointer",
-                padding: 0,
-                flexShrink: 0,
-              }}
-            >
+            <TextButton tone="brand" size="sm" style={{ fontFamily: "inherit", flexShrink: 0 }} onClick={() => void handleSend()}>
               {tChat("retry")}
-            </button>
+            </TextButton>
           </div>
         ) : null}
         <div style={{ pointerEvents: "auto" }}>{renderFooter()}</div>

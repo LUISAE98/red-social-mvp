@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { intlLocale } from "@/i18n/locales";
+import { TextButton } from "@/components/ui";
 import { useTranslations, useLocale } from "next-intl";
 import {
   useWalletLedger,
@@ -168,23 +169,14 @@ export default function WalletIncomeChart({
   const rangeButtons = RANGE_KEYS.map((r) => {
     const active = range === r;
     return (
-      <button
+      <TextButton
         key={r}
-        type="button"
+        tone={active ? "plain" : "mute"}
+        size="sm"
         onClick={() => setRange(r)}
-        style={{
-          border: "none",
-          background: "transparent",
-          padding: 0,
-          cursor: "pointer",
-          fontSize: 11.5,
-          letterSpacing: "-0.01em",
-          color: active ? "#ffffff" : "rgba(255,255,255,0.45)",
-          fontWeight: active ? 700 : 400,
-        }}
       >
         {tWallet(RANGES[r].labelKey)}
-      </button>
+      </TextButton>
     );
   });
 

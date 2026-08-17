@@ -11,6 +11,7 @@
 // de la misma altura, para que la barra de scroll y las posiciones no se muevan.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { StoryDoc } from "@/lib/stories/types";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
 import ReelStorySlide from "./ReelStorySlide";
@@ -31,8 +32,15 @@ type Props = {
    * "me interesó" de "pasé de largo", y alimenta el vector de intereses.
    */
   onEngagement?: (engagement: { story: StoryDoc; dwellMs: number; completion: number }) => void;
-  /** Espacio inferior que ocupa el nav del anfitrión. */
-  safeBottom?: string;
+  /**
+   * Espacio que ocupa el nav del anfitrión.
+   *
+   * ⚠️ NO recorta el feed: el video llega hasta el borde inferior y el nav
+   * queda flotando encima. Esto solo aparta los controles del slide para que
+   * no queden debajo del nav. Recortar dejaba una franja muerta entre el
+   * video y el nav que se veía como un fallo de maquetación.
+   */
+  navClearance?: string;
 };
 
 export default function ReelFeed({
@@ -40,8 +48,79 @@ export default function ReelFeed({
   onLoadMore,
   onStoryViewed,
   onEngagement,
-  safeBottom = "0px",
+  navClearance = "0px",
 }: Props) {
+  // Se monta en un PORTAL sobre `document.body`.
+  //
+  // ⚠️ `position: fixed` deja de referirse a la pantalla en cuanto un ancestro
+  // tiene `transform`, `filter` o `perspective`. El layout protegido anima la
+  // columna principal con un transform al cambiar de pantalla, así que el feed
+  // se anclaba al fondo de esa columna —que además reserva sitio para el nav— y
+  // el video acababa flotando por encima del subnav en vez de llegar al borde.
+  //
+  // Fuera del árbol del layout, ningún ancestro puede volver a confinarlo. Es
+  // lo mismo que hace el visor de historias, y por la misma razón.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+
+  // Alto REAL del nav inferior, medido del propio elemento.
+  //
+  // No se calcula: su alto depende del safe-area del aparato y además el nav
+  // se encoge al hacer scroll, así que cualquier número fijo queda desfasado.
+  // `navClearance` solo sirve de valor inicial hasta que hay medida.
+  const [navH, setNavH] = useState<number | null>(null);
+  useEffect(() => {
+    const nav = document.querySelector<HTMLElement>("[data-vibra-bottom-nav]");
+    if (!nav) return;
+
+    const read = () => setNavH(nav.getBoundingClientRect().height);
+    read();
+
+    // ⚠️ El nav se encoge y crece con `transform: scaleY`, y un transform NO
+    // dispara `ResizeObserver`: solo cambia la caja pintada, no la de layout.
+    // Así que mientras dura su transición se muestrea cada fotograma.
+    //
+    // Seguirlo así, en vez de animar los botones por nuestra cuenta con la
+    // misma duración y curva, es lo que hace que el movimiento se vea
+    // realmente coordinado: van pegados al nav, no en paralelo a él.
+    let raf = 0;
+    const follow = () => {
+      read();
+      raf = requestAnimationFrame(follow);
+    };
+    const start = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(follow);
+    };
+    const stop = () => {
+      if (!raf) return;
+      cancelAnimationFrame(raf);
+      raf = 0;
+      read();
+    };
+
+    nav.addEventListener("transitionstart", start);
+    nav.addEventListener("transitionend", stop);
+    nav.addEventListener("transitioncancel", stop);
+
+    // El `transform` vive en un hijo del nav, así que los eventos llegan por
+    // burbujeo; el observador cubre además los cambios de layout (rotación,
+    // safe-area) que sí mueven la caja.
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(read) : null;
+    ro?.observe(nav);
+
+    return () => {
+      stop();
+      nav.removeEventListener("transitionstart", start);
+      nav.removeEventListener("transitionend", stop);
+      nav.removeEventListener("transitioncancel", stop);
+      ro?.disconnect();
+    };
+  }, []);
+
   const [activeIndex, setActiveIndex] = useState(0);
   const [muted, setMuted] = useState(
     () => typeof window !== "undefined" && getMutePreference(),
@@ -120,7 +199,9 @@ export default function ReelFeed({
     setMutePreference(next);
   }, []);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       <style jsx>{`
         .scroller {
@@ -128,7 +209,10 @@ export default function ReelFeed({
           inset-inline-start: 0;
           inset-inline-end: 0;
           top: 0;
-          bottom: ${safeBottom};
+          bottom: 0;
+          /* Por debajo del nav inferior (9999), que va encima del video. Sin esto,
+             al montarse en un portal DESPUÉS del layout, el feed taparía el nav. */
+          z-index: 1;
           overflow-y: scroll;
           overflow-x: hidden;
           scroll-snap-type: y mandatory;
@@ -174,8 +258,13 @@ export default function ReelFeed({
                   paused={i !== activeIndex}
                   muted={muted}
                   onMutedChange={handleMutedChange}
+                  // El reel no tiene barras por historia como el visor de
+                  // círculos: una sola, y manipulable.
+                  showProgressBar
                   safeTop="env(safe-area-inset-top, 0px)"
-                  safeBottom="12px"
+                  // Justo encima del nav, sin holgura extra: con margen de más
+                  // los botones flotaban despegados y se leía como un error.
+                  safeBottom={navH !== null ? `${Math.round(navH)}px` : navClearance}
                   onViewed={() => onStoryViewed?.(story.id)}
                   onProgress={
                     i === activeIndex
@@ -193,6 +282,7 @@ export default function ReelFeed({
           );
         })}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }

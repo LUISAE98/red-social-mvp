@@ -1811,7 +1811,11 @@ const res = (await createExclusiveSessionRequest({
       >
 <main
   style={{
-    minHeight: "calc(100dvh - 70px)",
+    // SIN min-height de pantalla completa. Este <main> es transparente, así que
+    // estirarlo no pintaba nada: el fondo negro ya lo garantiza `body` en
+    // globals.css (`min-height: 100dvh` + `background-color: #000`). Lo único
+    // que hacía era empujar altura, y en las pestañas cortas —comunidades,
+    // seguidos— dejaba media pantalla de vacío al final del scroll.
     // Clearance del bottom-nav lo aporta `.mainCol` del layout; no duplicar.
     padding: "0 0 0",
     background: "transparent",

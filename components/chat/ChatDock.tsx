@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { IconButton } from "@/components/ui";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 
@@ -296,15 +297,7 @@ export default function ChatDock({
             para volver a abrir se toca la pestaña, así que un botón de
             "expandir" sería redundante. Solo quedan avatar, nombre y tache. */}
         {!minimized ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleMinimize();
-            }}
-            aria-label={tChat("minimizeChat")}
-            style={iconButtonStyle}
-          >
+          <IconButton label={tChat("minimizeChat")} size="sm" tone="bare" shape="square" style={{ placeItems: "center" }} onClick={(e) => { e.stopPropagation(); onToggleMinimize(); }}>
             <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
               <path
                 d="M6 12H18"
@@ -314,18 +307,10 @@ export default function ChatDock({
                 strokeLinecap="round"
               />
             </svg>
-          </button>
+          </IconButton>
         ) : null}
 
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          aria-label={tCommon("close")}
-          style={iconButtonStyle}
-        >
+        <IconButton label={tCommon("close")} size="sm" tone="bare" shape="square" style={{ placeItems: "center" }} onClick={(e) => { e.stopPropagation(); onClose(); }}>
           <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
             <path
               d="M6 6L18 18M18 6L6 18"
@@ -335,7 +320,7 @@ export default function ChatDock({
               strokeLinecap="round"
             />
           </svg>
-        </button>
+        </IconButton>
       </div>
 
       {/* Minimizado: el hilo se queda montado pero sin suscripción ni alto. */}

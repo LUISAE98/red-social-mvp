@@ -2012,7 +2012,9 @@
     "countsPlain": "Bijgewerkt {updated}, overgeslagen {skipped}.",
     "countsReminder": "Ingetrokken {removed}, gewaarschuwd {reminder}, overgeslagen {skipped}.",
     "transitionFailed": "De ledenovergang kon niet worden voltooid.",
-    "configAllSaved": "Abonnement, catalogus en donatie opgeslagen."
+    "configAllSaved": "Abonnement, catalogus en donatie opgeslagen.",
+    "prompterTitle": "Teleprompter",
+    "prompterPlaceholder": "Schrijf hier wat je wilt zeggen"
   },
   "live": {
     "accessTicket": "Toegangsticket",

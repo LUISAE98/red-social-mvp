@@ -16,7 +16,7 @@ const CLICK_TOLERANCE = 5;
 export function useDragScroll<T extends HTMLElement>(ref: RefObject<T | null>) {
   // El estado va en un ref y no en `useState` porque se actualiza en cada
   // `pointermove`, y repintar la tira sesenta veces por segundo la haría trepidar.
-  const drag = useRef({ active: false, startX: 0, startScroll: 0, moved: 0 });
+  const drag = useRef({ active: false, startX: 0, startScroll: 0, moved: 0, captured: false });
 
   const onPointerDown = useCallback(
     (e: PointerEvent<T>) => {
@@ -28,8 +28,19 @@ export function useDragScroll<T extends HTMLElement>(ref: RefObject<T | null>) {
       // sintetiza después, incluido el `click`, y los elementos de la tira
       // dejarían de poder pulsarse. El arrastre nativo de las imágenes lo frena
       // `onDragStart`.
-      drag.current = { active: true, startX: e.clientX, startScroll: el.scrollLeft, moved: 0 };
-      el.setPointerCapture(e.pointerId);
+      //
+      // 🚨 Y NADA de `setPointerCapture` aquí tampoco. Con el puntero capturado
+      // desde el principio, el `click` se dispara sobre la TIRA y no sobre la
+      // tarjeta, porque el navegador calcula su destino con los eventos ya
+      // redirigidos a quien captura. Resultado: pulsar dejaba de abrir nada.
+      // La captura se pide más abajo, cuando el arrastre empieza de verdad.
+      drag.current = {
+        active: true,
+        startX: e.clientX,
+        startScroll: el.scrollLeft,
+        moved: 0,
+        captured: false,
+      };
     },
     [ref],
   );
@@ -42,6 +53,15 @@ export function useDragScroll<T extends HTMLElement>(ref: RefObject<T | null>) {
 
       const dx = e.clientX - drag.current.startX;
       drag.current.moved = Math.max(drag.current.moved, Math.abs(dx));
+
+      // Ya es un arrastre, no un clic: ahora sí se captura, para que siga
+      // funcionando aunque el cursor se salga de la tira. El clic que venga
+      // detrás lo descarta `onClickCapture`, así que capturar aquí no rompe nada.
+      if (!drag.current.captured && drag.current.moved > CLICK_TOLERANCE) {
+        drag.current.captured = true;
+        el.setPointerCapture(e.pointerId);
+      }
+
       // Delta contra el scroll inicial, no incremental: así funciona igual en
       // RTL, donde el signo de `scrollLeft` cambia según el navegador.
       el.scrollLeft = drag.current.startScroll - dx;
@@ -53,6 +73,7 @@ export function useDragScroll<T extends HTMLElement>(ref: RefObject<T | null>) {
     (e: PointerEvent<T>) => {
       if (!drag.current.active) return;
       drag.current.active = false;
+      drag.current.captured = false;
       const el = ref.current;
       if (el?.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
     },

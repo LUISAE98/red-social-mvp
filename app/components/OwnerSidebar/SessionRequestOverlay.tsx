@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { IconButton } from "@/components/ui";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
@@ -361,18 +362,13 @@ export default function SessionRequestOverlay({
                         {chatTtsRate}×
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleToggleChatTts(idx, entry.text)}
-                      aria-label={isPlaying ? tServices("pauseReading") : isActive && chatTtsState === "paused" ? tServices("resumeReading") : tServices("readMessage")}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
-                    >
+                    <IconButton label={isPlaying ? tServices("pauseReading") : isActive && chatTtsState === "paused" ? tServices("resumeReading") : tServices("readMessage")} size="sm" tone="bare" shape="square" onClick={() => handleToggleChatTts(idx, entry.text)}>
                       {isPlaying ? (
                         <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="4" height="16" rx="1"/></svg>
                       ) : (
                         <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
                       )}
-                    </button>
+                    </IconButton>
                   </div>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                     {avatarUrl ? (

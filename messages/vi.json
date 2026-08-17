@@ -2012,7 +2012,9 @@
     "countsPlain": "Cập nhật {updated}, bỏ qua {skipped}.",
     "countsReminder": "Đã gỡ {removed}, đã báo {reminder}, bỏ qua {skipped}.",
     "transitionFailed": "Không hoàn tất được việc chuyển thành viên.",
-    "configAllSaved": "Đã lưu gói đăng ký, danh mục và quyên góp."
+    "configAllSaved": "Đã lưu gói đăng ký, danh mục và quyên góp.",
+    "prompterTitle": "Máy nhắc chữ",
+    "prompterPlaceholder": "Viết ở đây điều bạn muốn nói"
   },
   "live": {
     "accessTicket": "Vé vào cửa",

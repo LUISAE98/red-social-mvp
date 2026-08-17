@@ -22,6 +22,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
+import { prepararFreno, aplicarFreno } from "@/lib/rateLimit/frenoEnLote";
 import { captureError } from "@/lib/observability/captureError";
 import { submitReport } from "@/lib/moderation/reportService";
 import type { ReportReason } from "@/lib/moderation/types";
@@ -151,7 +152,13 @@ export async function createConversationWithFirstMessage(
   // que exista el mensaje; es lo que ata ambos documentos en el mismo lote.
   const messageRef = doc(messagesCol(conversationId));
 
+  // ⚠️ B9-alto. El primer mensaje pasa por la misma regla que los demás, así que
+  // también necesita el contador del freno en este lote.
+  const freno = await prepararFreno(selfUid, "dm");
+
   const batch = writeBatch(db);
+
+  aplicarFreno(batch, freno);
 
   batch.set(conversationRef(conversationId), {
     participants: [first, second],
@@ -220,7 +227,20 @@ export async function sendMessage(
     throw new Error(`El mensaje no puede superar ${MESSAGE_MAX_LENGTH} caracteres.`);
   }
 
-  await addDoc(messagesCol(conversationId), {
+  // ⚠️ B9-alto. El mensaje y su contador de freno van en el MISMO lote atómico.
+  //
+  // Ni los mensajes ni las solicitudes tenían freno ninguno: un participante de
+  // un hilo activo podía generar mensajes, disparadores y avisos sin límite, y
+  // con política `everyone` se podía montar una campaña contra mucha gente.
+  //
+  // La regla `canCreate` del mensaje lo exige con `getAfter`: sin contador no hay
+  // mensaje. 1 s entre mensajes, 300 por hora.
+  const freno = await prepararFreno(senderId, "dm");
+
+  const lote = writeBatch(db);
+  const mensajeRef = doc(messagesCol(conversationId));
+
+  lote.set(mensajeRef, {
     senderId,
     text: body,
     // Solo se escribe la clave si hay imagen: las rules limitan los campos y un
@@ -239,6 +259,10 @@ export async function sendMessage(
     createdAt: serverTimestamp(),
     isDeleted: false,
   });
+
+  aplicarFreno(lote, freno);
+
+  await lote.commit();
 }
 
 function messageRef(conversationId: string, messageId: string) {

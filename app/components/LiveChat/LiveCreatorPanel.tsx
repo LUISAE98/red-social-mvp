@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 import { createPortal } from "react-dom";
@@ -1988,25 +1989,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-            <button
-              type="button"
-              onClick={isBroadcasting ? undefined : handlePanelClose}
-              disabled={isBroadcasting}
-              title={isBroadcasting ? tCommon("stopBroadcastBeforeLeaving") : tCommon("closeAriaLabel")}
-              style={{
-                width: 32, height: 32, borderRadius: "50%",
-                border: isBroadcasting ? "1px solid rgba(239,68,68,0.4)" : "none",
-                background: isBroadcasting ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.08)",
-                color: isBroadcasting ? "rgba(239,68,68,0.5)" : "#fff",
-                cursor: isBroadcasting ? "not-allowed" : "pointer",
-                display: "grid", placeItems: "center",
-              }}
-              aria-label={isBroadcasting ? tCommon("stopBroadcastBeforeLeaving") : tCommon("closeAriaLabel")}
-            >
+            <IconButton label={isBroadcasting ? tCommon("stopBroadcastBeforeLeaving") : tCommon("closeAriaLabel")} size="sm" tone="solid" style={{ placeItems: "center" }} onClick={isBroadcasting ? undefined : handlePanelClose} disabled={isBroadcasting}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
               </svg>
-            </button>
+            </IconButton>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <span style={{ fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1 }}>Centro de control</span>
@@ -2072,25 +2059,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 flexShrink: 0, display: "flex", alignItems: "center",
                 gap: 10, padding: "10px 14px", borderBottom: DIV,
               }}>
-                <button
-                  type="button"
-                  onClick={isBroadcasting ? undefined : handlePanelClose}
-                  disabled={isBroadcasting}
-                  title={isBroadcasting ? tCommon("stopBroadcastBeforeLeaving") : tCommon("closeAriaLabel")}
-                  style={{
-                    width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-                    border: isBroadcasting ? "1px solid rgba(168,85,255,0.4)" : "none",
-                    background: isBroadcasting ? "rgba(168,85,255,0.1)" : "rgba(255,255,255,0.08)",
-                    color: isBroadcasting ? "rgba(168,85,255,0.6)" : "#fff",
-                    cursor: isBroadcasting ? "not-allowed" : "pointer",
-                    display: "grid", placeItems: "center",
-                  }}
-                  aria-label={isBroadcasting ? tCommon("stopBroadcastBeforeLeaving") : tCommon("closeAriaLabel")}
-                >
+                <IconButton label={isBroadcasting ? tCommon("stopBroadcastBeforeLeaving") : tCommon("closeAriaLabel")} size="sm" tone="solid" style={{ placeItems: "center" }} onClick={isBroadcasting ? undefined : handlePanelClose} disabled={isBroadcasting}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
                   </svg>
-                </button>
+                </IconButton>
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                   <span style={{ fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1, fontFamily: FONT }}>Centro de control</span>
                   {isBroadcasting && (

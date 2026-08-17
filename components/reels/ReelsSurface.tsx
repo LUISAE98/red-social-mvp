@@ -23,13 +23,13 @@ import HomeStoryCarouselDesktop, {
 } from "@/app/components/Stories/HomeStoryCarouselDesktop";
 import ReelFeed from "./ReelFeed";
 
-/** Alto del nav inferior, para que el reel acabe justo encima. */
+/** Alto del nav inferior. El reel NO se recorta con esto: solo aparta sus
+ *  controles para que no queden debajo del nav. */
 const NAV_CLEARANCE = "calc(70px + var(--vb-safe-bottom, 0px))";
 
 const fullScreenCenter: React.CSSProperties = {
   position: "fixed",
   inset: 0,
-  bottom: NAV_CLEARANCE,
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
@@ -207,7 +207,7 @@ export default function ReelsSurface({
       onLoadMore={loadMore}
       onStoryViewed={handleStoryViewed}
       onEngagement={recordEngagement}
-      safeBottom={NAV_CLEARANCE}
+      navClearance={NAV_CLEARANCE}
     />
   );
 }

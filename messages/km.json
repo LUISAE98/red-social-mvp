@@ -2012,7 +2012,9 @@
     "countsPlain": "ធ្វើបច្ចុប្បន្នភាព {updated} រំលង {skipped}។",
     "countsReminder": "ដកចេញ {removed} ជូនដំណឹង {reminder} រំលង {skipped}។",
     "transitionFailed": "មិនអាចបញ្ចប់ការផ្លាស់ប្តូរសមាជិកបានទេ។",
-    "configAllSaved": "បានរក្សាទុកការជាវ កាតាឡុក និងការបរិច្ចាគ។"
+    "configAllSaved": "បានរក្សាទុកការជាវ កាតាឡុក និងការបរិច្ចាគ។",
+    "prompterTitle": "ឧបករណ៍អានអត្ថបទ",
+    "prompterPlaceholder": "សរសេរនៅទីនេះនូវអ្វីដែលអ្នកចង់និយាយ"
   },
   "live": {
     "accessTicket": "សំបុត្រចូល",

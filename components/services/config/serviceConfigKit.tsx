@@ -8,6 +8,7 @@
 // El perfil las re-exporta desde su parts; la comunidad las importa directo.
 
 import React, { useEffect, useState } from "react";
+import { IconButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
@@ -357,23 +358,7 @@ export function OverlayModal({
             >
               {title}
             </span>
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={loading}
-              aria-label={tCommon("cancel")}
-              style={{
-                border: "none",
-                background: "none",
-                color: "#fff",
-                cursor: loading ? "not-allowed" : "pointer",
-                display: "grid",
-                placeItems: "center",
-                justifySelf: "end",
-                padding: 4,
-                opacity: loading ? 0.5 : 1,
-              }}
-            >
+            <IconButton label={tCommon("cancel")} size="sm" tone="bare" shape="square" style={{ placeItems: "center", justifySelf: "end" }} onClick={onCancel} disabled={loading}>
               <svg
                 width="18"
                 height="18"
@@ -386,7 +371,7 @@ export function OverlayModal({
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
-            </button>
+            </IconButton>
 
             {/* Barra de carga indeterminada, sobre la línea del título. */}
             {loading && (

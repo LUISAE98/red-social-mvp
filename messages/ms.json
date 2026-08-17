@@ -2012,7 +2012,9 @@
     "countsPlain": "Dikemas kini {updated}, dilangkau {skipped}.",
     "countsReminder": "Ditarik {removed}, dimaklumkan {reminder}, dilangkau {skipped}.",
     "transitionFailed": "Peralihan ahli tidak dapat diselesaikan.",
-    "configAllSaved": "Langganan, katalog dan derma disimpan."
+    "configAllSaved": "Langganan, katalog dan derma disimpan.",
+    "prompterTitle": "Prompter",
+    "prompterPlaceholder": "Tulis di sini apa yang anda mahu katakan"
   },
   "live": {
     "accessTicket": "Tiket akses",

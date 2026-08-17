@@ -63,6 +63,30 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
 });
 
+
+/**
+ * ⚠️ B9-alto: enviar un mensaje exige ahora que el contador del freno viaje en
+ * el MISMO lote atómico (1 s entre mensajes, 300 por hora). Sin él la regla
+ * deniega, y estas pruebas dejarían de medir lo que quieren medir.
+ *
+ * `addDoc` no sirve para eso, porque solo escribe un documento.
+ */
+function enviarMensaje(
+  ctx: ReturnType<typeof as>,
+  uid: string,
+  datos: Record<string, unknown>,
+  convId: string = CONV
+) {
+  const lote = writeBatch(ctx);
+  lote.set(doc(collection(ctx, "conversations/" + convId + "/messages")), datos);
+  lote.set(doc(ctx, "rateLimits/" + uid + "_dm"), {
+    lastAt: serverTimestamp(),
+    windowStart: serverTimestamp(),
+    count: 1,
+  });
+  return lote.commit();
+}
+
 type Seeds = Array<[string, Record<string, unknown>]>;
 
 /**
@@ -337,7 +361,7 @@ describe("DM — un hilo nunca nace vacío (y la solicitud, con un solo mensaje)
       ...existingMessage(ALICE),
     ]);
     await assertFails(
-      addDoc(collection(as(ALICE), `conversations/${CONV}/messages`), {
+      enviarMensaje(as(ALICE), ALICE, {
         senderId: ALICE,
         text: "otra vez",
         createdAt: serverTimestamp(),
@@ -353,7 +377,7 @@ describe("DM — un hilo nunca nace vacío (y la solicitud, con un solo mensaje)
       ...existingMessage(ALICE),
     ]);
     await assertSucceeds(
-      addDoc(collection(as(BOB), `conversations/${CONV}/messages`), {
+      enviarMensaje(as(BOB), BOB, {
         senderId: BOB,
         text: "hola",
         createdAt: serverTimestamp(),
@@ -411,7 +435,7 @@ describe("DM — un hilo nunca nace vacío (y la solicitud, con un solo mensaje)
       ...existingMessage(ALICE),
     ]);
     await assertSucceeds(
-      addDoc(collection(as(ALICE), `conversations/${CONV}/messages`), {
+      enviarMensaje(as(ALICE), ALICE, {
         senderId: ALICE,
         text: "gracias por aceptar",
         createdAt: serverTimestamp(),
@@ -464,7 +488,7 @@ describe("DM — invitados anónimos", () => {
   it("🔴 una cuenta anónima NO puede escribir en un hilo ya abierto", async () => {
     await seedAll([...users("everyone"), ...conversation("active")]);
     await assertFails(
-      addDoc(collection(asAnonymous(ALICE), `conversations/${CONV}/messages`), {
+      enviarMensaje(asAnonymous(ALICE), ALICE, {
         senderId: ALICE,
         text: "hola",
         createdAt: serverTimestamp(),
@@ -489,7 +513,7 @@ describe("DM — bloqueo entre usuarios", () => {
   it("🔴 en un hilo bloqueado no se puede escribir", async () => {
     await seedAll([...users("everyone"), ...conversation("blocked", BOB)]);
     await assertFails(
-      addDoc(collection(as(ALICE), `conversations/${CONV}/messages`), {
+      enviarMensaje(as(ALICE), ALICE, {
         senderId: ALICE,
         text: "hola",
         createdAt: serverTimestamp(),
@@ -648,36 +672,35 @@ describe("DM — mensajes", () => {
   it("🟢 un participante envía un mensaje", async () => {
     await seedAll(base());
     await assertSucceeds(
-      addDoc(collection(as(ALICE), `conversations/${CONV}/messages`), message())
+      enviarMensaje(as(ALICE), ALICE, message())
     );
   });
 
   it("🔴 un tercero no puede enviar", async () => {
     await seedAll(base());
     await assertFails(
-      addDoc(collection(as(CAROL), `conversations/${CONV}/messages`), message({ senderId: CAROL }))
+      enviarMensaje(as(CAROL), CAROL, message({ senderId: CAROL }))
     );
   });
 
   it("🔴 no puedo firmar un mensaje con el nombre del otro", async () => {
     await seedAll(base());
     await assertFails(
-      addDoc(collection(as(ALICE), `conversations/${CONV}/messages`), message({ senderId: BOB }))
+      enviarMensaje(as(ALICE), ALICE, message({ senderId: BOB }))
     );
   });
 
   it("🔴 texto vacío", async () => {
     await seedAll(base());
     await assertFails(
-      addDoc(collection(as(ALICE), `conversations/${CONV}/messages`), message({ text: "" }))
+      enviarMensaje(as(ALICE), ALICE, message({ text: "" }))
     );
   });
 
   it("🔴 texto por encima del límite de 2000", async () => {
     await seedAll(base());
     await assertFails(
-      addDoc(
-        collection(as(ALICE), `conversations/${CONV}/messages`),
+      enviarMensaje(as(ALICE), ALICE,
         message({ text: "x".repeat(2001) })
       )
     );
@@ -695,8 +718,7 @@ describe("DM — mensajes", () => {
   it("🟢 un mensaje SOLO imagen (sin texto) se permite", async () => {
     await seedAll(base());
     await assertSucceeds(
-      addDoc(
-        collection(as(ALICE), `conversations/${CONV}/messages`),
+      enviarMensaje(as(ALICE), ALICE,
         message({ text: "", image: IMAGE })
       )
     );
@@ -705,8 +727,7 @@ describe("DM — mensajes", () => {
   it("🟢 imagen con pie de foto también", async () => {
     await seedAll(base());
     await assertSucceeds(
-      addDoc(
-        collection(as(ALICE), `conversations/${CONV}/messages`),
+      enviarMensaje(as(ALICE), ALICE,
         message({ text: "mira esto", image: IMAGE })
       )
     );
@@ -714,17 +735,20 @@ describe("DM — mensajes", () => {
 
   it("🔴 una imagen mal formada se rechaza", async () => {
     await seedAll(base());
-    const col = collection(as(ALICE), `conversations/${CONV}/messages`);
+    // ⚠️ Con el freno de B9, un `addDoc` suelto fallaría por FALTA DE CONTADOR y
+    // no por lo que cada caso quiere probar: un negativo que pasa por el motivo
+    // equivocado no vale nada.
+    const col = (datos: Record<string, unknown>) => enviarMensaje(as(ALICE), ALICE, datos);
     // Sin thumbnailPath. Se OMITE la clave en vez de ponerla a undefined: el SDK
     // rechaza undefined en el cliente y las rules no llegarían a evaluarse.
     const { thumbnailPath: _omitted, ...noThumb } = IMAGE;
-    await assertFails(addDoc(col, message({ text: "", image: noThumb })));
+    await assertFails(col(message({ text: "", image: noThumb })));
     // Con un campo de más.
     await assertFails(
-      addDoc(col, message({ text: "", image: { ...IMAGE, evil: true } }))
+      col(message({ text: "", image: { ...IMAGE, evil: true } }))
     );
     // No es un mapa.
-    await assertFails(addDoc(col, message({ text: "", image: "https://x/a.jpg" })));
+    await assertFails(col(message({ text: "", image: "https://x/a.jpg" })));
   });
 
   // Sin esto se podría apuntar el mensaje a una imagen de OTRO hilo y, al pedir
@@ -732,8 +756,7 @@ describe("DM — mensajes", () => {
   it("🔴 una ruta de OTRA conversación se rechaza", async () => {
     await seedAll(base());
     await assertFails(
-      addDoc(
-        collection(as(ALICE), `conversations/${CONV}/messages`),
+      enviarMensaje(as(ALICE), ALICE,
         message({
           text: "",
           image: {
@@ -748,15 +771,18 @@ describe("DM — mensajes", () => {
   it("🔴 sin texto y sin imagen sigue siendo un mensaje vacío", async () => {
     await seedAll(base());
     await assertFails(
-      addDoc(collection(as(ALICE), `conversations/${CONV}/messages`), message({ text: "" }))
+      enviarMensaje(as(ALICE), ALICE, message({ text: "" }))
     );
   });
 
   it("🔴 no se puede nacer ya borrado ni colar campos extra", async () => {
     await seedAll(base());
-    const col = collection(as(ALICE), `conversations/${CONV}/messages`);
-    await assertFails(addDoc(col, message({ isDeleted: true })));
-    await assertFails(addDoc(col, message({ pinned: true })));
+    // ⚠️ Con el freno de B9, un `addDoc` suelto fallaría por FALTA DE CONTADOR y
+    // no por lo que cada caso quiere probar: un negativo que pasa por el motivo
+    // equivocado no vale nada.
+    const col = (datos: Record<string, unknown>) => enviarMensaje(as(ALICE), ALICE, datos);
+    await assertFails(col(message({ isDeleted: true })));
+    await assertFails(col(message({ pinned: true })));
   });
 
   // ── Respuestas (deslizar el mensaje para citarlo) ─────────────────────────
@@ -778,8 +804,7 @@ describe("DM — mensajes", () => {
     // citaba un `m1` inexistente.
     await seedAll([...base(), ...existingMessage(BOB, "m1")]);
     await assertSucceeds(
-      addDoc(
-        collection(as(ALICE), `conversations/${CONV}/messages`),
+      enviarMensaje(as(ALICE), ALICE,
         message({ replyTo: REPLY })
       )
     );
@@ -788,8 +813,7 @@ describe("DM — mensajes", () => {
   it("🟢 una cita de un mensaje solo-imagen no lleva texto", async () => {
     await seedAll([...base(), ...existingMessage(BOB, "m1")]);
     await assertSucceeds(
-      addDoc(
-        collection(as(ALICE), `conversations/${CONV}/messages`),
+      enviarMensaje(as(ALICE), ALICE,
         message({ replyTo: { ...REPLY, text: "", hasImage: true } })
       )
     );
@@ -800,8 +824,7 @@ describe("DM — mensajes", () => {
   it("🔴 no se puede citar a alguien que no está en el hilo", async () => {
     await seedAll(base());
     await assertFails(
-      addDoc(
-        collection(as(ALICE), `conversations/${CONV}/messages`),
+      enviarMensaje(as(ALICE), ALICE,
         message({ replyTo: { ...REPLY, senderId: CAROL } })
       )
     );
@@ -809,18 +832,21 @@ describe("DM — mensajes", () => {
 
   it("🔴 una cita mal formada se rechaza", async () => {
     await seedAll(base());
-    const col = collection(as(ALICE), `conversations/${CONV}/messages`);
+    // ⚠️ Con el freno de B9, un `addDoc` suelto fallaría por FALTA DE CONTADOR y
+    // no por lo que cada caso quiere probar: un negativo que pasa por el motivo
+    // equivocado no vale nada.
+    const col = (datos: Record<string, unknown>) => enviarMensaje(as(ALICE), ALICE, datos);
     // Sin messageId (se OMITE la clave: el SDK rechaza undefined en cliente).
     const { messageId: _omitted, ...noId } = REPLY;
-    await assertFails(addDoc(col, message({ replyTo: noId })));
+    await assertFails(col(message({ replyTo: noId })));
     // Con un campo de más.
-    await assertFails(addDoc(col, message({ replyTo: { ...REPLY, evil: true } })));
+    await assertFails(col(message({ replyTo: { ...REPLY, evil: true } })));
     // No es un mapa.
-    await assertFails(addDoc(col, message({ replyTo: "m1" })));
+    await assertFails(col(message({ replyTo: "m1" })));
     // Extracto por encima del tope: la cita se pinta en dos líneas, guardar el
     // mensaje entero solo engordaría cada respuesta.
     await assertFails(
-      addDoc(col, message({ replyTo: { ...REPLY, text: "x".repeat(201) } }))
+      col(message({ replyTo: { ...REPLY, text: "x".repeat(201) } }))
     );
   });
 

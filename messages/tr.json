@@ -2012,7 +2012,9 @@
     "countsPlain": "Güncellenen {updated}, atlanan {skipped}.",
     "countsReminder": "Kaldırılan {removed}, bilgilendirilen {reminder}, atlanan {skipped}.",
     "transitionFailed": "Üye geçişi tamamlanamadı.",
-    "configAllSaved": "Abonelik, katalog ve bağış kaydedildi."
+    "configAllSaved": "Abonelik, katalog ve bağış kaydedildi.",
+    "prompterTitle": "Suflör",
+    "prompterPlaceholder": "Söylemek istediklerini buraya yaz"
   },
   "live": {
     "accessTicket": "Giriş bileti",

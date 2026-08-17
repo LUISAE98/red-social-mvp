@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import Link from "next/link";
 import {
   useEffect,
@@ -701,32 +702,13 @@ export default function PostComposerMobileOverlay({
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                <button
-                  type="button"
-                  onClick={onOpenMediaPicker}
-                  disabled={creating || isPreparingImages}
-                  title={tPosts("addPhotosOrVideos")}
-                  aria-label={tPosts("addPhotosOrVideos")}
-                  style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 0,
-                    border: "none",
-                    background: "transparent",
-                    color: "#a855f7",
-                    display: "grid",
-                    placeItems: "center",
-                    cursor: creating || isPreparingImages ? "not-allowed" : "pointer",
-                    opacity: creating || isPreparingImages ? 0.45 : 1,
-                    padding: 0,
-                  }}
-                >
+                <IconButton label={tPosts("addPhotosOrVideos")} size="md" tone="bare" shape="square" style={{ placeItems: "center" }} onClick={onOpenMediaPicker} disabled={creating || isPreparingImages}>
                   <VibraNavigationIcon
                     type="attachMedia"
                     size={30}
                     strokeWidth={2.1}
                   />
-                </button>
+                </IconButton>
 
                 {onLiveClick && !isEditMode && (
                   <button

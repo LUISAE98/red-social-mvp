@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { intlLocale } from "@/i18n/locales";
-import { Modal } from "@/components/ui";
+import { Modal, TextButton } from "@/components/ui";
 import { CardsSkeleton } from "@/components/ui/ListSkeleton";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -372,9 +372,9 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
           {/* Subida del .cer: el texto morado ES el botón que abre el explorador. */}
           <div>
             <input ref={cerInputRef} type="file" accept=".cer" style={{ display: "none" }} onChange={(e) => pickCer(e.target.files?.[0] ?? null)} />
-            <button type="button" onClick={() => cerInputRef.current?.click()} style={uploadLink}>
+            <TextButton tone="brand" size="md" style={{ margin: 0, fontFamily: "inherit", textAlign: "start", display: "inline-flex", alignItems: "center", maxWidth: "100%" }} onClick={() => cerInputRef.current?.click()}>
               {cer ? <FileChosen name={cer.name} /> : "Da clic aquí para subir tu archivo .cer"}
-            </button>
+            </TextButton>
             {cerError && <div style={redNote}>{cerError}</div>}
           </div>
 
@@ -384,9 +384,9 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
               Ahora sube tu archivo .key (la llave privada de tu CSD).
             </p>
             <input ref={keyInputRef} type="file" accept=".key" style={{ display: "none" }} onChange={(e) => pickKey(e.target.files?.[0] ?? null)} />
-            <button type="button" onClick={() => keyInputRef.current?.click()} style={uploadLink}>
+            <TextButton tone="brand" size="md" style={{ margin: 0, fontFamily: "inherit", textAlign: "start", display: "inline-flex", alignItems: "center", maxWidth: "100%" }} onClick={() => keyInputRef.current?.click()}>
               {keyFile ? <FileChosen name={keyFile.name} /> : "Da clic aquí para subir tu archivo .key"}
-            </button>
+            </TextButton>
             {keyError && <div style={redNote}>{keyError}</div>}
           </div>
           <div>
@@ -483,18 +483,18 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
           {/* Subida del PDF (texto morado = botón). */}
           <div>
             <input ref={pdfInputRef} type="file" accept=".pdf,application/pdf" style={{ display: "none" }} onChange={(e) => pickPdf(e.target.files?.[0] ?? null)} />
-            <button type="button" onClick={() => pdfInputRef.current?.click()} style={uploadLink}>
+            <TextButton tone="brand" size="md" style={{ margin: 0, fontFamily: "inherit", textAlign: "start", display: "inline-flex", alignItems: "center", maxWidth: "100%" }} onClick={() => pdfInputRef.current?.click()}>
               {pdf ? <FileChosen name={pdf.name} /> : "Da clic aquí para subir el PDF de tu factura"}
-            </button>
+            </TextButton>
             {pdfError && <div style={redNote}>{pdfError}</div>}
           </div>
 
           {/* Subida del XML (texto morado = botón). */}
           <div>
             <input ref={xmlInputRef} type="file" accept=".xml,text/xml,application/xml" style={{ display: "none" }} onChange={(e) => pickXml(e.target.files?.[0] ?? null)} />
-            <button type="button" onClick={() => xmlInputRef.current?.click()} style={uploadLink}>
+            <TextButton tone="brand" size="md" style={{ margin: 0, fontFamily: "inherit", textAlign: "start", display: "inline-flex", alignItems: "center", maxWidth: "100%" }} onClick={() => xmlInputRef.current?.click()}>
               {xml ? <FileChosen name={xml.name} /> : "Da clic aquí para subir el XML de tu factura"}
-            </button>
+            </TextButton>
             {xmlError && <div style={redNote}>{xmlError}</div>}
           </div>
 

@@ -2012,7 +2012,9 @@
     "countsPlain": "Actualitzats {updated}, omesos {skipped}.",
     "countsReminder": "Trets {removed}, avisats {reminder}, omesos {skipped}.",
     "transitionFailed": "La transició de membres no s'ha pogut completar.",
-    "configAllSaved": "Subscripció, catàleg i donació desats."
+    "configAllSaved": "Subscripció, catàleg i donació desats.",
+    "prompterTitle": "Prompter",
+    "prompterPlaceholder": "Escriu aquí el que vols dir"
   },
   "live": {
     "accessTicket": "Entrada d'accés",

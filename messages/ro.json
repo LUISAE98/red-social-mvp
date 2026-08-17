@@ -2012,7 +2012,9 @@
     "countsPlain": "Actualizați {updated}, omiși {skipped}.",
     "countsReminder": "Eliminați {removed}, anunțați {reminder}, omiși {skipped}.",
     "transitionFailed": "Tranziția membrilor nu a putut fi finalizată.",
-    "configAllSaved": "Abonamentul, catalogul și donația au fost salvate."
+    "configAllSaved": "Abonamentul, catalogul și donația au fost salvate.",
+    "prompterTitle": "Teleprompter",
+    "prompterPlaceholder": "Scrie aici ce vrei să spui"
   },
   "live": {
     "accessTicket": "Bilet de acces",

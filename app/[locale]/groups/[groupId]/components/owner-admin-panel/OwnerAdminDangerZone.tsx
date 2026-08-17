@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { useTranslations } from "next-intl";
+import { TextButton } from "@/components/ui";
 import { db } from "@/lib/firebase";
 import { softDeleteGroup } from "@/lib/groups/groupDeletion";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -399,23 +400,15 @@ export default function OwnerAdminDangerZone({
                 {isDeleting ? "Eliminando..." : "Sí, eliminar comunidad"}
               </button>
 
-              <button
-                type="button"
+              <TextButton
+                tone="mute"
+                size="sm"
                 onClick={() => setShowFinalOverlay(false)}
                 disabled={isPausing || isDeleting}
-                style={{
-                  minHeight: 36,
-                  borderRadius: 10,
-                  border: "0",
-                  background: "transparent",
-                  color: "rgba(255,255,255,0.62)",
-                  fontSize: 12,
-                  fontWeight: 650,
-                  cursor: isPausing || isDeleting ? "not-allowed" : "pointer",
-                }}
+                style={{ minHeight: 36, justifyContent: "center" }}
               >
                 Volver
-              </button>
+              </TextButton>
             </div>
           </div>
         </div>

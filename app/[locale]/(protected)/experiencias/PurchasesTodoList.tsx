@@ -6,6 +6,7 @@
 // comunidad + monto + fecha + estado).
 
 import Image from "next/image";
+import { TextButton } from "@/components/ui";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
@@ -150,18 +151,9 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
       {/* Botón para facturar: en su propio renglón, DEBAJO de los filtros, para
           que no se salga del margen derecho en celular. */}
       {!selecting && (
-        <button
-          type="button"
-          onClick={enterSelection}
-          style={{
-            justifySelf: "start",
-            background: "transparent", border: "none", padding: 0, margin: 0,
-            color: "#a855f7", cursor: "pointer", fontSize: 12, fontWeight: 600,
-            fontFamily: "inherit", lineHeight: 1.3, textAlign: "start",
-          }}
-        >
+        <TextButton tone="brand" size="sm" style={{ justifySelf: "start", margin: 0, fontFamily: "inherit", textAlign: "start" }} onClick={enterSelection}>
           {tWallet("invoiceCta")}
-        </button>
+        </TextButton>
       )}
 
       {/* Modo selección: instrucción morada + fila "Seleccionar todo" / "Listo". */}
@@ -171,19 +163,15 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
             {tWallet("invoiceSelectInstruction")}
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-            <button
-              type="button"
+            <TextButton
+              tone="brand"
+              size="sm"
               onClick={toggleSelectAll}
               disabled={selectableIds.length === 0}
-              style={{
-                background: "transparent", border: "none", padding: 0, margin: 0,
-                color: selectableIds.length === 0 ? "rgba(168,85,247,0.4)" : "#a855f7",
-                cursor: selectableIds.length === 0 ? "default" : "pointer",
-                fontSize: 12.5, fontWeight: 600, fontFamily: "inherit", lineHeight: 1, whiteSpace: "nowrap",
-              }}
+              style={{ margin: 0, whiteSpace: "nowrap" }}
             >
               {allSelected ? tWallet("invoiceSelectNone") : tWallet("invoiceSelectAll")}
-            </button>
+            </TextButton>
             {/* "Listo" con el estilo del botón "Entrar" del login: píldora con
                 gradiente rosa→morado→azul, para que resalte como acción. */}
             <button

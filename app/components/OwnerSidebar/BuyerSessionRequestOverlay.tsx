@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import { formatDateLong, formatDateTimeLong, formatWeekdayTime } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -396,18 +397,13 @@ export default function BuyerSessionRequestOverlay({
                         {chatTtsRate}×
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => handleToggleChatTts(idx, entry.text)}
-                      aria-label={isPlaying ? tServices("pauseReading") : isActive && chatTtsState === "paused" ? tServices("resumeReading") : tServices("readMessage")}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
-                    >
+                    <IconButton label={isPlaying ? tServices("pauseReading") : isActive && chatTtsState === "paused" ? tServices("resumeReading") : tServices("readMessage")} size="sm" tone="bare" shape="square" onClick={() => handleToggleChatTts(idx, entry.text)}>
                       {isPlaying ? (
                         <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="4" height="16" rx="1"/></svg>
                       ) : (
                         <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
                       )}
-                    </button>
+                    </IconButton>
                   </div>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                     {avatarUrl ? (
@@ -732,14 +728,11 @@ export default function BuyerSessionRequestOverlay({
             <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
               {serviceTitle}
             </h3>
-            <button type="button" onClick={handleClose} aria-label={tCommon("close")} style={{
-              border: "none", background: "none", color: "#fff", cursor: "pointer",
-              display: "grid", placeItems: "center", justifySelf: "end", padding: 4,
-            }}>
+            <IconButton label={tCommon("close")} size="sm" tone="bare" shape="square" style={{ placeItems: "center", justifySelf: "end" }} onClick={handleClose}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
-            </button>
+            </IconButton>
           </header>
 
           <div className="vibra-panel-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 8px" }}>

@@ -2012,7 +2012,9 @@
     "countsPlain": "محدَّثون {updated}، متجاوَزون {skipped}.",
     "countsReminder": "مسحوبون {removed}، مُبلَّغون {reminder}، متجاوَزون {skipped}.",
     "transitionFailed": "تعذّر إتمام نقل الأعضاء.",
-    "configAllSaved": "تم حفظ الاشتراك والكتالوج والتبرّع."
+    "configAllSaved": "تم حفظ الاشتراك والكتالوج والتبرّع.",
+    "prompterTitle": "التلقين",
+    "prompterPlaceholder": "اكتب هنا ما تريد قوله"
   },
   "live": {
     "accessTicket": "تذكرة دخول",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { TextButton } from "@/components/ui";
 import { useLocale, useTranslations } from "next-intl";
 import { intlLocale } from "@/i18n/locales";
 import {
@@ -285,12 +286,9 @@ export default function AdminRefundsPage() {
                           {r.buyerName || r.buyerUsername || r.buyerId}
                         </span>
                         {r.buyerUsername && (
-                          <button
-                            onClick={() => setPreviewUrl(`/u/${r.buyerUsername}`)}
-                            style={linkBtn}
-                          >
+                          <TextButton tone="brand" size="sm" onClick={() => setPreviewUrl(`/u/${r.buyerUsername}`)}>
                             ver perfil →
-                          </button>
+                          </TextButton>
                         )}
                       </div>
                     </div>

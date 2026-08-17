@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -1016,23 +1017,11 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         padding: "32px 24px", fontFamily: FONT,
       }}>
         {/* Botón cerrar */}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={tCommon("closeAriaLabel")}
-          style={{
-            position: "absolute", top: "max(20px, env(safe-area-inset-top))",
-            insetInlineEnd: "max(20px, env(safe-area-inset-right))",
-            background: "rgba(255,255,255,0.08)", border: "none",
-            borderRadius: "50%", width: 36, height: 36,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", color: "#fff",
-          }}
-        >
+        <IconButton label={tCommon("closeAriaLabel")} size="md" tone="solid" style={{ position: "absolute", top: "max(20px, env(safe-area-inset-top))", insetInlineEnd: "max(20px, env(safe-area-inset-right))" }} onClick={onClose}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>
-        </button>
+        </IconButton>
 
         {/* Portada */}
         {liveData?.coverUrl && (
@@ -1530,12 +1519,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
         <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
           {/* Mute — igual que historias */}
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
-            aria-label={muted ? "Activar sonido" : "Silenciar"}
-          >
+          <IconButton label={muted ? "Activar sonido" : "Silenciar"} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}>
             {muted ? (
               <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -1547,17 +1531,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
               </svg>
             )}
-          </button>
+          </IconButton>
 
 
           {/* Fullscreen toggle — solo desktop */}
           {isDesktop && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setIsFullscreen(f => !f); }}
-              aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
-            >
+            <IconButton label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); setIsFullscreen(f => !f); }}>
               {isFullscreen ? (
                 <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
@@ -1569,17 +1548,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                   <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
                 </svg>
               )}
-            </button>
+            </IconButton>
           )}
 
           {/* Expand/compress — solo celular horizontal (no portrait) */}
           {!isDesktop && !isPortrait && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setMobileFsHorizontal(f => !f); }}
-              aria-label={mobileFsHorizontal ? "Reducir pantalla" : "Pantalla completa"}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
-            >
+            <IconButton label={mobileFsHorizontal ? "Reducir pantalla" : "Pantalla completa"} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); setMobileFsHorizontal(f => !f); }}>
               {mobileFsHorizontal ? (
                 <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
@@ -1591,21 +1565,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                   <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
                 </svg>
               )}
-            </button>
+            </IconButton>
           )}
 
           {/* Cerrar — igual que historias */}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={tCommon("closeAriaLabel")}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
+          <IconButton label={tCommon("closeAriaLabel")} size="sm" tone="bare" shape="square" onClick={onClose}>
             <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
-          </button>
+          </IconButton>
         </div>
       </div>
     );

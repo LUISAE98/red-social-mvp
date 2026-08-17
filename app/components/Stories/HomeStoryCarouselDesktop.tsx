@@ -13,6 +13,17 @@ const LABELS: Record<StoryType, string> = { saludo: "Saludo", consejo: "Consejo"
 const FONT = 'inherit';
 const NEXT_SCALE = 0.82;
 const NEXT_GAP = 20;
+/**
+ * Segundo nivel de profundidad. Una tercera historia a cada lado, más pequeña y
+ * más lejos, que al avanzar ocupa el sitio de la vista previa cercana. Da la
+ * sensación de que el carrusel viene de algún sitio en vez de aparecer de la
+ * nada en los bordes.
+ */
+const FAR_SCALE = NEXT_SCALE * 0.8;
+// La profundidad la marca SOLO la escala. Nada de transparencia en reposo: al
+// atenuar los costados, cada cambio de índice movía también la opacidad de todos
+// los paneles a la vez y eso se leía como un parpadeo general. La opacidad ya
+// solo se usa para desaparecer al salir del escenario.
 
 export type CarouselGroup = {
   key: string;
@@ -45,9 +56,12 @@ function GroupPreview({ group }: { group: CarouselGroup }) {
           filter: "blur(8px) brightness(0.55)", transform: "scale(1.08)",
         }} />
       )}
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
-        <div style={{ position: "relative", width: 52, height: 52 }}>
-          <div style={{ position: "absolute", inset: 5, borderRadius: "50%", overflow: "hidden" }}>
+      {/* Los costados se pintan a escala reducida (0.82 y 0.66), así que lo de
+          dentro llega al ojo bastante más pequeño de lo que dicen estos números.
+          Por eso van holgados. */}
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
+        <div style={{ position: "relative", width: 84, height: 84 }}>
+          <div style={{ position: "absolute", inset: 7, borderRadius: "50%", overflow: "hidden" }}>
             {photoURL
               ? <Image src={photoURL} alt="" fill style={{ objectFit: "cover" }} />
               : <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />
@@ -55,15 +69,15 @@ function GroupPreview({ group }: { group: CarouselGroup }) {
           </div>
           <div style={{
             position: "absolute", inset: 0, borderRadius: "50%", background: VIBRA_RING,
-            WebkitMaskImage: "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
-            maskImage: "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
+            WebkitMaskImage: "radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 4px))",
+            maskImage: "radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 4px))",
           }} />
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-          <span style={{ color: "#fff", fontSize: 12, fontWeight: 600, fontFamily: FONT, maxWidth: 100, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+          <span style={{ color: "#fff", fontSize: 17, fontWeight: 600, fontFamily: FONT, maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>
             {displayName ?? ""}
           </span>
-          <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontFamily: FONT }}>
+          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, fontFamily: FONT }}>
             {LABELS[type]}
           </span>
         </div>
@@ -105,6 +119,10 @@ export default function HomeStoryCarouselDesktop({
 
   const { width: PW, height: PH } = panelSize;
   const offsetX = Math.round(PW / 2 + NEXT_GAP + (PW * NEXT_SCALE) / 2);
+  // La lejana arranca donde acaba la cercana, con su propio hueco.
+  const farOffsetX = Math.round(
+    offsetX + (PW * NEXT_SCALE) / 2 + NEXT_GAP + (PW * FAR_SCALE) / 2,
+  );
 
   const advance = () => {
     if (animatingRef.current) return;
@@ -130,9 +148,11 @@ export default function HomeStoryCarouselDesktop({
     }, 370);
   };
 
+  const farPrevGroup = activeIdx > 1 ? groups[activeIdx - 2] : null;
   const prevGroup = activeIdx > 0 ? groups[activeIdx - 1] : null;
   const activeGroup = groups[activeIdx];
   const nextGroup = activeIdx < groups.length - 1 ? groups[activeIdx + 1] : null;
+  const farNextGroup = activeIdx < groups.length - 2 ? groups[activeIdx + 2] : null;
 
   if (!activeGroup) return null;
 
@@ -142,24 +162,42 @@ export default function HomeStoryCarouselDesktop({
     ? "transform 0.37s cubic-bezier(0.4,0,0.2,1), opacity 0.37s ease"
     : "none";
 
-  function panelStyle(slot: "left" | "active" | "right"): React.CSSProperties {
+  function panelStyle(
+    slot: "farLeft" | "left" | "active" | "right" | "farRight",
+  ): React.CSSProperties {
     let tx = 0, sc = 1, op = 1, zIndex = 2;
+
+    // Las lejanas van SIEMPRE detrás (z 0) y nunca llegan a opacidad plena. Al
+    // avanzar, cada una hereda la posición de la cercana de su lado, que es lo
+    // que produce la sensación de acercarse.
+    if (slot === "farLeft") {
+      zIndex = 0;
+      if (phase === "idle")    { tx = -farOffsetX;       sc = FAR_SCALE;       op = 1;    }
+      if (phase === "to-next") { tx = -farOffsetX * 1.4; sc = FAR_SCALE * 0.7; op = 0;           }
+      if (phase === "to-prev") { tx = -offsetX;          sc = NEXT_SCALE;      op = 1;    }
+    }
+    if (slot === "farRight") {
+      zIndex = 0;
+      if (phase === "idle")    { tx = farOffsetX;        sc = FAR_SCALE;       op = 1;    }
+      if (phase === "to-next") { tx = offsetX;           sc = NEXT_SCALE;      op = 1;    }
+      if (phase === "to-prev") { tx = farOffsetX * 1.4;  sc = FAR_SCALE * 0.7; op = 0;           }
+    }
 
     if (slot === "left") {
       zIndex = phase === "to-prev" ? 3 : 1;
-      if (phase === "idle")    { tx = -offsetX;        sc = NEXT_SCALE;       op = 0.82; }
+      if (phase === "idle")    { tx = -offsetX;        sc = NEXT_SCALE;       op = 1;    }
       if (phase === "to-next") { tx = -offsetX * 1.8;  sc = NEXT_SCALE * 0.5; op = 0;    }
       if (phase === "to-prev") { tx = 0;               sc = 1;                op = 1;    }
     }
     if (slot === "active") {
       zIndex = 2;
       if (phase === "idle")    { tx = 0;        sc = 1;          op = 1;    }
-      if (phase === "to-next") { tx = -offsetX; sc = NEXT_SCALE; op = 0.82; }
-      if (phase === "to-prev") { tx = offsetX;  sc = NEXT_SCALE; op = 0.82; }
+      if (phase === "to-next") { tx = -offsetX; sc = NEXT_SCALE; op = 1;    }
+      if (phase === "to-prev") { tx = offsetX;  sc = NEXT_SCALE; op = 1;    }
     }
     if (slot === "right") {
       zIndex = phase === "to-next" ? 3 : 1;
-      if (phase === "idle")    { tx = offsetX;        sc = NEXT_SCALE;       op = 0.82; }
+      if (phase === "idle")    { tx = offsetX;        sc = NEXT_SCALE;       op = 1;    }
       if (phase === "to-next") { tx = 0;              sc = 1;                op = 1;    }
       if (phase === "to-prev") { tx = offsetX * 1.8;  sc = NEXT_SCALE * 0.5; op = 0;    }
     }
@@ -200,6 +238,19 @@ export default function HomeStoryCarouselDesktop({
       {/* Panel container — sized to the active panel, centered by flex parent */}
       <div style={{ position: "relative", width: PW, height: PH }} onClick={(e) => e.stopPropagation()}>
 
+        {/* Segundo nivel: solo decorativas, sin área clicable. Pulsarlas
+            avanzaría dos posiciones y el carrusel se mueve de una en una. */}
+        {farPrevGroup && (
+          <div style={panelStyle("farLeft")} aria-hidden="true">
+            <GroupPreview group={farPrevGroup} />
+          </div>
+        )}
+        {farNextGroup && (
+          <div style={panelStyle("farRight")} aria-hidden="true">
+            <GroupPreview group={farNextGroup} />
+          </div>
+        )}
+
         {/* Previous group — left side */}
         {prevGroup && (
           <div style={panelStyle("left")}>
@@ -214,6 +265,10 @@ export default function HomeStoryCarouselDesktop({
             stories={activeGroup.stories}
             initialIndex={activeGroup.startIndex}
             contained
+            // El reel NO avanza solo al acabar: se repite hasta que la persona
+            // decide pasar. Es lo mismo que hace el reel de celular, y aquí
+            // importa que sean iguales porque son la misma superficie.
+            loopStory
             onClose={advance}
             onPrevGroup={goBack}
             onStoryViewed={onStoryViewed}

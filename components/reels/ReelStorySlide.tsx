@@ -16,8 +16,9 @@
 //   topRightActions  → junto al botón de silencio (cerrar)
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -28,6 +29,7 @@ import { buildStoryUrl } from "@/lib/reels/reelStories";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import VibraShareIcon from "@/app/components/VibraServiceIcons/VibraShareIcon";
+import ScrubBar from "./ScrubBar";
 
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const FONT = "inherit";
@@ -50,6 +52,16 @@ type Props = {
   overlaysHidden?: boolean;
   /** Repetir al terminar. El reel no avanza solo; el visor de círculos sí. */
   loop?: boolean;
+  /**
+   * Pinta su propia barra de progreso, con la que además se puede avanzar y
+   * retroceder. El visor de círculos no la usa: trae la suya por segmentos.
+   */
+  showProgressBar?: boolean;
+  /**
+   * Recibe una función para saltar a una fracción del video. Se la queda el
+   * anfitrión que dibuje su propia barra, porque el video vive aquí dentro.
+   */
+  seekRef?: { current: ((ratio: number) => void) | null };
   topSlot?: ReactNode;
   tapLayer?: ReactNode;
   topRightActions?: ReactNode;
@@ -69,6 +81,8 @@ export default function ReelStorySlide({
   safeBottom = 0,
   overlaysHidden = false,
   loop = false,
+  showProgressBar = false,
+  seekRef,
   topSlot,
   tapLayer,
   topRightActions,
@@ -81,6 +95,10 @@ export default function ReelStorySlide({
   const tServices = useTranslations("services");
   const tGroups = useTranslations("groups");
   const { toast: shareToast, showToast: showShareToast } = useVibraToast(2400);
+  // Mientras la hoja de compartir está abierta el video se detiene, igual que
+  // con el contexto o con la compra. `navigator.share` no resuelve hasta que se
+  // cierra, así que sirve de señal exacta de "sigue abierta".
+  const [sharing, setSharing] = useState(false);
 
   /**
    * Comparte el enlace directo a ESTA historia.
@@ -95,6 +113,7 @@ export default function ReelStorySlide({
       await navigator.clipboard.writeText(url);
       showShareToast(tCommon("linkCopiedToClipboard"), "success");
     };
+    setSharing(true);
     try {
       if (navigator.share) {
         await navigator.share({ url });
@@ -107,6 +126,9 @@ export default function ReelStorySlide({
       } catch {
         showShareToast(tGroups("copyManuallyError"), "error");
       }
+    } finally {
+      // Al cerrar la hoja —compartiendo o cancelando— el video sigue.
+      setSharing(false);
     }
   }
 
@@ -117,6 +139,8 @@ export default function ReelStorySlide({
   const [fetchedPlaybackId, setFetchedPlaybackId] = useState<string | null>(null);
   const [fetchedInstructions, setFetchedInstructions] = useState<{ text: string | null } | null>(null);
   const [videoReady, setVideoReady] = useState(false);
+  // El video ya está pintando imagen real. Hasta entonces se ve la portada.
+  const [videoStarted, setVideoStarted] = useState(false);
   const [videoAspect, setVideoAspect] = useState<{ w: number; h: number } | null>(null);
   const [creator, setCreator] = useState<{
     name: string | null;
@@ -124,6 +148,12 @@ export default function ReelStorySlide({
     handle: string | null;
   } | null>(null);
   const [contextOpen, setContextOpen] = useState(false);
+  // Progreso propio, para la barra que pinta este componente. El anfitrión que
+  // trae la suya sigue recibiéndolo por `onProgress`.
+  const [ownProgress, setOwnProgress] = useState(0);
+  // Mientras se arrastra la barra, el video se detiene: reproducir y arrastrar a
+  // la vez hace que el indicador pelee contra el dedo.
+  const [scrubbing, setScrubbing] = useState(false);
 
   const resolvedPlaybackId = story.muxPlaybackId ?? fetchedPlaybackId;
   const instructions = story.instructions ?? fetchedInstructions?.text ?? null;
@@ -142,6 +172,27 @@ export default function ReelStorySlide({
   // pintar deja de estar permitido.
   const readerTextRef = useRef<HTMLParagraphElement | null>(null);
   const readerCursorRef = useRef<HTMLSpanElement | null>(null);
+  // Alto real del bloque inferior (contexto + botones). El velo se ajusta a
+  // él en vez de rellenar siempre hasta el tope: con dos líneas de contexto,
+  // difuminar media pantalla es difuminar aire.
+  const bottomStackRef = useRef<HTMLDivElement | null>(null);
+  const [bottomStackH, setBottomStackH] = useState(0);
+
+  const seek = useCallback((ratio: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const dur = video.duration;
+    if (!Number.isFinite(dur) || dur <= 0) return;
+    video.currentTime = Math.min(dur, Math.max(0, ratio * dur));
+  }, []);
+
+  useEffect(() => {
+    if (!seekRef) return;
+    seekRef.current = seek;
+    return () => {
+      seekRef.current = null;
+    };
+  }, [seekRef, seek]);
 
   const effectiveType = type ?? story.type;
 
@@ -248,21 +299,32 @@ export default function ReelStorySlide({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (paused || contextOpen || purchase.isOpen) {
+    if (paused || contextOpen || purchase.isOpen || sharing || scrubbing) {
       video.pause();
-    } else {
-      video.play().catch(() => {});
+      return;
     }
-  }, [paused, contextOpen, purchase.isOpen]);
+    // ⚠️ `play()` sobre un video YA TERMINADO lo rearranca desde el principio.
+    // Sin este guardia, cualquier repintado que vuelva a correr este efecto
+    // después del final relanza el video, y en escritorio eso se veía como que
+    // la historia se repetía en bucle en vez de pasar a la siguiente.
+    //
+    // Quien decide qué pasa al acabar es `onEnded`, no este efecto.
+    if (video.ended && !loop) return;
+    video.play().catch(() => {});
+  }, [paused, contextOpen, purchase.isOpen, sharing, scrubbing, loop]);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !videoReady || !onProgress) return;
+    if (!video || !videoReady) return;
     const tick = () => {
       const v = videoRef.current;
       if (!v) return;
       const dur = v.duration;
-      if (dur > 0) onProgress(v.currentTime / dur);
+      if (dur > 0) {
+        const ratio = v.currentTime / dur;
+        onProgress?.(ratio);
+        setOwnProgress(ratio);
+      }
       progressRafRef.current = requestAnimationFrame(tick);
     };
     progressRafRef.current = requestAnimationFrame(tick);
@@ -300,6 +362,18 @@ export default function ReelStorySlide({
     onProgress?.(1);
     onEnded?.();
   }
+
+  // El alto cambia con el texto, con el idioma y al girar el teléfono, así que
+  // se observa en vez de medirse una vez.
+  useEffect(() => {
+    const el = bottomStackRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry) setBottomStackH(entry.contentRect.height);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -391,6 +465,18 @@ export default function ReelStorySlide({
           onLoadedData={() => setVideoReady(true)}
           onCanPlay={() => setVideoReady(true)}
           onPlay={handleVideoPlay}
+          // `playing` es el primer instante con imagen real en pantalla, no
+          // `play`, que solo dice que se pidió reproducir.
+          //
+          // ⚠️ Se espera DOS fotogramas antes de marcarlo. Con el video ya
+          // precargado, `playing` llega tan pronto que el estado cambiaba antes
+          // del primer pintado: la portada nacía ya en opacidad 0 y el navegador
+          // no tenía desde dónde animar, así que desaparecía de golpe.
+          onPlaying={() => {
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => setVideoStarted(true));
+            });
+          }}
           onEnded={handleVideoEnded}
           style={{
             position: "absolute",
@@ -399,6 +485,37 @@ export default function ReelStorySlide({
             height: "100%",
             objectFit: isLandscape ? "contain" : "cover",
             zIndex: 1,
+          }}
+        />
+      )}
+
+      {/* Portada por encima del video, que se DESVANECE cuando empieza a
+          reproducirse. El atributo `poster` desaparece de golpe en el primer
+          fotograma, y ese corte seco es lo que se leía como parpadeo al pasar
+          de una historia a otra. Aquí la misma imagen se funde. */}
+      {thumbUrl && !videoProcessing && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 2,
+            backgroundImage: `url(${thumbUrl})`,
+            // Sin proporción conocida se usa `contain`, que nunca recorta. Una
+            // portada horizontal mostrada con `cover` daría el mismo destello que
+            // se está evitando.
+            backgroundSize: !videoAspect || isLandscape ? "contain" : "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            backgroundColor: "#000",
+            // No basta con que empiece a reproducirse: hasta que no se conoce la
+            // proporción del video, `objectFit` sigue en `cover` y un video
+            // horizontal se ve estirado y recortado un instante. Ese destello se
+            // queda DEBAJO de la portada, y solo cuando el encuadre ya es el
+            // definitivo se descubre.
+            opacity: videoStarted && videoAspect ? 0 : 1,
+            transition: "opacity 320ms ease",
+            pointerEvents: "none",
           }}
         />
       )}
@@ -428,6 +545,29 @@ export default function ReelStorySlide({
       >
         {topSlot}
 
+        {showProgressBar && (
+          <div
+            style={{
+              position: "absolute",
+              top: safeTop,
+              insetInlineStart: 0,
+              insetInlineEnd: 0,
+              paddingTop: 6,
+              paddingInlineStart: 10,
+              paddingInlineEnd: 10,
+              display: "flex",
+              zIndex: 12,
+            }}
+          >
+            <ScrubBar
+              progress={ownProgress}
+              onSeek={seek}
+              onScrubbingChange={setScrubbing}
+              ariaLabel={tCommon("videoProgress")}
+            />
+          </div>
+        )}
+
         {profileHref ? (
           <Link href={profileHref} onClick={(e) => e.stopPropagation()} style={headerStyle}>
             {headerInner}
@@ -451,15 +591,7 @@ export default function ReelStorySlide({
             zIndex: 11,
           }}
         >
-          <button
-            type="button"
-            aria-label={muted ? tCommon("unmute") : tCommon("muteAriaLabel")}
-            onClick={(e) => {
-              e.stopPropagation();
-              onMutedChange(!muted);
-            }}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
+          <IconButton label={muted ? tCommon("unmute") : tCommon("muteAriaLabel")} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); onMutedChange(!muted); }}>
             {muted ? (
               <svg width={compact ? 20 : 24} height={compact ? 20 : 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -473,34 +605,86 @@ export default function ReelStorySlide({
                 <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
               </svg>
             )}
-          </button>
-          <button
-            type="button"
-            aria-label={tCommon("shareStory")}
-            title={tCommon("shareStory")}
-            onClick={(e) => {
-              e.stopPropagation();
-              void handleShare();
-            }}
-            style={{ background: "none", border: "none", cursor: "pointer", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
+          </IconButton>
+          <IconButton label={tCommon("shareStory")} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); void handleShare(); }}>
             <VibraShareIcon size={compact ? 20 : 23} color="rgba(255,255,255,0.9)" />
-          </button>
+          </IconButton>
           {topRightActions}
         </div>
 
-        {/* Panel de contexto flotante + botones */}
-        <div style={{ position: "absolute", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, display: "flex", flexDirection: "column", zIndex: 10 }}>
+        {/* Con el contexto abierto, tocar la pantalla lo CIERRA en vez de
+            cambiar de historia. Va por encima de las zonas de toque del
+            anfitrión (z 5) y por debajo del propio panel (z 10), así que los
+            botones de leer y cerrar siguen respondiendo.
+
+            Lo resuelve el slide y no el anfitrión porque `contextOpen` vive
+            aquí: el visor de círculos no tiene forma de saber si está abierto. */}
+        {contextOpen && (
+          <button
+            type="button"
+            aria-label={tCommon("closeContextAriaLabel")}
+            onClick={(e) => {
+              e.stopPropagation();
+              setContextOpen(false);
+            }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 8,
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              cursor: "default",
+            }}
+          />
+        )}
+
+        {/* El VELO, en su propia capa y sin nada dentro.
+            Mismo patrón que la pestaña del panel de grabación: lo único que
+            cambia de tamaño es el velo, y como no envuelve contenido, nada se
+            reacomoda al abrir o cerrar.
+            La máscara desvanece el desenfoque hacia arriba; sin ella el blur
+            terminaría en un canto recto a media pantalla. */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            insetInlineStart: 0,
+            insetInlineEnd: 0,
+            bottom: 0,
+            zIndex: 9,
+            pointerEvents: "none",
+            // Hasta donde llega el contenido, nunca más del tope. Los 20px de
+            // más son el margen que necesita el degradado para fundirse por
+            // arriba en lugar de cortarse justo sobre el texto.
+            height: contextOpen
+              ? `min(${Math.round(bottomStackH) + 20}px, 62%)`
+              : 0,
+            transition: "height 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+            background: "linear-gradient(to top, rgba(0,0,0,0.88), rgba(0,0,0,0))",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            maskImage: "linear-gradient(to top, #000 55%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to top, #000 55%, transparent 100%)",
+          }}
+        />
+
+        {/* Panel de contexto + botones */}
+        <div ref={bottomStackRef} style={{ position: "absolute", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, display: "flex", flexDirection: "column", zIndex: 10 }}>
+          {/* El CONTENIDO se desplaza fuera por abajo conservando su alto, en
+              vez de encogerse. Así el texto no se reacomoda al cerrar y al
+              volver a abrir ya está colocado tal cual estaba. */}
           <div
             style={{
-              margin: `0 14px ${contextOpen ? 8 : 0}px`,
-              borderRadius: 16,
-              overflow: "hidden",
-              maxHeight: contextOpen ? "50vh" : "0px",
-              transition: "max-height 0.28s cubic-bezier(0.4,0,0.2,1), margin-bottom 0.28s",
-              boxShadow: contextOpen ? "0 8px 32px rgba(0,0,0,0.5)" : "none",
-              backdropFilter: "blur(14px) saturate(1.2)",
-              WebkitBackdropFilter: "blur(14px) saturate(1.2)",
+              maxHeight: "50vh",
+              display: "flex",
+              flexDirection: "column",
+              transform: contextOpen ? "none" : "translateY(100%)",
+              opacity: contextOpen ? 1 : 0,
+              visibility: contextOpen ? "visible" : "hidden",
+              pointerEvents: contextOpen ? "auto" : "none",
+              transition:
+                "transform 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms ease, visibility 300ms",
             }}
             onTouchStart={(e) => {
               e.stopPropagation();
@@ -516,99 +700,75 @@ export default function ReelStorySlide({
               if (dy > 40) setContextOpen(false);
             }}
           >
-            <div style={{ background: "rgba(37,99,235,0.62)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 16, display: "flex", flexDirection: "column" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "8px 10px 4px", flexShrink: 0 }}>
-                {reader.state !== "idle" && (
-                  <button
-                    type="button"
-                    aria-label={tServices("changeReadingSpeed")}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      reader.cycleRate();
-                    }}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.75)", padding: "4px 6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginInlineEnd: 6, fontSize: 12, fontWeight: 700, letterSpacing: "-0.3px" }}
-                  >
-                    {reader.rate}×
-                  </button>
-                )}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "8px 18px 4px", flexShrink: 0 }}>
+              {reader.state !== "idle" && (
                 <button
                   type="button"
-                  disabled={instructionsLoading || !instructions}
-                  aria-label={
-                    reader.state === "playing"
-                      ? tServices("pauseReading")
-                      : reader.state === "paused"
-                        ? tServices("resumeReading")
-                        : tServices("readContext")
-                  }
+                  aria-label={tServices("changeReadingSpeed")}
                   onTouchStart={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
-                    reader.toggle();
+                    reader.cycleRate();
                   }}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.85)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginInlineEnd: 6, transition: "color 0.15s" }}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.75)", padding: "4px 6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginInlineEnd: 6, fontSize: 12, fontWeight: 700, letterSpacing: "-0.3px" }}
                 >
-                  {reader.state === "playing" ? (
-                    <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="5" y="4" width="4" height="16" rx="1" />
-                      <rect x="15" y="4" width="4" height="16" rx="1" />
-                    </svg>
-                  ) : (
-                    <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor">
-                      <polygon points="5,3 19,12 5,21" />
-                    </svg>
-                  )}
+                  {reader.rate}×
                 </button>
-                <button
-                  type="button"
-                  aria-label={tCommon("closeContextAriaLabel")}
-                  onTouchStart={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setContextOpen(false);
-                  }}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.75)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                >
-                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
+              )}
+              <IconButton label={ reader.state === "playing" ? tServices("pauseReading") : reader.state === "paused" ? tServices("resumeReading") : tServices("readContext") } size="sm" tone="bare" shape="square" style={{ marginInlineEnd: 6 }} disabled={instructionsLoading || !instructions} onTouchStart={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); reader.toggle(); }}>
+                {reader.state === "playing" ? (
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="5" y="4" width="4" height="16" rx="1" />
+                    <rect x="15" y="4" width="4" height="16" rx="1" />
                   </svg>
-                </button>
-              </div>
+                ) : (
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5,3 19,12 5,21" />
+                  </svg>
+                )}
+              </IconButton>
+              <IconButton label={tCommon("closeContextAriaLabel")} size="sm" tone="bare" shape="square" onTouchStart={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setContextOpen(false); }}>
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </IconButton>
+            </div>
 
-              <div style={{ overflowY: "auto", maxHeight: "calc(50vh - 44px)" }}>
-                <p
-                  ref={readerTextRef}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    reader.seekFromPoint(e.clientX, e.clientY, readerTextRef.current);
-                  }}
-                  style={{
-                    margin: "4px 18px 14px",
-                    color: "rgba(255,255,255,0.88)",
-                    fontSize: compact ? 13 : 15,
-                    fontFamily: FONT,
-                    lineHeight: 1.55,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                    cursor: "text",
-                    userSelect: "none",
-                  }}
-                >
-                  {reader.state === "idle" || !reader.highlight ? (
-                    readerText
-                  ) : (
-                    <>
-                      <strong style={{ color: "#fff", fontWeight: 700 }}>
-                        {readerText.slice(0, reader.highlight.start + reader.highlight.length)}
-                      </strong>
-                      <span ref={readerCursorRef} />
-                      {readerText.slice(reader.highlight.start + reader.highlight.length)}
-                    </>
-                  )}
-                </p>
-              </div>
+            <div style={{ overflowY: "auto", maxHeight: "calc(50vh - 44px)" }}>
+              <p
+                ref={readerTextRef}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  reader.seekFromPoint(e.clientX, e.clientY, readerTextRef.current);
+                }}
+                style={{
+                  margin: "4px 18px 14px",
+                  color: "rgba(255,255,255,0.94)",
+                  fontSize: compact ? 13 : 15,
+                  fontFamily: FONT,
+                  lineHeight: 1.55,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  cursor: "text",
+                  userSelect: "none",
+                  // Sobre video y sin caja detrás, el texto necesita su propia
+                  // sombra para no perderse en los fotogramas claros.
+                  textShadow: "0 1px 3px rgba(0,0,0,0.7)",
+                }}
+              >
+                {reader.state === "idle" || !reader.highlight ? (
+                  readerText
+                ) : (
+                  <>
+                    <strong style={{ color: "#fff", fontWeight: 700 }}>
+                      {readerText.slice(0, reader.highlight.start + reader.highlight.length)}
+                    </strong>
+                    <span ref={readerCursorRef} />
+                    {readerText.slice(reader.highlight.start + reader.highlight.length)}
+                  </>
+                )}
+              </p>
             </div>
           </div>
 

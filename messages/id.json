@@ -2012,7 +2012,9 @@
     "countsPlain": "Diperbarui {updated}, dilewati {skipped}.",
     "countsReminder": "Dicabut {removed}, diberi tahu {reminder}, dilewati {skipped}.",
     "transitionFailed": "Perpindahan anggota tidak bisa diselesaikan.",
-    "configAllSaved": "Langganan, katalog dan donasi disimpan."
+    "configAllSaved": "Langganan, katalog dan donasi disimpan.",
+    "prompterTitle": "Prompter",
+    "prompterPlaceholder": "Tulis di sini apa yang ingin kamu katakan"
   },
   "live": {
     "accessTicket": "Tiket akses",

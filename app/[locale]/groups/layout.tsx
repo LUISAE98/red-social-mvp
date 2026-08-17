@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { IconButton } from "@/components/ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -662,7 +663,8 @@ const contentAreaClassName = isEmbed
   position: relative;
   z-index: 1;
   padding-top: 0;
-  padding-bottom: 90px;
+  /* Ver (protected)/layout.tsx: en laptop no hay nav inferior que librar. */
+  padding-bottom: 24px;
   align-self: start;
 }
 
@@ -815,12 +817,32 @@ const contentAreaClassName = isEmbed
             width: 100%;
             min-width: 0;
             overflow-x: clip;
-            /* Clearance del nav: 84px + safe-area constante (ver (protected)/layout.tsx). */
-            padding-bottom: calc(84px + var(--vb-safe-bottom, 0px));
           }
 
           .mainInner {
             width: 100%;
+          }
+        }
+
+        /* Clearance del nav y de la flecha de subir: mismas cuentas y mismo
+           razonamiento que en (protected)/layout.tsx. Va en ≤768px, que es
+           donde el nav inferior existe de verdad. */
+        /* Un solo sitio para el hueco del nav: .contentArea cede su padding y
+           .mainCol carga con todo. Ver (protected)/layout.tsx para las cuentas. */
+        @media (max-width: 768px) {
+          .contentArea,
+          .contentAreaWithWallet {
+            padding-bottom: 0;
+          }
+
+          /* El alto lo publica el propio nav en --vb-bottom-nav-h: se encoge al
+             hacer scroll y un número fijo deja vacío. Ver (protected)/layout.tsx. */
+          .mainCol {
+            padding-bottom: calc(var(--vb-bottom-nav-h, 90px) + 12px);
+          }
+
+          :global(body.vb-scroll-fab-route) .mainCol {
+            padding-bottom: calc(124px + var(--vb-safe-bottom, 0px));
           }
         }
 
@@ -951,24 +973,12 @@ const contentAreaClassName = isEmbed
             </Link>
           </span>
         ) : null}
-        <button
-          type="button"
-          onClick={() => router.push("/saved")}
-          title={tNav("saved")}
-          aria-label={tNav("viewSaved")}
-          className="mobileSearchIconButton"
-        >
+        <IconButton label={tNav("viewSaved")} size="sm" tone="bare" shape="square" style={{ minWidth: "32px" }} onClick={() => router.push("/saved")} className="mobileSearchIconButton">
           <VibraSavedPostIcon size={22} color="#a855f7" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileSearchOpen(true)}
-          title={tNav("searchCommunity")}
-          aria-label={tNav("searchCommunity")}
-          className="mobileSearchIconButton"
-        >
+        </IconButton>
+        <IconButton label={tNav("searchCommunity")} size="sm" tone="bare" shape="square" style={{ minWidth: "32px" }} onClick={() => setMobileSearchOpen(true)} className="mobileSearchIconButton">
           <VibraNavigationIcon type="search" size={24} strokeWidth={2.2} />
-        </button>
+        </IconButton>
       </div>
     </div>
 

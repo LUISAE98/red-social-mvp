@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
@@ -313,10 +314,7 @@ export default function DonationFeedBanner({
 
   // ── Viewer controls ───────────────────────────────────────────────────────────
   const muteBtn = (sz: number) => (
-    <button type="button" aria-label={muted ? tCommon("unmuteAriaLabel") : tCommon("muteAriaLabel")}
-      onClick={(e) => { e.stopPropagation(); setMuted((m) => { const next = !m; setMutePreference(next); return next; }); }}
-      style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
-    >
+    <IconButton label={muted ? tCommon("unmuteAriaLabel") : tCommon("muteAriaLabel")} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); setMuted((m) => { const next = !m; setMutePreference(next); return next; }); }}>
       {muted ? (
         <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
@@ -329,7 +327,7 @@ export default function DonationFeedBanner({
           <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
         </svg>
       )}
-    </button>
+    </IconButton>
   );
 
   const renderControls = (safeTop: string | number, sz: number, safeBottom: string | number) => {
@@ -378,13 +376,11 @@ export default function DonationFeedBanner({
           : <div style={headerStyle}>{headerInner}</div>}
         <div style={{ position: "absolute", top: controlsTop, insetInlineEnd: 10, display: "flex", alignItems: "center", gap: 4, zIndex: 11 }}>
           {muteBtn(sz)}
-          <button type="button" aria-label={tCommon("closeAriaLabel")} onClick={handleClose}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
+          <IconButton label={tCommon("closeAriaLabel")} size="sm" tone="bare" shape="square" onClick={handleClose}>
             <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
-          </button>
+          </IconButton>
         </div>
         <div style={{ position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, height: "40%", background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)", pointerEvents: "none", zIndex: 8 }} />
         <div style={{ position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, padding: "0 14px", paddingBottom: btnPadBottom, zIndex: 10 }}>

@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
-import { Button } from "@/components/ui";
+import { Button, TextButton } from "@/components/ui";
 import {
   collection,
   doc,
@@ -951,25 +951,9 @@ export default function GroupRecommendationsRail({
             }}
           >
             {interestPage > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setInterestsDirection(-1);
-                  setInterestsPage(interestPage - 1);
-                }}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  color: "#a855f7",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  fontFamily: fontStack,
-                }}
-              >
+              <TextButton tone="brand" size="md" style={{ fontFamily: fontStack }} onClick={() => { setInterestsDirection(-1); setInterestsPage(interestPage - 1); }}>
                 {tGroups("interestsGoBack")}
-              </button>
+              </TextButton>
             )}
 
             {isLastInterestPage ? (

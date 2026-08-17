@@ -2012,7 +2012,9 @@
     "countsPlain": "Na-update {updated}, nilaktawan {skipped}.",
     "countsReminder": "Inalis {removed}, napaalalahanan {reminder}, nilaktawan {skipped}.",
     "transitionFailed": "Hindi natapos ang paglipat ng miyembro.",
-    "configAllSaved": "Na-save ang subscription, katalogo at donasyon."
+    "configAllSaved": "Na-save ang subscription, katalogo at donasyon.",
+    "prompterTitle": "Prompter",
+    "prompterPlaceholder": "Isulat dito ang gusto mong sabihin"
   },
   "live": {
     "accessTicket": "Access ticket",

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
@@ -292,16 +293,11 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.80) 100%)" }} />
 
         {/* Cerrar: tache blanco sencillo, sin card, esquina superior derecha. */}
-        <button
-          type="button"
-          aria-label="Cerrar"
-          onClick={() => setRefundClosing(true)}
-          style={{ position: "absolute", top: 8, insetInlineEnd: 8, width: 28, height: 28, padding: 0, border: "none", background: "transparent", cursor: "pointer", display: "grid", placeItems: "center", zIndex: 2, WebkitTapHighlightColor: "transparent" }}
-        >
+        <IconButton label="Cerrar" size="sm" tone="bare" shape="square" style={{ position: "absolute", top: 8, insetInlineEnd: 8, placeItems: "center", zIndex: 2 }} onClick={() => setRefundClosing(true)}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
             <path d="M6 6L18 18" /><path d="M18 6L6 18" />
           </svg>
-        </button>
+        </IconButton>
 
         <div style={{ position: "relative", padding: "24px 22px 20px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 13 }}>
           {/* Palomita blanca en círculo verde con pop (sin brillo, más pequeña). */}

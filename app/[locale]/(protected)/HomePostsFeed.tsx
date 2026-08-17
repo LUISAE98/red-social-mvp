@@ -24,7 +24,7 @@ import {
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
-import { PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
+import { PostSkeleton, PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import {
@@ -969,7 +969,7 @@ return (
             />
           ) : null}
 
-          <PostReveal>
+          <PostReveal skeleton={<PostSkeleton />}>
           <PostImpressionObserver
             uid={currentUserId}
             postId={post.id}

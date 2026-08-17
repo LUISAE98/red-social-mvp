@@ -84,6 +84,25 @@ export default function ScrollToTopFAB() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [enabled]);
 
+  /**
+   * Marca el `body` en las rutas donde este botón puede salir, para que el
+   * layout reserve sitio abajo y la flecha no se coma el final del feed.
+   *
+   * Va con `enabled` (la ruta) y no con `visible` (el scroll): si el hueco
+   * apareciera al mostrarse el botón, el contenido daría un brinco justo
+   * mientras lo estás leyendo.
+   *
+   * La clase se pone aquí, y no en los layouts, por lo mismo que `isFeedRoute`
+   * vive en este archivo: son dos los que montan el botón y partir el criterio
+   * deja la puerta abierta a que uno se quede atrás.
+   */
+  useEffect(() => {
+    const CLASS = "vb-scroll-fab-route";
+    if (!enabled) return;
+    document.body.classList.add(CLASS);
+    return () => document.body.classList.remove(CLASS);
+  }, [enabled]);
+
   useEffect(() => {
     return () => {
       if (exitTimerRef.current) clearTimeout(exitTimerRef.current);

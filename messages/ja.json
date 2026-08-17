@@ -2012,7 +2012,9 @@
     "countsPlain": "更新 {updated}、対象外 {skipped}。",
     "countsReminder": "解除 {removed}、通知 {reminder}、対象外 {skipped}。",
     "transitionFailed": "メンバーの移行を完了できませんでした。",
-    "configAllSaved": "サブスクリプション、カタログ、寄付を保存しました。"
+    "configAllSaved": "サブスクリプション、カタログ、寄付を保存しました。",
+    "prompterTitle": "プロンプター",
+    "prompterPlaceholder": "話したい内容をここに書いてください"
   },
   "live": {
     "accessTicket": "アクセスチケット",

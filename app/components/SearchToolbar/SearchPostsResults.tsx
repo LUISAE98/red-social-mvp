@@ -26,7 +26,7 @@ import {
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
-import { PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
+import { PostSkeleton, PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import {
   patchPostInAllFeedCaches,
@@ -616,7 +616,7 @@ export default function SearchPostsResults({
 
           return (
             <div key={post.id} style={postItemStyle}>
-              <PostReveal>
+              <PostReveal skeleton={<PostSkeleton />}>
               <GroupPostCard
                 post={post}
                 canDelete={canDelete}

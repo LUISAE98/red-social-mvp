@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { TextButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
@@ -391,16 +392,9 @@ export default function SuperCommentModal({
                   <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontFamily: FONT }}>
                     Enviando como<strong style={{ color: "#fff", marginInlineStart: 8 }}>{guestNickname}</strong>
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setStep("nickname")}
-                    style={{
-                      fontSize: 11, fontWeight: 600, color: "#a855f7", background: "none",
-                      border: "none", cursor: "pointer", fontFamily: FONT, padding: 0,
-                    }}
-                  >
+                  <TextButton tone="brand" size="sm" style={{ fontFamily: FONT }} onClick={() => setStep("nickname")}>
                     Cambiar
-                  </button>
+                  </TextButton>
                 </div>
               )}
 

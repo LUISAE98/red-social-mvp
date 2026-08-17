@@ -2012,7 +2012,9 @@
     "countsPlain": "Atualizados {updated}, ignorados {skipped}.",
     "countsReminder": "Removidos {removed}, avisados {reminder}, ignorados {skipped}.",
     "transitionFailed": "A transição de membros não pôde ser concluída.",
-    "configAllSaved": "Assinatura, catálogo e doação salvos."
+    "configAllSaved": "Assinatura, catálogo e doação salvos.",
+    "prompterTitle": "Teleprompter",
+    "prompterPlaceholder": "Escreva aqui o que você quer dizer"
   },
   "live": {
     "accessTicket": "Ticket de acesso",

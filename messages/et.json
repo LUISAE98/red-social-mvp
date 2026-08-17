@@ -2012,7 +2012,9 @@
     "countsPlain": "Uuendatud {updated}, vahele jäetud {skipped}.",
     "countsReminder": "Eemaldatud {removed}, teavitatud {reminder}, vahele jäetud {skipped}.",
     "transitionFailed": "Liikmete üleminekut ei õnnestunud lõpule viia.",
-    "configAllSaved": "Tellimus, kataloog ja annetus salvestatud."
+    "configAllSaved": "Tellimus, kataloog ja annetus salvestatud.",
+    "prompterTitle": "Teleprompter",
+    "prompterPlaceholder": "Kirjuta siia, mida tahad öelda"
   },
   "live": {
     "accessTicket": "Ligipääsupilet",

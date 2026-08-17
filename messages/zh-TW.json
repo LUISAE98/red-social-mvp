@@ -2012,7 +2012,9 @@
     "countsPlain": "更新 {updated}、略過 {skipped}。",
     "countsReminder": "移除 {removed}、已通知 {reminder}、略過 {skipped}。",
     "transitionFailed": "無法完成成員轉換。",
-    "configAllSaved": "已儲存訂閱、型錄與贊助。"
+    "configAllSaved": "已儲存訂閱、型錄與贊助。",
+    "prompterTitle": "提詞機",
+    "prompterPlaceholder": "在這裡寫下你想說的話"
   },
   "live": {
     "accessTicket": "觀看門票",

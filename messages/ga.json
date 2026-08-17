@@ -2012,7 +2012,9 @@
     "countsPlain": "Nuashonraithe {updated}, scipeáilte {skipped}.",
     "countsReminder": "Bainte {removed}, curtha ar an eolas {reminder}, scipeáilte {skipped}.",
     "transitionFailed": "Níorbh fhéidir aistriú na mball a chríochnú.",
-    "configAllSaved": "Sábháladh an síntiús, an catalóg agus an síntiús deonach."
+    "configAllSaved": "Sábháladh an síntiús, an catalóg agus an síntiús deonach.",
+    "prompterTitle": "Teileaphromptar",
+    "prompterPlaceholder": "Scríobh anseo an rud is mian leat a rá"
   },
   "live": {
     "accessTicket": "Ticéad rochtana",

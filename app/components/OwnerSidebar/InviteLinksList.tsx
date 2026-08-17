@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { IconButton } from "@/components/ui";
 import { useTranslations } from "next-intl";
 import {
   buildInviteAbsoluteUrl,
@@ -250,13 +251,7 @@ export default function InviteLinksList({ groupId, refreshKey }: Props) {
           return (
             <div key={l.id} style={cardStyle}>
               <div style={rowStyle}>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(l)}
-                  style={iconButtonStyle}
-                  title={tGroups("copyLinkButton")}
-                  aria-label={tGroups("copyLinkButton")}
-                >
+                <IconButton label={tGroups("copyLinkButton")} size="sm" tone="solid" shape="square" onClick={() => handleCopy(l)}>
                   <svg
                     width="14"
                     height="14"
@@ -269,7 +264,7 @@ export default function InviteLinksList({ groupId, refreshKey }: Props) {
                       d="M16 1H4a2 2 0 0 0-2 2v12h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z"
                     />
                   </svg>
-                </button>
+                </IconButton>
                 <span style={linkTextStyle} title={display}>
                   {display}
                 </span>

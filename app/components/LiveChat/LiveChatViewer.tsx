@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
@@ -607,20 +608,11 @@ function BillButton({ onClick }: { onClick: () => void }) {
 function HeartButton({ onClick }: { onClick: () => void }) {
   const tLive = useTranslations("live");
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={tLive("makeDonation")}
-      style={{
-        background: "none", border: "none", padding: 0,
-        color: "#fff", cursor: "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-      }}
-    >
+    <IconButton label={tLive("makeDonation")} size="sm" tone="bare" shape="square" onClick={onClick}>
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
       </svg>
-    </button>
+    </IconButton>
   );
 }
 
@@ -628,21 +620,10 @@ function SendButton({ onClick, active }: { onClick: () => void; active: boolean 
   // Flecha morada rellena y redondeada, sin contenedor. Siempre morada (no se apaga).
   const color = "#a855f7";
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!active}
-      aria-label="Enviar"
-      style={{
-        background: "none", border: "none", padding: 0,
-        cursor: active ? "pointer" : "default",
-        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-        transition: "opacity 0.15s ease",
-      }}
-    >
+    <IconButton label="Enviar" size="sm" tone="bare" shape="square" onClick={onClick} disabled={!active}>
       <svg width="23" height="23" viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" style={{ transform: "rotate(-20deg)" }} aria-hidden="true">
         <path d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z" />
       </svg>
-    </button>
+    </IconButton>
   );
 }

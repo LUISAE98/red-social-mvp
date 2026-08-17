@@ -3,6 +3,7 @@
 // Tipos, helpers y sub-componente BuyerMessagePlayer de OwnerSidebarMyGroups.
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -152,12 +153,7 @@ export function BuyerMessagePlayer({ message }: { message: string }) {
             {speechRate}×
           </button>
         )}
-        <button
-          type="button"
-          onClick={handleToggleSpeech}
-          aria-label={speechState === "playing" ? tServices("pauseReading") : speechState === "paused" ? tServices("resumeReading") : tServices("readMessage")}
-          style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
-        >
+        <IconButton label={speechState === "playing" ? tServices("pauseReading") : speechState === "paused" ? tServices("resumeReading") : tServices("readMessage")} size="sm" tone="bare" shape="square" onClick={handleToggleSpeech}>
           {speechState === "playing" ? (
             <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
               <rect x="5" y="4" width="4" height="16" rx="1"/>
@@ -168,7 +164,7 @@ export function BuyerMessagePlayer({ message }: { message: string }) {
               <polygon points="5,3 19,12 5,21"/>
             </svg>
           )}
-        </button>
+        </IconButton>
       </div>
       <p style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.4, color: "rgba(255,255,255,0.9)", margin: 0, padding: "2px 0", userSelect: "none" }}>
         {speechState === "idle" || !speechHighlight ? message : (

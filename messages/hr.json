@@ -2012,7 +2012,9 @@
     "countsPlain": "Ažurirani {updated}, preskočeni {skipped}.",
     "countsReminder": "Uklonjeni {removed}, obaviješteni {reminder}, preskočeni {skipped}.",
     "transitionFailed": "Prijelaz članova nije se mogao dovršiti.",
-    "configAllSaved": "Pretplata, katalog i donacija su spremljeni."
+    "configAllSaved": "Pretplata, katalog i donacija su spremljeni.",
+    "prompterTitle": "Prompter",
+    "prompterPlaceholder": "Napiši ovdje što želiš reći"
   },
   "live": {
     "accessTicket": "Ulaznica",

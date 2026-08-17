@@ -2,6 +2,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { IconButton } from "@/components/ui";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 import { useTranslations } from "next-intl";
@@ -23,7 +24,7 @@ import {
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
-import { PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
+import { PostSkeleton, PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { loadFeedWithRetry, isFeedLoadTimeout } from "@/lib/posts/feed-load-helpers";
@@ -1064,27 +1065,9 @@ return (
           ) : null}
 
           {/* Lupa: dispara la búsqueda (submit). Con Enter o clic. Siempre visible. */}
-          <button
-            type="submit"
-            aria-label={tSaved("search")}
-            title={tSaved("search")}
-            style={{
-              position: "absolute",
-              insetInlineEnd: 6,
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: 26,
-              height: 26,
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              display: "grid",
-              placeItems: "center",
-              padding: 0,
-            }}
-          >
+          <IconButton label={tSaved("search")} size="sm" tone="bare" shape="square" style={{ position: "absolute", insetInlineEnd: 6, top: "50%", transform: "translateY(-50%)", placeItems: "center" }} type="submit">
             <VibraNavigationIcon type="search" size={18} strokeWidth={2.2} />
-          </button>
+          </IconButton>
         </div>
       </form>
 
@@ -1107,7 +1090,7 @@ return (
 
         return (
           <div key={post.id} style={postItemStyle}>
-            <PostReveal>
+            <PostReveal skeleton={<PostSkeleton />}>
             <GroupPostCard
               post={post}
               canDelete={canDeletePost}

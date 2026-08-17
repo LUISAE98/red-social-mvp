@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 
+import { IconButton } from "@/components/ui";
 /**
  * Vista de éxito que se muestra DENTRO del panel de una experiencia una vez
  * publicada: círculo verde con paloma blanca que aparece con un "pop", el
@@ -130,22 +131,7 @@ export default function ServicePublishedSuccess({
         {message}
       </div>
 
-      <button
-        type="button"
-        onClick={copy}
-        title={copied ? copiedLabel : copyLabel}
-        aria-label={copied ? copiedLabel : copyLabel}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 6,
-          border: "none",
-          background: "none",
-          color: "#fff",
-          cursor: "pointer",
-        }}
-      >
+      <IconButton label={copied ? copiedLabel : copyLabel} size="sm" tone="bare" shape="square" onClick={copy}>
         {copied ? (
           <svg
             width="22"
@@ -176,7 +162,7 @@ export default function ServicePublishedSuccess({
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
           </svg>
         )}
-      </button>
+      </IconButton>
     </div>
   );
 }

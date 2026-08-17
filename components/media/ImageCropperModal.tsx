@@ -6,6 +6,7 @@
 // "Panel base (modal/overlay)" canónico de vibra_style.md.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { IconButton } from "@/components/ui";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import SafeCropper from "@/components/media/SafeCropper";
@@ -239,21 +240,7 @@ export default function ImageCropperModal({
           >
             {title}
           </span>
-          <button
-            type="button"
-            onClick={() => !disabled && onClose()}
-            aria-label={tCommon("close")}
-            style={{
-              border: "none",
-              background: "none",
-              color: "#fff",
-              cursor: disabled ? "not-allowed" : "pointer",
-              display: "grid",
-              placeItems: "center",
-              justifySelf: "end",
-              padding: 4,
-            }}
-          >
+          <IconButton label={tCommon("close")} size="sm" tone="bare" shape="square" style={{ placeItems: "center", justifySelf: "end" }} onClick={() => !disabled && onClose()}>
             <svg
               width="18"
               height="18"
@@ -266,7 +253,7 @@ export default function ImageCropperModal({
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
-          </button>
+          </IconButton>
         </div>
 
         {/* Contenido */}

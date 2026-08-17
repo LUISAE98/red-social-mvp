@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { TextButton } from "@/components/ui";
 import type { LedgerEntry, LedgerStatus } from "@/lib/wallet/walletLedger";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
@@ -107,22 +108,11 @@ export default function WalletMovementsChart({
             {fmtMoney(total, { baseCurrency: SETTLEMENT_CURRENCY })}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={cycle}
-          style={{
-            border: "none",
-            background: "transparent",
-            padding: 0,
-            cursor: "pointer",
-            fontSize: 10.5,
-            fontWeight: 600,
-            color: "rgba(168,85,255,0.95)",
-            textAlign: "end",
-          }}
-        >
+        {/* Era `rgba(168,85,255,0.95)`: el morado de marca con un 255 donde
+            va 247. Ahora sale del token y no puede volver a desviarse. */}
+        <TextButton tone="brand" size="sm" onClick={cycle} style={{ textAlign: "end" }}>
           {tWallet("movementsChartHint")}
-        </button>
+        </TextButton>
       </div>
 
       <div style={{ display: "flex", gap: 8 }}>

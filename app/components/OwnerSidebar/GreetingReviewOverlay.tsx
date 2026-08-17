@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IconButton } from "@/components/ui";
 import { useCfError } from "@/lib/i18n/cfError";
 import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -37,6 +38,9 @@ const fontStack =
 
 /** El aro de las historias. Mismo valor que en StoryCircle y StoryRingAvatar. */
 const VIBRA_GRADIENT = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
+
+/** Guiones del prompter, indexados por encargo. Solo en el dispositivo. */
+const PROMPTER_STORAGE_KEY = "vibra.greetingPrompter.v1";
 
 function getGreetingStatusLabel(status: string, t: (key: string) => string): string {
   switch (status) {
@@ -166,6 +170,38 @@ export default function GreetingReviewOverlay({
   const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
   const speechTextRef = useRef<HTMLParagraphElement>(null);
   const speechCursorRef = useRef<HTMLSpanElement>(null);
+
+  // Prompter (solo en el panel de grabación de laptop)
+  //
+  // El guion es una nota del CREADOR para sí mismo: no es parte del encargo ni
+  // lo ve el comprador, así que no toca Firestore. Vive en localStorage, con lo
+  // que sobrevive a cerrar el panel y a recargar, pero no sale del dispositivo.
+  // Se guardan todos los guiones en un objeto indexado por encargo para poder
+  // leerlo de una vez al montar, sin depender de cuál esté abierto.
+  const [prompterOpen, setPrompterOpen] = useState(false);
+  const [prompterScripts, setPrompterScripts] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem(PROMPTER_STORAGE_KEY);
+      const parsed: unknown = raw ? JSON.parse(raw) : null;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+      const out: Record<string, string> = {};
+      for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
+        if (typeof value === "string") out[id] = value;
+      }
+      return out;
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PROMPTER_STORAGE_KEY, JSON.stringify(prompterScripts));
+    } catch {
+      // Modo privado o cuota llena: el guion sigue en memoria, solo no persiste.
+    }
+  }, [prompterScripts]);
 
   // Review panel bottom sheet (mobile only)
   const [reviewSheetTransform, setReviewSheetTransform] = useState("translateY(100%)");
@@ -1376,12 +1412,7 @@ export default function GreetingReviewOverlay({
                 {speechRate}×
               </button>
             )}
-            <button
-              type="button"
-              aria-label={speechState === "playing" ? tServices("pauseReading") : speechState === "paused" ? tServices("resumeReading") : tServices("readContext")}
-              onClick={handleToggleSpeech}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
-            >
+            <IconButton label={speechState === "playing" ? tServices("pauseReading") : speechState === "paused" ? tServices("resumeReading") : tServices("readContext")} size="sm" tone="bare" shape="square" onClick={handleToggleSpeech}>
               {speechState === "playing" ? (
                 <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
                   <rect x="5" y="4" width="4" height="16" rx="1"/>
@@ -1392,7 +1423,7 @@ export default function GreetingReviewOverlay({
                   <polygon points="5,3 19,12 5,21"/>
                 </svg>
               )}
-            </button>
+            </IconButton>
           </div>
           <p
             ref={speechTextRef}
@@ -1560,31 +1591,12 @@ export default function GreetingReviewOverlay({
           display: "flex", alignItems: "center", gap: 10,
           pointerEvents: "auto",
         }}>
-          <button
-            type="button"
-            onClick={async (e) => {
-              e.stopPropagation();
-              const v = playbackVideoRef.current;
-              if (!v) return;
-              try {
-                if (typeof v.requestFullscreen === "function") await v.requestFullscreen();
-                else if (typeof (v as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen === "function")
-                  (v as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen();
-              } catch { /* ignored */ }
-            }}
-            aria-label={tCommon("fullscreen")}
-            style={vpBtnStyle}
-          >
+          <IconButton label={tCommon("fullscreen")} size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onClick={async (e) => { e.stopPropagation(); const v = playbackVideoRef.current; if (!v) return; try { if (typeof v.requestFullscreen === "function") await v.requestFullscreen(); else if (typeof (v as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen === "function") (v as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen(); } catch { /* ignored */ } }}>
             <VideoExpandIcon size={22} />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setVpMuted((m) => !m); showVPChrome(); scheduleVPChromeHide(); }}
-            aria-label={vpMuted ? tCommon("unmute") : tCommon("muteLabel")}
-            style={vpBtnStyle}
-          >
+          </IconButton>
+          <IconButton label={vpMuted ? tCommon("unmute") : tCommon("muteLabel")} size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onClick={(e) => { e.stopPropagation(); setVpMuted((m) => !m); showVPChrome(); scheduleVPChromeHide(); }}>
             {vpMuted ? <VideoMuteIcon size={22} /> : <VideoUnmuteIcon size={22} />}
-          </button>
+          </IconButton>
         </div>
 
         {/* Center: skip-10 | play/pause | skip+10 */}
@@ -1943,6 +1955,21 @@ export default function GreetingReviewOverlay({
     // Lo que queda a la vista al plegar: una pestaña con la flecha.
     const infoTab = 56;
 
+    // Los controles del video traen un cazador de clics a `inset: 0`, así que
+    // tal cual se tragan las pestañas laterales y no dejan plegar ni desplegar
+    // nada durante la previsualización. Aquí se encierran en la franja central,
+    // entre las dos pestañas: los clics de los bordes vuelven a llegar a las
+    // flechas, y de paso los iconos de pantalla completa y silencio dejan de
+    // caer justo encima de la pestaña del prompter.
+    const videoChrome = (
+      <div style={{
+        position: "absolute", top: 0, bottom: 0,
+        insetInlineStart: infoTab, insetInlineEnd: infoTab,
+      }}>
+        {vpControlsOverlay}
+      </div>
+    );
+
     return createPortal(
       <>
       <style>{`
@@ -1959,6 +1986,13 @@ export default function GreetingReviewOverlay({
             to   { opacity: 1; transform: none; }
           }
         }
+        /* El color del texto de ayuda no se puede dar en línea. */
+        .grv-prompter::placeholder { color: rgba(255,255,255,0.28); }
+        /* Barra fina para que el guion no gane un bloque gris al desbordar. */
+        .grv-prompter { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.22) transparent; }
+        .grv-prompter::-webkit-scrollbar { width: 4px; }
+        .grv-prompter::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); border-radius: 2px; }
+        .grv-prompter::-webkit-scrollbar-track { background: transparent; }
       `}</style>
       <div style={{
         position: "fixed", inset: 0, zIndex,
@@ -2003,7 +2037,7 @@ export default function GreetingReviewOverlay({
             insetInlineStart: 0,
             top: 0,
             bottom: 0,
-            zIndex: 2,
+            zIndex: 6,
             pointerEvents: "none",
             width: infoOpen ? infoWidth : infoTab,
             transition: "width 300ms cubic-bezier(0.4, 0, 0.2, 1)",
@@ -2022,7 +2056,7 @@ export default function GreetingReviewOverlay({
           insetInlineStart: 0,
           top: 0,
           bottom: 0,
-          zIndex: 3,
+          zIndex: 7,
           width: infoWidth,
           transform: infoOpen
             ? "none"
@@ -2191,7 +2225,7 @@ export default function GreetingReviewOverlay({
           title={infoOpen ? tCommon("closeAriaLabel") : tCommon("viewLabel")}
           style={{
             position: "absolute",
-            zIndex: 4,
+            zIndex: 8,
             // Centrada con el avatar: 20 de relleno del panel + 27 de medio aro,
             // menos los 11 de media flecha.
             top: 36,
@@ -2219,6 +2253,144 @@ export default function GreetingReviewOverlay({
             />
           </svg>
         </button>
+
+        {/* ── PROMPTER ────────────────────────────────────────────────────────
+            Espejo del panel de datos, en el borde opuesto y con las mismas tres
+            capas: velo que se estrecha, contenido que se desplaza y flecha fija.
+            Solo aparece mientras se graba: en la revisión de un video ya
+            entregado no hay nada que leer. */}
+        {!viewMode && !buyerViewMode && !uploadSucceeded && (
+          <>
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                insetInlineEnd: 0,
+                top: 0,
+                bottom: 0,
+                zIndex: 6,
+                pointerEvents: "none",
+                width: prompterOpen ? infoWidth : infoTab,
+                transition: "width 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+                background: prompterOpen
+                  ? "linear-gradient(to left, rgba(0,0,0,0.90), rgba(0,0,0,0))"
+                  : "linear-gradient(to left, rgba(0,0,0,0.55), rgba(0,0,0,0))",
+              }}
+            />
+
+            <div
+              style={{
+                position: "absolute",
+                insetInlineEnd: 0,
+                top: 0,
+                bottom: 0,
+                zIndex: 7,
+                width: infoWidth,
+                transform: prompterOpen
+                  ? "none"
+                  : "translateX(calc(var(--vb-dir, 1) * 100%))",
+                opacity: prompterOpen ? 1 : 0,
+                visibility: prompterOpen ? "visible" : "hidden",
+                pointerEvents: prompterOpen ? "auto" : "none",
+                transition:
+                  "transform 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms ease, visibility 300ms",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                minWidth: 0,
+                padding: 20,
+                boxSizing: "border-box",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* El hueco de la izquierda es para la flecha, que va en otra capa. */}
+              <span style={{
+                flexShrink: 0, paddingInlineStart: 30,
+                color: "rgba(255,255,255,0.5)", fontSize: 12, lineHeight: 1.2,
+              }}>
+                {tServices("prompterTitle")}
+              </span>
+
+              {/* Un textarea a secas, sin modo de edición: el guion se escribe y
+                  se lee en el mismo sitio, que es lo que pide un prompter. */}
+              <textarea
+                className="grv-prompter"
+                value={prompterScripts[currentItem.id] ?? ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setPrompterScripts((prev) => ({ ...prev, [currentItem.id]: value }));
+                }}
+                placeholder={tServices("prompterPlaceholder")}
+                spellCheck={false}
+                style={{
+                  flex: 1, minHeight: 0, width: "100%",
+                  resize: "none", border: "none", outline: "none",
+                  background: "transparent", padding: 0,
+                  color: "#fff", fontSize: 17, fontWeight: 500, lineHeight: 1.6,
+                  fontFamily: fontStack, boxSizing: "border-box",
+                }}
+              />
+            </div>
+
+            {/* La flecha y el rótulo van en una columna, NO dentro del mismo
+                botón: IconButton es una caja cuadrada de lado fijo y el rótulo
+                vertical no cabe en ella, se montaba encima de la flecha. El
+                botón se queda con el icono, que es para lo que está. */}
+            <div
+              style={{
+                position: "absolute",
+                zIndex: 8,
+                top: 8,
+                // Descuadrada 9px respecto al panel para que el CENTRO del icono
+                // caiga donde caía antes, ya que la caja del botón mide 40.
+                insetInlineEnd: prompterOpen ? `calc(${infoWidth} - 51px)` : 8,
+                transition: "inset-inline-end 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+              }}
+            >
+              <IconButton
+                label={tServices("prompterTitle")}
+                size="md"
+                tone="bare"
+                shape="square"
+                style={{ boxShadow: "none" }}
+                aria-expanded={prompterOpen}
+                onClick={(e) => { e.stopPropagation(); setPrompterOpen((prev) => !prev); }}
+              >
+                <svg
+                  width="22" height="22" viewBox="0 0 24 24" fill="none"
+                  style={{
+                    // Apunta hacia afuera para plegar y hacia adentro para abrir.
+                    transform: `scaleX(calc(var(--vb-dir, 1) * ${prompterOpen ? -1 : 1}))`,
+                    transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                >
+                  <path
+                    d="M15 5L8 12L15 19"
+                    stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round"
+                  />
+                </svg>
+              </IconButton>
+
+              {/* Plegado, una flecha sola no dice qué hay detrás. El rótulo en
+                  vertical lo aclara sin robarle ancho al video. */}
+              <span
+                aria-hidden="true"
+                style={{
+                  writingMode: "vertical-rl",
+                  color: "rgba(255,255,255,0.55)",
+                  fontSize: 12, letterSpacing: "0.06em",
+                  pointerEvents: "none",
+                  opacity: prompterOpen ? 0 : 1,
+                  transition: "opacity 220ms ease",
+                }}
+              >
+                {tServices("prompterTitle")}
+              </span>
+            </div>
+          </>
+        )}
 
         {/* La grabación ocupa el contenedor entero. Sin caja propia: el borde,
             las esquinas y la sombra los pone el panel de arriba. */}
@@ -2254,7 +2426,7 @@ export default function GreetingReviewOverlay({
                         objectFit: "cover", background: "#000",
                       }}
                     />
-                    {vpControlsOverlay}
+                    {videoChrome}
                   </div>
                 ) : (
                   <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
@@ -2296,7 +2468,7 @@ export default function GreetingReviewOverlay({
                         display: "block",
                       }}
                     />
-                    {vpControlsOverlay}
+                    {videoChrome}
                     </div>
                   )}
                   {recordPhase === "recording" && (

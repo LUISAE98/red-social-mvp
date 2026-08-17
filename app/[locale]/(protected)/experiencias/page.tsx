@@ -6,6 +6,7 @@
 // alimentado por el hook autocontenido useMyExperiences. Ver docs de experiencias.
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { TextButton, IconButton } from "@/components/ui";
 import { useCfError } from "@/lib/i18n/cfError";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
@@ -560,43 +561,23 @@ export default function ExperienciasPage() {
         cashout.latest.dismissed ? null : (
           <div style={{ position: "relative", marginTop: -13, marginBottom: 16, padding: "0 30px", fontSize: 12.5, color: "#fff", textAlign: "center", lineHeight: 1.4 }}>
             {tWallet("cashoutRejected", { reason: cashout.latest.rejectionNote || "—" })}
-            <button
-              type="button"
-              onClick={handleDismissCashout}
-              aria-label="Cerrar"
-              style={{
-                position: "absolute", top: -2, insetInlineEnd: 2, width: 22, height: 22,
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                background: "transparent", border: "none", color: "rgba(255,255,255,0.55)",
-                cursor: "pointer", padding: 0, lineHeight: 1,
-              }}
-            >
+            <IconButton label="Cerrar" size="sm" tone="bare" shape="square" style={{ position: "absolute", top: -2, insetInlineEnd: 2 }} onClick={handleDismissCashout}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
-            </button>
+            </IconButton>
           </div>
         )
       ) : credit.balance > 0 ? (
         <div style={{ marginTop: -13, marginBottom: 16, padding: "0 2px", textAlign: "end" }}>
-          <button
-            type="button"
-            onClick={handleRequestCashout}
-            disabled={cashoutBusy}
-            style={{
-              background: "transparent", border: "none", padding: 0,
-              fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.4)",
-              cursor: cashoutBusy ? "wait" : "pointer", textAlign: "end",
-              opacity: cashoutBusy ? 0.6 : 1,
-            }}
-          >
+          <TextButton tone="mute" size="sm" style={{ textAlign: "end" }} onClick={handleRequestCashout} disabled={cashoutBusy}>
             {cashoutBusy
               ? tWallet("cashoutSending")
               : tWallet("cashoutRequest", {
                   amount: pf.format(credit.balance, { baseCurrency: "MXN", code: true }),
                 })}
-          </button>
+          </TextButton>
           {cashoutError && (
             <div style={{ fontSize: 11.5, color: "#f87171", marginTop: 4 }}>{cashoutError}</div>
           )}

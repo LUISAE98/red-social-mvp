@@ -3,6 +3,7 @@
 "use client";
 
 import Image from "next/image";
+import { TextButton } from "@/components/ui";
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -999,37 +1000,15 @@ const onCropComplete = useCallback(
                   }}
                 >
                   {avatarFile && (
-                    <button
-                      type="button"
-                      onClick={() => setAvatarFile(null)}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        color: "rgba(255,255,255,0.58)",
-                        fontSize: 12,
-                        cursor: "pointer",
-                        padding: 0,
-                      }}
-                    >
+                    <TextButton tone="mute" size="sm" onClick={() => setAvatarFile(null)}>
                       {tGroups("removeAvatar")}
-                    </button>
+                    </TextButton>
                   )}
 
                   {coverFile && (
-                    <button
-                      type="button"
-                      onClick={() => setCoverFile(null)}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        color: "rgba(255,255,255,0.58)",
-                        fontSize: 12,
-                        cursor: "pointer",
-                        padding: 0,
-                      }}
-                    >
+                    <TextButton tone="mute" size="sm" onClick={() => setCoverFile(null)}>
                       {tGroups("removeCover")}
-                    </button>
+                    </TextButton>
                   )}
                 </div>
               )}

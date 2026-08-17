@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { TextButton, IconButton } from "@/components/ui";
 import {
   VibraNavigationIcon,
   VibraNavigationIconsStyles,
@@ -402,20 +403,14 @@ function Viewport({
           line-height: 0;
         }
 
+        /* El color, el tamaño y el peso salen de TextButton; aquí solo lo que
+           el primitivo no sabe: cómo se coloca en su sitio. */
         .stripeCta {
           width: 100%;
           margin-top: -14px;
-          padding: 0;
-          border: none;
-          background: transparent;
-          color: #c084fc;
-          font-family: inherit;
-          font-size: 12.5px;
-          font-weight: 600;
           line-height: 1.35;
-          letter-spacing: -0.01em;
           text-align: center;
-          cursor: pointer;
+          justify-content: center;
         }
 
         .tres {
@@ -634,13 +629,7 @@ function Viewport({
                   <div className="availAmount">
                     {cifra(modo === "net" ? "$12,450.00" : "$16,600.00")}
                   </div>
-                  <button
-                    type="button"
-                    className="eye"
-                    onClick={() => setSaldoOculto(!saldoOculto)}
-                    aria-label={saldoOculto ? "Mostrar monto" : "Ocultar monto"}
-                    aria-pressed={saldoOculto}
-                  >
+                  <IconButton label={saldoOculto ? "Mostrar monto" : "Ocultar monto"} size="sm" tone="bare" shape="square" className="eye" onClick={() => setSaldoOculto(!saldoOculto)} aria-pressed={saldoOculto}>
                     {saldoOculto ? (
                       <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
@@ -652,13 +641,13 @@ function Viewport({
                         <circle cx="12" cy="12" r="3" />
                       </svg>
                     )}
-                  </button>
+                  </IconButton>
                 </div>
               </div>
 
-              <button type="button" className="stripeCta">
+              <TextButton tone="brand" size="sm" className="stripeCta">
                 Realiza tu registro de cuenta Stripe para comenzar a hacer retiros
-              </button>
+              </TextButton>
 
               <div className="tres">
                 <div className="col">

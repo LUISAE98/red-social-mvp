@@ -31,7 +31,7 @@ import {
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
-import { PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
+import { PostSkeleton, PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "@/app/groups/[groupId]/components/posts/PostsMediaSubnav";
 import MediaGallery, { type GalleryTile } from "@/app/groups/[groupId]/components/posts/MediaGallery";
@@ -1075,7 +1075,7 @@ const shellStyle: CSSProperties = {
               />
             ) : null}
 
-            <PostReveal>
+            <PostReveal skeleton={<PostSkeleton />}>
             <GroupPostCard
               post={post}
               canDelete={canDeletePost}

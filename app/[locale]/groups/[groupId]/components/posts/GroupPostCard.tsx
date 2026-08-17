@@ -3,6 +3,7 @@
 "use client";
 
 import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
+import { TextButton, IconButton } from "@/components/ui";
 import Image from "next/image";
 import { intlLocale } from "@/i18n/locales";
 import Hls from "hls.js";
@@ -4574,59 +4575,23 @@ padding: "0 0 2px 0",
         gap: 2,
       }}
     >
-<button
-  type="button"
-  onClick={handleToggleFlame}
-  aria-pressed={optimisticViewerHasFlamed}
-  aria-label={
-    optimisticViewerHasFlamed
-      ? "Quitar flamita de la publicación"
-      : "Dar flamita a la publicación"
-  }
-  style={flameButtonStyle}
->
+<IconButton label={ optimisticViewerHasFlamed ? "Quitar flamita de la publicación" : "Dar flamita a la publicación" } size="sm" tone="bare" shape="square" style={{ placeItems: "center", transform: optimisticViewerHasFlamed ? "scale(1.04)" : "scale(1)", touchAction: "manipulation" }} onClick={handleToggleFlame} aria-pressed={optimisticViewerHasFlamed}>
   <span aria-hidden="true" style={flameIconStyle}>
     <VibraFlameIcon active={optimisticViewerHasFlamed} size={22} premium={post.premium?.enabled === true} />
   </span>
-</button>
+</IconButton>
 
-      <button
-        type="button"
-        onClick={handleOpenFlamesPanel}
-        style={flameCountButtonStyle}
-        aria-label="Ver usuarios que dieron flamita"
-      >
+      <TextButton tone="mute" size="md" style={{ fontFamily: fontStack }} onClick={handleOpenFlamesPanel} aria-label="Ver usuarios que dieron flamita">
        {optimisticLikesCount}
-      </button>
+      </TextButton>
     </div>
 
-    <button
-      type="button"
-      onClick={isMobile ? handleOpenCommentsPanel : handleToggleCommentsDesktop}
-      disabled={loadingComments}
-      aria-label="Abrir comentarios"
-      style={{
-        border: "none",
-        background: "transparent",
-        padding: 0,
-        color: "rgba(255,255,255,0.72)",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        fontSize: 12.5,
-        fontWeight: 600,
-        fontFamily: fontStack,
-        lineHeight: 1,
-        cursor: loadingComments ? "not-allowed" : "pointer",
-        opacity: loadingComments ? 0.62 : 1,
-        WebkitTapHighlightColor: "transparent",
-      }}
-    >
+    <TextButton tone="mute" size="md" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: fontStack }} onClick={isMobile ? handleOpenCommentsPanel : handleToggleCommentsDesktop} disabled={loadingComments} aria-label="Abrir comentarios">
 <span aria-hidden="true">
   <VibraCommentIcon size={18} color="rgba(255,255,255,0.88)" />
 </span>
 <span>{visibleCommentsTotal}</span>
-    </button>
+    </TextButton>
   </div>
 
   <div

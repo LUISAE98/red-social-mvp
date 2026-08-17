@@ -2012,7 +2012,9 @@
     "countsPlain": "Të përditësuar {updated}, të anashkaluar {skipped}.",
     "countsReminder": "Të hequr {removed}, të njoftuar {reminder}, të anashkaluar {skipped}.",
     "transitionFailed": "Kalimi i anëtarëve nuk u përfundua dot.",
-    "configAllSaved": "Abonimi, katalogu dhe donacioni u ruajtën."
+    "configAllSaved": "Abonimi, katalogu dhe donacioni u ruajtën.",
+    "prompterTitle": "Prompter",
+    "prompterPlaceholder": "Shkruaj këtu çfarë do të thuash"
   },
   "live": {
     "accessTicket": "Biletë hyrjeje",

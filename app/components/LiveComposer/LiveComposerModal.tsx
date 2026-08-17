@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { TextButton, IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -816,24 +817,9 @@ export default function LiveComposerModal({
       {/* Fecha */}
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
         <label style={labelStyle}>{tLive("composerStartDateLabel")}</label>
-        <button
-          type="button"
-          onClick={() => setCalendarOpen(true)}
-          style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            fontSize: 12,
-            fontWeight: 600,
-            color: "#c084fc",
-            whiteSpace: "nowrap",
-            flexShrink: 0,
-          }}
-        >
+        <TextButton tone="brand" size="sm" style={{ fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }} onClick={() => setCalendarOpen(true)}>
           {tLive("composerViewCalendar")}
-        </button>
+        </TextButton>
       </div>
       {/* Los campos siguen separados, como antes: de un vistazo se ve que
           falta por llenar. Lo que cambia es que ninguno es ya una lista del
@@ -1246,22 +1232,12 @@ export default function LiveComposerModal({
               <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
                 {isEditMode ? tLive("editLive") : tLive("scheduledLive")}
               </span>
-              <button
-                type="button"
-                onClick={handleClose}
-                disabled={saving}
-                aria-label={tCommon("closeAriaLabel")}
-                style={{
-                  border: "none", background: "none", color: "#fff",
-                  cursor: saving ? "not-allowed" : "pointer",
-                  display: "grid", placeItems: "center", justifySelf: "end", padding: 4,
-                }}
-              >
+              <IconButton label={tCommon("closeAriaLabel")} size="sm" tone="bare" shape="square" style={{ placeItems: "center", justifySelf: "end" }} onClick={handleClose} disabled={saving}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
-              </button>
+              </IconButton>
             </header>
             {scrollContent}
             {footerContent}

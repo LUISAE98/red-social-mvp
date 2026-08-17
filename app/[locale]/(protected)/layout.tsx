@@ -3,6 +3,7 @@
 "use client";
 
 import Link from "next/link";
+import { IconButton } from "@/components/ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
@@ -153,6 +154,9 @@ const isHomePage = pathname === "/";
 const isProfilePage = /^\/u\/[^/]+/.test(pathname);
 // La wallet oculta/muestra el header al hacer scroll, igual que home.
 const isWalletPage = pathname.startsWith("/wallet");
+// El reel ocupa la pantalla entera y trae sus propios controles arriba: un
+// header encima le robaría espacio y taparía la barra de progreso.
+const isReelsPage = pathname === "/reels" || pathname.startsWith("/reels/");
 const [isEmbed, setIsEmbed] = useState(false);
 
 useLayoutEffect(() => {
@@ -770,7 +774,10 @@ const contentAreaClassName = isEmbed
   position: relative;
   z-index: 1;
   padding-top: 0;
-  padding-bottom: 90px;
+  /* En laptop no hay nada anclado abajo —el nav inferior es solo de celular—,
+     así que aquí basta un respiro. Los 90px de antes eran el hueco del nav
+     copiado a una pantalla que no lo tiene: puro vacío al final del scroll. */
+  padding-bottom: 24px;
   align-self: start;
 }
 
@@ -937,14 +944,49 @@ const contentAreaClassName = isEmbed
             width: 100%;
             min-width: 0;
             overflow-x: clip;
-            /* Clearance del nav: 84px + safe-area constante (0 sin sesión, 20px
-               logueado, igual que el padding del nav) → el contenido siempre libera
-               el nav sin re-inflarse con env(). */
-            padding-bottom: calc(84px + var(--vb-safe-bottom, 0px));
           }
 
           .mainInner {
             width: 100%;
+          }
+        }
+
+        /* El hueco del nav inferior va atado a DÓNDE EXISTE ese nav (≤768px), no
+           al breakpoint de columnas (≤900px). Estando en el de 900 la franja de
+           769–900px reservaba 84px para una barra que ahí no se dibuja: vacío al
+           final del scroll en tablets y ventanas a medio ancho.
+
+           Cuentas del clearance: el nav mide 8 + 54 + 8 = 70px más la safe-area
+           constante; 84 deja un respiro por encima de eso. */
+        /* UN SOLO sitio para el hueco del nav inferior.
+
+           Estaba repartido entre .contentArea, .mainCol y el padding propio de
+           cada página, y los cuatro se apilaban: el resultado era el doble de lo
+           necesario y nadie podía calcularlo leyendo un archivo. Aquí .contentArea
+           cede su padding y .mainCol carga con todo.
+
+           El alto del nav NO se escribe aquí: lo publica él mismo en
+           --vb-bottom-nav-h (ver MobileBottomNav). No es constante —se encoge a
+           0.75 al bajar y tras cinco segundos quieto—, así que un número fijo se
+           calibra con el nav expandido y deja ~23px de vacío justo al final del
+           scroll, que es cuando está encogido. El respaldo de 90px solo vale
+           hasta la primera medida. */
+        @media (max-width: 768px) {
+          .contentArea,
+          .contentAreaWithWallet {
+            padding-bottom: 0;
+          }
+
+          .mainCol {
+            padding-bottom: calc(var(--vb-bottom-nav-h, 90px) + 12px);
+          }
+
+          /* Rutas con la flecha de subir (home, perfil y comunidad; la marca la
+             pone ScrollToTopFAB). La flecha se ancla a 54px del fondo y mide
+             58px, así que su borde superior llega a 112px + safe-area; con 124
+             el último post le queda 12px por encima, el mismo respiro. */
+          :global(body.vb-scroll-fab-route) .mainCol {
+            padding-bottom: calc(124px + var(--vb-safe-bottom, 0px));
           }
         }
 
@@ -971,11 +1013,14 @@ const contentAreaClassName = isEmbed
 
       <MobileHeaderCtx.Provider value={{ ...headerData, setMobileHeader: setHeaderData }}>
       <div className="layout">
+{!isReelsPage && (
 <div
   ref={safeAreaRef}
   className={`safeAreaHeaderBackdrop${(isHomePage || isWalletPage) && homeHeaderHidden ? " safeAreaHidden" : ""}`}
 />
+)}
 
+{!isReelsPage && (
 <header
   ref={headerRef}
   className={[
@@ -1080,24 +1125,12 @@ const contentAreaClassName = isEmbed
             </Link>
           </span>
         ) : null}
-        <button
-          type="button"
-          onClick={() => router.push("/saved")}
-          title={tNav("saved")}
-          aria-label={tNav("viewSaved")}
-          className="mobileSearchIconButton"
-        >
+        <IconButton label={tNav("viewSaved")} size="sm" tone="bare" shape="square" style={{ minWidth: "32px" }} onClick={() => router.push("/saved")} className="mobileSearchIconButton">
           <VibraSavedPostIcon size={22} color="#a855f7" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileSearchOpen(true)}
-          title={tNav("searchCommunity")}
-          aria-label={tNav("searchCommunity")}
-          className="mobileSearchIconButton"
-        >
+        </IconButton>
+        <IconButton label={tNav("searchCommunity")} size="sm" tone="bare" shape="square" style={{ minWidth: "32px" }} onClick={() => setMobileSearchOpen(true)} className="mobileSearchIconButton">
           <VibraNavigationIcon type="search" size={24} strokeWidth={2.2} />
-        </button>
+        </IconButton>
       </div>
     </div>
 
@@ -1121,6 +1154,7 @@ const contentAreaClassName = isEmbed
 )}
           </div>
         </header>
+        )}
 
         <div className={contentAreaClassName}>
           {!isEmbed && (

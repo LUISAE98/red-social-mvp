@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { TextButton } from "@/components/ui";
 import { useLocale, useTranslations } from "next-intl";
 import { useWalletPurchaseGeo } from "@/lib/wallet/walletPurchaseGeo";
 
@@ -121,23 +122,9 @@ export default function WalletCountryStats({
       </div>
 
       {rows.length > 5 ? (
-        <button
-          type="button"
-          onClick={() => setShowAll((s) => !s)}
-          style={{
-            alignSelf: "center",
-            marginTop: 4,
-            border: "none",
-            background: "transparent",
-            cursor: "pointer",
-            fontSize: 12.5,
-            fontWeight: 600,
-            color: "#c084fc",
-            letterSpacing: "-0.01em",
-          }}
-        >
+        <TextButton tone="brand" size="md" style={{ alignSelf: "center", marginTop: 4 }} onClick={() => setShowAll((s) => !s)}>
           {showAll ? tWallet("countryStatsLess") : tWallet("countryStatsAll")}
-        </button>
+        </TextButton>
       ) : null}
     </div>
   );

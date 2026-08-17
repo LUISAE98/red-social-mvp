@@ -232,6 +232,27 @@ service firebase.storage {
     // (Estuvo abierto un rato como apaño mientras el proyecto no tenía el
     // permiso de IAM para firmar. Ya lo tiene.)
     // ==============================
+    /**
+     * ⚠️ B9-alto. Antes bastaba con que el segmento del uid fuera el propio.
+     *
+     * No se comprobaba que la conversación EXISTIERA ni que quien sube estuviera
+     * dentro, así que cualquier cuenta real podía subir bajo un
+     * `conversationId` inventado —o el de un hilo ajeno— y llenar el bucket a
+     * coste de Vibra. Sin límite y sin nada que limpiara los archivos que nunca
+     * llegaron a ser un mensaje.
+     *
+     * ⚠️ La comprobación lee Firestore desde storage.rules, y eso falla CERRADO:
+     * si la consulta no funciona, no se puede subir. Es lo correcto para una
+     * escritura (mejor no subir que subir a cualquier sitio), justo al revés que
+     * en las reglas de LECTURA de esta misma familia, donde el propio dueño va
+     * delante con `||` para que un fallo de la consulta no le cierre su archivo.
+     */
+    function participaEnLaConversacion(conversationId) {
+      return firestore.exists(/databases/(default)/documents/conversations/$(conversationId))
+        && request.auth.uid in
+             firestore.get(/databases/(default)/documents/conversations/$(conversationId)).data.participants;
+    }
+
     match /dmImages/{conversationId}/{uid}/{folder}/{fileName} {
       allow read: if false;
 
@@ -239,7 +260,14 @@ service firebase.storage {
         && request.auth.uid == uid
         && (folder == "images" || folder == "thumbnails")
         && isImage()
-        && maxSize(10 * 1024 * 1024);
+        && maxSize(10 * 1024 * 1024)
+        && participaEnLaConversacion(conversationId);
+
+      // El borrado se queda cerrado: lo hace `onDirectMessageDeletedCleanupImage`
+      // con el Admin SDK al retirar el mensaje. Un `allow write` no sirve para
+      // borrar de todas formas, porque sus comprobaciones miran
+      // `request.resource`, que en un `delete` no existe.
+      allow delete: if false;
     }
 
     // ==============================

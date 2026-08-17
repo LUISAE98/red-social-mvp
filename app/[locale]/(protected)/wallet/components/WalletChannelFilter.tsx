@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { IconButton } from "@/components/ui";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import type { WalletChannel } from "@/lib/wallet/walletSubscriptionData";
@@ -253,24 +254,14 @@ export default function WalletChannelFilter({
   return (
     <div style={{ position: "relative", marginBottom: 16 }}>
       {showArrows && canLeft ? (
-        <button
-          type="button"
-          aria-label="←"
-          onClick={() => scrollByDir(-1)}
-          className="chf-arrow chf-arrow-left"
-        >
+        <IconButton label="←" size="sm" tone="bare" shape="square" style={{ position: "absolute", top: "30px", transform: "translateY(-50%)", zIndex: "5", filter: "drop-shadow(0 1px 4px rgba(0, 0, 0, 0.75))", insetInlineStart: "-8px" }} onClick={() => scrollByDir(-1)} className="chf-arrow chf-arrow-left">
           <Chevron dir="left" />
-        </button>
+        </IconButton>
       ) : null}
       {showArrows && canRight ? (
-        <button
-          type="button"
-          aria-label="→"
-          onClick={() => scrollByDir(1)}
-          className="chf-arrow chf-arrow-right"
-        >
+        <IconButton label="→" size="sm" tone="bare" shape="square" style={{ position: "absolute", top: "30px", transform: "translateY(-50%)", zIndex: "5", filter: "drop-shadow(0 1px 4px rgba(0, 0, 0, 0.75))", insetInlineEnd: "-8px" }} onClick={() => scrollByDir(1)} className="chf-arrow chf-arrow-right">
           <Chevron dir="right" />
-        </button>
+        </IconButton>
       ) : null}
 
       <div
