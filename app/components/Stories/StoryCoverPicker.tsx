@@ -13,6 +13,7 @@ import {
   setStoryHiddenFromReel,
 } from "@/lib/stories/storyService";
 import { refreshReelFeed } from "@/lib/reels/reelFeedRefresh";
+import { useDragScroll } from "@/lib/hooks/useDragScroll";
 import {
   usePublishableGreetings,
   type PublishableGreeting,
@@ -84,23 +85,6 @@ const innerBtn: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-const arrowBtnStyle: React.CSSProperties = {
-  width: 28,
-  height: 28,
-  borderRadius: "50%",
-  background: "rgba(255,255,255,0.08)",
-  border: "1px solid rgba(255,255,255,0.15)",
-  color: "rgba(255,255,255,0.8)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: 20,
-  flexShrink: 0,
-  padding: 0,
-  lineHeight: "1",
-  fontFamily: fontStack,
-};
-
 const actionBtnStyle: React.CSSProperties = {
   flexShrink: 0,
   padding: "5px 10px",
@@ -132,22 +116,14 @@ export default function StoryCoverPicker({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [isDesktop, setIsDesktop] = useState(false);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
+  // Historias quitadas en esta sesión del panel, por `greetingRequestId`. Se
+  // conservan para poder volver a publicarlas sin salir y volver a entrar.
+  const [removed, setRemoved] = useState<Map<string, StoryDoc>>(new Map());
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const dragScroll = useDragScroll(scrollRef);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
-
-  // Detect mouse-capable device (desktop)
-  useEffect(() => {
-    const mql = window.matchMedia("(pointer: fine)");
-    setIsDesktop(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, []);
 
   const {
     items: publishable,
@@ -171,22 +147,19 @@ export default function StoryCoverPicker({
   // estado, o el permiso ya no aplica— desaparecía de aquí. Se veía la historia
   // activa en el rail y el panel decía que no había nada, y encima no había forma
   // de quitarla. La lista es la UNIÓN de las dos cosas.
-  const rows: Array<{
+  type Row = {
     id: string;
     toName: string;
     instructions: string;
     muxPlaybackId: string | null;
     greeting: PublishableGreeting | null;
     publishedStory: StoryDoc | null;
-  }> = (() => {
-    const byGreeting = new Map<string, {
-      id: string;
-      toName: string;
-      instructions: string;
-      muxPlaybackId: string | null;
-      greeting: PublishableGreeting | null;
-      publishedStory: StoryDoc | null;
-    }>();
+    /** Se quitó en esta sesión; se guarda para poder rehacerla. */
+    removed: StoryDoc | null;
+  };
+
+  const rows: Row[] = (() => {
+    const byGreeting = new Map<string, Row>();
 
     for (const g of greetingList) {
       byGreeting.set(g.id, {
@@ -196,6 +169,7 @@ export default function StoryCoverPicker({
         muxPlaybackId: g.muxPlaybackId,
         greeting: g,
         publishedStory: null,
+        removed: null,
       });
     }
 
@@ -213,6 +187,26 @@ export default function StoryCoverPicker({
         muxPlaybackId: s.muxPlaybackId,
         greeting: null,
         publishedStory: s,
+        removed: null,
+      });
+    }
+
+    // Lo quitado en esta sesión sigue en la lista, con el botón de compartir.
+    for (const [greetingId, story] of removed) {
+      const existing = byGreeting.get(greetingId);
+      if (existing) {
+        // Si volvió a publicarse, ya no cuenta como quitada.
+        if (!existing.publishedStory) existing.removed = story;
+        continue;
+      }
+      byGreeting.set(greetingId, {
+        id: greetingId,
+        toName: "",
+        instructions: story.instructions ?? "",
+        muxPlaybackId: story.muxPlaybackId,
+        greeting: null,
+        publishedStory: null,
+        removed: story,
       });
     }
 
@@ -227,31 +221,21 @@ export default function StoryCoverPicker({
     return tCommon("storyNothingToPublish");
   })();
 
-  const updateScrollState = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 0);
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 1);
-  };
-
-  // Re-evaluate arrow visibility after panel mounts or story list changes
-  useEffect(() => {
-    if (mounted) updateScrollState();
-  }, [mounted, stories]);
-
   const handleClose = () => {
     if (closing) return;
     setClosing(true);
     setTimeout(() => onClose(), 180);
   };
 
-  const dirLabel = role === "buyer" ? "recibidos" : "enviados";
-  const title =
-    type === "saludo"
-      ? `Portada de saludos ${dirLabel}`
-      : `Portada de consejos ${dirLabel}`;
   const emoji = type === "saludo" ? "👋" : "💡";
   const typeLabel = type === "saludo" ? "saludos" : "consejos";
+  // El panel ya no es solo la portada: también publica, retira y decide qué
+  // circula en el feed. El título lo dice.
+  //
+  // Abierto desde el círculo con `+` no hay un lado concreto —conviven lo que
+  // grabaste y lo que compraste—, así que no se nombra ninguno.
+  const dirLabel = role === "both" ? "" : role === "buyer" ? " recibidos" : " enviados";
+  const title = `Configuración de ${typeLabel}${dirLabel}`;
 
   const isCustomSelected = !!currentCustomPhotoUrl && !currentCoverStoryId;
 
@@ -286,8 +270,22 @@ export default function StoryCoverPicker({
     }
   };
 
-  const handleShare = async (item: PublishableGreeting) => {
-    setProcessingId(item.id);
+  /**
+   * Publica la historia, sea un encargo publicable o una que acabas de quitar.
+   *
+   * Los dos casos traen los mismos datos, solo que uno viene del encargo y el
+   * otro del documento borrado, así que se normalizan antes de crear.
+   */
+  const handleShare = async (row: Row) => {
+    const item = row.greeting ?? {
+      id: row.id,
+      creatorId: row.removed?.greetingCreatorId ?? row.removed?.creatorId ?? currentUserId,
+      instructions: row.instructions,
+      muxPlaybackId: row.muxPlaybackId,
+      videoDuration: row.removed?.videoDuration ?? null,
+    };
+
+    setProcessingId(row.id);
     try {
       await addStoryFromGreeting({
         // Publica SIEMPRE quien está usando el panel. Cuando lo grabó otro (lo
@@ -310,15 +308,37 @@ export default function StoryCoverPicker({
         source: entityType === "profile" ? "profile" : "group",
         groupId: entityType === "group" ? entityId : null,
       });
+      // Deja de estar "quitada": el listener del padre traerá la nueva.
+      setRemoved((prev) => {
+        if (!prev.has(row.id)) return prev;
+        const next = new Map(prev);
+        next.delete(row.id);
+        return next;
+      });
+      refreshReelFeed();
     } finally {
       setProcessingId(null);
     }
   };
 
-  const handleRemove = async (storyId: string, greetingId: string) => {
+  /**
+   * Quita la historia, pero recuerda de qué estaba hecha.
+   *
+   * ⚠️ Sin esto, quitar era irreversible en la práctica. La fila salía de la
+   * lista y no volvía, porque solo reaparece si su encargo sigue siendo
+   * publicable — y hay historias vivas cuyo encargo ya no lo es: se pidió el
+   * reembolso, cambió de estado, o se publicó desde el panel de grabación, que
+   * no comprueba el permiso del comprador. Para esas, quitar equivalía a borrar
+   * para siempre sin avisar.
+   *
+   * Guardando el documento en memoria, el botón de compartir puede reconstruir
+   * la historia con los mismos datos.
+   */
+  const handleRemove = async (story: StoryDoc, greetingId: string) => {
     setProcessingId(greetingId);
     try {
-      await deleteStory(storyId);
+      await deleteStory(story.id);
+      setRemoved((prev) => new Map(prev).set(greetingId, story));
       refreshReelFeed();
     } finally {
       setProcessingId(null);
@@ -463,54 +483,30 @@ export default function StoryCoverPicker({
 
         {/* Scrollable body */}
         <div style={{ flex: 1, overflowY: "auto", paddingBottom: 20 }}>
-          {/* Hint */}
-          <p
-            style={{
-              margin: "0 16px 12px",
-              color: "rgba(255,255,255,0.38)",
-              fontSize: 11.5,
-              fontFamily: fontStack,
-              lineHeight: 1.4,
-              textAlign: "center",
-            }}
-          >
-            Elige la portada de {typeLabel} que se verá en tu perfil y comunidades.
-          </p>
+          {/* La barra de scroll se oculta y el cursor de mano solo aparece con
+              ratón, que es donde el arrastre existe. En táctil no se toca nada. */}
+          <style>{`
+            .coverStrip::-webkit-scrollbar { display: none; }
+            .coverStrip img { -webkit-user-drag: none; user-drag: none; }
+            @media (hover: hover) and (pointer: fine) {
+              .coverStrip { cursor: grab; }
+              .coverStrip:active { cursor: grabbing; }
+            }
+          `}</style>
 
-          {/* Cover row: [←] [horizontal scroll] [→] */}
+          {/* Tira de portadas. Se recorre con el dedo en celular y arrastrando
+              con el ratón en escritorio; sin flechas. */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
               padding: "0 16px 4px",
             }}
           >
-            {/* Left arrow — desktop only */}
-            {isDesktop && (
-              <button
-                type="button"
-                disabled={!canScrollLeft}
-                onClick={() =>
-                  scrollRef.current?.scrollBy({
-                    left: -(CIRCLE_SIZE + 10) * 2,
-                    behavior: "smooth",
-                  })
-                }
-                style={{
-                  ...arrowBtnStyle,
-                  opacity: canScrollLeft ? 1 : 0.25,
-                  cursor: canScrollLeft ? "pointer" : "default",
-                }}
-              >
-                ‹
-              </button>
-            )}
-
-            {/* Horizontal scroll */}
             <div
               ref={scrollRef}
-              onScroll={updateScrollState}
+              {...dragScroll}
+              className="coverStrip"
               style={{
                 flex: 1,
                 display: "flex",
@@ -521,6 +517,10 @@ export default function StoryCoverPicker({
                   "touch" as React.CSSProperties["WebkitOverflowScrolling"],
                 padding: "4px 2px",
                 alignItems: "flex-start",
+                // Sin esto, arrastrar selecciona los nombres de debajo de cada
+                // círculo y el gesto se siente roto.
+                userSelect: "none",
+                WebkitUserSelect: "none",
               }}
             >
               {/* Slot: Subir foto */}
@@ -654,26 +654,6 @@ export default function StoryCoverPicker({
               })}
             </div>
 
-            {/* Right arrow — desktop only */}
-            {isDesktop && (
-              <button
-                type="button"
-                disabled={!canScrollRight}
-                onClick={() =>
-                  scrollRef.current?.scrollBy({
-                    left: (CIRCLE_SIZE + 10) * 2,
-                    behavior: "smooth",
-                  })
-                }
-                style={{
-                  ...arrowBtnStyle,
-                  opacity: canScrollRight ? 1 : 0.25,
-                  cursor: canScrollRight ? "pointer" : "default",
-                }}
-              >
-                ›
-              </button>
-            )}
           </div>
 
           {/* Antes, con la lista vacía no se pintaba NADA: ni título ni aviso. El
@@ -753,64 +733,11 @@ export default function StoryCoverPicker({
                       )}
                     </div>
 
-                    {/* Text */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          color: "#fff",
-                          fontSize: 13,
-                          fontFamily: fontStack,
-                          fontWeight: 600,
-                          letterSpacing: "-0.01em",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        Para {item.toName}
-                      </div>
-                      {item.instructions ? (
-                        <div
-                          style={{
-                            color: "rgba(255,255,255,0.38)",
-                            fontSize: 11,
-                            fontFamily: fontStack,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            marginTop: 2,
-                            lineHeight: 1.2,
-                          }}
-                        >
-                          {item.instructions}
-                        </div>
-                      ) : null}
-                    </div>
+                    {/* Empuja las acciones al borde derecho. */}
+                    <div style={{ flex: 1, minWidth: 0 }} />
 
-                    {/* Action button */}
-                    {publishedStory ? (
-                      <button
-                        type="button"
-                        disabled={isProcessing}
-                        onClick={() => handleRemove(publishedStory.id, item.id)}
-                        style={{
-                          ...actionBtnStyle,
-                          background: "rgba(239,68,68,0.10)",
-                          border: "1px solid rgba(239,68,68,0.22)",
-                          color: "#fca5a5",
-                          fontWeight: 600,
-                          letterSpacing: "-0.01em",
-                          opacity: isProcessing ? 0.5 : 1,
-                          WebkitTapHighlightColor: "transparent",
-                        }}
-                      >
-                        {isProcessing ? "..." : "Quitar"}
-                      </button>
-                    ) : null}
-
-                    {/* Circulación en el feed. Solo tiene sentido en lo que YA
-                        está publicado, así que acompaña al botón de quitar. */}
+                    {/* Circulación en el feed, a la izquierda del botón. Solo
+                        tiene sentido sobre lo que YA está publicado. */}
                     {publishedStory ? (
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                         <span
@@ -844,9 +771,12 @@ export default function StoryCoverPicker({
                             borderRadius: 999,
                             padding: 0,
                             border: "1px solid rgba(255,255,255,0.18)",
+                            // Morado de marca por token, no degradado. El
+                            // degradado es de las piezas de contenido (aros,
+                            // portadas); un control se lee mejor plano.
                             background: publishedStory.hiddenFromReel
                               ? "rgba(255,255,255,0.10)"
-                              : VIBRA_GRADIENT,
+                              : "var(--brand)",
                             cursor: isProcessing ? "not-allowed" : "pointer",
                             transition: "all 0.2s ease",
                             opacity: isProcessing ? 0.5 : 1,
@@ -867,11 +797,32 @@ export default function StoryCoverPicker({
                           />
                         </button>
                       </div>
-                    ) : item.greeting ? (
+                    ) : null}
+
+                    {/* El botón, siempre el último de la fila. */}
+                    {publishedStory ? (
                       <button
                         type="button"
                         disabled={isProcessing}
-                        onClick={() => handleShare(item.greeting!)}
+                        onClick={() => handleRemove(publishedStory, item.id)}
+                        style={{
+                          ...actionBtnStyle,
+                          background: "rgba(239,68,68,0.10)",
+                          border: "1px solid rgba(239,68,68,0.22)",
+                          color: "#fca5a5",
+                          fontWeight: 600,
+                          letterSpacing: "-0.01em",
+                          opacity: isProcessing ? 0.5 : 1,
+                          WebkitTapHighlightColor: "transparent",
+                        }}
+                      >
+                        {isProcessing ? "..." : "Quitar"}
+                      </button>
+                    ) : item.greeting || item.removed ? (
+                      <button
+                        type="button"
+                        disabled={isProcessing}
+                        onClick={() => handleShare(item)}
                         style={{
                           ...actionBtnStyle,
                           background: "rgba(168,85,247,0.14)",

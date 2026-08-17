@@ -20,6 +20,7 @@ import { WalletFilterMenu } from "@/app/(protected)/wallet/components/WalletUi";
 import { getRelativeTime } from "@/app/components/OwnerSidebar/OwnerSidebarGreetings.parts";
 import { useAllPurchases } from "@/lib/experiences/useAllPurchases";
 import BuyerInvoicePanel, { type InvoiceConcept } from "./BuyerInvoicePanel";
+import { CardsSkeleton } from "@/components/ui/ListSkeleton";
 
 type TodoTypeFilter = LedgerServiceType | "all";
 
@@ -115,11 +116,7 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
   );
 
   if (loading) {
-    return (
-      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>
-        {tCommon("loading")}
-      </p>
-    );
+    return <CardsSkeleton count={4} height={72} gap={8} />;
   }
 
   if (purchases.length === 0) {

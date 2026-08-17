@@ -159,6 +159,7 @@ export default function OwnerAdminGeneral({
   currentVisibility = "public",
 }: Props) {
   const tCommon = useTranslations("common");
+  const tGroups = useTranslations("groups");
   const tProfile = useTranslations("profile");
   const isOwner = useMemo(
     () => ownerId === currentUserId,
@@ -397,7 +398,7 @@ const data = snap.data() as {
         const nextName = draftValue.trim();
 
         if (nextName.length < 3) {
-          setGeneralErr("El nombre debe tener al menos 3 caracteres.");
+          setGeneralErr(tCommon("minLength3"));
           return;
         }
 
@@ -441,7 +442,7 @@ await updateDoc(groupRef, {
 });
 
         setSavedVisibility(nextVisibility);
-        setGeneralMsg("Estado actualizado.");
+        setGeneralMsg(tGroups("statusUpdated"));
       }
 
       if (editField === "category") {
@@ -453,7 +454,7 @@ await updateDoc(groupRef, {
 });
 
         setCategory(nextCategory);
-        setGeneralMsg("Categoría actualizada.");
+        setGeneralMsg(tGroups("categoryUpdated"));
       }
 
       if (editField === "tags") {
@@ -465,7 +466,7 @@ await updateDoc(groupRef, {
 });
 
         setTagsRaw(nextTags.join(", "));
-        setGeneralMsg("Tags actualizadas.");
+        setGeneralMsg(tGroups("tagsUpdated"));
       }
 
       setEditField(null);

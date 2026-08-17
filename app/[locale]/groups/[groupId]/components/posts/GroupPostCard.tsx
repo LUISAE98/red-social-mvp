@@ -1965,6 +1965,15 @@ function renderBlurredMediaBackdrop(
         : null
   );
 
+  // Marcos excluyentes en un VOD (live terminado): si el post es premium ya va
+  // envuelto en el marco morado "Publicación Premium", así que el marco interior
+  // con el badge "Finalizado" sobra y solo duplica el borde. Un VOD sin ticket de
+  // pago (no premium) conserva su marco "Finalizado", que es el único que lleva.
+  const hideLiveEndedFrame =
+    post.postType === "live" &&
+    activeLiveData?.status === "ended" &&
+    premiumState.isPremium;
+
   // Comentar en un post premium exige lo MISMO que en cualquier otro
   // (`canCommentOnPosts`: miembro/owner + comentarios abiertos) Y además tener
   // acceso al contenido premium (no estar bloqueado). Antes se forzaba `true`
@@ -2878,14 +2887,20 @@ style={{
         borderRadius: 14,
         position: "relative",
         overflow: "hidden",
-        border: isLiveActive ? "2.6px solid #ef4444" : "2.6px solid #a855f7",
-        boxShadow: isLiveActive
-          ? "0 0 0 1px rgba(239,68,68,0.06), 0 4px 28px rgba(239,68,68,0.18)"
-          : "0 0 0 1px rgba(168,85,255,0.06), 0 4px 28px rgba(168,85,255,0.1)",
+        border: hideLiveEndedFrame
+          ? "none"
+          : isLiveActive ? "2.6px solid #ef4444" : "2.6px solid #a855f7",
+        boxShadow: hideLiveEndedFrame
+          ? "none"
+          : isLiveActive
+            ? "0 0 0 1px rgba(239,68,68,0.06), 0 4px 28px rgba(239,68,68,0.18)"
+            : "0 0 0 1px rgba(168,85,255,0.06), 0 4px 28px rgba(168,85,255,0.1)",
         background: "transparent",
       }}
     >
-      {/* Badge EN VIVO / Finalizado / Programado */}
+      {/* Badge EN VIVO / Finalizado / Programado — se omite en un VOD premium:
+          el marco premium exterior ya identifica la publicación */}
+      {!hideLiveEndedFrame && (
       <div
         style={{
           position: "absolute",
@@ -2918,6 +2933,7 @@ style={{
         </svg>
         {isLiveActive ? tGroups("liveLabel") : activeLiveData?.status === "ended" ? tPosts("liveStatusEnded") : tPosts("liveStatusScheduled")}
       </div>
+      )}
 
       {/* Botón "Abrir panel" — solo para el creador cuando el live ya terminó */}
       {currentUserId === post.authorId && activeLiveData?.status === "ended" && (

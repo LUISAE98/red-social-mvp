@@ -120,7 +120,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
       return;
     }
     if (vodAvailable && vodPaid && typedPrice != null && typedPrice < PREMIUM_MIN_PRICE_MXN) {
-      showSummaryToast(`El precio mínimo es $${PREMIUM_MIN_PRICE_MXN}.`, "error");
+      showSummaryToast(tCommon("priceMin", { min: PREMIUM_MIN_PRICE_MXN }), "error");
       return;
     }
     const price = typedPrice;

@@ -6,7 +6,7 @@ import {
   assertSucceeds,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, getDocs, collection, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, setDoc, writeBatch, serverTimestamp } from "firebase/firestore";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Privacidad de COMUNIDADES OCULTAS.
@@ -289,6 +289,38 @@ describe("stories create — el groupId tiene que ser de una comunidad propia", 
     };
   }
 
+  /**
+   * ⚠️ B8-C03: `searchable` pasó a exigir también que el PERFIL de quien publica
+   * sea público, y `profileAllowsPublicPosts` empieza por `userExists(uid)`. Sin
+   * este documento la regla evalúa "perfil no público" y deniega — que es el
+   * comportamiento correcto (sin perfil, lo restrictivo) y el mismo que hace el
+   * cliente. El fixture no lo sembraba.
+   */
+  beforeEach(async () => {
+    await seed(`users/${EXTRANO}`, { profileRestricted: false, showPosts: true });
+  });
+
+  /**
+   * ⚠️ B8-H05: crear una historia exige ahora que el contador del freno viaje en
+   * el MISMO lote atómico (20 al día). Sin él la regla deniega, y estas pruebas
+   * dejarían de medir lo que quieren medir.
+   */
+  // ⚠️ El tipo sale del propio entorno de pruebas, no de `firebase/firestore`:
+  // `authenticatedContext().firestore()` devuelve el tipo COMPAT, que no es el
+  // mismo y el type-check lo rechaza aunque los tests corran.
+  type DbDePrueba = ReturnType<ReturnType<typeof testEnv.authenticatedContext>["firestore"]>;
+
+  function publicarHistoria(ctx: DbDePrueba, id: string, datos: Record<string, unknown>) {
+    const lote = writeBatch(ctx);
+    lote.set(doc(ctx, "stories/" + id), datos);
+    lote.set(doc(ctx, "rateLimits/" + EXTRANO + "_story"), {
+      lastAt: serverTimestamp(),
+      windowStart: serverTimestamp(),
+      count: 1,
+    });
+    return lote.commit();
+  }
+
   it("🔴 un no-miembro NO puede publicar una historia en una comunidad ajena", async () => {
     await seed(`groups/${AJENA}`, { ownerId: "otro", visibility: "public", isActive: true });
 
@@ -307,18 +339,13 @@ describe("stories create — el groupId tiene que ser de una comunidad propia", 
     });
 
     const db = testEnv.authenticatedContext(EXTRANO).firestore();
-    await assertSucceeds(
-      setDoc(doc(db, "stories/s_legitima"), historia({ groupId: AJENA }))
-    );
+    await assertSucceeds(publicarHistoria(db, "s_legitima", historia({ groupId: AJENA })));
   });
 
   it("🟢 una historia de PERFIL, sin comunidad, sigue pasando", async () => {
     const db = testEnv.authenticatedContext(EXTRANO).firestore();
     await assertSucceeds(
-      setDoc(
-        doc(db, "stories/s_perfil"),
-        historia({ source: "profile", groupId: null })
-      )
+      publicarHistoria(db, "s_perfil", historia({ source: "profile", groupId: null }))
     );
   });
 });

@@ -714,11 +714,12 @@ export default function PostCommentThread({
                 disabled={loadingReplies}
                 style={loadingReplies ? disabledActionButtonStyle : actionButtonStyle}
               >
-                {loadingReplies
-                  ? tPosts("loadingReplies")
-                  : replies === null
-                    ? tPosts("viewReplies", { count: replyCount })
-                    : tPosts("repliesLoaded")}
+                {/* Mientras cargan, el botón NO cambia a "Cargando…": quien
+                    cuenta que vienen en camino es el skeleton que aparece
+                    justo debajo, donde van a salir. El botón solo se apaga. */}
+                {replies === null
+                  ? tPosts("viewReplies", { count: replyCount })
+                  : tPosts("repliesLoaded")}
               </button>
             )}
 
@@ -823,6 +824,14 @@ export default function PostCommentThread({
               }}
             >
               {inlineError}
+            </div>
+          )}
+
+          {/* Primera tanda de respuestas: el hueco va aquí abajo, que es donde
+              van a aparecer, y no en la etiqueta del botón de arriba. */}
+          {replies === null && loadingReplies && (
+            <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+              <CommentSkeletonList count={2} />
             </div>
           )}
 

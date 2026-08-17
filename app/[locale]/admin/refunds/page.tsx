@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { intlLocale } from "@/i18n/locales";
 import {
   collection,
@@ -51,6 +51,7 @@ function rel(date: Date | null): string {
 }
 
 export default function AdminRefundsPage() {
+  const tCommon = useTranslations("common");
   const locale = useLocale();
   const { setPreviewUrl } = useAdminPreview();
   const [requests, setRequests] = useState<CashoutRequestDoc[]>([]);
@@ -175,7 +176,7 @@ export default function AdminRefundsPage() {
       setRejectingId(null);
       setRejectNote("");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "No se pudo resolver la solicitud.");
+      setError(e instanceof Error ? e.message : tCommon("errorUpdateRequest"));
     } finally {
       setBusy(false);
     }

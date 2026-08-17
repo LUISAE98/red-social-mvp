@@ -67,6 +67,7 @@ export default function DonationEntryPoint({
   buttonStyle,
 }: Props) {
   const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
   const { format: formatMoney } = usePriceFormat();
 
   const [open, setOpen] = useState(false);
@@ -182,10 +183,9 @@ export default function DonationEntryPoint({
 
       if (!Number.isFinite(parsed) || parsed < resolvedMinimumAmount) {
         setError(
-          `El monto debe ser igual o mayor a ${formatMoney(
-            resolvedMinimumAmount,
-            { baseCurrency: resolvedNormalized.currency }
-          )}.`
+          tServices("donationMinAmount", {
+            amount: formatMoney(resolvedMinimumAmount, { baseCurrency: resolvedNormalized.currency }),
+          })
         );
         return;
       }
@@ -205,13 +205,12 @@ export default function DonationEntryPoint({
       });
 
       setSuccess(
-        `Donación preparada por ${formatMoney(
-          finalAmount,
-          { baseCurrency: resolvedNormalized.currency }
-        )}. El pago real se conectará en el siguiente paso.`
+        tServices("donationPrepared", {
+          amount: formatMoney(finalAmount, { baseCurrency: resolvedNormalized.currency }),
+        })
       );
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo preparar la donación.");
+      setError((e instanceof Error ? e.message : null) ?? tServices("donationPrepareError"));
     } finally {
       setSubmitting(false);
     }

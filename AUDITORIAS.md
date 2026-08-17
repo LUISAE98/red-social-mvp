@@ -467,21 +467,55 @@ Desplegado el 2026-08-16: los 4 críticos, 6 de los altos y 2 medios. Lo que fal
 - **H01/H07** Los 11 disparadores de `homeFeed`/`profileFeed` no tenían `retry`, y el borrado de una copia de comunidad recién oculta iba dentro de un `.catch(() => {})`. Un fallo dejaba contenido revocado visible para siempre. Misma lección que B7-C01.
 - **H02** Cerrar el perfil no alcanzaba a lo ya publicado. Disparador nuevo + backfill.
 - **H04** Menciones sin tope. `emitMentions` recorría todas con un `await` dentro del bucle: un solo comentario podía lanzar miles de notificaciones. Tope de 5 (decisión de Luis) en el disparador, que es el único sitio que ve la escritura venga de donde venga.
-- **H05** Historias sin límites de forma. `hasOnly` fijaba qué claves podían venir pero no lo que traían: se podía fechar una historia en 2099 para dejarla clavada arriba del reel, estrenar con vistas infladas, o meter miles de prefijos y categorías. `createdAt == request.time` es lo que ancla la fecha.
+- **H05** Historias sin límites, por dos lados. **(a) La forma:** `hasOnly` fijaba qué claves podían venir pero no lo que traían, así que se podía fechar una historia en 2099 para dejarla clavada arriba del reel, estrenar con vistas infladas, o meter miles de prefijos y categorías; `createdAt == request.time` es lo que ancla la fecha. **(b) El ritmo:** no había NINGÚN freno, se podían crear sin límite. Cerrado con el mismo mecanismo de H03 —contador en el mismo lote atómico— a **20 al día**, decisión de Luis (2026-08-16), sin espera entre una y otra porque publicar dos seguidas es normal y quien manda es el tope diario.
+
+  La aritmética del contador se compartió entre comentarios e historias en vez de duplicarla: `contadorAvanza(esperaSegundos, ventanaHoras, tope)` en las reglas y `lib/rateLimit/frenoEnLote.ts` en el cliente. Solo cambian los tres números.
 - **Medios cerrados:** las portadas de historias eran `allow read: if true` aunque el perfil o la comunidad estuvieran cerrados; y `postMediaCleanup` registraba los borrados fallidos sin relanzarlos, así que un archivo que fallara una vez se quedaba para siempre.
 
-**Cobertura:** `postMediaPaths.pure.test.ts` (15) en el backend; `postMonetizationEdit.rules.test.ts` y `storiesProfilePrivacy.rules.test.ts` en las reglas. Suite de reglas: **297 verdes**.
+- **C01, lado escritura** Editar una publicación pasó al servidor (`backend/src/updatePost.ts`), igual que la creación en el bloque 4. Comprueba que cada ruta cuelgue de ESTE post y de SU autor, acota texto y número de archivos, ancla los hosts de las URL (una URL externa en un medio convierte la publicación en una baliza que registra la IP de quien la abra) y escribe el historial de edición **en la misma transacción** que el cambio — antes eran dos escrituras sueltas y el historial podía quedar huérfano.
+- **Los 5 medios**, cerrados: esquema cerrado en comentarios y respuestas (con contadores forzados a cero y fechas ancladas a `request.time`), validación completa al editar, limpieza que relanza en vez de tragarse el fallo, historial transaccional, y portadas de historias que respetan el perfil o la comunidad cerrados.
+
+**Cobertura:** `postMediaPaths.pure.test.ts` (15) y `updatePost.emulator.test.ts` (14) en el backend — suite de emulador **156 verdes**. `postMonetizationEdit.rules.test.ts` y `storiesProfilePrivacy.rules.test.ts` en las reglas — suite de reglas **301 verdes**.
+
+⚠️ **La suite del emulador del backend se lanza desde la RAÍZ** (`npm run test:emulator`), que es quien arranca el emulador con `emulators:exec` y define `FIRESTORE_EMULATOR_HOST`. Lanzar `test:emulator:run` desde `backend/` corre los tests sin emulador y caen 52 con "Unable to detect a Project Id", que parece un fallo del código y no lo es.
+
+- **H03** El freno para comentar se pedía en una llamada APARTE (`checkRateLimitComment`) y el comentario se escribía directo después: dos pasos independientes, así que bastaba con no dar el primero. Una regla no puede exigir que ANTES ocurriera otra cosa, **pero sí puede exigir que ocurra A LA VEZ**: `canCreateComment` pide con `getAfter` que el contador quede escrito en el MISMO lote atómico. Sin contador no hay comentario, y el contador pasa por las reglas de `/rateLimits`, que comprueban los 3 s y el tope de 60 por hora.
+
+  Se descartó el callable a propósito: quién puede comentar lo deciden **seis funciones encadenadas** de `firestore.rules` (acceso premium, ticket de directo, bloqueos de comunidad, comentarios habilitados, antigüedad del follow). Un callable habría necesitado su propia copia de las seis, y una copia que se desincroniza del original es exactamente el fallo que esta auditoría lleva ocho bloques encontrando. Así la autorización sigue viviendo en UN solo sitio. Decisión de Luis (2026-08-16).
+
+  ⚠️ Esto **reabre `rateLimits` a escritura del cliente**, que se cerró en un bloque anterior porque el dueño reiniciaba `lastAt` para saltarse el límite. La diferencia es que ahora `lastAt` tiene que valer EXACTAMENTE `request.time`, la hora del servidor, y para escribir el `lastAt` ANTERIOR tiene que ser lo bastante viejo. El borrado sigue cerrado, que si no se borraba el documento y a empezar.
+
+  ⚠️ **`checkRateLimitComment` se BORRÓ de producción**, no solo se dejó de usar. Escribía con el Admin SDK un `set` completo de `{lastAt, hourTimestamps}`, o sea que **borraba `windowStart` y `count`**: una llamada reiniciaba la ventana y el arreglo se desactivaba a sí mismo. `checkAndRecord` se conserva, lo usan `post` y KYC.
+
+  ⚠️ Y de paso, **las respuestas no tenían freno ninguno**: `createPostComment` sí llamaba al límite y `createPostCommentReply` nunca lo hizo. El spam ni siquiera necesitaba saltarse nada, le bastaba con mudarse a las respuestas. Ahora gastan el mismo contador.
+
+- **H06** El bloqueo entre miembros de una comunidad solo existía en el cliente: la interfaz escondía las publicaciones de quien habías bloqueado, pero pidiéndolas por el SDK llegaban igual. Cerrado en el `get`, en las dos direcciones (bloquear y ser bloqueado).
+
+  ⚠️ **El `list` NO lo comprueba, y es una decisión, no un olvido.** Comprobar el bloqueo cuesta dos `exists()` por documento y el tope de 10 accesos es para la consulta ENTERA: con veinte publicaciones se agota y Firestore deniega la consulta COMPLETA, dejando el muro en blanco para todos. Cerrarlo ahí obliga a materializar el muro por persona (una copia de cada publicación por miembro), que es otra arquitectura y un coste permanente. Decisión de Luis (2026-08-16): cerrar el `get` —que es como se llega desde un enlace, una notificación o una búsqueda—, filtrar el listado en el cliente y dejarlo escrito. `groupMemberBlocks.rules.test.ts` incluye una prueba que documenta ese límite; **si algún día se materializa el muro, esa prueba cambia de signo**.
+
+  Dos trampas que costaron dos rondas y las dos las detectó `premiumPostVisibility`, no las pruebas nuevas:
+  - `resource.data.groupId` con el campo AUSENTE es un **error de evaluación**, no `false`. En un `||` el error se absorbe si otra rama da true —por eso el resto del archivo lo escribe suelto— pero esto va en un `&&` al final del `allow get`, donde el error deniega. Una publicación de perfil dejaba de abrirse. Hay que usar `.get('groupId', null)`.
+  - `isMember()` va delante de los dos `exists()` por coste: un bloqueo entre miembros solo puede existir entre miembros, y el documento de miembro ya está en caché de `canReadPost`.
+
+### ⚠️ Regresión encontrada en el bloque 6, ya corregida
+
+**B6-C03 se anunció cerrado y no lo estaba.** El contracargo retiraba el acceso MARCANDO el documento (`status: "revoked"`, `revoked: true`) en vez de borrarlo —hace falta para investigar la disputa— pero las reglas comprobaban solo `exists()`:
+
+```
+function hasPostAccess(postId) {
+  return signedIn() && exists(.../postAccess/$(uid + '_' + postId));   // ← el fallo
+}
+```
+
+Resultado: reclamabas el cargo a tu banco, te devolvían el dinero y **conservabas el post de pago y la entrada al directo**. Lo mismo en `hasLiveTicket`.
+
+Es el mismo patrón que ya mordió en el bloque 7 con los miembros sancionados: **los documentos se marcan, no se borran, y `exists()` no basta.** Se comprueba `revoked` y no `status` porque `postAccess` usa `"active"` y `liveAccess` usa `"paid"` —dos vocabularios— mientras que `revoked` lo escribe la misma función en los dos. Cubierto por `revokedAccess.rules.test.ts`.
 
 ### Pendientes del bloque 8
 
 | Qué | Por qué no está |
 |---|---|
-| **C01 lado escritura** — callable `updatePost` + cerrar `media` en las reglas | El ataque está muerto en los dos consumidores, pero el documento todavía puede guardar rutas ajenas. Las reglas no pueden validar los elementos de una lista, así que la única solución es mover la edición al servidor, como se hizo con `createPost`. Necesita despliegue de frontend. |
-| **C03 cliente `searchable`** | Escrito y compilado, esperando Vercel. Mientras tanto lo cubre `onStoryCreatedEnforceSearchable`, con una ventana de segundos. |
-| **H04 tope de menciones en las reglas** | El disparador ya lo aplica (que es donde está el daño). La regla se retiene hasta que Vercel despliegue el cliente con el mismo tope, o denegaría comentarios con más de 5 menciones escritos por el cliente viejo. |
-| **H03 saltarse el límite de comentarios** | Mismo patrón que las publicaciones: el límite vive en una llamada aparte (`checkRateLimitComment`) y el comentario se escribe directo después, así que basta con no dar el primer paso. Una regla no puede exigir que ANTES ocurriera otra cosa. Necesita un callable `createComment`. |
-| **H06 bloqueos dentro de comunidades** | Decisión de Luis: que desaparezca de verdad. ⚠️ En un `list` no es viable con reglas: comprobar el bloqueo cuesta dos `get()` por documento y el tope es 10 para la consulta ENTERA. En el feed de inicio ya está resuelto server-side (`onHomeFeedBlockedUserCreated`); el hueco es el listado de la comunidad, que se consulta directo. Cerrarlo de verdad pide materializar el listado por persona, que es una decisión de arquitectura, no un parche. |
-| **Medios sueltos** | Esquema cerrado en comentarios y respuestas; validación de longitud, número de medios y hosts de URL al editar; el historial de edición se escribe aparte del cambio. |
+| **C01, cerrar `media` en las reglas** | El callable ya existe y el cliente ya lo usa, pero ese cliente todavía no está en Vercel. Quitar `media` de `canEditPost` antes de que lo esté dejaría la edición rota. El ataque ya está muerto por los dos consumidores, así que esto es el tercer cerrojo, no la defensa. |
 
 ---
 ## Bloque 7 — Comunidades, membresías y moderación (CERRADO)

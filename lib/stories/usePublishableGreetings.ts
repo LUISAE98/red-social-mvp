@@ -128,9 +128,15 @@ export function usePublishableGreetings({ uid, type, scope, enabled = true }: Pa
       const stats: PublishableStats = { ...NO_STATS };
       const ref = collection(db, "greetingRequests");
 
-      /** Filtros comunes. Devuelve false y apunta el motivo. */
-      const passesBase = (g: Record<string, unknown>): boolean => {
-        if (g.type !== type) return false;
+      /**
+       * Solo entra lo que ya tiene VIDEO LISTO. Un encargo sin grabar no es algo
+       * que publicar, es un pedido en curso, y su sitio es la pantalla de
+       * experiencias, no este panel.
+       *
+       * Los motivos se cuentan igual, para que el mensaje de lista vacía pueda
+       * decir por qué no hay nada en vez de suponerlo.
+       */
+      const isReady = (g: Record<string, unknown>): boolean => {
         stats.fetched += 1;
         if (g.status !== "delivered") {
           stats.notDelivered += 1;
@@ -153,7 +159,9 @@ export function usePublishableGreetings({ uid, type, scope, enabled = true }: Pa
           );
           for (const d of snap.docs) {
             const g = d.data();
-            if (!passesBase(g)) continue;
+            if (g.type !== type) continue;
+            if (!isReady(g)) continue;
+            // Como creador solo se publica lo que el comprador autorizó.
             if (g.allowCreatorStory === false) {
               stats.noPermission += 1;
               continue;
@@ -168,7 +176,8 @@ export function usePublishableGreetings({ uid, type, scope, enabled = true }: Pa
 
           for (const d of sentSnap.docs) {
             const g = d.data();
-            if (!passesBase(g)) continue;
+            if (g.type !== type) continue;
+            if (!isReady(g)) continue;
             // Como creador, solo lo que el comprador autorizó.
             if (g.allowCreatorStory === false) {
               stats.noPermission += 1;
@@ -181,7 +190,12 @@ export function usePublishableGreetings({ uid, type, scope, enabled = true }: Pa
           for (const d of boughtSnap.docs) {
             if (seen.has(d.id)) continue;
             const g = d.data();
-            if (!passesBase(g)) continue;
+            if (g.type !== type) continue;
+
+            // Como COMPRADOR entran todos los que compraste, con permiso o sin
+            // él: el permiso limita al creador, no a ti. Es tu encargo.
+            if (!isReady(g)) continue;
+
             const gid = typeof g.groupId === "string" && g.groupId ? g.groupId : null;
             if (gid) {
               // De una comunidad OCULTA no se puede sacar nada al perfil: sería

@@ -25,6 +25,7 @@ import { useBuyerCashout } from "@/lib/wallet/useBuyerCashout";
 import { requestCashout, dismissCashoutNotice } from "@/lib/wallet/cashout";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useConfirm } from "@/lib/hooks/useConfirm";
+import ListSkeleton from "@/components/ui/ListSkeleton";
 
 type Tab = "requested" | "rejected" | "delivered";
 
@@ -713,7 +714,10 @@ export default function ExperienciasPage() {
       ) : null}
 
       {dataLoading ? (
-        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>{tCommon("loading")}</p>
+        /* La misma forma que el skeleton de la ruta (loading.tsx): miniatura
+           cuadrada + dos renglones. Al recargar dentro de la página se ve el
+           mismo hueco que al entrar. */
+        <ListSkeleton rows={5} avatarSize={56} avatarShape="square" padding="0" />
       ) : availableTabs.length === 0 ? (
         <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>{tCommon("noPurchasesYet")}</p>
       ) : (

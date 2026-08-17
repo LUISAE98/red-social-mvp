@@ -16,6 +16,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { usersHaveBlockBetween } from "./social/blocks";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -121,6 +122,25 @@ export const getDirectMessageImageUrls = onCall<RequestData, Promise<ResponseDat
     const participants = convSnap.data()?.participants;
     if (!Array.isArray(participants) || !participants.includes(uid)) {
       throw new HttpsError("permission-denied", "No participas en esta conversación.");
+    }
+
+    // ⚠️ B9-medio. Participar no basta: hay que seguir sin bloqueo.
+    //
+    // Antes se comprobaba la participación y la visibilidad del mensaje, pero no
+    // el bloqueo, así que quien te bloqueó —o a quien bloqueaste— podía seguir
+    // renovando indefinidamente las URLs de todas las imágenes del historial.
+    // El bloqueo cortaba los mensajes nuevos y dejaba abierto el archivo.
+    //
+    // Decisión de producto de Luis (2026-08-16): al bloquear, el hilo se cierra
+    // DEL TODO, y eso incluye no poder volver a abrir lo ya enviado.
+    const otro = participants.find((p) => p !== uid);
+    if (typeof otro === "string" && otro) {
+      if (await usersHaveBlockBetween(uid, otro)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Esta conversación está bloqueada."
+        );
+      }
     }
 
     // Una ruta de OTRA conversación no se firma aunque sí participes en esta:

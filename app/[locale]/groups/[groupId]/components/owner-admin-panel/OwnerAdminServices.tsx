@@ -39,6 +39,7 @@ import CustomClass from "@/components/services/config/CustomClass";
 import {
   SERVICE_EMOJIS, SpinningGear, DonationModeButton,
   buildManualLegacyRemovalSuccessMessage, buildOffering, buildServiceBlockDraft,
+  type AvisoTransicion,
   buildSubscriptionDraft, buildTransitionSuccessMessage, calcNetAmount,
   createEmptyDraft, createEmptyWeeklyAvailability, normalizeDurationMeta,
   normalizeWeeklyAvailabilityFromMeta, pickDonation, pickOffering,
@@ -71,6 +72,13 @@ export default function OwnerAdminServices({
   onChangeVisibility,
 }: Props) {
   const tServices = useTranslations("services");
+
+  /** Compone el aviso de la transición: la frase y, si la hay, su cola de contadores. */
+  const textoAvisoTransicion = (aviso: AvisoTransicion) => {
+    const frase = tServices(aviso.clave as Parameters<typeof tServices>[0]);
+    if (!aviso.cola) return frase;
+    return frase + " " + tServices(aviso.cola.clave as Parameters<typeof tServices>[0], aviso.cola.valores);
+  };
   const priceFmt = usePriceFormat();
   const formatMoney = (value: number, currency?: string) =>
     priceFmt.format(value, { baseCurrency: currency ?? "MXN", code: true });
@@ -360,16 +368,19 @@ export default function OwnerAdminServices({
         });
 
       showAdminServicesToast(
-        buildManualLegacyRemovalSuccessMessage({
-          removedMembers: response.removedMembers,
-          reminderMembers: response.reminderMembers,
-          skippedMembers: response.skippedMembers,
-        })
+        textoAvisoTransicion(
+          buildManualLegacyRemovalSuccessMessage({
+            removedMembers: response.removedMembers,
+            reminderMembers: response.reminderMembers,
+            skippedMembers: response.skippedMembers,
+          })
+        ),
+        "success"
       );
     } catch (e: unknown) {
       showAdminServicesToast(
         (e instanceof Error ? e.message : null) ??
-          "❌ No se pudo retirar a los miembros gratuitos.",
+          tServices("freeMembersRemoveError"),
         "error"
       );
     } finally {
@@ -428,7 +439,7 @@ export default function OwnerAdminServices({
           Number.isNaN(subscriptionPriceNum) ||
           subscriptionPriceNum <= 0)
       ) {
-        setErr(AVISOS_SERVICIOS.precioSuscripcion);
+        setErr(tServices(AVISOS_SERVICIOS.precioSuscripcion));
         return;
       }
 
@@ -438,7 +449,7 @@ export default function OwnerAdminServices({
           Number.isNaN(saludoPriceNum) ||
           saludoPriceNum <= 0)
       ) {
-        setErr(AVISOS_SERVICIOS.precioSaludos);
+        setErr(tServices(AVISOS_SERVICIOS.precioSaludos));
         return;
       }
 
@@ -448,7 +459,7 @@ export default function OwnerAdminServices({
           Number.isNaN(consejoPriceNum) ||
           consejoPriceNum <= 0)
       ) {
-        setErr(AVISOS_SERVICIOS.precioConsejos);
+        setErr(tServices(AVISOS_SERVICIOS.precioConsejos));
         return;
       }
 
@@ -458,7 +469,7 @@ export default function OwnerAdminServices({
           Number.isNaN(meetGreetPriceNum) ||
           meetGreetPriceNum <= 0)
       ) {
-        setErr(AVISOS_SERVICIOS.precioMeetGreet);
+        setErr(tServices(AVISOS_SERVICIOS.precioMeetGreet));
         return;
       }
 
@@ -468,7 +479,7 @@ export default function OwnerAdminServices({
           Number.isNaN(customClassPriceNum) ||
           customClassPriceNum <= 0)
       ) {
-        setErr(AVISOS_SERVICIOS.precioSesion);
+        setErr(tServices(AVISOS_SERVICIOS.precioSesion));
         return;
       }
 
@@ -480,7 +491,7 @@ export default function OwnerAdminServices({
           !Number.isInteger(meetGreetDurationNum))
       ) {
         setErr(
-          AVISOS_SERVICIOS.duracionMeetGreet
+          tServices(AVISOS_SERVICIOS.duracionMeetGreet)
         );
         return;
       }
@@ -493,7 +504,7 @@ export default function OwnerAdminServices({
           !Number.isInteger(customClassDurationNum))
       ) {
         setErr(
-          AVISOS_SERVICIOS.duracionSesion
+          tServices(AVISOS_SERVICIOS.duracionSesion)
         );
         return;
       }
@@ -536,14 +547,14 @@ export default function OwnerAdminServices({
 
       if (localWillEnableSubscription && !workingDraft.freeToSubscriptionPolicy) {
         setErr(
-          "❌ Debes definir qué pasa con los miembros actuales al cambiar de gratis a suscripción."
+          tServices("transitionFreeToPaid")
         );
         return;
       }
 
       if (localWillDisableSubscription && !workingDraft.subscriptionToFreePolicy) {
         setErr(
-          "❌ Debes definir qué pasa con los integrantes al cambiar de suscripción a gratis."
+          tServices("transitionPaidToFree")
         );
         return;
       }
@@ -553,7 +564,7 @@ export default function OwnerAdminServices({
         !workingDraft.subscriptionPriceIncreasePolicy
       ) {
         setErr(
-          "❌ Debes definir qué pasa con los suscriptores actuales al subir el precio."
+          tServices("transitionPriceUp")
         );
         return;
       }
@@ -563,7 +574,7 @@ export default function OwnerAdminServices({
         (donationSuggestedNums.length !== 4 ||
           donationSuggestedNums.some((n) => !Number.isFinite(n) || n < 50))
       ) {
-        setErr(AVISOS_SERVICIOS.donacionMontoMinimo);
+        setErr(tServices(AVISOS_SERVICIOS.donacionMontoMinimo));
         return;
       }
 
@@ -571,7 +582,7 @@ export default function OwnerAdminServices({
         workingDraft.donationMode === "wedding" &&
         !workingDraft.donationGoalLabel.trim()
       ) {
-        setErr(AVISOS_SERVICIOS.donacionTextoBoda);
+        setErr(tServices(AVISOS_SERVICIOS.donacionTextoBoda));
         return;
       }
 
@@ -742,7 +753,7 @@ export default function OwnerAdminServices({
       });
 
       let successMessage =
-        "✅ Configuración de suscripción, catálogo y donación guardados.";
+        tServices("configAllSaved");
 
       if (isTransitioningSubscriptionModel) {
         try {
@@ -776,11 +787,11 @@ export default function OwnerAdminServices({
                 : undefined,
           });
 
-          successMessage = buildTransitionSuccessMessage(transitionResponse);
+          successMessage = textoAvisoTransicion(buildTransitionSuccessMessage(transitionResponse));
         } catch (transitionError: unknown) {
           const transitionMessage =
             (transitionError instanceof Error ? transitionError.message : null) ??
-            "La transición de miembros no pudo completarse.";
+            tServices("transitionFailed");
 
           const nextSavedAfterPartialSuccess: ServiceDraft = {
             subscription: {
@@ -847,7 +858,7 @@ export default function OwnerAdminServices({
           setDraft(nextSavedAfterPartialSuccess);
           setSavedDraft(nextSavedAfterPartialSuccess);
           showAdminServicesToast(
-            `⚠️ La configuración del grupo sí se guardó, pero la transición de miembros no terminó correctamente: ${transitionMessage}`,
+            tServices("transitionPartial", { detail: transitionMessage }),
             "warning"
           );
           return;
@@ -919,7 +930,7 @@ export default function OwnerAdminServices({
       showAdminServicesToast(successMessage);
       return true;
     } catch (e: unknown) {
-      showAdminServicesToast((e instanceof Error ? e.message : null) ?? AVISOS_SERVICIOS.noGuardado, "error");
+      showAdminServicesToast((e instanceof Error ? e.message : null) ?? tServices(AVISOS_SERVICIOS.noGuardado), "error");
       return false;
     } finally {
       skipHydrationWhileSavingRef.current = false;

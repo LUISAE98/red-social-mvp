@@ -773,7 +773,10 @@ describe("DM — mensajes", () => {
   };
 
   it("🟢 responder citando un mensaje del otro", async () => {
-    await seedAll(base());
+    // ⚠️ B9: el mensaje citado tiene que EXISTIR de verdad en el hilo y su autor
+    // tiene que ser el que dice la cita. El fixture no lo sembraba, así que
+    // citaba un `m1` inexistente.
+    await seedAll([...base(), ...existingMessage(BOB, "m1")]);
     await assertSucceeds(
       addDoc(
         collection(as(ALICE), `conversations/${CONV}/messages`),
@@ -783,7 +786,7 @@ describe("DM — mensajes", () => {
   });
 
   it("🟢 una cita de un mensaje solo-imagen no lleva texto", async () => {
-    await seedAll(base());
+    await seedAll([...base(), ...existingMessage(BOB, "m1")]);
     await assertSucceeds(
       addDoc(
         collection(as(ALICE), `conversations/${CONV}/messages`),
@@ -1077,5 +1080,194 @@ describe("DM — campos que solo puede escribir la Cloud Function", () => {
   it("🔴 el hilo no se puede borrar, solo bloquear", async () => {
     await seedAll(base());
     await assertFails(deleteDoc(doc(as(ALICE), `conversations/${CONV}`)));
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// BLOQUE 9 — los dos críticos de reglas.
+//
+// C01: el bloqueo se comprobaba al ABRIR una conversación, pero no al escribir
+//   dentro de una que ya existía. Ahí el único freno era `status: "blocked"` en
+//   el hilo, y ese estado lo escribe el CLIENTE después de bloquear, en una
+//   operación aparte que no es atómica, se traga sus errores y no corre al
+//   desbloquear. Bastaba con que fallara para seguir escribiéndole a quien te
+//   bloqueó.
+//
+// C02: la ruta de la imagen solo tenía que empezar por la conversación, no por
+//   el uid de quien envía. La ruta real es `dmImages/{conv}/{uid}/...`, así que
+//   se podía escribir un mensaje apuntando al archivo DEL OTRO, retirarlo, y
+//   dejar que la limpieza se lo borrara a su dueño con permisos de
+//   administrador.
+// ═════════════════════════════════════════════════════════════════════════════
+describe("B9-C01 — el bloqueo corta también dentro de un hilo abierto", () => {
+  /** Un hilo ACTIVO: la sincronización del cliente falló o se la saltaron. */
+  async function hiloActivoPeroBloqueada(quienBloquea: string, aQuien: string) {
+    await seedAll([
+      ...users("everyone"),
+      ...conversation("active"),
+      ...existingMessage(),
+      ...blocked(quienBloquea, aQuien),
+    ]);
+  }
+
+  function escribir(uid: string, id: string) {
+    return setDoc(doc(as(uid), `conversations/${CONV}/messages/${id}`), {
+      senderId: uid,
+      text: "sigo aquí",
+      createdAt: serverTimestamp(),
+      isDeleted: false,
+    });
+  }
+
+  it("🔴 quien fue bloqueado NO puede escribir aunque el hilo siga activo", async () => {
+    await hiloActivoPeroBloqueada(BOB, ALICE);
+    await assertFails(escribir(ALICE, "mNueva"));
+  });
+
+  it("🔴 y quien bloqueó tampoco: el corte va en las dos direcciones", async () => {
+    await hiloActivoPeroBloqueada(BOB, ALICE);
+    await assertFails(escribir(BOB, "mNueva2"));
+  });
+
+  it("🟢 sin bloqueo, escribir sigue funcionando", async () => {
+    await seedAll([...users("everyone"), ...conversation("active"), ...existingMessage()]);
+    await assertSucceeds(escribir(ALICE, "mNormal"));
+  });
+
+  it("🔴 tampoco puede reaccionar a mensajes viejos", async () => {
+    // Una reacción llega al otro en tiempo real: es contacto, y el bloqueo tiene
+    // que cortarlo igual que un mensaje.
+    await hiloActivoPeroBloqueada(BOB, ALICE);
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), {
+        likedBy: [ALICE],
+      })
+    );
+  });
+
+  it("🟢 pero sí puede esconderse el mensaje a sí misma", async () => {
+    // Esconder algo en tu propia pantalla no le manda ninguna señal al otro.
+    // Negárselo sería castigar a quien bloqueó.
+    await hiloActivoPeroBloqueada(ALICE, BOB);
+    await assertSucceeds(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), {
+        deletedFor: [ALICE],
+      })
+    );
+  });
+});
+
+describe("B9-C02 — la imagen tiene que ser tuya", () => {
+  beforeEach(async () => {
+    await seedAll([...users("everyone"), ...conversation("active"), ...existingMessage()]);
+  });
+
+  function mensajeConImagen(uid: string, id: string, path: string) {
+    return setDoc(doc(as(uid), `conversations/${CONV}/messages/${id}`), {
+      senderId: uid,
+      text: "",
+      createdAt: serverTimestamp(),
+      isDeleted: false,
+      image: { path, thumbnailPath: path },
+    });
+  }
+
+  it("🟢 con una ruta propia, pasa", async () => {
+    await assertSucceeds(
+      mensajeConImagen(ALICE, "mMia", `dmImages/${CONV}/${ALICE}/images/foto.jpg`)
+    );
+  });
+
+  it("🔴 apuntando al archivo del OTRO, ya no", async () => {
+    // El ataque completo: Alice reclama la foto de Bob, retira su mensaje y la
+    // limpieza se la borra a Bob.
+    await assertFails(
+      mensajeConImagen(ALICE, "mRobada", `dmImages/${CONV}/${BOB}/images/deBob.jpg`)
+    );
+  });
+
+  it("🔴 ni al de otra conversación", async () => {
+    await assertFails(
+      mensajeConImagen(ALICE, "mOtroHilo", `dmImages/otroHilo/${ALICE}/images/x.jpg`)
+    );
+  });
+
+  it("🔴 ni saliéndose con `..` aunque empiece bien", async () => {
+    await assertFails(
+      mensajeConImagen(
+        ALICE,
+        "mEscape",
+        `dmImages/${CONV}/${ALICE}/../${BOB}/images/deBob.jpg`
+      )
+    );
+  });
+
+  it("🔴 la miniatura también se comprueba, no solo la imagen", async () => {
+    await assertFails(
+      setDoc(doc(as(ALICE), `conversations/${CONV}/messages/mMixta`), {
+        senderId: ALICE,
+        text: "",
+        createdAt: serverTimestamp(),
+        isDeleted: false,
+        image: {
+          path: `dmImages/${CONV}/${ALICE}/images/foto.jpg`,
+          thumbnailPath: `dmImages/${CONV}/${BOB}/thumbnails/deBob.jpg`,
+        },
+      })
+    );
+  });
+
+  it("🔴 una URL externa ya no se puede guardar", async () => {
+    // `url`/`thumbnailUrl` eran campos "legacy" que las reglas seguían
+    // aceptando sin validar dominio, y la interfaz los prioriza al pintar: una
+    // imagen remota entrega la IP y la hora a la que el otro abre el chat.
+    await assertFails(
+      setDoc(doc(as(ALICE), `conversations/${CONV}/messages/mBaliza`), {
+        senderId: ALICE,
+        text: "",
+        createdAt: serverTimestamp(),
+        isDeleted: false,
+        image: {
+          path: `dmImages/${CONV}/${ALICE}/images/foto.jpg`,
+          thumbnailPath: `dmImages/${CONV}/${ALICE}/thumbnails/foto.jpg`,
+          url: "https://rastreador.example.com/pixel.gif",
+        },
+      })
+    );
+  });
+});
+
+describe("B9-medio — una cita no se puede fabricar", () => {
+  const CITA_BASE = () => [...users("everyone"), ...conversation("active")];
+
+  function responder(replyTo: Record<string, unknown>) {
+    return setDoc(doc(as(ALICE), `conversations/${CONV}/messages/mResp`), {
+      senderId: ALICE,
+      text: "te respondo",
+      createdAt: serverTimestamp(),
+      isDeleted: false,
+      replyTo,
+    });
+  }
+
+  it("🔴 citar un mensaje que no existe", async () => {
+    await seedAll(CITA_BASE());
+    await assertFails(
+      responder({ messageId: "inventado", senderId: BOB, text: "yo nunca dije esto" })
+    );
+  });
+
+  it("🔴 atribuirle al otro un mensaje que escribí yo", async () => {
+    await seedAll([...CITA_BASE(), ...existingMessage(ALICE, "m1")]);
+    await assertFails(
+      responder({ messageId: "m1", senderId: BOB, text: "esto lo dijo Bob" })
+    );
+  });
+
+  it("🟢 citando de verdad, pasa", async () => {
+    await seedAll([...CITA_BASE(), ...existingMessage(BOB, "m1")]);
+    await assertSucceeds(
+      responder({ messageId: "m1", senderId: BOB, text: "hola" })
+    );
   });
 });

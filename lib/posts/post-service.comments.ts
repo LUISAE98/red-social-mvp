@@ -6,12 +6,13 @@
 import {
   collection, doc, addDoc, getDoc, getDocs, updateDoc,
   setDoc, serverTimestamp, increment, query, orderBy, limit, startAfter,
-  runTransaction, Timestamp,
+  runTransaction, writeBatch, Timestamp,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "@/lib/firebase";
 import { pickString, assertValidId } from "./post-service.helpers";
 import { callCheckRateLimit } from "./rateLimitClient";
+import { prepararFreno, aplicarFreno } from "@/lib/rateLimit/frenoEnLote";
 import {
   getCurrentAuthorSnapshot,
   fetchUsersByIds,
@@ -65,15 +66,23 @@ function getPostCommentsCacheKey(postId: string, viewerUid?: string | null): str
  * borrada, o el viewer no puede leerla (reglas / bloqueo). Usada por la página
  * de post individual y el deep-link de notificaciones.
  */
-// El conteo lo lleva el servidor (`checkRateLimitComment` en backend/rateLimiter.ts).
-// Antes esta misma lógica corría en el cliente escribiendo `rateLimits` directo,
-// y como el dueño podía escribir su propio documento, bastaba con reiniciar
-// `lastAt` para saltarse el límite. Ahora esa colección es de solo lectura para
-// el cliente y el único que la escribe es el callable.
-async function enforceCommentRateLimit(): Promise<void> {
+// ⚠️ B8-H03. El freno ya NO se pide en una llamada aparte.
+//
+// Hasta ahora se llamaba a `checkRateLimitComment` y DESPUÉS se escribía el
+// comentario: dos pasos independientes, así que bastaba con no dar el primero.
+// Escribiendo contra Firestore sin pasar por esta función se comentaba sin
+// freno ninguno, y con ello venían el spam, el acoso y el disparo masivo de
+// notificaciones.
+//
+// Ahora el contador viaja en el MISMO lote atómico que el comentario, y la
+// regla `canCreateComment` lo exige con `getAfter`. Los dos pasos son uno.
+//
+// Esto devuelve lo que hay que escribir; escribirlo es cosa de quien arma el
+// lote. Ver `lib/posts/commentRateLimit.ts`.
+async function enforceCommentRateLimit() {
   const user = auth.currentUser;
   if (!user?.uid) throw new Error("Debes iniciar sesión.");
-  await callCheckRateLimit("checkRateLimitComment");
+  return prepararFreno(user.uid, "comment");
 }
 
 /** Comentarios por tanda. El panel pide la siguiente al llegar arriba del todo. */
@@ -197,7 +206,13 @@ export async function fetchOlderPostComments(params: {
   });
 }
 
-const MAX_COMMENT_MENTIONS = 20;
+// ⚠️ B8-H04. Era 20. Cada mención de perfil dispara una notificación y el
+// disparador las recorría todas con un `await` dentro del bucle, así que un
+// solo comentario podía lanzar miles. Tope de producto de Luis (2026-08-16).
+//
+// El mismo número vive en `backend/src/notifications.ts` y en las Firestore
+// Rules (`commentMentionsWithinLimit`); si cambia, cambia en los tres.
+const MAX_COMMENT_MENTIONS = 5;
 
 /**
  * Normaliza y valida las menciones que llegan del cliente antes de persistirlas.
@@ -208,9 +223,6 @@ const MAX_COMMENT_MENTIONS = 20;
  * Devuelve `null` cuando no queda ninguna mención válida, para no escribir el
  * campo en Firestore innecesariamente.
  */
-/** Máximo de menciones @ por comentario. Ver `backend/src/notifications.ts`. */
-const MAX_MENCIONES_POR_COMENTARIO = 5;
-
 function sanitizeCommentMentions(
   input: unknown,
   text: string
@@ -221,12 +233,6 @@ function sanitizeCommentMentions(
   const result: CommentMention[] = [];
 
   for (const raw of input) {
-    // ⚠️ B8-H04. Cada mención de perfil dispara una notificación, y este bucle
-    // no tenía tope: un comentario podía lanzar miles. Tope de producto de Luis
-    // (2026-08-16). El mismo número vive en `backend/src/notifications.ts` y en
-    // las Firestore Rules; si cambia, cambia en los tres.
-    if (result.length >= MAX_MENCIONES_POR_COMENTARIO) break;
-
     if (!raw || typeof raw !== "object") continue;
 
     const candidate = raw as Record<string, unknown>;
@@ -314,7 +320,7 @@ export async function createPostComment(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
-  await enforceCommentRateLimit();
+  const freno = await enforceCommentRateLimit();
   const postRef = doc(db, "posts", params.postId);
   const postSnap = await getDoc(postRef);
 
@@ -355,7 +361,14 @@ export async function createPostComment(params: {
 
 const cleanMentions = sanitizeCommentMentions(params.mentions, cleanText);
 
-await addDoc(collection(db, "posts", params.postId, "comments"), {
+// ⚠️ B8-H03. El comentario y su contador de freno van en el MISMO lote
+// atómico. La regla `canCreateComment` lo exige con `getAfter`: sin el
+// contador no hay comentario, y el contador pasa por las reglas de
+// `/rateLimits`, que son las que comprueban los 3 s y el tope por hora.
+const lote = writeBatch(db);
+const comentarioRef = doc(collection(db, "posts", params.postId, "comments"));
+
+lote.set(comentarioRef, {
   authorId: author.uid,
   authorName: author.authorName,
   authorAvatarUrl: author.authorAvatarUrl,
@@ -371,6 +384,9 @@ await addDoc(collection(db, "posts", params.postId, "comments"), {
   ...(cleanImage ? { image: cleanImage } : {}),
   ...(authorIsGroupMember !== undefined ? { authorIsGroupMember } : {}),
 });
+aplicarFreno(lote, freno);
+
+await lote.commit();
 
 // El contador lo lleva el trigger `onPostCommentCreated` en el backend. Antes se
 // subía desde aquí, y como iba en una escritura APARTE de la creación del
@@ -644,6 +660,14 @@ export async function createPostCommentReply(params: {
     collection(db, "posts", params.postId, "comments", params.commentId, "replies")
   );
 
+  // ⚠️ B8-H03. Las respuestas NO tenían freno ninguno: `createPostComment` sí
+  // llamaba al límite y esta función nunca lo hizo. O sea que el spam ni
+  // siquiera necesitaba saltarse nada, le bastaba con mudarse a las respuestas.
+  //
+  // Ahora gastan el MISMO contador que los comentarios, y la regla
+  // `canCreateReply` lo exige en el mismo lote atómico.
+  const freno = await enforceCommentRateLimit();
+
   await runTransaction(db, async (transaction) => {
     const freshPostSnap = await transaction.get(postRef);
     const freshCommentSnap = await transaction.get(commentRef);
@@ -682,6 +706,10 @@ export async function createPostCommentReply(params: {
 
     const freshCommentLikes =
       typeof freshCommentCounts.likes === "number" ? freshCommentCounts.likes : 0;
+
+    // El contador va DESPUÉS de todas las lecturas de la transacción: Firestore
+    // exige leer antes de escribir.
+    aplicarFreno(transaction, freno);
 
     transaction.set(replyRef, {
       postId: params.postId,

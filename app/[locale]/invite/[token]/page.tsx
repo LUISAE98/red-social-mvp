@@ -223,7 +223,7 @@ const { user } = useAuth();
         const res = await getInviteLinkPreview(token);
         setData(res);
       } catch (e: unknown) {
-        setError((e instanceof Error ? e.message : null) ?? "Error cargando invitación");
+        setError((e instanceof Error ? e.message : null) ?? tGroups("inviteLoadError"));
       } finally {
         setLoading(false);
       }
@@ -249,7 +249,7 @@ const { user } = useAuth();
       const res = await consumeInviteLink(token);
       router.replace(`/groups/${res.groupId}`);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "Error al usar invitación");
+      setError((e instanceof Error ? e.message : null) ?? tGroups("inviteUseError"));
       setConsuming(false);
     }
   }

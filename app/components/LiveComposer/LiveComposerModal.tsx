@@ -330,7 +330,7 @@ export default function LiveComposerModal({
       return;
     }
     if (accessType === "paid" && priceNum < LIVE_TICKET_MIN_PRICE_MXN) {
-      showLiveComposerToast(`El precio mínimo del ticket es $${LIVE_TICKET_MIN_PRICE_MXN}.`, "error");
+      showLiveComposerToast(tCommon("priceMin", { min: LIVE_TICKET_MIN_PRICE_MXN }), "error");
       return;
     }
 

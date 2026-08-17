@@ -9,13 +9,13 @@ import { auth, db } from "@/lib/firebase";
 import { uploadFile } from "@/lib/storage/uploadFile";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { CardsSkeleton } from "@/components/ui/ListSkeleton";
 
 type AdminProfile = {
   avatarUrl?: string | null;
 };
 
 export default function AdminProfilePage() {
-  const tAdmin = useTranslations("admin");
   const tCommon = useTranslations("common");
 
   const locale = useLocale();
@@ -79,8 +79,8 @@ export default function AdminProfilePage() {
 
   if (loading) {
     return (
-      <div style={{ color: "#444", fontSize: 13, paddingTop: 8 }}>
-        {tAdmin("loadingProfile")}
+      <div style={{ paddingTop: 8 }}>
+        <CardsSkeleton count={3} height={80} gap={12} />
       </div>
     );
   }

@@ -13,9 +13,10 @@
 // El creador EXTRANJERO no ve este panel: pasa directo a pago (impuestos aparte).
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { intlLocale } from "@/i18n/locales";
 import { Modal } from "@/components/ui";
+import { CardsSkeleton } from "@/components/ui/ListSkeleton";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import {
@@ -76,15 +77,8 @@ const FIELD: React.CSSProperties = {
   fontSize: 14, fontFamily: "inherit", lineHeight: 1.5, outline: "none",
 };
 
-/**
- * El mismo aviso para los cuatro archivos que pide este panel. Estaba escrito
- * cuatro veces y solo cambiaba la extensión y el objeto.
- */
-function avisoExtension(extension: string, queEs: string) {
-  return `Ese no es un archivo ${extension}, sube ${queEs} con extensión ${extension}.`;
-}
-
 export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel, ivaLabel, totalLabel }: Props) {
+  const tWallet = useTranslations("wallet");
   const locale = useLocale();
   const { profile, loading, hasData, csdReady } = useCreatorTaxProfile(uid);
   // El ciclo de vida de la animación, el backdrop, el bloqueo de scroll y el
@@ -123,12 +117,12 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
 
   function pickCer(f: File | null) {
     if (!f) return;
-    if (!/\.cer$/i.test(f.name)) { setCer(null); setCerError(avisoExtension(".cer", "el certificado")); return; }
+    if (!/\.cer$/i.test(f.name)) { setCer(null); setCerError(tWallet("fiscalWrongExtension", { ext: ".cer", what: tWallet("fiscalCertificate") })); return; }
     setCerError(null); setCer(f);
   }
   function pickKey(f: File | null) {
     if (!f) return;
-    if (!/\.key$/i.test(f.name)) { setKeyFile(null); setKeyError(avisoExtension(".key", "la llave")); return; }
+    if (!/\.key$/i.test(f.name)) { setKeyFile(null); setKeyError(tWallet("fiscalWrongExtension", { ext: ".key", what: tWallet("fiscalKey") })); return; }
     setKeyError(null); setKeyFile(f);
   }
 
@@ -142,12 +136,12 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
 
   function pickPdf(f: File | null) {
     if (!f) return;
-    if (!/\.pdf$/i.test(f.name)) { setPdf(null); setPdfError(avisoExtension(".pdf", "el PDF de tu factura")); return; }
+    if (!/\.pdf$/i.test(f.name)) { setPdf(null); setPdfError(tWallet("fiscalWrongExtension", { ext: ".pdf", what: tWallet("fiscalInvoicePdf") })); return; }
     setPdfError(null); setPdf(f);
   }
   function pickXml(f: File | null) {
     if (!f) return;
-    if (!/\.xml$/i.test(f.name)) { setXml(null); setXmlError(avisoExtension(".xml", "el XML de tu factura")); return; }
+    if (!/\.xml$/i.test(f.name)) { setXml(null); setXmlError(tWallet("fiscalWrongExtension", { ext: ".xml", what: tWallet("fiscalInvoiceXml") })); return; }
     setXmlError(null); setXml(f);
   }
 
@@ -195,18 +189,18 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
   // Valida los campos fiscales y pone el error rojo DEBAJO de cada uno. Devuelve ok.
   function validateFiscalFields(): boolean {
     let ok = true;
-    if (!/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(taxId.trim().toUpperCase())) { setTaxIdError("RFC inválido."); ok = false; } else setTaxIdError(null);
-    if (!legalName.trim()) { setLegalNameError("Falta tu nombre o razón social."); ok = false; } else setLegalNameError(null);
-    if (!taxSystem) { setTaxSystemError("Selecciona tu régimen fiscal."); ok = false; } else setTaxSystemError(null);
-    if (!/^\d{5}$/.test(zip.trim())) { setZipError("CP inválido (5 dígitos)."); ok = false; } else setZipError(null);
+    if (!/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(taxId.trim().toUpperCase())) { setTaxIdError(tWallet("fiscalTaxIdInvalid")); ok = false; } else setTaxIdError(null);
+    if (!legalName.trim()) { setLegalNameError(tWallet("fiscalLegalNameMissing")); ok = false; } else setLegalNameError(null);
+    if (!taxSystem) { setTaxSystemError(tWallet("fiscalTaxSystemMissing")); ok = false; } else setTaxSystemError(null);
+    if (!/^\d{5}$/.test(zip.trim())) { setZipError(tWallet("fiscalZipInvalid")); ok = false; } else setZipError(null);
     return ok;
   }
 
   async function submitAuto() {
     setError(null);
     if (!validateFiscalFields()) return;
-    if (!cer || !keyFile || !csdPass) return setError("Sube tu .cer, tu .key y escribe la contraseña.");
-    if (!consent) return setError("Debes aceptar la auto-facturación para usar la opción automática.");
+    if (!cer || !keyFile || !csdPass) return setError(tWallet("fiscalUploadCerKey"));
+    if (!consent) return setError(tWallet("fiscalAcceptSelfInvoice"));
     setBusy(true);
     try {
       await saveCreatorTaxProfile({ taxId: taxId.trim().toUpperCase(), legalName: legalName.trim(), taxSystem, zip: zip.trim() });
@@ -223,7 +217,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
 
   function submitManualInvoice() {
     setError(null);
-    if (!pdf || !xml) return setError("Sube el PDF y el XML de tu factura.");
+    if (!pdf || !xml) return setError(tWallet("fiscalUploadPdfXml"));
     // El envío/validación real (leer el XML, cotejar receptor y montos) es del Bloque 3.
     setManualSaved(true);
   }
@@ -256,7 +250,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
         document.body.removeChild(ta);
         setCopied(true);
       } catch {
-        setError("No se pudo copiar, copia los datos manualmente.");
+        setError(tWallet("fiscalCopyManually"));
       }
     }
   }
@@ -326,7 +320,9 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
   );
 
   const body = useMemo(() => {
-    if (loading) return <p style={{ color: "rgba(255,255,255,0.6)" }}>Cargando…</p>;
+    // Lo primero que se pinta es la elección de método: dos cards grandes. El
+    // hueco reserva esas dos y no un renglón de texto.
+    if (loading) return <CardsSkeleton count={2} height={112} gap={8} />;
 
     if (view === "method") {
       return (

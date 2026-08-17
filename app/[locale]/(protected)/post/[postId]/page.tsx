@@ -23,6 +23,7 @@ import {
 } from "@/lib/posts/post-service";
 import type { Post, Comment, CommentImage, CommentMention } from "@/lib/posts/types";
 import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
+import PostSkeleton from "@/app/components/PostSkeleton/PostSkeleton";
 
 interface ViewerContext {
   isProfilePost: boolean;
@@ -220,7 +221,7 @@ export default function SinglePostPage() {
       </button>
 
       {state === "loading" ? (
-        <div className="postState">{t("loadingPost")}</div>
+        <PostSkeleton />
       ) : state === "notfound" || !post || !ctx ? (
         <div className="postState">{t("postUnavailable")}</div>
       ) : (

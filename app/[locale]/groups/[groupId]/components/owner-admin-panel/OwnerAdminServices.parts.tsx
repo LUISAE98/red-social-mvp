@@ -323,6 +323,25 @@ export function SpinningGear() {
 
 
 
+/**
+ * Qué decir después de mover a los miembros de un modelo a otro.
+ *
+ * Devuelve la CLAVE del aviso y los contadores, no la frase armada. Antes
+ * devolvía el texto en español pegado a mano, y al ser una función pura —no un
+ * componente— no podía pedir la traducción por su cuenta. Quien lo llama es el
+ * que tiene el traductor, así que le toca a él componerlo.
+ *
+ * La frase y los números van separados a propósito: así ninguna frase tiene que
+ * concordar con una cantidad y no hay que declinar plurales en 47 idiomas para
+ * una pantalla de administración.
+ */
+export type AvisoTransicion = {
+  /** Clave de la frase, dentro del grupo `services`. */
+  clave: string;
+  /** Cola con los contadores, cuando los hay. */
+  cola?: { clave: string; valores: Record<string, number> };
+};
+
 export function buildTransitionSuccessMessage(params: {
   direction:
     | "free_to_subscription"
@@ -341,7 +360,7 @@ export function buildTransitionSuccessMessage(params: {
   legacyPricedMembers?: number;
   removedMembers: number;
   skippedMembers: number;
-}) {
+}): AvisoTransicion {
   const {
     direction,
     policy,
@@ -354,59 +373,60 @@ export function buildTransitionSuccessMessage(params: {
   } = params;
 
   if (alreadyApplied) {
-    return "✅ Configuración guardada. Esta transición ya había sido aplicada anteriormente y no se duplicó.";
+    return { clave: "transitionAlreadyApplied" };
   }
+
+  const conservados = (kept: number): AvisoTransicion["cola"] => ({
+    clave: "countsKept",
+    valores: { kept, updated: updatedMembers, skipped: skippedMembers },
+  });
+  const retirados: AvisoTransicion["cola"] = {
+    clave: "countsRemoved",
+    valores: { removed: removedMembers, updated: updatedMembers, skipped: skippedMembers },
+  };
+  const solo: AvisoTransicion["cola"] = {
+    clave: "countsPlain",
+    valores: { updated: updatedMembers, skipped: skippedMembers },
+  };
 
   if (direction === "free_to_subscription" && policy === "legacy_free") {
-    return `✅ Configuración guardada. Se mantuvo gratis a ${legacyGrantedMembers} integrante(s) existentes. Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
+    return { clave: "transitionLegacyFree", cola: conservados(legacyGrantedMembers) };
   }
-
   if (direction === "free_to_subscription" && policy === "require_subscription") {
-    return `✅ Configuración guardada. Se retiró el acceso a ${removedMembers} integrante(s) para que deban suscribirse de nuevo. Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
+    return { clave: "transitionRequireSubscription", cola: retirados };
+  }
+  if (direction === "subscription_to_free" && policy === "keep_members_free") {
+    return { clave: "transitionKeepMembersFree", cola: solo };
+  }
+  if (direction === "subscription_to_free" && policy === "remove_all_members") {
+    return { clave: "transitionRemoveAllMembers", cola: retirados };
+  }
+  if (direction === "subscription_price_increase" && policy === "keep_legacy_price") {
+    return { clave: "transitionKeepLegacyPrice", cola: conservados(legacyPricedMembers) };
+  }
+  if (direction === "subscription_price_increase" && policy === "require_resubscribe_new_price") {
+    return { clave: "transitionRequireResubscribe", cola: retirados };
   }
 
-  if (
-    direction === "subscription_to_free" &&
-    policy === "keep_members_free"
-  ) {
-    return `✅ Configuración guardada. La comunidad volvió a gratis y ${updatedMembers} integrante(s) conservaron acceso normal. Omitidos: ${skippedMembers}.`;
-  }
-
-  if (
-    direction === "subscription_to_free" &&
-    policy === "remove_all_members"
-  ) {
-    return `✅ Configuración guardada. La comunidad volvió a gratis y se retiró el acceso a ${removedMembers} integrante(s). Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
-  }
-
-  if (
-    direction === "subscription_price_increase" &&
-    policy === "keep_legacy_price"
-  ) {
-    return `✅ Configuración guardada. Se aumentó el precio para nuevas suscripciones y ${legacyPricedMembers} suscriptor(es) actuales conservaron su precio anterior. Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
-  }
-
-  if (
-    direction === "subscription_price_increase" &&
-    policy === "require_resubscribe_new_price"
-  ) {
-    return `✅ Configuración guardada. Se retiró el acceso a ${removedMembers} suscriptor(es) actuales para que deban suscribirse de nuevo con el nuevo precio. Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
-  }
-
-  return AVISOS_SERVICIOS.guardado;
+  return { clave: AVISOS_SERVICIOS.guardado };
 }
 
 export function buildManualLegacyRemovalSuccessMessage(params: {
   removedMembers: number;
   reminderMembers: number;
   skippedMembers: number;
-}) {
+}): AvisoTransicion {
   const { removedMembers, reminderMembers, skippedMembers } = params;
 
   if (removedMembers <= 0) {
-    return "✅ No había miembros gratuitos activos para retirar en este momento.";
+    return { clave: "noFreeMembersToRemove" };
   }
 
-  return `✅ Se retiró a ${removedMembers} miembro(s) gratuito(s) y se generó el recordatorio correspondiente para ${reminderMembers} cuenta(s). Omitidos: ${skippedMembers}.`;
+  return {
+    clave: "manualRemovalDone",
+    cola: {
+      clave: "countsReminder",
+      valores: { removed: removedMembers, reminder: reminderMembers, skipped: skippedMembers },
+    },
+  };
 }
-

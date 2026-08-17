@@ -15,6 +15,7 @@ import {
   notificationQuery,
 } from "@/lib/notifications/types";
 import { intlLocale as intlLocaleFor } from "@/i18n/locales";
+import ListSkeleton from "@/components/ui/ListSkeleton";
 
 function useTimeAgo() {
   const locale = useLocale();
@@ -426,19 +427,7 @@ export default function NotificationList({
   }
 
   if (loading) {
-    return (
-      <div
-        className="notifState"
-        style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 150 }}
-      >
-        <span
-          className="vibraPullRefreshSpinner refreshing"
-          style={{ display: "block", width: 32, height: 32 }}
-          aria-label={t("loading")}
-          role="status"
-        />
-      </div>
-    );
+    return <ListSkeleton rows={6} avatarSize={44} />;
   }
   if (items.length === 0) {
     return <div className="notifState">{emptyLabel ?? t("empty")}</div>;

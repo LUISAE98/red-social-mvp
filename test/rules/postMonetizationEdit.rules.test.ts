@@ -234,7 +234,25 @@ describe("B8-C04 — monetizar editando", () => {
     );
   });
 
-  it("🟢 editar el texto y los medios de un post normal sigue funcionando", async () => {
+  it("🔴 `media` ya no se puede cambiar desde el cliente: eso pasa por el callable", async () => {
+    await comunidad();
+    await seed("posts/pMedios", {
+      authorId: MIEMBRO, groupId: GRUPO, contextType: "group",
+      groupVisibility: "public", postType: "text", isDeleted: false,
+      text: "hola", media: [],
+      createdAt: new Date(), updatedAt: new Date(),
+    });
+
+    await assertFails(
+      updateDoc(doc(comoUsuario(MIEMBRO), "posts/pMedios"), {
+        media: [{ type: "image", url: "https://x/y.jpg", path: "posts/otro/uOtro/images/robada.jpg" }],
+        editedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  it("🟢 corregir SOLO el texto sigue funcionando sin pasar por el servidor", async () => {
     await comunidad();
     await seed("posts/pEditable", {
       authorId: MIEMBRO,
@@ -252,7 +270,6 @@ describe("B8-C04 — monetizar editando", () => {
     await assertSucceeds(
       updateDoc(doc(comoUsuario(MIEMBRO), "posts/pEditable"), {
         text: "hola corregido",
-        media: [],
         editedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })

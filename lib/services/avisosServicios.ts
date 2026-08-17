@@ -7,27 +7,26 @@
  * "❌ No se pudieron guardar los servicios." en un sitio y "No se pudieron
  * guardar los servicios del perfil." en el otro.
  *
- * Aquí viven una sola vez. Siguen sin traducir, que es harina de otro costal.
+ * Aquí vive el nombre de la clave, una sola vez. El texto sale del catálogo
+ * `services`, traducido a los 47 idiomas.
  */
 
 export const AVISOS_SERVICIOS = {
-  precioSaludos: "Precio inválido para saludos.",
-  precioConsejos: "Precio inválido para consejos.",
-  precioMeetGreet: "Precio inválido para Tiempo contigo.",
-  precioSesion: "Precio inválido para sesión exclusiva.",
-  precioSuscripcion: "Precio inválido para la suscripción mensual.",
+  precioSaludos: "priceInvalidGreetings",
+  precioConsejos: "priceInvalidAdvice",
+  precioMeetGreet: "priceInvalidMeetGreet",
+  precioSesion: "priceInvalidSession",
+  precioSuscripcion: "priceInvalidSubscription",
 
-  duracionMeetGreet: "Debes definir una duración válida en minutos para Tiempo contigo.",
-  duracionSesion: "Debes definir una duración válida en minutos para la sesión exclusiva.",
+  duracionMeetGreet: "durationInvalidMeetGreet",
+  duracionSesion: "durationInvalidSession",
 
-  donacionMontoMinimo: "Cada monto sugerido de la donación debe ser al menos 50.",
-  donacionTextoBoda: "Debes escribir el texto visible para la donación de boda.",
+  donacionMontoMinimo: "donationAmountFloor",
+  donacionTextoBoda: "donationWeddingText",
 
-  guardado: "Configuración guardada.",
-  noGuardado: "No se pudieron guardar los servicios.",
+  guardado: "configSaved",
+  noGuardado: "configSaveError",
+
+  /** Lleva {service}, {min} y {max}. */
+  rangoMinutos: "minutesRange",
 } as const;
-
-/** El rango permitido de minutos, que cambia según el servicio. */
-export function avisoRangoMinutos(servicio: string, min: number, max: number) {
-  return `${servicio} solo permite entre ${min} y ${max} minutos.`;
-}

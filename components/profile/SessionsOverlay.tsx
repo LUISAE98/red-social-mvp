@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
+import ListSkeleton from "@/components/ui/ListSkeleton";
 import type { UserSession } from "@/types/session";
 import {
   getOrCreateSessionId,
@@ -267,8 +268,18 @@ export default function SessionsOverlay({
         >
           {!uid && <EmptyState text={tProfile("sessionsLoginRequired")} />}
 
+          {/* El renglón de una sesión es glifo del aparato + nombre y lugar +
+              botón de revocar, así que el hueco lleva las tres piezas: sin la
+              última el skeleton quedaría corto justo del lado donde el usuario
+              va a apuntar. */}
           {uid && loading && (
-            <EmptyState text={tProfile("sessionsLoading")} />
+            <ListSkeleton
+              rows={4}
+              avatarSize={34}
+              avatarShape="square"
+              trailing={84}
+              padding="0"
+            />
           )}
 
           {uid && error && (

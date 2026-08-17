@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
+import ListSkeleton from "@/components/ui/ListSkeleton";
 import {
   type BlockedGroupAccount,
   type BlockedProfileAccount,
@@ -320,7 +321,7 @@ export default function BlockedAccountsOverlay({
           )}
 
           {uid && loading && (
-            <EmptyState text={tProfile("blockedAccountsLoading")} />
+            <ListSkeleton rows={4} avatarSize={38} trailing={92} padding="0" />
           )}
 
           {uid && error && (

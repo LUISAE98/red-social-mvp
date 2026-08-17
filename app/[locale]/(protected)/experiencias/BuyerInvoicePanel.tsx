@@ -12,6 +12,7 @@
 // desglose fiscal (Subtotal = base, IVA 16%, Total) y "Generar factura".
 // El timbrado real del CFDI (Facturapi) se conecta en el siguiente bloque.
 
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -68,6 +69,7 @@ const SECTION_LABEL: React.CSSProperties = {
 };
 
 export default function BuyerInvoicePanel({ open, onClose, uid, concepts, formatMoney, onConfirm }: Props) {
+  const tWallet = useTranslations("wallet");
   // Desmontado diferido para animar la SALIDA (vibra_style.md).
   const [rendered, setRendered] = useState(open);
   const [closing, setClosing] = useState(false);
@@ -151,7 +153,7 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
   async function handleSubmit() {
     setError(null);
     if (concepts.length === 0) {
-      setError("No hay movimientos que facturar.");
+      setError(tWallet("invoiceNoMovements"));
       return;
     }
 
@@ -160,7 +162,7 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
     setBusy(true);
     if (formMode) {
       if (!validForm()) {
-        setError("Completa tus datos de facturación (RFC, nombre, régimen, CP y uso de CFDI).");
+        setError(tWallet("invoiceCompleteData"));
         setBusy(false);
         return;
       }
@@ -180,7 +182,7 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
         return;
       }
     } else if (!profileId) {
-      setError("Elige o captura los datos de facturación.");
+      setError(tWallet("invoicePickData"));
       setBusy(false);
       return;
     }

@@ -18,7 +18,9 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
 
-type RateLimitFn = "checkRateLimitPost" | "checkRateLimitComment";
+// `checkRateLimitComment` se retiró: el freno de los comentarios lo llevan las
+// Firestore Rules en el mismo lote que el comentario (B8-H03).
+type RateLimitFn = "checkRateLimitPost";
 
 export async function callCheckRateLimit(fn: RateLimitFn): Promise<void> {
   try {

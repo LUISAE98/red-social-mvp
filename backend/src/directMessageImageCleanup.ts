@@ -29,13 +29,45 @@ type StoredImage = {
   thumbnailPath?: unknown;
 };
 
-function storagePathsOf(image: unknown): string[] {
+/**
+ * Las rutas que este mensaje puede reclamar como suyas.
+ *
+ * ⚠️ B9-C02. Antes devolvía TODO lo que hubiera en `image`, y la regla solo
+ * exigía que la ruta empezara por la conversación. La ruta real lleva también el
+ * uid de quien subió (`dmImages/{convId}/{uid}/...`), así que cualquiera de los
+ * dos podía escribir un mensaje apuntando al archivo DEL OTRO, retirar su propio
+ * mensaje, y esta función se lo borraba a su dueño con el Admin SDK.
+ *
+ * La regla ya no lo deja escribir. Esto es la red del consumidor, que vale
+ * igual para los mensajes envenenados antes del arreglo y para cualquier camino
+ * de escritura que se abra mañana. Misma lección que B8-C01 con los medios de
+ * las publicaciones.
+ */
+function storagePathsOf(image: unknown, convId: string, senderId: unknown): string[] {
   if (!image || typeof image !== "object") return [];
+  if (typeof senderId !== "string" || !senderId) return [];
+
+  const prefijoPropio = `dmImages/${convId}/${senderId}/`;
 
   const { path, thumbnailPath } = image as StoredImage;
-  return [path, thumbnailPath].filter(
+  const declaradas = [path, thumbnailPath].filter(
     (value): value is string => typeof value === "string" && value.length > 0
   );
+
+  const propias = declaradas.filter(
+    (ruta) => ruta.startsWith(prefijoPropio) && !ruta.includes("..")
+  );
+
+  const ajenas = declaradas.filter((ruta) => !propias.includes(ruta));
+  if (ajenas.length > 0) {
+    logger.error("directMessageImageCleanup: rutas AJENAS declaradas, no se borran", {
+      convId,
+      senderId,
+      ajenas,
+    });
+  }
+
+  return propias;
 }
 
 export const onDirectMessageDeletedCleanupImage = onDocumentUpdated(
@@ -49,7 +81,7 @@ export const onDirectMessageDeletedCleanupImage = onDocumentUpdated(
     // vuelva a disparar esto.
     if (before?.isDeleted === true || after?.isDeleted !== true) return;
 
-    const paths = storagePathsOf(after?.image);
+    const paths = storagePathsOf(after?.image, event.params.convId, after?.senderId);
     if (paths.length === 0) return;
 
     const bucket = getStorage().bucket();

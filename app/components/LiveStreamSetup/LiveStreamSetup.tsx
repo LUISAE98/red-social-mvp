@@ -242,7 +242,7 @@ export default function LiveStreamSetup({
       onStreamCreated?.(result.liveStreamId, result.playbackId);
       await loadCredentials();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo crear el stream.");
+      setError(e instanceof Error ? e.message : tLive("createStreamError"));
     } finally {
       setCreating(false);
     }

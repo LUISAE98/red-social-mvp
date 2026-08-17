@@ -16,3 +16,7 @@ export type { AvatarProps } from "./Avatar";
 // El modal canónico de Vibra ya existe: VibraResponsivePanel (bottom sheet en
 // móvil, panel centrado en desktop). Se expone como `Modal` para descubrimiento.
 export { default as Modal } from "./VibraResponsivePanel";
+
+// Los dos huecos de carga que se repiten en todo el producto: renglones de
+// avatar + texto, y cards apiladas. Nada de leyendas de "Cargando…".
+export { default as ListSkeleton, CardsSkeleton } from "./ListSkeleton";

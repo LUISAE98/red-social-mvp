@@ -343,8 +343,106 @@ service cloud.firestore {
       // Admin SDK, en transacción.
       allow read: if signedIn()
         && (docId == request.auth.uid + '_post'
-            || docId == request.auth.uid + '_comment');
-      allow write: if false;
+            || docId == request.auth.uid + '_comment'
+            || docId == request.auth.uid + '_story');
+
+      // ── B8-H03 ─────────────────────────────────────────────────────────────
+      //
+      // El contador de COMENTARIOS vuelve a ser escribible por su dueño, pero
+      // ahora con la cuenta verificada. Es un cambio deliberado y conviene
+      // entender por qué, porque deshace en apariencia el cierre de arriba.
+      //
+      // El problema que quedaba: el freno se pedía en una llamada APARTE
+      // (`checkRateLimitComment`) y el comentario se escribía directo después,
+      // así que bastaba con no dar el primer paso. Una regla no puede exigir que
+      // ANTES ocurriera otra cosa... pero sí puede exigir que ocurra A LA VEZ.
+      //
+      // `canCreateComment` pide `getAfter(este documento).lastAt == request.time`,
+      // o sea que el comentario y este contador tienen que ir en el MISMO lote
+      // atómico. Si el lote no incluye el contador, no hay comentario; y si
+      // incluye el contador, tiene que pasar por estas reglas.
+      //
+      // ⚠️ Lo que hacía peligroso el permiso viejo era que el cliente escribía
+      // `lastAt` a mano y podía ponerle una fecha vieja para reiniciarse solo.
+      // Aquí `lastAt` tiene que valer EXACTAMENTE `request.time`, la hora del
+      // servidor: no hay forma de mentirla. Y para escribir, el `lastAt`
+      // ANTERIOR tiene que ser lo bastante viejo. Reiniciarse es imposible.
+      //
+      // El borrado sigue cerrado: si no, se borraba el documento y a empezar.
+      //
+      // La alternativa era un callable, y se descartó porque quién puede
+      // comentar lo deciden seis funciones encadenadas de este mismo archivo
+      // (acceso premium, ticket de directo, bloqueos de comunidad, comentarios
+      // habilitados, antigüedad del follow). El servidor habría necesitado su
+      // propia copia de las seis, y una copia que se desincroniza del original
+      // es exactamente el fallo que esta auditoría lleva ocho bloques
+      // encontrando. Aquí la autorización sigue viviendo en UN solo sitio.
+      allow create: if signedIn()
+        && (docId == request.auth.uid + '_comment'
+            || docId == request.auth.uid + '_story')
+        && validRateLimitShape()
+        && request.resource.data.windowStart == request.time
+        && request.resource.data.count == 1;
+
+      // Comentarios: 3 s entre uno y otro, 60 por hora.
+      // Historias:   sin espera entre una y otra, 20 por día (B8-H05).
+      //
+      // Los dos usan la misma aritmética; solo cambian los tres números. Las
+      // historias no llevan espera mínima porque publicar dos seguidas es
+      // normal, y quien manda ahí es el tope diario.
+      allow update: if signedIn()
+        && (
+          (docId == request.auth.uid + '_comment' && contadorAvanza(3, 1, 60))
+          || (docId == request.auth.uid + '_story' && contadorAvanza(0, 24, 20))
+        );
+
+      // ⚠️ Sin esto, borrar el documento reinicia el contador.
+      allow delete: if false;
+    }
+
+    /**
+     * La aritmética del contador, compartida por comentarios e historias.
+     *
+     * @param esperaSegundos  mínimo entre dos acciones (0 = sin espera)
+     * @param ventanaHoras    cuánto dura la ventana antes de reiniciarse
+     * @param tope            cuántas acciones caben en una ventana
+     */
+    function contadorAvanza(esperaSegundos, ventanaHoras, tope) {
+      return validRateLimitShape()
+        && request.time >= resource.data.lastAt + duration.value(esperaSegundos, 's')
+        && (
+          // Ventana nueva: la anterior ya cumplió su tiempo, o el documento es
+          // de los viejos y no tiene ventana (los escribía el callable retirado,
+          // con otro formato: `lastAt` + `hourTimestamps`).
+          (
+            (
+              !("windowStart" in resource.data)
+              || request.time >= resource.data.windowStart + duration.value(ventanaHoras, 'h')
+            )
+            && request.resource.data.windowStart == request.time
+            && request.resource.data.count == 1
+          )
+          ||
+          // Misma ventana: uno más, hasta el tope.
+          (
+            "windowStart" in resource.data
+            && request.resource.data.windowStart == resource.data.windowStart
+            && request.resource.data.count == resource.data.get('count', 0) + 1
+            && request.resource.data.count <= tope
+          )
+        );
+    }
+
+    /**
+     * La forma del contador. `lastAt` SIEMPRE es la hora del servidor: es lo que
+     * impide falsear la fecha para reiniciarse.
+     */
+    function validRateLimitShape() {
+      return request.resource.data.keys().hasOnly(["lastAt", "windowStart", "count"])
+        && request.resource.data.lastAt == request.time
+        && request.resource.data.windowStart is timestamp
+        && request.resource.data.count is int
+        && request.resource.data.count >= 1;
     }
 
     // Configuración pública de solo lectura (catálogo/tasas de cambio).
@@ -2452,9 +2550,24 @@ match /memberBlocks/{blockId} {
         // mentir solo estropeaba la búsqueda. Ahora la lectura SÍ se apoya en él,
         // así que mentir sería abrir la historia al mundo: un miembro de una
         // comunidad oculta podría delatarla. Se ata a la visibilidad real.
+        // ⚠️ B8-C03. Aquí faltaba el perfil. `searchable` significa "cualquiera
+        // puede leer esto", y se ataba solo a la visibilidad de la COMUNIDAD: un
+        // perfil cerrado seguía publicando historias marcadas como públicas, que
+        // es lo que las mantenía en el feed de reels con su vídeo y su nombre.
+        //
+        // El perfil que manda es el de QUIEN PUBLICA (`creatorId`), no el de
+        // quien grabó el saludo: son distintos cuando el comprador republica el
+        // saludo de otro, y la regla de lectura mira `creatorId`.
+        //
+        // Esta regla se retuvo hasta que el cliente que calcula el valor honesto
+        // estuvo desplegado, porque cerrarla antes habría dejado a los perfiles
+        // cerrados sin poder publicar historias.
         && request.resource.data.searchable == (
-          storyHasNoGroup(request.resource.data)
-          || isGroupPublic(request.resource.data.groupId)
+          (
+            storyHasNoGroup(request.resource.data)
+            || isGroupPublic(request.resource.data.groupId)
+          )
+          && profileAllowsPublicPosts(request.resource.data.creatorId)
         )
         // `byCreator` distingue la historia que publica el CREADOR de la que
         // republica el COMPRADOR (mismo video, dos documentos). El reel solo
@@ -2467,6 +2580,13 @@ match /memberBlocks/{blockId} {
         )
         // Nace visible. Sacarla del reel es un acto posterior y explícito.
         && request.resource.data.hiddenFromReel == false
+        // ⚠️ B8-H05, la otra mitad. Las historias no tenían NINGÚN freno: una
+        // cuenta podía crearlas sin límite. Mismo mecanismo que los comentarios,
+        // el contador viaja en el MISMO lote atómico y la regla lo exige aquí.
+        // 20 al día, decisión de Luis (2026-08-16).
+        && getAfter(
+             /databases/$(database)/documents/rateLimits/$(request.auth.uid + '_story')
+           ).data.lastAt == request.time
         // ── B8-H05: forma y tamaño de lo que se guarda ────────────────────
         //
         // `hasOnly` fija QUÉ claves pueden venir, pero no lo que traen dentro.
@@ -3297,9 +3417,32 @@ function canReadPostCommentsData(data) {
     );
 }
 
+// ⚠️ B8. Esto comprobaba SOLO que el documento existiera, y eso dejaba sin
+// efecto el arreglo B6-C03.
+//
+// Cuando alguien reclama el cargo a su banco, `revokeAccessOnRefund` retira el
+// acceso, pero lo hace MARCANDO el documento (`status: "revoked"`,
+// `revoked: true`), no borrándolo: el documento hace falta para investigar la
+// disputa. Con un `exists()` a secas, el comprador seguía entrando al post de
+// pago y a la transmisión después de que le devolvieran el dinero. Se anunció
+// como cerrado y no lo estaba.
+//
+// Es el mismo patrón que ya mordió en el bloque 7 con los miembros sancionados:
+// **los documentos se marcan, no se borran, y `exists()` no basta.**
+//
+// Se mira `revoked` y no `status` a propósito: `postAccess` usa `"active"` y
+// `liveAccess` usa `"paid"`, dos vocabularios distintos, mientras que `revoked`
+// lo escribe la misma función en los dos. El default es `false` para que un
+// documento antiguo sin el campo siga dando acceso.
+function accesoNoRevocado(ruta) {
+  return exists(ruta) && get(ruta).data.get('revoked', false) != true;
+}
+
 function hasPostAccess(postId) {
   return signedIn()
-    && exists(/databases/$(database)/documents/postAccess/$(request.auth.uid + '_' + postId));
+    && accesoNoRevocado(
+         /databases/$(database)/documents/postAccess/$(request.auth.uid + '_' + postId)
+       );
 }
 
 // Ticket de EN VIVO ya pagado por el viewer.
@@ -3311,7 +3454,9 @@ function hasPostAccess(postId) {
 // cliente, así que su mera existencia ya prueba el cobro.
 function hasLiveTicket(postId) {
   return signedIn()
-    && exists(/databases/$(database)/documents/liveAccess/$(postId)/users/$(request.auth.uid));
+    && accesoNoRevocado(
+         /databases/$(database)/documents/liveAccess/$(postId)/users/$(request.auth.uid)
+       );
 }
 
 // Candado de comunidad OCULTA para las subcolecciones "abiertas" de un post
@@ -3416,12 +3561,71 @@ function canModeratePostCommentData(data) {
           || isPlatformMod();
       }
 
+      /**
+       * B8-H06 — bloqueo entre miembros de una comunidad, aplicado de verdad.
+       *
+       * Hasta ahora el bloqueo dentro de una comunidad solo existía en el
+       * cliente: la interfaz escondía las publicaciones de quien habías
+       * bloqueado, pero pidiéndolas por el SDK llegaban igual. Era una cortina,
+       * no una puerta.
+       *
+       * ⚠️ Esto va SOLO en el `get`, y no es un olvido. Comprobar el bloqueo
+       * cuesta dos `exists()` POR DOCUMENTO, y en un `list` el tope de 10
+       * accesos es para la consulta ENTERA: con veinte publicaciones se agota y
+       * Firestore deniega la consulta COMPLETA, no solo las bloqueadas. O sea
+       * que meterlo en el `list` no cerraría el hueco, dejaría el muro en
+       * blanco.
+       *
+       * Decisión de producto de Luis (2026-08-16): cerrar lo que se puede
+       * —abrir una publicación suelta, que es como se llega desde un enlace, una
+       * notificación o una búsqueda— y dejar el listado filtrado en el cliente,
+       * anotado como límite conocido y no como descuido. Cerrarlo también en el
+       * listado obligaría a materializar el muro por persona, que es otra
+       * arquitectura.
+       *
+       * Fuera de comunidades el bloqueo sí se aplica entero
+       * (`canReadProfileContent` → `usersHaveBlockBetween`), y en el feed de
+       * inicio también (`onHomeFeedBlockedUserCreated`).
+       */
+      function bloqueoDeComunidadEntreLasDosPartes() {
+        // ⚠️ `resource.data.get('groupId', null)` y no `resource.data.groupId`.
+        //
+        // En las reglas, leer un campo que NO EXISTE es un ERROR de evaluación,
+        // no un `false`. En un `||` el error se absorbe si otra rama da true
+        // —por eso el resto del archivo puede escribirlo suelto— pero esto va en
+        // un `&&` al final del `allow get`, donde el error deniega directamente.
+        //
+        // Sin esto, una publicación de PERFIL (que no lleva `groupId`) dejaba de
+        // poder abrirse. Lo detectó `premiumPostVisibility`, no este bloque.
+        return request.auth != null
+          && resource.data.get('groupId', null) is string
+          && resource.data.get('authorId', '') != request.auth.uid
+          // ⚠️ `isMember` va DELANTE por coste, no por lógica.
+          //
+          // Los dos `exists()` del bloqueo hacían pasar del tope de 10 accesos a
+          // un NO-MIEMBRO que abre un live retransmitido a una comunidad: la
+          // regla no denegaba por bloqueo, reventaba por presupuesto. Lo detectó
+          // `premiumPostVisibility`, no este archivo.
+          //
+          // Aquí sale gratis: `canReadPost` ya leyó el documento de miembro y
+          // Firestore cuenta una sola vez los accesos al MISMO documento. Y de
+          // paso es correcto, un bloqueo entre miembros solo puede existir entre
+          // miembros.
+          && isMember(resource.data.get("groupId", ""))
+          && groupMembersHaveBlockBetween(
+               resource.data.get("groupId", ""),
+               request.auth.uid,
+               resource.data.get("authorId", "")
+             );
+      }
+
       allow get: if (isPlatformMod()
   || canReadPost()
   || canReadPostFromOwnHomeFeed()
   || canReadPostFromOwnSavedPosts())
   && guestAllowedForLive()
-  && liveScopeAllowsViewer();
+  && liveScopeAllowsViewer()
+  && (isPlatformMod() || !bloqueoDeComunidadEntreLasDosPartes());
 
 // ORDEN IMPORTANTE. En una consulta (`list`), `resource.data` solo contiene los
 // campos que la query fija con `==`; tocar cualquier otro es un ERROR de
@@ -3479,12 +3683,27 @@ allow list: if (canListOwnAuthoredPost()
       // (`void params.premium` en `lib/posts/post-service.ts`), porque cambiar
       // `premium` sin poder cambiar `oneTimePrice` dejaba el post enseñando un
       // precio y cobrando otro. La regla se queda alineada con eso.
+      // ⚠️ `media` YA NO se puede cambiar desde el cliente.
+      //
+      // Editar pasa por el callable `updatePost` (`backend/src/updatePost.ts`),
+      // que escribe con el Admin SDK y por tanto no lo frena esta regla.
+      //
+      // Por qué tuvo que irse al servidor: las Firestore Rules **no saben
+      // recorrer una lista**. Se puede exigir que `media` sea una lista y acotar
+      // su tamaño, pero no mirar dentro de cada elemento, y cada elemento lleva
+      // rutas de Storage. Con una ruta ajena metida ahí,
+      // `getRestrictedMediaUrls` la firmaba y `postMediaCleanup` la borraba, las
+      // dos con privilegios de administrador: lectura y borrado de cualquier
+      // archivo del bucket.
+      //
+      // `text` se queda porque no tiene ese problema, y así una corrección de
+      // texto no depende de que el callable esté disponible.
       function canEditPost() {
         return signedIn()
           && resource.data.authorId == request.auth.uid
           && resource.data.get('isDeleted', false) != true
           && request.resource.data.diff(resource.data).changedKeys().hasOnly([
-            "text", "media", "editedAt", "updatedAt"
+            "text", "editedAt", "updatedAt"
           ])
           && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.editedAt is timestamp
@@ -3882,14 +4101,110 @@ allow list: if (canListOwnAuthoredPost()
             );
         }
 
+        // ── B8-medio y B8-H04 ──────────────────────────────────────────────
+        //
+        // Esto NO era un esquema cerrado: bastaba con acertar `authorId` y el
+        // texto para colar cualquier otro campo. Se podían inventar contadores,
+        // fechas y estructuras de menciones malformadas que luego consume el
+        // disparador de notificaciones.
+        //
+        // Las claves salen del `addDoc` de `lib/posts/post-service.comments.ts`.
+        //
+        // ⚠️ `authorIsGroupMember` se deja pasar como bool SIN atarlo a la
+        // membresía real, a propósito: solo pinta la etiqueta de "no es
+        // miembro". Falsearlo la esconde, no abre ningún acceso, y comprobarlo
+        // costaría un `get()` más en cada comentario.
         function canCreateComment() {
           return notAnonymous()
+            && request.resource.data.keys().hasOnly([
+              "authorId", "authorName", "authorAvatarUrl", "authorUsername",
+              "text", "createdAt", "updatedAt", "counts",
+              "mentions", "image", "authorIsGroupMember"
+            ])
             && request.resource.data.authorId == request.auth.uid
             && request.resource.data.text is string
             && request.resource.data.text.size() <= 2000
             && (request.resource.data.text.size() >= 1 || commentImagePresent())
             && commentImageValidIfPresent()
+            && commentAuthorFieldsValid()
+            && commentCountsStartAtZero()
+            && commentMentionsWithinLimit()
+            && request.resource.data.createdAt == request.time
+            && request.resource.data.updatedAt == request.time
+            && comentarioCuentaEnElMismoLote()
             && canWritePostCommentData(parentPost().data, postId);
+        }
+
+        /**
+         * B8-H03. El freno vive en el MISMO lote atómico que el comentario.
+         *
+         * `getAfter` mira cómo queda el contador DESPUÉS de esta escritura. Si
+         * el lote no incluye el contador, `lastAt` no será `request.time` y esto
+         * falla; y si lo incluye, ese documento tiene que pasar por las reglas de
+         * `/rateLimits`, que son las que exigen los 3 segundos y el tope por
+         * hora.
+         *
+         * Así se resuelve lo que una regla no puede hacer por sí sola —exigir
+         * que ANTES ocurriera otra cosa— sin sacar la autorización de aquí.
+         */
+        function comentarioCuentaEnElMismoLote() {
+          return getAfter(
+            /databases/$(database)/documents/rateLimits/$(request.auth.uid + '_comment')
+          ).data.lastAt == request.time;
+        }
+
+        /** Los datos denormalizados del autor, acotados. */
+        function commentAuthorFieldsValid() {
+          return (
+            !("authorName" in request.resource.data)
+            || request.resource.data.authorName == null
+            || (request.resource.data.authorName is string
+                && request.resource.data.authorName.size() <= 120)
+          )
+            && (
+              !("authorUsername" in request.resource.data)
+              || request.resource.data.authorUsername == null
+              || (request.resource.data.authorUsername is string
+                  && request.resource.data.authorUsername.size() <= 60)
+            )
+            && (
+              !("authorAvatarUrl" in request.resource.data)
+              || request.resource.data.authorAvatarUrl == null
+              || (request.resource.data.authorAvatarUrl is string
+                  && request.resource.data.authorAvatarUrl.size() <= 1000)
+            )
+            && (
+              !("authorIsGroupMember" in request.resource.data)
+              || request.resource.data.authorIsGroupMember is bool
+            );
+        }
+
+        /** Un comentario nace en cero. Los contadores los lleva el backend. */
+        function commentCountsStartAtZero() {
+          return !("counts" in request.resource.data)
+            || (
+              request.resource.data.counts is map
+              && request.resource.data.counts.keys().hasOnly(["replies", "likes"])
+              && request.resource.data.counts.get('replies', 0) == 0
+              && request.resource.data.counts.get('likes', 0) == 0
+            );
+        }
+
+        /**
+         * B8-H04. Cada mención de perfil dispara una notificación y el
+         * disparador las recorría todas con un `await` dentro del bucle: un solo
+         * comentario podía lanzar miles.
+         *
+         * Tope de 5, decisión de Luis (2026-08-16). El mismo número está en
+         * `backend/src/notifications.ts` y en `sanitizeCommentMentions`; si
+         * cambia, cambia en los tres.
+         */
+        function commentMentionsWithinLimit() {
+          return !("mentions" in request.resource.data)
+            || (
+              request.resource.data.mentions is list
+              && request.resource.data.mentions.size() <= 5
+            );
         }
 
         function canDeleteComment() {
@@ -3989,13 +4304,32 @@ function canUpdateReplyCount(delta) {
             return canReadComment();
           }
 
+          // Mismo cierre que `canCreateComment`. Las claves salen del
+          // `transaction.set(replyRef, ...)` de `post-service.comments.ts`, que
+          // añade `postId` y `commentId` y no lleva `counts` (una respuesta no
+          // tiene respuestas).
           function canCreateReply() {
             return notAnonymous()
+              && request.resource.data.keys().hasOnly([
+                "postId", "commentId",
+                "authorId", "authorName", "authorAvatarUrl", "authorUsername",
+                "text", "createdAt", "updatedAt",
+                "mentions", "image", "authorIsGroupMember"
+              ])
               && request.resource.data.authorId == request.auth.uid
+              && request.resource.data.get('postId', postId) == postId
+              && request.resource.data.get('commentId', commentId) == commentId
               && request.resource.data.text is string
               && request.resource.data.text.size() <= 2000
               && (request.resource.data.text.size() >= 1 || commentImagePresent())
               && commentImageValidIfPresent()
+              && commentAuthorFieldsValid()
+              && commentMentionsWithinLimit()
+              && request.resource.data.createdAt == request.time
+              && request.resource.data.updatedAt == request.time
+              // Una respuesta gasta el mismo freno que un comentario: si no, el
+              // spam se muda a las respuestas y no hemos cerrado nada.
+              && comentarioCuentaEnElMismoLote()
               && canWritePostCommentData(parentPost().data, postId);
           }
 
@@ -4606,6 +4940,40 @@ function canUpdateReplyCount(delta) {
           return signedIn() && request.auth.uid in convAfter().participants;
         }
 
+        /** El otro del hilo, sacado de la conversación ya existente. */
+        function otroDelHilo() {
+          return convAfter().participants[0] == request.auth.uid
+            ? convAfter().participants[1]
+            : convAfter().participants[0];
+        }
+
+        /**
+         * ⚠️ B9-C01. El bloqueo, comprobado en el servidor y en cada escritura.
+         *
+         * El bloqueo global SÍ se comprobaba al ABRIR una conversación nueva
+         * (`allow create` de `/conversations`), pero no al escribir dentro de una
+         * que ya existía. Ahí el único freno era `status != "blocked"` en el
+         * documento del hilo, y ese estado lo escribe el CLIENTE después de
+         * bloquear, en una operación aparte que:
+         *   · no es atómica con el bloqueo,
+         *   · se traga sus propios errores en silencio,
+         *   · no se ejecuta al desbloquear desde la lista de cuentas bloqueadas.
+         *
+         * O sea que bastaba con que esa sincronización fallara —o con saltársela
+         * escribiendo directo— para seguir escribiéndole a quien te bloqueó.
+         *
+         * Decisión de producto de Luis (2026-08-16): al bloquear, el hilo se
+         * cierra DEL TODO. Ni escribir, ni reaccionar a mensajes viejos, ni
+         * volver a abrir las imágenes del historial. Por eso esto se exige tanto
+         * al crear como al actualizar un mensaje.
+         *
+         * Cuesta dos `exists()`, y es una escritura de un solo documento, así que
+         * cabe de sobra en el presupuesto de 10 accesos.
+         */
+        function sinBloqueoEntreLosDos() {
+          return !usersHaveBlockBetween(request.auth.uid, otroDelHilo());
+        }
+
         // Mientras una solicitud no se acepta, quien la abrió solo puede dejar
         // el ÚNICO mensaje declarado en `firstMessageId`. Sin esto, un
         // desconocido podría vaciar su bandeja encima de alguien que ni
@@ -4632,15 +5000,45 @@ function canUpdateReplyCount(delta) {
         // Solo se guardan RUTAS: la URL la firma la Cloud Function
         // `getDirectMessageImageUrls` y caduca. `url`/`thumbnailUrl` siguen
         // admitidos solo por los primeros mensajes, anteriores a ese cambio.
+        /**
+         * ⚠️ B9-C02. La ruta tiene que llevar el uid de QUIEN ENVÍA, no solo el
+         * de la conversación.
+         *
+         * Antes bastaba con `^dmImages/{convId}/`, y la ruta real es
+         * `dmImages/{convId}/{uid}/{carpeta}/{archivo}` (ver `storage.rules`).
+         * O sea que cualquiera de los dos podía escribir un mensaje apuntando a
+         * un archivo DEL OTRO, retirar su propio mensaje, y
+         * `onDirectMessageDeletedCleanupImage` —que borra con el Admin SDK— le
+         * destruía la foto a su dueño. Destrucción de datos ajenos disparada por
+         * la acción más normal del mundo.
+         *
+         * Es el mismo patrón que B8-C01 con los medios de las publicaciones: un
+         * campo de ruta que escribe el cliente y que obedece un borrador con
+         * privilegios. Allí no se pudo cerrar en las reglas porque `media` es una
+         * LISTA y las reglas no saben recorrerlas; aquí la imagen es un mapa
+         * suelto, así que sí se cierra en el sitio correcto.
+         *
+         * ⚠️ `url` y `thumbnailUrl` SALEN de la lista de claves permitidas.
+         * El comentario de arriba decía que eran solo de los primeros mensajes,
+         * pero las reglas los seguían aceptando en mensajes nuevos SIN validar
+         * dominio, y la interfaz los prioriza al pintar. Era una vía directa para
+         * meter una imagen remota y quedarse con la IP, el navegador y la hora a
+         * la que el otro abre el chat. Los mensajes antiguos que ya los tengan se
+         * siguen leyendo: esto solo gobierna la escritura.
+         */
+        function rutaDmPropia(ruta) {
+          return ruta is string
+            && ruta.matches('^dmImages/' + convId + '/' + request.auth.uid + '/.*')
+            && !ruta.matches('.*[.][.].*');
+        }
+
         function validImage() {
           return !hasImage() || (
             request.resource.data.image is map
-            && request.resource.data.image.path is string
-            && request.resource.data.image.thumbnailPath is string
-            && request.resource.data.image.path.matches('^dmImages/' + convId + '/.*')
-            && request.resource.data.image.thumbnailPath.matches('^dmImages/' + convId + '/.*')
+            && rutaDmPropia(request.resource.data.image.path)
+            && rutaDmPropia(request.resource.data.image.thumbnailPath)
             && request.resource.data.image.keys().hasOnly([
-                 'path', 'thumbnailPath', 'width', 'height', 'url', 'thumbnailUrl'
+                 'path', 'thumbnailPath', 'width', 'height'
                ])
           );
         }
@@ -4655,13 +5053,37 @@ function canUpdateReplyCount(delta) {
             && request.resource.data.replyTo != null;
         }
 
+        function rutaMensajeCitado() {
+          return /databases/$(database)/documents/conversations/$(convId)/messages/$(request.resource.data.replyTo.messageId);
+        }
+
+        function mensajeCitadoExiste() {
+          return exists(rutaMensajeCitado());
+        }
+
+        function mensajeCitado() {
+          return get(rutaMensajeCitado()).data;
+        }
+
         function validReply() {
           return !hasReply() || (
             request.resource.data.replyTo is map
             && request.resource.data.replyTo.messageId is string
             && request.resource.data.replyTo.messageId.size() > 0
             && request.resource.data.replyTo.messageId.size() <= 128
-            && request.resource.data.replyTo.senderId in convAfter().participants
+            // ⚠️ B9-medio. Antes bastaba con que el autor citado fuera uno de
+            // los dos. Ahora el mensaje citado tiene que EXISTIR en este hilo y
+            // el autor tiene que ser el suyo de verdad: no se puede fabricar una
+            // cita a un mensaje inventado ni atribuirle al otro algo que dijo
+            // uno mismo.
+            //
+            // ⚠️ Lo que esto NO cierra: el TEXTO de la cita sigue viniendo del
+            // cliente. No se puede comparar con el original porque la cita se
+            // recorta a 200 caracteres y un mensaje llega a 2000, y las reglas no
+            // saben cortar cadenas. Cerrarlo del todo pide que la interfaz
+            // resuelva el texto citado por id en vez de copiarlo. Anotado.
+            && mensajeCitadoExiste()
+            && request.resource.data.replyTo.senderId == mensajeCitado().senderId
             && request.resource.data.replyTo.text is string
             && request.resource.data.replyTo.text.size() <= 200
             && request.resource.data.replyTo.keys().hasOnly([
@@ -4673,6 +5095,7 @@ function canUpdateReplyCount(delta) {
         allow create: if isConvParticipantAfter()
           && notAnonymous()
           && convAfter().status != "blocked"
+          && sinBloqueoEntreLosDos()
           && allowedInPendingRequest()
           && request.resource.data.senderId == request.auth.uid
           && request.resource.data.text is string
@@ -4763,13 +5186,28 @@ function canUpdateReplyCount(delta) {
             );
         }
 
+        // ⚠️ B9-C01 y B9-medio. `sinBloqueoEntreLosDos()` también aquí.
+        //
+        // Sin esto, quien te bloqueó —o a quien bloqueaste— seguía pudiendo
+        // poner y quitar reacciones en mensajes viejos, y eso llega al otro en
+        // tiempo real: el bloqueo dejaba de cortar el contacto justo por donde
+        // más se nota.
+        //
+        // `onlyHidesForSelf` queda FUERA de la restricción a propósito: esconder
+        // un mensaje en tu propia pantalla no le manda ninguna señal al otro, y
+        // negárselo a alguien bloqueado sería castigarle por haber bloqueado.
         allow update: if isConvParticipant()
           && notAnonymous()
           && (
             onlyHidesForSelf()
-            || isDeleteForEveryone()
-            || isEdit()
-            || onlyTogglesOwnLike()
+            || (
+              sinBloqueoEntreLosDos()
+              && (
+                isDeleteForEveryone()
+                || isEdit()
+                || onlyTogglesOwnLike()
+              )
+            )
           );
 
         allow delete: if false;

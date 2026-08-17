@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useTranslations } from "next-intl";
+import ListSkeleton from "@/components/ui/ListSkeleton";
 
 export type PostFlameUser = {
   userId: string;
@@ -205,7 +206,7 @@ export default function PostFlamesPanel({
 
   const bodyEl = (
     <div style={{ padding: "8px 14px calc(16px + var(--vb-safe-bottom, 0px))", overflowY: "auto", flex: 1, minHeight: 0 }}>
-      {loading && <p style={stateStyle}>{tCommon("loading")}</p>}
+      {loading && <ListSkeleton rows={6} avatarSize={42} padding="0" />}
 
       <VibraToast toast={flameToast} />
 
@@ -357,11 +358,6 @@ export default function PostFlamesPanel({
     document.body
   );
 }
-
-const stateStyle: CSSProperties = {
-  margin: 0, padding: "20px 0",
-  color: "rgba(255,255,255,0.52)", fontSize: 13, lineHeight: 1.4, textAlign: "center",
-};
 
 const emptyCardStyle: CSSProperties = {
   display: "flex", flexDirection: "column", alignItems: "center",

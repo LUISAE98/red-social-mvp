@@ -22,6 +22,7 @@ import { formatDateTime } from "@/lib/i18n/dateTime";
 import type { LiveKitSessionRecordingStatus } from "@/types/livekit";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { CardsSkeleton } from "@/components/ui/ListSkeleton";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -535,7 +536,7 @@ export default function SessionsPage() {
       <h1 style={pageTitle}>{tSessions("pageTitle")}</h1>
 
       {loading ? (
-        <p style={emptyMsg}>{tSessions("loading")}</p>
+        <CardsSkeleton count={3} height={116} />
       ) : sessions.length === 0 ? (
         <p style={emptyMsg}>{tSessions("empty")}</p>
       ) : (

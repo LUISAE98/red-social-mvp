@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
+import ListSkeleton from "@/components/ui/ListSkeleton";
 import type { FollowedProfileLite } from "./OwnerSidebar";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 
@@ -34,7 +35,13 @@ export default function OwnerSidebarFollowedProfiles({
   if (loadingFollowing) {
     return (
       <div style={{ ...styles.sectionPanel, background: "transparent", padding: 0 }}>
-        <div style={styles.subtle}>{tCommon("loadingProfiles")}</div>
+        {/* El avatar es el mismo que el de las filas reales: 43 en celular, 36
+            en laptop. Si midiera otra cosa la lista se recorrería al cargar. */}
+        <ListSkeleton
+          rows={5}
+          avatarSize={isMobile ? 43 : 36}
+          padding="0"
+        />
       </div>
     );
   }

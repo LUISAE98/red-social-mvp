@@ -32,9 +32,28 @@ import { useReelFeed } from "@/lib/reels/useReelFeed";
 import type { StoryDoc } from "@/lib/stories/types";
 import HomeStoryCarouselDesktop, { type CarouselGroup } from "./HomeStoryCarouselDesktop";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
+import { RAIL_CARD_W, RAIL_GAP } from "@/app/components/GroupRecommendations/GroupRecommendationsRail.parts";
+import { useDragScroll } from "@/lib/hooks/useDragScroll";
 
-/** Lado de la tarjeta cuadrada. */
-const SQUARE_CARD_SIZE = 104;
+// Las medidas se IMPORTAN del rail de recomendaciones en vez de copiarse. Los
+// dos rails viven pegados en el home y tienen que leerse como el mismo sistema;
+// con números duplicados, tocar uno los separa sin que nadie se entere.
+/** Cuántas tarjetas deben caber como mínimo, en cualquier laptop. */
+const MIN_VISIBLE = 4;
+/** Tope de ancho: el del rail de recomendaciones. */
+const CARD_MAX_W = RAIL_CARD_W;
+/** Proporción de la tarjeta, tomada de las medidas de aquel rail (200×224). */
+const CARD_RATIO = "200 / 224";
+
+/**
+ * Ancho responsivo. Reparte el espacio visible entre MIN_VISIBLE tarjetas y sus
+ * separaciones, sin pasar del tope. En una pantalla ancha caben más de cuatro
+ * porque el tope corta el crecimiento; en una estrecha, encogen para que sigan
+ * cabiendo cuatro.
+ */
+const CARD_WIDTH = `min(${CARD_MAX_W}px, calc((100% - ${RAIL_GAP * (MIN_VISIBLE - 1)}px) / ${MIN_VISIBLE}))`;
+/** Avatar del creador junto a su nombre, bajo la tarjeta. */
+const AVATAR_SIZE = 16;
 
 // ─── Caché a nivel de módulo, sobrevive a la navegación en la misma pestaña ───
 type IdsEntry = { creatorIds: string[]; groupIds: string[]; cachedAt: number };
@@ -74,6 +93,11 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
+/** Quien GRABÓ el video, que es la cara que siempre se muestra. */
+function storyAuthorId(story: StoryDoc): string | null {
+  return story.greetingCreatorId ?? story.creatorId ?? null;
+}
+
 function resolveThumb(story: StoryDoc): string | null {
   if (story.muxPlaybackId) return `https://image.mux.com/${story.muxPlaybackId}/thumbnail.jpg?time=0`;
   return story.thumbnailUrl ?? null;
@@ -87,6 +111,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   // Misma fuente, mismo orden y misma cuota que el reel de celular.
   const { stories, ready, loadMore } = useReelFeed(currentUserId);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const dragScroll = useDragScroll(scrollerRef);
 
   // Pide más al acercarse al final del rail. En celular lo dispara el scroll
   // vertical del reel; aquí es el horizontal, pero la fuente es la misma.
@@ -94,7 +119,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     const el = scrollerRef.current;
     if (!el) return;
     const remaining = el.scrollWidth - el.scrollLeft - el.clientWidth;
-    if (remaining < SQUARE_CARD_SIZE * 3) loadMore();
+    if (remaining < CARD_MAX_W * 3) loadMore();
   }, [loadMore]);
   const [creatorIds, setCreatorIds] = useState<string[]>(
     () => peekIds(currentUserId)?.creatorIds ?? [],
@@ -202,7 +227,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   useEffect(() => {
     const wantedUsers = [
       ...new Set([
-        ...stories.map((s) => s.creatorId),
+        ...stories.map(storyAuthorId).filter((id): id is string => !!id),
         ...profileLives.keys(),
       ]),
     ].filter((id) => id && !fetchedInfoKeys.current.has(id));
@@ -312,6 +337,9 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
         style={{
           padding: "14px 16px 10px",
           marginBottom: 14,
+          // Arrastrando no debe seleccionarse el nombre de debajo de las tarjetas.
+          userSelect: "none",
+          WebkitUserSelect: "none",
           color: "rgba(255,255,255,0.45)",
           fontSize: 12.5,
           lineHeight: 1.5,
@@ -325,13 +353,25 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
 
   return (
     <>
+      <style>{`
+        .storiesRail::-webkit-scrollbar { display: none; }
+        .storiesRail img { -webkit-user-drag: none; user-drag: none; }
+        @media (hover: hover) and (pointer: fine) {
+          .storiesRail { cursor: grab; }
+          .storiesRail:active { cursor: grabbing; }
+        }
+      `}</style>
+
       <div
         ref={scrollerRef}
         onScroll={handleRailScroll}
+        className="storiesRail"
+        {...dragScroll}
         style={{
           display: "flex",
-          gap: 14,
-          padding: "12px 16px 8px",
+          // Mismas medidas que el rail de recomendaciones, importadas de él.
+          gap: RAIL_GAP,
+          padding: "0 14px 6px",
           overflowX: "auto",
           scrollbarWidth: "none",
           WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
@@ -347,7 +387,9 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
           return (
             <div
               key={`live-${entityId}`}
-              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flexShrink: 0, width: SQUARE_CARD_SIZE }}
+              // Con la tira pegada, los aros necesitan su propio aire: son
+              // redondos y no deben leerse como parte del bloque de tarjetas.
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flexShrink: 0, width: CARD_WIDTH, marginInlineEnd: 6 }}
             >
               <LiveRingAvatar
                 entityId={entityId}
@@ -378,7 +420,10 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
         })}
 
         {stories.map((story, index) => {
-          const info = displayInfoMap.get(story.creatorId);
+          // La cara y el nombre son SIEMPRE los de quien GRABÓ, no los de quien
+          // publicó la copia. Misma regla que el slide del reel.
+          const authorId = storyAuthorId(story);
+          const info = authorId ? displayInfoMap.get(authorId) : undefined;
           const name = info?.displayName ?? story.creatorName ?? tCommon("userLabel");
           const thumb = resolveThumb(story);
           return (
@@ -393,21 +438,22 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "flex-start",
-                gap: 6,
+                gap: 5,
                 background: "none",
                 border: "none",
                 padding: 0,
                 cursor: "pointer",
                 WebkitTapHighlightColor: "transparent",
                 flexShrink: 0,
-                width: SQUARE_CARD_SIZE,
+                width: CARD_WIDTH,
               }}
             >
               <div
                 style={{
-                  width: SQUARE_CARD_SIZE,
-                  height: SQUARE_CARD_SIZE,
-                  borderRadius: 12,
+                  width: "100%",
+                  aspectRatio: CARD_RATIO,
+                  // Esquinas rectas, como las tarjetas de recomendaciones.
+                  borderRadius: 0,
                   overflow: "hidden",
                   background: "#141420",
                   display: "flex",
@@ -423,22 +469,51 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                   <span style={{ fontSize: 26, lineHeight: 1 }}>👤</span>
                 )}
               </div>
+
               <span
                 style={{
-                  color: "rgba(255,255,255,0.82)",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  lineHeight: 1.35,
-                  letterSpacing: "-0.01em",
-                  fontFamily: fontStack,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
                   width: "100%",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  textAlign: "start",
+                  minWidth: 0,
+                  paddingInlineStart: 4,
+                  boxSizing: "border-box",
                 }}
               >
-                {name}
+                <span
+                  style={{
+                    width: AVATAR_SIZE,
+                    height: AVATAR_SIZE,
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                    background: "rgba(255,255,255,0.12)",
+                    position: "relative",
+                    display: "block",
+                  }}
+                >
+                  {info?.photoURL ? (
+                    <Image src={info.photoURL} alt="" fill style={{ objectFit: "cover" }} />
+                  ) : null}
+                </span>
+                <span
+                  style={{
+                    color: "rgba(255,255,255,0.78)",
+                    fontSize: 10.5,
+                    fontWeight: 500,
+                    lineHeight: 1.3,
+                    letterSpacing: "-0.01em",
+                    fontFamily: fontStack,
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    textAlign: "start",
+                  }}
+                >
+                  {name}
+                </span>
               </span>
             </button>
           );

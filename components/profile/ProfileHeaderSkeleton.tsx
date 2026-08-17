@@ -130,11 +130,89 @@ export default function ProfileHeaderSkeleton({
           border-radius: 6px;
           margin-top: 8px;
         }
+        /* Los tres datos de la portada. Reproduce la geometría de StatsRow
+           (components/ui/StatsRow.tsx) desde la MISMA escala: tres columnas
+           iguales, la primera de un solo renglón centrado a lo alto —el tipo de
+           perfil o de comunidad, que no lleva cifra— y las otras dos con cifra
+           arriba y palabra abajo. Así el hueco que reserva el skeleton es el que
+           va a ocupar la fila real y nada salta cuando llegan los datos. */
         .vb-hdr-stats {
-          width: min(50%, 180px);
+          --vb-stat-scale: 1.2;
+          width: 100%;
+          max-width: calc(460px * var(--vb-stat-scale));
+          margin-top: calc(18px * var(--vb-stat-scale));
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .vb-hdr-stat {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: flex-start;
+          min-width: 0;
+          padding: calc(2px * var(--vb-stat-scale))
+            calc(14px * var(--vb-stat-scale));
+        }
+        @media (max-width: 430px) {
+          .vb-hdr-stat {
+            padding-inline: calc(4px * var(--vb-stat-scale));
+          }
+        }
+        /* La misma línea que divide en la fila real, pero apagada: aquí es parte
+           del relleno y no debe leerse como un dato ya cargado. */
+        .vb-hdr-stat + .vb-hdr-stat::before {
+          content: "";
+          position: absolute;
+          inset-inline-start: 0;
+          top: calc(2px * var(--vb-stat-scale));
+          width: 1px;
+          height: calc(40px * var(--vb-stat-scale));
+          background: linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.16) 22%,
+            rgba(255, 255, 255, 0.16) 78%,
+            rgba(255, 255, 255, 0) 100%
+          );
+        }
+        .vb-hdr-stat-line {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+        }
+        /* Solo el primer renglón lleva altura fija, igual que en la fila real:
+           es lo que hace que el de abajo arranque parejo en las tres columnas. */
+        .vb-hdr-stat-line:first-child {
+          min-height: calc(20px * var(--vb-stat-scale));
+        }
+        /* 11px de la palabra por su interlineado de 1.2. */
+        .vb-hdr-stat-line + .vb-hdr-stat-line {
+          min-height: calc(13.2px * var(--vb-stat-scale));
+        }
+        /* La columna de un solo renglón se centra a lo alto contra las otras
+           dos, no se queda colgando de arriba. */
+        .vb-hdr-stat--single {
+          justify-content: center;
+        }
+        .vb-hdr-stat--single .vb-hdr-stat-line:first-child {
+          min-height: 0;
+        }
+        .vb-hdr-stat-pair {
+          width: min(80%, 84px);
           height: 12px;
           border-radius: 6px;
-          margin-top: 14px;
+        }
+        .vb-hdr-stat-value {
+          width: min(60%, 54px);
+          height: 15px;
+          border-radius: 6px;
+        }
+        .vb-hdr-stat-word {
+          width: min(88%, 78px);
+          height: 10px;
+          border-radius: 5px;
         }
         .vb-hdr-btn {
           width: 100%;
@@ -181,7 +259,25 @@ export default function ProfileHeaderSkeleton({
         <div className="vb-skel vb-hdr-handle" />
         <div className="vb-skel vb-hdr-bio-1" />
         <div className="vb-skel vb-hdr-bio-2" />
-        <div className="vb-skel vb-hdr-stats" />
+        <div className="vb-hdr-stats">
+          {/* El tipo de perfil o de comunidad: un renglón, sin cifra. */}
+          <div className="vb-hdr-stat vb-hdr-stat--single">
+            <div className="vb-hdr-stat-line">
+              <div className="vb-skel vb-hdr-stat-pair" />
+            </div>
+          </div>
+          {/* Seguidores/miembros y publicaciones: cifra arriba, palabra abajo. */}
+          {[0, 1].map((i) => (
+            <div key={i} className="vb-hdr-stat">
+              <div className="vb-hdr-stat-line">
+                <div className="vb-skel vb-hdr-stat-value" />
+              </div>
+              <div className="vb-hdr-stat-line">
+                <div className="vb-skel vb-hdr-stat-word" />
+              </div>
+            </div>
+          ))}
+        </div>
         <div className="vb-skel vb-hdr-btn" />
         <div className="vb-hdr-stories">
           {Array.from({ length: storyCount }).map((_, i) => (

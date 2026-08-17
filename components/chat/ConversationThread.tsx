@@ -2227,18 +2227,10 @@ export default function ConversationThread({
           <ChatReveal show>
             <div ref={topSentinelRef} aria-hidden style={{ height: 1 }} />
 
-            {loadingOlder ? (
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "rgba(255,255,255,0.46)",
-                  textAlign: "center",
-                  padding: "6px 0",
-                }}
-              >
-                {tChat("loadingOlder")}
-              </div>
-            ) : null}
+            {/* Los mensajes anteriores se anuncian con su propia forma —tres
+                burbujas alternadas— y no con un renglón que dice que están en
+                camino. Van arriba, que es por donde van a entrar. */}
+            {loadingOlder ? <MessageThreadSkeleton bubbles={3} /> : null}
 
             {messages.map((message, index) =>
               renderMessage(message, index > 0 ? messages[index - 1] : null)

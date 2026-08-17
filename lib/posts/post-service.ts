@@ -25,6 +25,7 @@ import {
 } from "firebase/firestore";
 import { auth, db, functions } from "@/lib/firebase";
 import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
+import { updatePostServer } from "./updatePostServer";
 import {
   MAX_POST_IMAGES,
   MAX_POST_VIDEOS,
@@ -568,6 +569,21 @@ export async function fetchSavedPosts(userUid: string): Promise<Post[]> {
   return allPosts.slice(0, 100);
 }
 
+/**
+ * Editar una publicación.
+ *
+ * ⚠️ B8-C01. Esto ya NO escribe en Firestore: llama al callable `updatePost`,
+ * que escribe con el Admin SDK.
+ *
+ * El motivo es que `media` lo reescribía el cliente sin que nadie validara lo
+ * que había dentro, y las Firestore Rules **no saben recorrer una lista**. Con
+ * una ruta ajena metida ahí, `getRestrictedMediaUrls` la firmaba y
+ * `postMediaCleanup` la borraba, las dos con privilegios de administrador.
+ *
+ * El servidor comprueba que cada ruta cuelgue de esta publicación y de su autor,
+ * acota texto y número de archivos, ancla los hosts de las URLs, y escribe el
+ * historial de edición en la MISMA transacción que el cambio.
+ */
 export async function updatePost(params: {
   postId: string;
   text: string;
@@ -577,61 +593,16 @@ export async function updatePost(params: {
   const author = auth.currentUser;
   if (!author) throw new Error("Debes iniciar sesión para editar publicaciones.");
 
-  const postRef = doc(db, "posts", params.postId);
-  const postSnap = await getDoc(postRef);
-
-  if (!postSnap.exists()) throw new Error("La publicación no existe.");
-
-  const postData = postSnap.data() as Post;
-
-  if (postData.authorId !== author.uid) {
-    throw new Error("Solo el autor puede editar esta publicación.");
-  }
-
-  if (postData.isDeleted) {
-    throw new Error("No se puede editar una publicación eliminada.");
-  }
-
-  // Guardar historial antes de modificar
-  const historyRef = doc(collection(db, "posts", params.postId, "editHistory"));
-  await setDoc(historyRef, {
-    editedAt: serverTimestamp(),
-    editedBy: author.uid,
-    previousText: postData.text ?? "",
-    previousMedia: Array.isArray(postData.media) ? postData.media : [],
-  });
-
-  const cleanText = typeof params.text === "string" ? params.text.trim() : "";
-  const cleanMedia = Array.isArray(params.media)
-    ? params.media.filter(
-        (item) => typeof item.url === "string" && item.url.trim().length > 0,
-      )
-    : [];
-
-  const updatePayload: Record<string, unknown> = {
-    text: cleanText,
-    media: cleanMedia,
-    editedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-
-  // La configuración de monetización NO se toca al editar, a propósito.
-  //
-  // `premium` es lo único monetizable que las reglas dejan cambiar aquí
-  // (`canEditPost` → text/media/premium/editedAt/updatedAt), pero el precio que
-  // se COBRA vive en `oneTimePrice` y el acceso en `requiresPayment`/
-  // `accessModel`/`isShareable`, campos que ese mismo `hasOnly` prohíbe cambiar.
-  // Escribir `premium` aquí desincronizaba el post: la tarjeta mostraba el
-  // precio nuevo (`premium.price ?? oneTimePrice`) y Stripe cobraba el viejo, y
-  // un cambio de `accessMode` dejaba `isShareable` mintiendo sobre quién puede
-  // verlo. El panel del composer ya enseña esta configuración como de solo
-  // lectura; esto lo garantiza también a nivel de servicio.
-  //
-  // Cambiar precio/alcance de un post ya publicado es otra operación (habría que
-  // actualizar los campos monetarios en el mismo write y abrir sus reglas).
+  // La configuración de monetización no se toca al editar, a propósito: ver el
+  // comentario largo de más abajo, que sigue vigente. Ahora además las reglas lo
+  // impiden (B8-C04).
   void params.premium;
 
-  await updateDoc(postRef, updatePayload);
+  await updatePostServer({
+    postId: params.postId,
+    text: params.text,
+    media: params.media,
+  });
 }
 
 export async function updateLivePost(params: {

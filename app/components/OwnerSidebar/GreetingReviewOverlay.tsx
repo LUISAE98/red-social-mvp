@@ -35,6 +35,9 @@ import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 const fontStack =
   'inherit';
 
+/** El aro de las historias. Mismo valor que en StoryCircle y StoryRingAvatar. */
+const VIBRA_GRADIENT = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
+
 function getGreetingStatusLabel(status: string, t: (key: string) => string): string {
   switch (status) {
     case "delivered": return t("statusDelivered");
@@ -115,6 +118,10 @@ export default function GreetingReviewOverlay({
   const [viewState, setViewState] = useState<ViewState>(viewMode ? "camera" : "review");
   const [recordPhase, setRecordPhase] = useState<RecordPhase>("preview");
   const [isMobile, setIsMobile] = useState(false);
+  // Panel de datos plegado/desplegado. La cámara NO se toca al plegarlo: sigue
+  // grabando. Queda una pestaña con la flecha para volver a abrirlo a media
+  // grabación, por si el creador necesita releer la petición.
+  const [infoOpen, setInfoOpen] = useState(true);
   const [, setSheetExpanded] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
@@ -1237,15 +1244,111 @@ export default function GreetingReviewOverlay({
     </div>
   );
 
+  /** El comprador con el aspecto de la CABECERA DEL VISOR DE HISTORIAS: aro de
+   *  Vibra de 40, el nombre al lado y debajo el tipo de encargo. Las medidas, el
+   *  degradado y la tipografía salen tal cual de ReelStorySlide, en su escala
+   *  GRANDE (la de `compact: false`, aro de 54): la compacta se quedaba corta en
+   *  un panel de este ancho. Vive solo en el panel de grabación de laptop; los
+   *  otros tres sitios siguen con el renglón de antes. */
+  const buyerCardName = buyerViewMode
+    ? (buyerSourceName ?? tCommon("creator"))
+    : (buyer?.displayName ?? tCommon("user"));
+  const buyerCardAvatar = buyerViewMode ? buyerSourceAvatar : (buyer?.photoURL ?? null);
+  const buyerCardTypeLabel =
+    req.type === "consejo" ? tWallet("typeLabelAdvice")
+      : req.type === "saludo" ? tWallet("typeLabelGreeting")
+      : null;
+
+  const buyerCardNameStyle: React.CSSProperties = {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: 600,
+    lineHeight: "1.2",
+    textDecoration: "none",
+    // El visor no parte el nombre porque lo pinta sobre el ancho de la pantalla.
+    // Aquí la columna es estrecha, así que se deja partir antes que recortarlo.
+    overflowWrap: "anywhere",
+  };
+
+  const buyerStoryCard = (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+      {/* Aro de Vibra. No es un relleno: es un disco de degradado enmascarado a
+          un anillo de 3px, y la foto va aparte con inset 6. Así, entre el aro y
+          la foto quedan 3px de aire en lugar de un borde de color. */}
+      <div style={{ position: "relative", width: 54, height: 54, flexShrink: 0 }}>
+        <div style={{
+          position: "absolute", inset: 6, borderRadius: "50%",
+          overflow: "hidden", background: "rgba(255,255,255,0.1)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          {buyerCardAvatar ? (
+            <Image src={buyerCardAvatar} alt="" fill sizes="54px" style={{ objectFit: "cover" }} />
+          ) : (
+            <span style={{ fontSize: 18, lineHeight: 1, fontWeight: 700, color: "#fff" }}>
+              {buyerCardName.charAt(0).toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute", inset: 0, borderRadius: "50%",
+            background: VIBRA_GRADIENT,
+            WebkitMaskImage: "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
+            maskImage: "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
+          }}
+        />
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+        {!buyerViewMode && buyer?.handle ? (
+          <Link href={`/u/${buyer.handle}`} onClick={handleClose} style={buyerCardNameStyle}>
+            {buyerCardName}
+          </Link>
+        ) : (
+          <span style={buyerCardNameStyle}>{buyerCardName}</span>
+        )}
+        {buyerCardTypeLabel && (
+          <span style={{
+            color: "rgba(255,255,255,0.75)",
+            fontSize: 13,
+            fontWeight: 500,
+            lineHeight: "1.2",
+          }}>
+            {buyerCardTypeLabel}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
   const divider = <div style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />;
 
-  /** La ganancia, ahora bajo la línea que separa al comprador del contenido. */
+  /** La ganancia, ahora bajo la línea que separa al comprador del contenido.
+   *  La cifra va en UN SOLO renglón siempre. Hay monedas que dan cifras muy
+   *  largas —el peso colombiano, el dong o la rupia no usan decimales y llegan
+   *  a siete dígitos—, así que el cuerpo baja por tramos según lo que ocupe el
+   *  texto ya formateado. Es la única forma de que no parta: el CSS no sabe
+   *  cuánto mide una cadena. */
+  const earningSize =
+    earningFormatted == null ? 22
+      : earningFormatted.length > 19 ? 15
+      : earningFormatted.length > 15 ? 18
+      : earningFormatted.length > 12 ? 20
+      : 22;
+
   const earningRow = earningFormatted ? (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+    <div style={{ display: "grid", gap: 5, justifyItems: "start", minWidth: 0 }}>
       <span style={{ color: "#86efac", fontWeight: 500, fontSize: 11, letterSpacing: "0.01em", lineHeight: 1 }}>
-        Tu ganancia
+        {tWallet("yourEarning")}
       </span>
-      <span style={{ color: "#86efac", fontWeight: 700, fontSize: 22, letterSpacing: "-0.03em", lineHeight: 1 }}>
+      <span style={{
+        color: "#86efac", fontWeight: 700, fontSize: earningSize,
+        letterSpacing: "-0.03em", lineHeight: 1.1,
+        whiteSpace: "nowrap",
+        // Las cifras del mismo ancho evitan que el número baile al actualizarse.
+        fontVariantNumeric: "tabular-nums",
+      }}>
         {earningFormatted}
       </span>
     </div>
@@ -1834,6 +1937,12 @@ export default function GreetingReviewOverlay({
 
   // ─── DESKTOP CAMERA VIEW ─────────────────────────────────────────────────────
   if (viewState === "camera" && !isMobile) {
+    // Ancho del panel de datos. Es UNA sola medida usada en tres sitios (velo,
+    // contenido y posición de la flecha) para que los tres se muevan juntos.
+    const infoWidth = "clamp(230px, 26%, 320px)";
+    // Lo que queda a la vista al plegar: una pestaña con la flecha.
+    const infoTab = 56;
+
     return createPortal(
       <>
       <style>{`
@@ -1883,50 +1992,74 @@ export default function GreetingReviewOverlay({
             animation: "vibraGreetingPanelPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
           }}
         >
+        {/* El VELO, en su propia capa y sin nada dentro. Es lo único que cambia
+            de ancho al plegar; como no envuelve contenido, no reacomoda nada.
+            Degradado de DOS paradas: con más, cada cambio de pendiente se ve
+            como una banda. */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            insetInlineStart: 0,
+            top: 0,
+            bottom: 0,
+            zIndex: 2,
+            pointerEvents: "none",
+            width: infoOpen ? infoWidth : infoTab,
+            transition: "width 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+            background: infoOpen
+              ? "linear-gradient(to right, rgba(0,0,0,0.90), rgba(0,0,0,0))"
+              : "linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0))",
+          }}
+        />
+
         {/* La INFORMACIÓN, superpuesta sobre el lado izquierdo de la grabación.
-            Ya no es un panel hermano: flota encima del video. */}
+            Al plegar se DESPLAZA fuera del panel conservando su ancho, en vez de
+            estrecharse: así nada de lo que hay dentro se reacomoda y al volver a
+            abrir ya está colocado tal cual estaba. La cámara no se apaga. */}
         <div style={{
           position: "absolute",
           insetInlineStart: 0,
           top: 0,
           bottom: 0,
           zIndex: 3,
-          width: "clamp(230px, 26%, 320px)",
+          width: infoWidth,
+          transform: infoOpen
+            ? "none"
+            : "translateX(calc(var(--vb-dir, 1) * -100%))",
+          opacity: infoOpen ? 1 : 0,
+          visibility: infoOpen ? "visible" : "hidden",
+          pointerEvents: infoOpen ? "auto" : "none",
+          transition:
+            "transform 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms ease, visibility 300ms",
           minWidth: 0,
           display: "flex",
           flexDirection: "column",
           gap: 16,
           overflowY: "auto",
+          overflowX: "hidden",
+          // El contenido arranca arriba; lo que sobra queda abajo.
+          justifyContent: "flex-start",
           padding: 20,
           boxSizing: "border-box",
-          // Velo oscuro con desenfoque: el texto tiene que leerse sobre lo que
-          // esté pasando en el video, que puede ser claro y con movimiento. Se
-          // difumina hacia la derecha para no cortar la imagen con una línea.
-          background:
-            "linear-gradient(to right, rgba(8,8,10,0.92) 0%, rgba(8,8,10,0.86) 62%, rgba(8,8,10,0) 100%)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-          maskImage: "linear-gradient(to right, #000 76%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to right, #000 76%, transparent 100%)",
         }}
           onClick={(e) => e.stopPropagation()}
         >
-            {/* Header. El título salió de aquí: ahora va fuera de los paneles,
-                centrado en la pantalla. Solo queda la X, alineada a la derecha. */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-              <button type="button" onClick={handleClose} style={{
-                background: "transparent", border: "none", color: "rgba(255,255,255,0.45)",
-                cursor: "pointer", padding: "4px 6px", fontSize: 16, lineHeight: 1, borderRadius: 8,
-              }}>
-                ✕
-              </button>
+            {/* El hueco de la derecha es para la flecha, que vive en otra capa.
+                Reservarlo aquí evita que el nombre se le meta debajo. */}
+            <div style={{ flexShrink: 0, paddingInlineEnd: 30, minWidth: 0, ...slideStyle }}>
+              {buyerStoryCard}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16, ...slideStyle }}>
-              {buyerRow}
+
+            <div style={{
+              display: "flex", flexDirection: "column", gap: 16, minWidth: 0,
+              ...slideStyle,
+            }}>
               {divider}
               {earningRow}
               {infoSection}
             </div>
+
             <div style={{ marginTop: "auto", paddingTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
               {(viewMode || buyerViewMode) ? (
                 <>
@@ -2045,6 +2178,47 @@ export default function GreetingReviewOverlay({
 
           {fileInput}
         </div>
+
+        {/* La FLECHA, en su propia capa. No viaja con el contenido: se queda
+            siempre sobre la pestaña, alineada a la derecha del panel de datos
+            cuando está abierto, y es lo que permite volver a consultarlo a
+            media grabación. Solo se desplaza, no reacomoda nada. */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setInfoOpen((prev) => !prev); }}
+          aria-expanded={infoOpen}
+          aria-label={infoOpen ? tCommon("closeAriaLabel") : tCommon("viewLabel")}
+          title={infoOpen ? tCommon("closeAriaLabel") : tCommon("viewLabel")}
+          style={{
+            position: "absolute",
+            zIndex: 4,
+            // Centrada con el avatar: 20 de relleno del panel + 27 de medio aro,
+            // menos los 11 de media flecha.
+            top: 36,
+            insetInlineStart: infoOpen ? `calc(${infoWidth} - 42px)` : 17,
+            transition: "inset-inline-start 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+            background: "transparent", border: "none", color: "rgba(255,255,255,0.78)",
+            cursor: "pointer", padding: 0, lineHeight: 0, borderRadius: 8,
+            display: "inline-flex", alignItems: "center",
+          }}
+        >
+          {/* Apunta a la izquierda para plegar y a la derecha para volver a
+              abrir. La variable --vb-dir lo espeja en árabe y hebreo, donde
+              "cerrar hacia el lado" va al revés. */}
+          <svg
+            width="22" height="22" viewBox="0 0 24 24" fill="none"
+            style={{
+              transform: `scaleX(calc(var(--vb-dir, 1) * ${infoOpen ? 1 : -1}))`,
+              transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+            }}
+          >
+            <path
+              d="M15 5L8 12L15 19"
+              stroke="currentColor" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round"
+            />
+          </svg>
+        </button>
 
         {/* La grabación ocupa el contenedor entero. Sin caja propia: el borde,
             las esquinas y la sombra los pone el panel de arriba. */}

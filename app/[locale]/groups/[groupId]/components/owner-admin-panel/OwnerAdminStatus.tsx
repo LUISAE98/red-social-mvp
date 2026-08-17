@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -172,6 +173,8 @@ export default function OwnerAdminStatus({
   currentPostingMode = "members",
   currentCommentsEnabled = true,
 }: Props) {
+  const tGroups = useTranslations("groups");
+
   const isOwner = useMemo(
     () => ownerId === currentUserId,
     [ownerId, currentUserId]
@@ -227,9 +230,9 @@ export default function OwnerAdminStatus({
         updatedAt: serverTimestamp(),
       });
 
-      setStatusMsg(isActive ? "Comunidad reactivada." : "Comunidad pausada.");
+      setStatusMsg(isActive ? tGroups("statusReactivated") : tGroups("statusPaused"));
     } catch (e: unknown) {
-      setStatusErr((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el estado.");
+      setStatusErr((e instanceof Error ? e.message : null) ?? tGroups("statusUpdateError"));
     } finally {
       setStatusBusy(false);
     }
@@ -256,13 +259,13 @@ export default function OwnerAdminStatus({
 
       setStatusMsg(
         nextMode === "owner_only"
-          ? "Ahora solo el creador puede publicar."
-          : "Ahora cualquier miembro puede publicar."
+          ? tGroups("postingOwnerOnlyMsg")
+          : tGroups("postingMembersMsg")
       );
     } catch (e: unknown) {
       setPostingMode(previousMode);
       setStatusErr(
-        (e instanceof Error ? e.message : null) ?? "No se pudo actualizar el permiso de publicación."
+        (e instanceof Error ? e.message : null) ?? tGroups("postingUpdateError")
       );
     } finally {
       setPostingBusy(false);
@@ -290,13 +293,13 @@ export default function OwnerAdminStatus({
 
       setStatusMsg(
         nextValue
-          ? "Ahora cualquier miembro autorizado puede comentar."
-          : "Ahora solo el creador puede comentar."
+          ? tGroups("commentsMembersMsg")
+          : tGroups("commentsOwnerOnlyMsg")
       );
     } catch (e: unknown) {
       setCommentsEnabled(previousValue);
       setStatusErr(
-        (e instanceof Error ? e.message : null) ?? "No se pudo actualizar el permiso de comentarios."
+        (e instanceof Error ? e.message : null) ?? tGroups("commentsUpdateError")
       );
     } finally {
       setCommentsBusy(false);

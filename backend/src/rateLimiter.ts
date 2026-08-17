@@ -70,10 +70,15 @@ export const checkRateLimitPost = onCall(async (request) => {
   return { ok: true };
 });
 
-export const checkRateLimitComment = onCall(async (request) => {
-  if (!request.auth?.uid) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-  }
-  await checkAndRecord(request.auth.uid, "comment");
-  return { ok: true };
-});
+// ⚠️ B8-H03. `checkRateLimitComment` se RETIRÓ, y no solo por quedar sin uso.
+//
+// El freno de los comentarios vive ahora en las Firestore Rules: el contador se
+// escribe en el mismo lote atómico que el comentario, con `windowStart` y
+// `count` verificados por la regla.
+//
+// Dejarlo vivo era un agujero: escribe con el Admin SDK y hace un `set` COMPLETO
+// de `{ lastAt, hourTimestamps }`, o sea que BORRABA `windowStart` y `count`.
+// Llamarlo era reiniciar la ventana por horas y seguir comentando sin tope. El
+// arreglo se habría desactivado a sí mismo con una llamada.
+//
+// `checkAndRecord` se conserva: lo siguen usando el flujo de `post` y el de KYC.

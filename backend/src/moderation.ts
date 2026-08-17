@@ -70,7 +70,10 @@ function requireAuth(request: { auth?: { uid?: string } }): string {
 async function resolveTargetOwner(
   targetType: string,
   targetId: string,
-  parentId: string | null
+  parentId: string | null,
+  // B9-C03: hace falta para comprobar que quien denuncia una conversación está
+  // dentro de ella.
+  reporterUid: string
 ): Promise<string | null> {
   const readField = async (path: string, field: string): Promise<string | null> => {
     const snap = await db.doc(path).get();
@@ -112,10 +115,34 @@ async function resolveTargetOwner(
       // comprueba que exista para no abrir reportes contra uids inventados.
       return (await db.doc(`users/${targetId}`).get()).exists ? targetId : null;
 
-    case "conversation":
+    case "conversation": {
       // Un hilo privado no tiene "dueño": el moderador decide sobre las personas
       // al revisarlo. Se deja sin dueño en vez de señalar a alguien de antemano.
-      return (await db.doc(`conversations/${targetId}`).get()).exists ? "" : null;
+      //
+      // ⚠️ B9-C03. Antes bastaba con que el hilo EXISTIERA. El id de una
+      // conversación es determinista (`uidA_uidB` ordenados), así que cualquiera
+      // que conociera dos uids —y los uids no son secretos— podía calcular el id,
+      // denunciar una conversación ajena y dejarla `underReview`, que es
+      // exactamente lo que abre su lectura completa a los moderadores.
+      //
+      // Un moderador podía además auto-denunciar cualquier hilo para leerlo,
+      // anulando por completo la intención de "solo las conversaciones
+      // denunciadas".
+      //
+      // Ahora solo denuncia quien está dentro.
+      const snap = await db.doc(`conversations/${targetId}`).get();
+      if (!snap.exists) return null;
+
+      const participantes = snap.data()?.participants;
+      if (!Array.isArray(participantes) || !participantes.includes(reporterUid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Solo puedes denunciar una conversación en la que participas."
+        );
+      }
+
+      return "";
+    }
 
     default:
       return null;
@@ -223,7 +250,7 @@ export const submitReport = onCall<SubmitReportRequest>(
     // moderador atendiera el reporte para banear a un inocente.
     // `null` = el contenido no existe. Cadena vacía = existe pero no tiene un
     // dueño único (una conversación privada es de dos personas), y eso es válido.
-    const resolvedOwnerId = await resolveTargetOwner(targetType, targetId, parentId);
+    const resolvedOwnerId = await resolveTargetOwner(targetType, targetId, parentId, uid);
     if (resolvedOwnerId === null) {
       throw new HttpsError(
         "not-found",
@@ -464,6 +491,26 @@ export const resolveReport = onCall<ResolveReportRequest>(
       reportData.parentId ?? null,
       reportData.targetOwnerId
     );
+
+    // ⚠️ B9-alto. Al resolver, se retira la marca que abre el hilo.
+    //
+    // `underReview` se ponía al denunciar y no lo quitaba NADIE: una denuncia
+    // de hace meses seguía dando a todos los moderadores acceso al historial
+    // completo de una conversación privada, para siempre. Decisión de Luis
+    // (2026-08-16): al resolver o desestimar, se cierra.
+    if (reportData.targetType === "conversation" && reportData.targetId) {
+      await db
+        .doc(`conversations/${reportData.targetId}`)
+        .update({ underReview: false })
+        .catch((error) => {
+          // Que no tumbe la resolución del reporte, pero que quede en el log:
+          // un hilo que se quede abierto es una fuga de privacidad silenciosa.
+          logger.error("resolveReport: no se pudo cerrar underReview", {
+            conversationId: reportData.targetId,
+            error,
+          });
+        });
+    }
 
     // Marcar el reporte como resuelto
     await reportRef.update({

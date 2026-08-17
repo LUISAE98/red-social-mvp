@@ -9,7 +9,7 @@ import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
 import { BRAND_DOMAIN } from "@/lib/brand";
-import { AVISOS_SERVICIOS, avisoRangoMinutos } from "@/lib/services/avisosServicios";
+import { AVISOS_SERVICIOS } from "@/lib/services/avisosServicios";
 
 import Greetings from "@/components/services/config/Greetings";
 import Advice from "@/components/services/config/Advice";
@@ -49,6 +49,8 @@ export default function ProfileServicesTab({
   currentDonation = null,
   onProfileServicesChanged,
 }: Props) {
+  const tServices = useTranslations("services");
+
   const isOwner = useMemo(
     () => profileUserId === currentUserId,
     [profileUserId, currentUserId]
@@ -339,7 +341,7 @@ export default function ProfileServicesTab({
           Number.isNaN(saludoPriceNum) ||
           saludoPriceNum <= 0)
       ) {
-        setErr(AVISOS_SERVICIOS.precioSaludos);
+        setErr(tServices(AVISOS_SERVICIOS.precioSaludos));
         return;
       }
 
@@ -349,7 +351,7 @@ export default function ProfileServicesTab({
           Number.isNaN(consejoPriceNum) ||
           consejoPriceNum <= 0)
       ) {
-        setErr(AVISOS_SERVICIOS.precioConsejos);
+        setErr(tServices(AVISOS_SERVICIOS.precioConsejos));
         return;
       }
 
@@ -359,7 +361,7 @@ export default function ProfileServicesTab({
           Number.isNaN(meetGreetPriceNum) ||
           meetGreetPriceNum <= 0)
       ) {
-        setErr(AVISOS_SERVICIOS.precioMeetGreet);
+        setErr(tServices(AVISOS_SERVICIOS.precioMeetGreet));
         return;
       }
 
@@ -369,7 +371,7 @@ export default function ProfileServicesTab({
           Number.isNaN(customClassPriceNum) ||
           customClassPriceNum <= 0)
       ) {
-        setErr(AVISOS_SERVICIOS.precioSesion);
+        setErr(tServices(AVISOS_SERVICIOS.precioSesion));
         return;
       }
 
@@ -381,7 +383,7 @@ export default function ProfileServicesTab({
           !Number.isInteger(meetGreetDurationNum))
       ) {
         setErr(
-          AVISOS_SERVICIOS.duracionMeetGreet
+          tServices(AVISOS_SERVICIOS.duracionMeetGreet)
         );
         return;
       }
@@ -393,7 +395,7 @@ export default function ProfileServicesTab({
           meetGreetDurationNum > MEET_GREET_MAX_MINUTES)
       ) {
         showToast(
-          avisoRangoMinutos("Tiempo contigo", MEET_GREET_MIN_MINUTES, MEET_GREET_MAX_MINUTES),
+          tServices(AVISOS_SERVICIOS.rangoMinutos, { service: tServices("meetGreetNoun"), min: MEET_GREET_MIN_MINUTES, max: MEET_GREET_MAX_MINUTES }),
           "warning"
         );
         return;
@@ -407,7 +409,7 @@ export default function ProfileServicesTab({
           !Number.isInteger(customClassDurationNum))
       ) {
         setErr(
-          AVISOS_SERVICIOS.duracionSesion
+          tServices(AVISOS_SERVICIOS.duracionSesion)
         );
         return;
       }
@@ -419,7 +421,7 @@ export default function ProfileServicesTab({
           customClassDurationNum > CUSTOM_CLASS_MAX_MINUTES)
       ) {
         showToast(
-          avisoRangoMinutos("La sesión exclusiva", CUSTOM_CLASS_MIN_MINUTES, CUSTOM_CLASS_MAX_MINUTES),
+          tServices(AVISOS_SERVICIOS.rangoMinutos, { service: tServices("exclusiveSession"), min: CUSTOM_CLASS_MIN_MINUTES, max: CUSTOM_CLASS_MAX_MINUTES }),
           "warning"
         );
         return;
@@ -430,7 +432,7 @@ export default function ProfileServicesTab({
         (donationSuggestedNums.length !== 4 ||
           donationSuggestedNums.some((n) => !Number.isFinite(n) || n < 50))
       ) {
-        setErr(AVISOS_SERVICIOS.donacionMontoMinimo);
+        setErr(tServices(AVISOS_SERVICIOS.donacionMontoMinimo));
         return;
       }
 
@@ -438,7 +440,7 @@ export default function ProfileServicesTab({
         workingDraft.donationMode === "wedding" &&
         !workingDraft.donationGoalLabel.trim()
       ) {
-        setErr(AVISOS_SERVICIOS.donacionTextoBoda);
+        setErr(tServices(AVISOS_SERVICIOS.donacionTextoBoda));
         return;
       }
 
@@ -579,10 +581,10 @@ export default function ProfileServicesTab({
         donation: nextDonation,
       });
 
-      showToast(AVISOS_SERVICIOS.guardado, "success");
+      showToast(tServices(AVISOS_SERVICIOS.guardado), "success");
       return true;
     } catch (e: unknown) {
-      showToast(AVISOS_SERVICIOS.noGuardado, "error");
+      showToast(tServices(AVISOS_SERVICIOS.noGuardado), "error");
       return false;
     } finally {
       skipHydrationWhileSavingRef.current = false;

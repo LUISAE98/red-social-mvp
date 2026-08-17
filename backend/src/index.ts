@@ -274,6 +274,11 @@ export {
   onPostDeletedCleanupMedia,
 } from "./postMediaCleanup";
 
+// B8-C01 — editar una publicación pasa por el servidor. Las reglas no saben
+// validar los elementos de una lista, y `media` es exactamente eso: una lista de
+// objetos con rutas de Storage.
+export { updatePost } from "./updatePost";
+
 // B8-C03/H02 — cerrar el perfil tiene que alcanzar al contenido ya publicado:
 // la copia `profileRestricted` de las publicaciones y el `searchable` de las
 // historias, del que depende entera la regla de lectura de historias.
@@ -342,7 +347,7 @@ export { getSharedCommunitiesWithProfile } from "./sharedCommunities";
 export { softDeleteGroup } from "./groupDeletion";
 
 // Rate limiting
-export { checkRateLimitPost, checkRateLimitComment } from "./rateLimiter";
+export { checkRateLimitPost } from "./rateLimiter";
 
 // Creación de publicaciones (server-authoritative: `posts` es create: if false)
 export { createPost } from "./createPost";

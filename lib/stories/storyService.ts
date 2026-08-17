@@ -15,8 +15,10 @@ import {
   Timestamp,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { prepararFreno, aplicarFreno } from "@/lib/rateLimit/frenoEnLote";
 import {
   buildSearchPrefixes,
   tokenizeSearchText,
@@ -241,8 +243,21 @@ export async function addStoryFromGreeting(params: {
     payload.instructions = params.instructions;
   }
 
-  const docRef = await addDoc(collection(db, "stories"), payload);
-  return docRef.id;
+  // ⚠️ B8-H05. Las historias no tenían NINGÚN freno: una cuenta podía crearlas
+  // sin límite, con fechas manipuladas y prefijos inflados, y colarse así en
+  // todo el feed de reels y en todas las búsquedas.
+  //
+  // El contador viaja en el MISMO lote atómico que la historia, y la regla de
+  // creación lo exige con `getAfter`. Sin contador no hay historia. 20 al día.
+  const freno = await prepararFreno(params.creatorId, "story");
+
+  const lote = writeBatch(db);
+  const historiaRef = doc(collection(db, "stories"));
+  lote.set(historiaRef, payload);
+  aplicarFreno(lote, freno);
+  await lote.commit();
+
+  return historiaRef.id;
 }
 
 /**

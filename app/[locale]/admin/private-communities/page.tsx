@@ -15,6 +15,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAdminPreview } from "../context";
 import { useTranslations, useLocale } from "next-intl";
+import ListSkeleton from "@/components/ui/ListSkeleton";
 
 type Community = {
   id: string;
@@ -290,7 +291,7 @@ export default function PrivateCommunitiesPage() {
       </div>
 
       {loading ? (
-        <div style={{ color: "#444", fontSize: 13 }}>{tAdmin("loadingCommunities")}</div>
+        <ListSkeleton rows={6} avatarSize={36} avatarShape="square" padding="0" />
       ) : filtered.length === 0 ? (
         <div style={{ color: "#444", fontSize: 13 }}>
           {tab === "active"

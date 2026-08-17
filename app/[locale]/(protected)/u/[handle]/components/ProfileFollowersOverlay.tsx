@@ -6,6 +6,7 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 
+import ListSkeleton from "@/components/ui/ListSkeleton";
 import { getProfileFollowers } from "@/lib/social/social-service";
 import type { ProfileFollowerListItem } from "@/types/social";
 
@@ -206,7 +207,12 @@ export default function ProfileFollowersOverlay({
       {!canViewFollowers ? (
         <div style={emptyStyle}>{tProfile("cannotViewFollowers")}</div>
       ) : loading ? (
-        <div style={emptyStyle}>{tProfile("loadingFollowers")}</div>
+        /* Mientras carga va el hueco de la lista, no una caja que dice
+           "Cargando seguidores…": el aviso ocupa un renglón donde van a caber
+           seis filas, así que al llegar los datos el panel salta de golpe. El
+           skeleton reserva la forma que viene —círculo, nombre, arroba— y el
+           avatar de 42 es el mismo de las filas reales de abajo. */
+        <ListSkeleton rows={6} avatarSize={42} />
       ) : error ? (
         <div style={emptyStyle}>{error}</div>
       ) : followers.length === 0 ? (

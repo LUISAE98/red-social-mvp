@@ -29,6 +29,7 @@ import {
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import ListSkeleton from "@/components/ui/ListSkeleton";
 import type {
   GreetingRequestDoc,
   MeetGreetRequestDoc,
@@ -398,19 +399,7 @@ export default function ExperienceRequestsInbox({
   };
 
   if (loading && flatItems.length === 0) {
-    return (
-      <div
-        className="expInboxState"
-        style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 150 }}
-      >
-        <span
-          className="vibraPullRefreshSpinner refreshing"
-          style={{ display: "block", width: 32, height: 32 }}
-          aria-label={tCommon("loading")}
-          role="status"
-        />
-      </div>
-    );
+    return <ListSkeleton rows={5} avatarSize={44} />;
   }
   if (flatItems.length === 0) {
     return <div className="expInboxState">{emptyLabel}</div>;

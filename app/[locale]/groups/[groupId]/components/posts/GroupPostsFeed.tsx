@@ -2,6 +2,7 @@
 
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
@@ -103,6 +104,8 @@ export default function GroupPostsFeed({
   onMediaTabChange,
   feedLeadingContent = null,
 }: GroupPostsFeedProps) {
+  const tCommon = useTranslations("common");
+  const tProfile = useTranslations("profile");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -422,7 +425,7 @@ export default function GroupPostsFeed({
         } else {
           setError(
             (e instanceof Error ? e.message : null) ??
-              "No se pudieron cargar las publicaciones. Intenta de nuevo.",
+              tProfile("loadPostsError"),
           );
         }
       } finally {
@@ -1004,7 +1007,7 @@ const uploadedVideoCovers =
 
       await loadPosts();
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo fijar o desfijar la publicación.");
+      setError((e instanceof Error ? e.message : null) ?? tCommon("pinError"));
       throw e;
     }
   }
@@ -1024,7 +1027,7 @@ const uploadedVideoCovers =
     } catch (e: unknown) {
       setError(
         (e instanceof Error ? e.message : null) ??
-          "No se pudo fijar o desfijar la publicación.",
+          tCommon("pinError"),
       );
       throw e;
     }
