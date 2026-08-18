@@ -47,7 +47,6 @@ type PostCommentsPanelProps = {
   mentionsDisabled?: boolean;
   creatingComment: boolean;
   deletingCommentId: string | null;
-  inlineError: string | null;
   canUseGroupMemberBlock?: boolean;
   canModerateGroupAuthor?: boolean;
   isPostAuthor?: boolean;
@@ -122,7 +121,6 @@ export default function PostCommentsPanel({
   mentionsDisabled = false,
   creatingComment,
   deletingCommentId,
-  inlineError,
   canUseGroupMemberBlock = false,
   canModerateGroupAuthor = false,
   isPostAuthor = false,
@@ -426,16 +424,6 @@ export default function PostCommentsPanel({
     cursor: "not-allowed",
   };
 
-  const inlineErrorStyle: CSSProperties = {
-    borderRadius: 10,
-    border: "1px solid rgba(255,90,90,0.24)",
-    background: "rgba(120,18,18,0.28)",
-    color: "#ffdada",
-    padding: "10px 12px",
-    fontSize: 12,
-    lineHeight: 1.4,
-  };
-
   // Cuántos skeletons pintar mientras carga: según el contador real, con tope por
   // vista (desktop pagina de a `visibleCount`≈5; en celular un máximo que llena la
   // pantalla). Mínimo 1 para que siempre haya señal de carga.
@@ -555,7 +543,6 @@ export default function PostCommentsPanel({
 
           {/* Composer */}
           <div style={{ display: "grid", gap: 8 }}>
-            {inlineError && <div style={inlineErrorStyle}>{inlineError}</div>}
 
             <div style={pillWrapperStyle}>
               <div style={pillFieldStyle}>
@@ -675,7 +662,11 @@ export default function PostCommentsPanel({
         style={{
           position: "fixed",
           inset: 0,
-          zIndex: 2147483646,
+          // Por debajo del máximo a propósito: la cabecera (2147483646/47) queda
+          // reservada al menú de acciones de un comentario, que se abre DESDE
+          // aquí y tiene que verse encima. Mismo criterio que VIEWER_OVERLAY_Z
+          // en PostImageViewer.
+          zIndex: 2147481000,
           // Oscuro y borroso: así el contenido brillante de atrás (que asomaba en la
           // franja del teclado) queda difuminado y pasa desapercibido. El 0.85 de
           // negro asegura el oscurecimiento aunque iOS no aplique el backdrop-filter.
@@ -707,7 +698,7 @@ export default function PostCommentsPanel({
                 bottom: "auto" as const,
               }
             : { inset: 0 }),
-          zIndex: 2147483647,
+          zIndex: 2147481001,
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "center",
@@ -924,7 +915,6 @@ export default function PostCommentsPanel({
             gap: 8,
           }}
         >
-          {inlineError && <div style={inlineErrorStyle}>{inlineError}</div>}
 
           <div style={pillWrapperStyle}>
             <div style={pillFieldStyle}>

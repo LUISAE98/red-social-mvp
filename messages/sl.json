@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Za vsak komentar, ki ga oboževalec plača, zaslužiš",
     "scConfigSavedNote": "Shranjene nastavitve bodo uporabljene v vseh tvojih naslednjih prenosih.",
     "scConfigSaveButton": "Shrani nastavitve",
-    "createStreamError": "Prenosa ni bilo mogoče ustvariti."
+    "createStreamError": "Prenosa ni bilo mogoče ustvariti.",
+    "cameraInterrupted": "Kamera je izgubljena, prenos še vedno poteka v živo",
+    "cameraResume": "Nadaljuj kamero"
   },
   "completeProfile": {
     "title": "Dopolni svoj profil",

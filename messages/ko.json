@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "팬이 결제한 댓글 하나당 받는 금액",
     "scConfigSavedNote": "저장한 설정은 앞으로의 모든 라이브에 적용됩니다.",
     "scConfigSaveButton": "설정 저장",
-    "createStreamError": "스트림을 만들지 못했습니다."
+    "createStreamError": "스트림을 만들지 못했습니다.",
+    "cameraInterrupted": "카메라가 끊겼습니다, 방송은 계속 진행 중입니다",
+    "cameraResume": "카메라 다시 시작"
   },
   "completeProfile": {
     "title": "프로필 완성하기",

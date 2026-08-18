@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Fanın ödədiyi hər şərh üçün qazancın",
     "scConfigSavedNote": "Yadda saxlanılan parametrlər bundan sonrakı bütün yayımlarında istifadə olunacaq.",
     "scConfigSaveButton": "Parametrləri yadda saxla",
-    "createStreamError": "Yayım yaradıla bilmədi."
+    "createStreamError": "Yayım yaradıla bilmədi.",
+    "cameraInterrupted": "Kamera itdi, yayım hələ də canlıdır",
+    "cameraResume": "Kameranı bərpa et"
   },
   "completeProfile": {
     "title": "Profilini tamamla",

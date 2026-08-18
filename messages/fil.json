@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Sa bawat komentong binabayaran ng fan, kikita ka ng",
     "scConfigSavedNote": "Gagamitin ang mga naka-save na setting sa lahat ng paparating mong live.",
     "scConfigSaveButton": "I-save ang mga setting",
-    "createStreamError": "Hindi nagawa ang stream."
+    "createStreamError": "Hindi nagawa ang stream.",
+    "cameraInterrupted": "Nawala ang camera, live pa rin ang broadcast",
+    "cameraResume": "Ipagpatuloy ang camera"
   },
   "completeProfile": {
     "title": "Kumpletuhin ang profile mo",

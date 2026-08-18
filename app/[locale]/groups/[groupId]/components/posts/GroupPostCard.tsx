@@ -4,6 +4,8 @@
 
 import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 import { TextButton, IconButton } from "@/components/ui";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import Image from "next/image";
 import { intlLocale } from "@/i18n/locales";
 import Hls from "hls.js";
@@ -327,6 +329,7 @@ onToggleProfilePin,
   useBodyScrollLock(menuOpen || muteModalOpen);
   const [muteDays, setMuteDays] = useState("7");
   const [inlineActionError, setInlineActionError] = useState<string | null>(null);
+  const { toast: cardToast, showToast: showCardToast } = useVibraToast();
   const [flameBusy, setFlameBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [pinBusy, setPinBusy] = useState(false);
@@ -519,14 +522,19 @@ useEffect(() => {
     return () => media.removeListener(update);
   }, []);
 
+  /**
+   * Los errores de acción salen como VibraToast, no como caja roja en el hilo.
+   *
+   * La caja era el aviso viejo y además llegaba DUPLICADA: el feed ya avisa por
+   * toast en su `catch` y luego relanza el error, así que la tarjeta lo pintaba
+   * una segunda vez. Aquí solo quedan los avisos propios de la tarjeta —los
+   * guardas locales—, y los que vienen del feed ya no se repiten.
+   */
   useEffect(() => {
     if (!inlineActionError) return;
-
-    const timer = window.setTimeout(() => {
-      setInlineActionError(null);
-    }, 4000);
-
-    return () => window.clearTimeout(timer);
+    showCardToast(inlineActionError, "error");
+    setInlineActionError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inlineActionError]);
 
       useEffect(() => {
@@ -1016,7 +1024,9 @@ function handleToggleFlame() {
     } catch (e: unknown) {
       setOptimisticViewerHasFlamed(flameServerStateRef.current);
       setOptimisticLikesCount(post.counts?.likes ?? 0);
-      setInlineActionError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateFlame"));
+      // El feed ya avisó por toast en su catch antes de relanzar; repetirlo aquí
+      // era la doble alerta.
+
     } finally {
       setFlameBusy(false);
     }
@@ -1051,7 +1061,9 @@ function handleToggleSave() {
     } catch (e: unknown) {
       setOptimisticViewerHasSaved(saveServerStateRef.current);
       setOptimisticSavesCount(post.counts?.saves ?? 0);
-      setInlineActionError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateSave"));
+      // El feed ya avisó por toast en su catch antes de relanzar; repetirlo aquí
+      // era la doble alerta.
+
     } finally {
       setSaveBusy(false);
     }
@@ -1177,9 +1189,9 @@ async function handleLoadOlderComments() {
       setCommentText("");
       setCommentMentions([]);
       setCommentImageFile(null);
-    } catch (e: unknown) {
-      const message = (e instanceof Error ? e.message : null) ?? tFeed("errorComment");
-      setInlineActionError(message);
+    } catch {
+      // El feed ya avisó por toast en su catch antes de relanzar; repetirlo aquí
+      // era la doble alerta.
     } finally {
       setCreatingComment(false);
     }
@@ -4948,7 +4960,6 @@ padding: "0 0 2px 0",
       mentionsDisabled={mentionsDisabled}
       creatingComment={creatingComment}
       deletingCommentId={deletingCommentId}
-      inlineError={premiumState.isBlocked ? null : inlineActionError}
       canUseGroupMemberBlock={canUseGroupMemberBlock}
       canModerateGroupAuthor={canModerateGroupAuthor}
       isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
@@ -4998,7 +5009,6 @@ padding: "0 0 2px 0",
       mentionsDisabled={mentionsDisabled}
       creatingComment={creatingComment}
       deletingCommentId={deletingCommentId}
-      inlineError={premiumState.isBlocked ? null : inlineActionError}
       canUseGroupMemberBlock={canUseGroupMemberBlock}
       canModerateGroupAuthor={canModerateGroupAuthor}
       isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
@@ -5059,7 +5069,6 @@ padding: "0 0 2px 0",
   mentionsDisabled={mentionsDisabled}
   creatingComment={creatingComment}
   deletingCommentId={deletingCommentId}
-  inlineError={premiumState.isBlocked ? null : inlineActionError}
   canUseGroupMemberBlock={canUseGroupMemberBlock}
   canModerateGroupAuthor={canModerateGroupAuthor}
   isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
@@ -5131,6 +5140,7 @@ padding: "0 0 2px 0",
     }
   `}
 </style>
+      <VibraToast toast={cardToast} />
     </article>
   );
 }

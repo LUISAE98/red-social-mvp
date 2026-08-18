@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "As gach trácht a íocann duine den lucht leanúna, tuillfidh tú",
     "scConfigSavedNote": "Úsáidfear na socruithe sábháilte i do chraoltaí beo uile amach anseo.",
     "scConfigSaveButton": "Sábháil na socruithe",
-    "createStreamError": "Níorbh fhéidir an sruth a chruthú."
+    "createStreamError": "Níorbh fhéidir an sruth a chruthú.",
+    "cameraInterrupted": "Cailleadh an ceamara, tá an craoladh beo fós",
+    "cameraResume": "Atosaigh an ceamara"
   },
   "completeProfile": {
     "title": "Comhlánaigh do phróifíl",

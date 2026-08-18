@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Fyrir hverja athugasemd sem aðdáandi greiðir færð þú",
     "scConfigSavedNote": "Vistuðu stillingarnar verða notaðar í öllum næstu útsendingum þínum.",
     "scConfigSaveButton": "Vista stillingar",
-    "createStreamError": "Ekki tókst að búa til streymið."
+    "createStreamError": "Ekki tókst að búa til streymið.",
+    "cameraInterrupted": "Myndavélin tapaðist, útsendingin er enn í beinni",
+    "cameraResume": "Halda áfram með myndavél"
   },
   "completeProfile": {
     "title": "Kláraðu prófílinn þinn",

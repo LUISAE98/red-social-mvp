@@ -38,12 +38,16 @@ import { useConfirm } from "@/lib/hooks/useConfirm";
 import { useTranslations } from "next-intl";
 
 /**
- * En móvil el hilo de comentarios vive dentro del panel de PostCommentsPanel,
- * que se dibuja al tope absoluto de la pila (2147483646/47). Con el valor por
- * omisión del panel de confirmación (999990) la pregunta quedaría detrás y
- * parecería que no abre, así que se sube al máximo: el cuerpo del panel toma
- * este valor + 1 y empata con el techo, y al montarse después en el body gana
- * el desempate por orden en el DOM.
+ * La pila de esta pantalla, de abajo arriba:
+ *
+ *   2147481000/01  PostCommentsPanel — la hoja de comentarios
+ *   2147481100/01  ActionsPortal     — el menú de acciones que se abre desde ella
+ *   2147483646/47  esta confirmación — la pregunta que se abre desde el menú
+ *
+ * Cada capa nace de la anterior, así que cada una tiene que ir por encima. Con
+ * el valor por omisión del panel de confirmación (999990) la pregunta quedaría
+ * detrás de las dos y parecería que no abre; el cuerpo del panel toma este valor
+ * + 1 y llega justo al techo de 32 bits.
  */
 const CONFIRM_Z_BASE = 2147483646;
 
@@ -312,7 +316,11 @@ export function ActionsPortal({
         style={{
           position: "fixed",
           inset: 0,
-          zIndex: 99990,
+          // Entre el panel de comentarios (2147481000/01) y la confirmación
+          // (CONFIRM_Z_BASE). El menú se abre DESDE ese panel, que en celular es
+          // una hoja a pantalla completa: con los 99990 de antes se montaba bien
+          // pero quedaba debajo, y parecía que el botón no hacía nada.
+          zIndex: 2147481100,
           background: "rgba(0,0,0,0.50)",
           animation: "vbCmtMenuFadeIn 0.18s ease",
         }}
@@ -328,7 +336,7 @@ export function ActionsPortal({
             bottom: 0,
             insetInlineStart: 0,
             insetInlineEnd: 0,
-            zIndex: 99991,
+            zIndex: 2147481101,
             background: "#111",
             borderStartStartRadius: 20,
             borderStartEndRadius: 20,
@@ -361,7 +369,7 @@ export function ActionsPortal({
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 99991,
+            zIndex: 2147481101,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

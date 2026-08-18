@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Už kiekvieną komentarą, kurį gerbėjas apmoka, uždirbi",
     "scConfigSavedNote": "Išsaugoti nustatymai bus naudojami visose tavo būsimose transliacijose.",
     "scConfigSaveButton": "Išsaugoti nustatymus",
-    "createStreamError": "Nepavyko sukurti transliacijos."
+    "createStreamError": "Nepavyko sukurti transliacijos.",
+    "cameraInterrupted": "Kamera dingo, transliacija vis dar vyksta",
+    "cameraResume": "Tęsti kamerą"
   },
   "completeProfile": {
     "title": "Užbaik savo profilį",

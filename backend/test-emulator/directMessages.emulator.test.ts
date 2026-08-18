@@ -149,7 +149,12 @@ describe("onDirectMessageCreated — a quién se le empuja", () => {
     expect(sendPushToUser).toHaveBeenCalledTimes(1);
     const [uidArg, payload] = vi.mocked(sendPushToUser).mock.calls[0];
     expect(uidArg).toBe(recipient);
-    expect(payload.body).toBe("hola");
+    // El cuerpo NO lleva el mensaje, a proposito: una notificacion se lee en la
+    // pantalla de bloqueo sin desbloquear el telefono. El nombre de quien
+    // escribe si va, que es lo que permite decidir si vale la pena mirar.
+    // Ver la nota B9-medio en backend/src/directMessages.ts.
+    expect(payload.body).toBe("Nuevo mensaje");
+    expect(payload.body).not.toContain("hola");
     // El hilo vive en su propia ruta desde que se separó de comunidades; el
     // deep link viejo (`/groups?dm=…`) ya no existe en ningún lado.
     expect(payload.link).toBe(`/mensajes/${conversationId}`);
@@ -403,16 +408,21 @@ async function fireImageCleanup(
 }
 
 describe("onDirectMessageDeletedCleanupImage — el archivo no sobrevive al mensaje", () => {
-  const imagen = {
-    path: "dmImages/c/u/images/a.jpg",
-    thumbnailPath: "dmImages/c/u/thumbnails/a.jpg",
-  };
+  // ⚠️ La ruta tiene que caer bajo `dmImages/{convId}/{senderId}/`, el prefijo
+  // que exige `storagePathsOf` (B9-C02). Con rutas fijas —`dmImages/c/u/…`— la
+  // funcion las trata como AJENAS, no borra nada y no limpia el documento: el
+  // test fallaba por eso, no por un fallo del codigo. Se construyen por hilo.
+  const imagenDe = (convId: string, senderId: string) => ({
+    path: `dmImages/${convId}/${senderId}/images/a.jpg`,
+    thumbnailPath: `dmImages/${convId}/${senderId}/thumbnails/a.jpg`,
+  });
 
   it("retirar para los dos limpia la imagen del documento", async () => {
     const sender = `s_${uid()}`;
     const recipient = `r_${uid()}`;
     const conversationId = await seedConversation({ sender, recipient, status: "active" });
     const createdAt = admin.firestore.Timestamp.now();
+    const imagen = imagenDe(conversationId, sender);
 
     const after = await fireImageCleanup(
       conversationId,
@@ -431,6 +441,7 @@ describe("onDirectMessageDeletedCleanupImage — el archivo no sobrevive al mens
     const recipient = `r_${uid()}`;
     const conversationId = await seedConversation({ sender, recipient, status: "active" });
     const createdAt = admin.firestore.Timestamp.now();
+    const imagen = imagenDe(conversationId, sender);
 
     const after = await fireImageCleanup(
       conversationId,
@@ -455,6 +466,7 @@ describe("onDirectMessageDeletedCleanupImage — el archivo no sobrevive al mens
     const recipient = `r_${uid()}`;
     const conversationId = await seedConversation({ sender, recipient, status: "active" });
     const createdAt = admin.firestore.Timestamp.now();
+    const imagen = imagenDe(conversationId, sender);
 
     const after = await fireImageCleanup(
       conversationId,

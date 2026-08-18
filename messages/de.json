@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Für jeden Kommentar, den ein Fan bezahlt, verdienst du",
     "scConfigSavedNote": "Die gespeicherten Einstellungen werden in all deinen kommenden Live-Streams verwendet.",
     "scConfigSaveButton": "Einstellungen speichern",
-    "createStreamError": "Der Stream konnte nicht erstellt werden."
+    "createStreamError": "Der Stream konnte nicht erstellt werden.",
+    "cameraInterrupted": "Kamera verloren, die Übertragung läuft weiter",
+    "cameraResume": "Kamera fortsetzen"
   },
   "completeProfile": {
     "title": "Vervollständige dein Profil",

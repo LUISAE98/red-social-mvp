@@ -86,6 +86,12 @@ export const cleanupAbandonedCreditReservations = onSchedule(
     schedule: "every 6 hours",
     timeZone: "America/Mexico_City",
     region: "us-central1",
+    // ⚠️ Sin declarar el secreto, `stripeFetch` responde "Falta el secreto
+    // STRIPE_SECRET_KEY", `cancelIntentIfCancelable` devuelve false y la guarda
+    // del C01 del Bloque 6 corta la devolución: el saldo del comprador quedaba
+    // reservado para siempre y el cron no hacía nada, en silencio. Es el mismo
+    // fallo que tuvo `softDeleteGroup` (Bloque 7).
+    secrets: [stripeSecretKey],
   },
   async () => {
     logger.info("cleanupAbandonedCreditReservations started");

@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Por cada comentário que um fã pagar, você receberá",
     "scConfigSavedNote": "A configuração salva será usada em todas as suas próximas transmissões.",
     "scConfigSaveButton": "Salvar configuração",
-    "createStreamError": "Não foi possível criar a transmissão."
+    "createStreamError": "Não foi possível criar a transmissão.",
+    "cameraInterrupted": "Câmera perdida, a transmissão continua ao vivo",
+    "cameraResume": "Retomar câmera"
   },
   "completeProfile": {
     "title": "Complete seu perfil",

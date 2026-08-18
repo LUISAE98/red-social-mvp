@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Minden hozzászólás után, amit egy rajongó kifizet, ennyit keresel",
     "scConfigSavedNote": "A mentett beállításokat az összes következő adásodban használjuk.",
     "scConfigSaveButton": "Beállítások mentése",
-    "createStreamError": "Az adást nem sikerült létrehozni."
+    "createStreamError": "Az adást nem sikerült létrehozni.",
+    "cameraInterrupted": "A kamera megszakadt, az adás továbbra is él",
+    "cameraResume": "Kamera folytatása"
   },
   "completeProfile": {
     "title": "Töltsd ki a profilod",

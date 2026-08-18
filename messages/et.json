@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Iga fänni makstud kommentaari eest teenid",
     "scConfigSavedNote": "Salvestatud seadeid kasutatakse kõigis su tulevastes otseülekannetes.",
     "scConfigSaveButton": "Salvesta seaded",
-    "createStreamError": "Voogu ei õnnestunud luua."
+    "createStreamError": "Voogu ei õnnestunud luua.",
+    "cameraInterrupted": "Kaamera kadus, ülekanne on endiselt otse",
+    "cameraResume": "Jätka kaamerat"
   },
   "completeProfile": {
     "title": "Täida oma profiil",

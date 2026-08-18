@@ -9,6 +9,7 @@ import {
   useState,
   type ChangeEvent,
   type PointerEvent as ReactPointerEvent,
+  type TouchEvent as ReactTouchEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import type { CommentImage } from "@/lib/posts/types";
@@ -31,6 +32,30 @@ import PostPinchZoomImage from "./PostPinchZoomImage";
 
 const ACCEPT = "image/*,.heic,.heif";
 
+/**
+ * Salida del visor, calcada del de publicaciones (PostImageViewer): la imagen se
+ * desliza hacia abajo encogiendo un poco mientras TODO se transparenta, y el
+ * feed de detrás va asomando. Los números son los mismos a propósito — si se
+ * tocan allí, tocarlos aquí.
+ */
+const CLOSE_MS = 240;
+const CLOSE_EASE = "ease-in";
+/** Recorrido del dedo, en px, que apaga del todo el velo. */
+const DRAG_FADE_PX = 320;
+/** A partir de aquí, soltar cierra. */
+const DRAG_CLOSE_PX = 120;
+
+/** Cuánto se encoge la caja según lo que lleve bajado. Tope del 8%, como allí. */
+function escalaDeArrastre(dy: number): number {
+  const alto = typeof window === "undefined" ? 800 : window.innerHeight;
+  return 1 - Math.min(0.08, (Math.max(0, dy) / Math.max(1, alto)) * 0.12);
+}
+
+/** Opacidad del conjunto según lo que lleve bajado. */
+function opacidadDeArrastre(dy: number): number {
+  return 1 - Math.min(1, Math.max(0, dy) / DRAG_FADE_PX) * 0.85;
+}
+
 export type CommentImageLightboxTarget = {
   image: CommentImage;
   /** Rect de la miniatura de origen, para animar el zoom. */
@@ -48,7 +73,27 @@ export function CommentImageThumb({
 }) {
   const ref = useRef<HTMLButtonElement>(null);
   return (
-    <IconButton label="Ver imagen" size="sm" tone="bare" shape="square" style={{ marginTop: 6 }} ref={ref} onClick={() => onOpen(image, ref.current?.getBoundingClientRect() ?? null)}>
+    // El tamaño va en `style` a propósito: `size="sm"` fija 32×32 en el propio
+    // IconButton, y la miniatura mide 118. Sin esto el botón quedaba en 32px con
+    // la imagen desbordando, que es como se veía rota. `style` se esparce al
+    // final dentro del componente, así que gana sobre su tamaño de tono.
+    <IconButton
+      label="Ver imagen"
+      size="sm"
+      tone="bare"
+      shape="square"
+      style={{
+        marginTop: 6,
+        width: size,
+        height: size,
+        minWidth: size,
+        padding: 0,
+        borderRadius: 12,
+        overflow: "hidden",
+      }}
+      ref={ref}
+      onClick={() => onOpen(image, ref.current?.getBoundingClientRect() ?? null)}
+    >
       <span
         style={{
           display: "block",
@@ -224,6 +269,9 @@ export function CommentImageLightbox({
   const finalRectRef = useRef<Rect | null>(null);
   const closingRef = useRef(false);
   const dragRef = useRef({ startY: 0, dy: 0, active: false });
+  // Con zoom puesto, el arrastre es para pasear la imagen: no cierra. Va en ref
+  // y no en estado porque lo leen los manejadores del gesto, no el render.
+  const zoomedRef = useRef(false);
 
   const url = target?.image.url ?? null;
 
@@ -352,48 +400,52 @@ export function CommentImageLightbox({
       }
     }
     if (bd) {
-      bd.style.transition = "opacity 240ms ease";
+      bd.style.transition = `opacity ${CLOSE_MS}ms ${CLOSE_EASE}`;
       bd.style.opacity = "0";
     }
-    window.setTimeout(onClose, 250);
+    window.setTimeout(onClose, CLOSE_MS + 10);
   }
 
   /**
-   * Arrastrar para cerrar, SOLO con ratón.
+   * Arrastrar hacia abajo para cerrar.
    *
-   * En táctil de esto se encarga `PostPinchZoomImage`, que además distingue el
-   * arrastre del pellizco. Si los dos escucharan, un dedo movería la imagen por
-   * dentro y la caja por fuera a la vez.
+   * Lo gobierna ESTE componente, con ratón y con el dedo, igual que hace el
+   * visor de publicaciones con su contenedor. Antes el táctil lo llevaba
+   * `PostPinchZoomImage`, que solo mueve la imagen por dentro: la caja no
+   * encogía y el velo no se aclaraba, así que en celular el gesto se sentía
+   * distinto al del visor de publicaciones. Al pinch se le deja el pellizco y el
+   * paseo con zoom, que es lo suyo, con `swipeAxis="horizontal"`.
    */
-  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    if (closingRef.current || e.pointerType !== "mouse") return;
+  function empezarArrastre(clientY: number) {
+    if (closingRef.current || zoomedRef.current) return false;
     const box = boxRef.current;
-    if (!box) return;
-    box.setPointerCapture?.(e.pointerId);
-    dragRef.current = { startY: e.clientY, dy: 0, active: true };
+    if (!box) return false;
+    dragRef.current = { startY: clientY, dy: 0, active: true };
     box.style.transition = "none";
+    return true;
   }
 
-  function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+  function moverArrastre(clientY: number) {
     const d = dragRef.current;
     if (!d.active) return;
     const box = boxRef.current;
     const bd = backdropRef.current;
-    let dy = e.clientY - d.startY;
+    let dy = clientY - d.startY;
     if (dy < 0) dy = dy * 0.3; // resistencia hacia arriba
     d.dy = dy;
-    if (box) box.style.transform = `translateY(${dy}px)`;
-    if (bd && dy > 0) {
-      const p = Math.min(1, dy / 320);
-      bd.style.opacity = String(1 - p * 0.85);
+    // Baja y encoge a la vez; el velo se aclara con el recorrido y deja ver lo
+    // que hay detrás. Las tres cosas, con los números del otro visor.
+    if (box) {
+      box.style.transform = `translateY(${dy}px) scale(${escalaDeArrastre(dy)})`;
     }
+    if (bd && dy > 0) bd.style.opacity = String(opacidadDeArrastre(dy));
   }
 
-  function onPointerUp() {
+  function terminarArrastre() {
     const d = dragRef.current;
     if (!d.active) return;
     d.active = false;
-    if (d.dy > 110) {
+    if (d.dy > DRAG_CLOSE_PX) {
       startClose(true);
       return;
     }
@@ -402,13 +454,50 @@ export function CommentImageLightbox({
     const bd = backdropRef.current;
     if (box) {
       box.style.transition = "transform 220ms cubic-bezier(0.22,1,0.36,1)";
-      box.style.transform = "translate(0px, 0px) scale(1)";
+      box.style.transform = "translateY(0px) scale(1)";
     }
     if (bd) {
       bd.style.transition = "opacity 220ms ease";
       bd.style.opacity = "1";
     }
     d.dy = 0;
+  }
+
+  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    if (e.pointerType !== "mouse") return;
+    if (!empezarArrastre(e.clientY)) return;
+    boxRef.current?.setPointerCapture?.(e.pointerId);
+  }
+
+  function onPointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    if (e.pointerType !== "mouse") return;
+    moverArrastre(e.clientY);
+  }
+
+  function onPointerUp(e: ReactPointerEvent<HTMLDivElement>) {
+    if (e.pointerType !== "mouse") return;
+    terminarArrastre();
+  }
+
+  // Táctil: un solo dedo y sin zoom. Con dos dedos manda el pellizco.
+  function onTouchStart(e: ReactTouchEvent<HTMLDivElement>) {
+    if (e.touches.length !== 1) {
+      dragRef.current.active = false;
+      return;
+    }
+    empezarArrastre(e.touches[0]!.clientY);
+  }
+
+  function onTouchMove(e: ReactTouchEvent<HTMLDivElement>) {
+    if (e.touches.length !== 1) {
+      dragRef.current.active = false;
+      return;
+    }
+    moverArrastre(e.touches[0]!.clientY);
+  }
+
+  function onTouchEnd() {
+    terminarArrastre();
   }
 
   if (!target || typeof document === "undefined") return null;
@@ -434,6 +523,10 @@ export function CommentImageLightbox({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
         style={{
           position: "fixed",
           overflow: "hidden",
@@ -476,6 +569,11 @@ export function CommentImageLightbox({
             <PostPinchZoomImage
               src={image.url}
               alt=""
+              // El arrastre vertical lo lleva la caja de fuera (ver empezarArrastre):
+              // así baja, encoge y aclara el velo a la vez, como en el visor de
+              // publicaciones. Aquí el pinch se queda con el pellizco y el paseo.
+              swipeAxis="horizontal"
+              onZoomStateChange={(z) => { zoomedRef.current = z; }}
               // Cerrar por gesto pasa por la MISMA salida animada que la X, para
               // que el visor no desaparezca de golpe.
               onClose={() => startClose(true)}

@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Par katru komentāru, ko fans apmaksā, tu nopelnīsi",
     "scConfigSavedNote": "Saglabātie iestatījumi tiks izmantoti visās tavās nākamajās tiešraidēs.",
     "scConfigSaveButton": "Saglabāt iestatījumus",
-    "createStreamError": "Neizdevās izveidot straumi."
+    "createStreamError": "Neizdevās izveidot straumi.",
+    "cameraInterrupted": "Kamera pazuda, pārraide joprojām notiek tiešraidē",
+    "cameraResume": "Atsākt kameru"
   },
   "completeProfile": {
     "title": "Aizpildi savu profilu",

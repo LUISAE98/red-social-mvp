@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "For hver kommentar, en fan betaler for, tjener du",
     "scConfigSavedNote": "De gemte indstillinger bliver brugt i alle dine kommende udsendelser.",
     "scConfigSaveButton": "Gem indstillinger",
-    "createStreamError": "Streamen kunne ikke oprettes."
+    "createStreamError": "Streamen kunne ikke oprettes.",
+    "cameraInterrupted": "Kameraet blev afbrudt, udsendelsen er stadig live",
+    "cameraResume": "Genoptag kamera"
   },
   "completeProfile": {
     "title": "Gør din profil færdig",

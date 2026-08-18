@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Bagi setiap komen yang dibayar peminat, anda memperoleh",
     "scConfigSavedNote": "Tetapan yang disimpan akan digunakan dalam semua siaran langsung anda yang akan datang.",
     "scConfigSaveButton": "Simpan tetapan",
-    "createStreamError": "Siaran tidak dapat dibuat."
+    "createStreamError": "Siaran tidak dapat dibuat.",
+    "cameraInterrupted": "Kamera terputus, siaran masih langsung",
+    "cameraResume": "Sambung semula kamera"
   },
   "completeProfile": {
     "title": "Lengkapkan profil anda",

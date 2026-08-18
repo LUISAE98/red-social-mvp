@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Jokaisesta kommentista, jonka fani maksaa, ansaitset",
     "scConfigSavedNote": "Tallennettuja asetuksia käytetään kaikissa tulevissa lähetyksissäsi.",
     "scConfigSaveButton": "Tallenna asetukset",
-    "createStreamError": "Lähetystä ei voitu luoda."
+    "createStreamError": "Lähetystä ei voitu luoda.",
+    "cameraInterrupted": "Kamera katkesi, lähetys jatkuu suorana",
+    "cameraResume": "Jatka kameraa"
   },
   "completeProfile": {
     "title": "Täydennä profiilisi",

@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "För varje kommentar som ett fan betalar tjänar du",
     "scConfigSavedNote": "De sparade inställningarna används i alla dina kommande sändningar.",
     "scConfigSaveButton": "Spara inställningar",
-    "createStreamError": "Streamen kunde inte skapas."
+    "createStreamError": "Streamen kunde inte skapas.",
+    "cameraInterrupted": "Kameran tappades, sändningen är fortfarande live",
+    "cameraResume": "Återuppta kameran"
   },
   "completeProfile": {
     "title": "Fyll i din profil",

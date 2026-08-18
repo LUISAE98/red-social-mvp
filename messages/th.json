@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "ทุกคอมเมนต์ที่แฟนจ่ายเงิน คุณจะได้รับ",
     "scConfigSavedNote": "การตั้งค่าที่บันทึกไว้จะใช้กับไลฟ์ครั้งต่อ ๆ ไปทั้งหมดของคุณ",
     "scConfigSaveButton": "บันทึกการตั้งค่า",
-    "createStreamError": "สร้างสตรีมไม่สำเร็จ"
+    "createStreamError": "สร้างสตรีมไม่สำเร็จ",
+    "cameraInterrupted": "กล้องหลุด การถ่ายทอดยังคงสด",
+    "cameraResume": "เริ่มกล้องต่อ"
   },
   "completeProfile": {
     "title": "กรอกโปรไฟล์ให้ครบ",

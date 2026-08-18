@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { TextButton, IconButton } from "@/components/ui";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { intlLocale } from "@/i18n/locales";
 import Link from "next/link";
 import { Timestamp, doc, getDoc } from "firebase/firestore";
@@ -87,6 +89,15 @@ export default function PostCommentThread({
   const [creatingReply, setCreatingReply] = useState(false);
   const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const { toast: threadToast, showToast: showThreadToast } = useVibraToast();
+  /* El aviso sale como VibraToast, no como caja roja: ese estilo se retiró del
+     catálogo y encima llegaba duplicado con el del feed. */
+  useEffect(() => {
+    if (!inlineError) return;
+    showThreadToast(inlineError, "error");
+    setInlineError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inlineError]);
   const [commentLiked, setCommentLiked] = useState(comment.viewerHasFlamed === true);
   const [commentLikes, setCommentLikes] = useState(comment.counts?.likes ?? 0);
   const [localReplyCount, setLocalReplyCount] = useState(comment.counts?.replies ?? 0);
@@ -722,22 +733,6 @@ export default function PostCommentThread({
             </div>
           )}
 
-          {inlineError && (
-            <div
-              style={{
-                marginTop: 8,
-                borderRadius: 10,
-                border: "1px solid rgba(255,90,90,0.24)",
-                background: "rgba(120,18,18,0.28)",
-                color: "#ffdada",
-                padding: "8px 10px",
-                fontSize: 11.5,
-                lineHeight: 1.4,
-              }}
-            >
-              {inlineError}
-            </div>
-          )}
 
           {/* Primera tanda de respuestas: el hueco va aquí abajo, que es donde
               van a aparecer, y no en la etiqueta del botón de arriba. */}
@@ -1006,6 +1001,7 @@ export default function PostCommentThread({
           })}
         />
       )}
+      <VibraToast toast={threadToast} />
     </div>
   );
 }

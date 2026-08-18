@@ -12,6 +12,8 @@ import { rutasDelPost } from "../src/postMediaCleanup";
 describe("rutasDelPost", () => {
   it("recoge original y miniatura de cada imagen", () => {
     const rutas = rutasDelPost({
+      authorId: "u1",
+      groupId: "g1",
       media: [
         { type: "image", path: "posts/g1/u1/images/a.jpg", thumbnailPath: "posts/g1/u1/thumbnails/a.jpg" },
         { type: "image", path: "posts/g1/u1/images/b.jpg", thumbnailPath: "posts/g1/u1/thumbnails/b.jpg" },
@@ -28,6 +30,8 @@ describe("rutasDelPost", () => {
 
   it("incluye la portada del video, que vive fuera de `media`", () => {
     const rutas = rutasDelPost({
+      authorId: "u1",
+      groupId: "g1",
       media: [{ type: "video", thumbnailPath: "posts/g1/u1/thumbnails/cover.jpg" }],
       videoData: { provider: "mux", sourcePath: "posts/g1/u1/thumbnails/cover.jpg" },
     });
@@ -42,6 +46,29 @@ describe("rutasDelPost", () => {
     });
 
     expect(rutas).toEqual([]);
+  });
+
+  // Por qué los posts de prueba llevan `authorId` y `groupId`: sin ellos no hay
+  // prefijo contra el que comparar y NADA se reclama como propio (B8-C01). No es
+  // ceremonia del test, es la invariante: una ruta solo se borra si cae bajo
+  // `posts/{contexto}/{autor}/`. Este caso lo fija para que nadie "arregle" un
+  // fallo futuro quitando el filtro.
+  it("no reclama rutas de otra comunidad, de otra persona, ni con salto de directorio", () => {
+    const rutas = rutasDelPost({
+      authorId: "u1",
+      groupId: "g1",
+      media: [
+        { type: "image", path: "posts/g1/u1/images/mia.jpg" },
+        { type: "image", path: "posts/g2/u9/images/ajena.jpg" },
+        { type: "image", path: "posts/g1/u1/../../g2/u9/images/salto.jpg" },
+      ],
+    });
+
+    expect(rutas).toEqual(["posts/g1/u1/images/mia.jpg"]);
+  });
+
+  it("sin autor no se reclama nada, aunque la ruta parezca suya", () => {
+    expect(rutasDelPost({ media: [{ path: "posts/g1/u1/images/a.jpg" }] })).toEqual([]);
   });
 
   it("aguanta un post sin medios, con `media` mal formado o vacío", () => {

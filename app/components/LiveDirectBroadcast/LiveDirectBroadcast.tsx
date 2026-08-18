@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { getAuth } from "firebase/auth";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { Button } from "@/components/ui";
 const FONT = "inherit";
 
 const ICE_SERVERS: RTCIceServer[] = [
@@ -47,12 +48,25 @@ export default function LiveDirectBroadcast({
   useEffect(() => { onHeadphonesChangeRef.current = onHeadphonesChange; }, [onHeadphonesChange]);
 
   const camOffRef = useRef(false);
+  /** Espejo de `micMuted`, para que la recuperación respete lo que eligió el creador. */
+  const micMutedRef = useRef(false);
   const intentionalStopRef = useRef(false);
   const isLiveRef = useRef(false);
   const isPortraitRef = useRef(false);
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
   const setLiveSentRef = useRef(false);
   const cachedTokenRef = useRef<string | null>(null);
+
+  /**
+   * Los `RTCRtpSender` de la conexión viva. Sin guardarlos no hay forma de
+   * cambiar la pista sin tirar la sesión WHIP: `replaceTrack` sustituye la
+   * cámara o el micrófono dejando intactos ICE, DTLS y los espectadores.
+   */
+  const videoSenderRef = useRef<RTCRtpSender | null>(null);
+  const audioSenderRef = useRef<RTCRtpSender | null>(null);
+  /** Limpieza de los listeners de interrupción de la tanda de pistas actual. */
+  const trackWatchersRef = useRef<(() => void)[]>([]);
+  const recoveringRef = useRef(false);
 
   const [status, setStatus] = useState<BroadcastStatus>("idle");
   const [micMuted, setMicMuted] = useState(false);
@@ -61,6 +75,13 @@ export default function LiveDirectBroadcast({
   const { toast, showToast } = useVibraToast();
   useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [hasMedia, setHasMedia] = useState(false);
+  /**
+   * El sistema operativo nos quitó cámara o micrófono, normalmente por una
+   * llamada entrante. La conexión WebRTC no se entera —sigue mandando negro y
+   * silencio—, así que hay que detectarlo por las pistas, no por la conexión.
+   */
+  const [mediaInterrupted, setMediaInterrupted] = useState(false);
+  const [recovering, setRecovering] = useState(false);
 
   // ── Headphone detection ───────────────────────────────────────────────────
   useEffect(() => {
@@ -162,6 +183,32 @@ export default function LiveDirectBroadcast({
     }
   }, []);
 
+  /**
+   * Vigila una pista para saber si el sistema nos la quitó.
+   *
+   * iOS suele emitir `mute` al entrar la llamada y `unmute` al colgar; Android
+   * tiende a terminarla (`ended`), y entonces ya no revive: hay que pedir una
+   * nueva. Se cubren los tres casos porque el mismo código corre en ambos.
+   */
+  const watchTrack = useCallback((track: MediaStreamTrack) => {
+    const onMute = () => setMediaInterrupted(true);
+    const onUnmute = () => setMediaInterrupted(false);
+    const onEnded = () => setMediaInterrupted(true);
+    track.addEventListener("mute", onMute);
+    track.addEventListener("unmute", onUnmute);
+    track.addEventListener("ended", onEnded);
+    trackWatchersRef.current.push(() => {
+      track.removeEventListener("mute", onMute);
+      track.removeEventListener("unmute", onUnmute);
+      track.removeEventListener("ended", onEnded);
+    });
+  }, []);
+
+  const clearTrackWatchers = useCallback(() => {
+    trackWatchersRef.current.forEach((off) => off());
+    trackWatchersRef.current = [];
+  }, []);
+
   // ── Camera init ────────────────────────────────────────────────────────────
   const initCamera = useCallback(async () => {
     setError(null);
@@ -201,6 +248,11 @@ export default function LiveDirectBroadcast({
       const micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       micTrackRef.current = micStream.getAudioTracks()[0];
 
+      clearTrackWatchers();
+      watchTrack(vTrack);
+      if (micTrackRef.current) watchTrack(micTrackRef.current);
+      setMediaInterrupted(false);
+
       startDrawLoop();
 
       const portrait = typeof window !== "undefined" ? window.innerHeight > window.innerWidth : false;
@@ -211,9 +263,112 @@ export default function LiveDirectBroadcast({
     } catch {
       setError(tLive("errorCameraAccess"));
     }
-  }, [onOrientationChange, startDrawLoop]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onOrientationChange, startDrawLoop, clearTrackWatchers, watchTrack]);
+
+  /**
+   * Vuelve a tomar cámara y micrófono y los mete en la conexión que ya existe.
+   *
+   * NO se toca la sesión WHIP a propósito: `replaceTrack` cambia la pista dentro
+   * del mismo `RTCRtpSender`, así que el espectador no ve un corte ni tiene que
+   * recargar. Si en vez de esto se reiniciara la conexión, cada llamada perdida
+   * echaría a toda la audiencia.
+   */
+  const recoverMedia = useCallback(async () => {
+    if (recoveringRef.current) return;
+    recoveringRef.current = true;
+    setRecovering(true);
+    try {
+      const fresh = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 30, min: 15 },
+          facingMode: "user",
+        },
+        audio: true,
+      });
+
+      const newVideo = fresh.getVideoTracks()[0] ?? null;
+      const newAudio = fresh.getAudioTracks()[0] ?? null;
+
+      // Las pistas viejas se paran DESPUÉS de tener las nuevas: si se paran
+      // antes y el getUserMedia falla, se queda sin nada que emitir.
+      const oldCamera = cameraStreamRef.current;
+      const oldMic = micTrackRef.current;
+
+      if (newVideo) {
+        await videoSenderRef.current?.replaceTrack(newVideo);
+        // El estado de la cámara apagada lo eligió el creador; se respeta.
+        newVideo.enabled = !camOffRef.current;
+      }
+      if (newAudio) {
+        await audioSenderRef.current?.replaceTrack(newAudio);
+        newAudio.enabled = !micMutedRef.current;
+      }
+
+      cameraStreamRef.current = fresh;
+      if (newAudio) micTrackRef.current = newAudio;
+
+      const video = hiddenVideoRef.current;
+      if (video) {
+        video.srcObject = fresh;
+        // El sistema deja el <video> pausado tras la interrupción y no lo
+        // reanuda solo; sin este play() el canvas seguiría pintando negro.
+        await video.play().catch(() => {});
+      }
+
+      oldCamera?.getTracks().forEach((t) => t.stop());
+      if (oldMic && oldMic !== newAudio) oldMic.stop();
+
+      clearTrackWatchers();
+      if (newVideo) watchTrack(newVideo);
+      if (newAudio) watchTrack(newAudio);
+
+      // El navegador suelta el bloqueo de pantalla al ocultarse la página, así
+      // que tras la llamada hay que volver a pedirlo o la pantalla se apaga.
+      if (isLiveRef.current && !wakeLockRef.current && typeof navigator !== "undefined" && "wakeLock" in navigator) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
+        } catch { /* el sistema puede negarlo; no es motivo para cortar */ }
+      }
+
+      setMediaInterrupted(false);
+      setHasMedia(true);
+    } catch {
+      // Se queda el aviso puesto: en iOS recuperar la cámara suele exigir un
+      // gesto del usuario, y el botón de reanudar es justo ese gesto.
+      setMediaInterrupted(true);
+    } finally {
+      recoveringRef.current = false;
+      setRecovering(false);
+    }
+  }, [clearTrackWatchers, watchTrack]);
+
+  /**
+   * Al volver a la pestaña se intenta recuperar solo.
+   *
+   * Una llamada entrante oculta la página, así que este es el momento natural
+   * para reintentar. En Android suele bastar; en iOS puede hacer falta el gesto
+   * del botón, y por eso el aviso sigue en pantalla si esto falla.
+   */
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!isLiveRef.current || intentionalStopRef.current) return;
+      const cam = cameraStreamRef.current?.getVideoTracks()[0];
+      const perdida = !cam || cam.readyState === "ended" || cam.muted;
+      if (perdida) void recoverMedia();
+      else void hiddenVideoRef.current?.play().catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [recoverMedia]);
 
   const releaseTracks = useCallback(() => {
+    clearTrackWatchers();
     stopDrawLoop();
     canvasStreamRef.current?.getTracks().forEach((t) => t.stop());
     canvasStreamRef.current = null;
@@ -230,7 +385,7 @@ export default function LiveDirectBroadcast({
     micTrackRef.current?.stop();
     micTrackRef.current = null;
     setHasMedia(false);
-  }, [stopDrawLoop]);
+  }, [stopDrawLoop, clearTrackWatchers]);
 
   useEffect(() => {
     initCamera();
@@ -356,8 +511,10 @@ export default function LiveDirectBroadcast({
       // the viewer's ontrack fires twice with different streams[0], and the second call
       // (audio) overwrites video.srcObject with an audio-only stream — resulting in size:0x0.
       const localStream = new MediaStream([rawVideoTrack, audioTrack]);
-      pc.addTrack(rawVideoTrack, localStream);
-      pc.addTrack(audioTrack, localStream);
+      // Se guardan los senders: son el único punto por donde se puede sustituir
+      // la cámara o el micrófono sin rehacer la sesión WHIP (ver `recoverMedia`).
+      videoSenderRef.current = pc.addTrack(rawVideoTrack, localStream);
+      audioSenderRef.current = pc.addTrack(audioTrack, localStream);
 
       // Force sendonly: WHIP is browser→CF only. Without this the SDP may be sendrecv and CF
       // answers inactive, meaning no media flows even though ICE+DTLS connect.
@@ -556,6 +713,7 @@ export default function LiveDirectBroadcast({
     if (!track) return;
     const newMuted = !micMuted;
     track.enabled = !newMuted;
+    micMutedRef.current = newMuted;
     setMicMuted(newMuted);
   }, [micMuted]);
 
@@ -608,6 +766,31 @@ export default function LiveDirectBroadcast({
             color: "#6b7280", fontSize: 14,
           }}>
             Iniciando cámara…
+          </div>
+        )}
+
+        {/* Cámara perdida por una llamada u otra app. La transmisión SIGUE viva,
+            así que el aviso lo dice: lo que hay que recuperar es la imagen, no
+            la conexión. El botón es la vía fiable en iOS, donde volver a tomar
+            la cámara suele exigir un gesto del usuario. */}
+        {mediaInterrupted && (
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center", gap: 14,
+            background: "rgba(0,0,0,0.82)", padding: 20, textAlign: "center",
+          }}>
+            <span style={{ color: "#fff", fontSize: 14, lineHeight: 1.45, maxWidth: 280 }}>
+              {tLive("cameraInterrupted")}
+            </span>
+            <Button
+              variant="brand"
+              size="sm"
+              loading={recovering}
+              onClick={() => void recoverMedia()}
+            >
+              {tLive("cameraResume")}
+            </Button>
           </div>
         )}
       </div>

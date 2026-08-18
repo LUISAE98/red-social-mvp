@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "عن كل تعليق يدفعه معجب ستحصل على",
     "scConfigSavedNote": "ستُستخدم الإعدادات المحفوظة في كل بثوثك القادمة.",
     "scConfigSaveButton": "حفظ الإعدادات",
-    "createStreamError": "تعذّر إنشاء البث."
+    "createStreamError": "تعذّر إنشاء البث.",
+    "cameraInterrupted": "انقطعت الكاميرا، والبث ما زال مباشرًا",
+    "cameraResume": "استئناف الكاميرا"
   },
   "completeProfile": {
     "title": "أكمل ملفك الشخصي",

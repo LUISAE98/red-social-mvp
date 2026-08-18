@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Għal kull kumment li jħallas fan, int taqla'",
     "scConfigSavedNote": "L-issettjar maħżun jintuża fix-xandiriet diretti kollha tiegħek li ġejjin.",
     "scConfigSaveButton": "Aħżen l-issettjar",
-    "createStreamError": "L-istream ma setax jinħoloq."
+    "createStreamError": "L-istream ma setax jinħoloq.",
+    "cameraInterrupted": "Il-kamera ntilfet, ix-xandira għadha live",
+    "cameraResume": "Kompli l-kamera"
   },
   "completeProfile": {
     "title": "Lesti l-profil tiegħek",

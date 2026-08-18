@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Voor elke reactie waarvoor een fan betaalt, verdien je",
     "scConfigSavedNote": "De opgeslagen instellingen worden gebruikt in al je volgende lives.",
     "scConfigSaveButton": "Instellingen opslaan",
-    "createStreamError": "De stream kon niet worden aangemaakt."
+    "createStreamError": "De stream kon niet worden aangemaakt.",
+    "cameraInterrupted": "Camera verloren, de uitzending is nog live",
+    "cameraResume": "Camera hervatten"
   },
   "completeProfile": {
     "title": "Maak je profiel compleet",

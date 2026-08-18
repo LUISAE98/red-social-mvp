@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Per cada comentari que pagui un fan, guanyaràs",
     "scConfigSavedNote": "La configuració desada es farà servir en tots els teus directes següents.",
     "scConfigSaveButton": "Desa la configuració",
-    "createStreamError": "No s'ha pogut crear l'emissió."
+    "createStreamError": "No s'ha pogut crear l'emissió.",
+    "cameraInterrupted": "S'ha perdut la càmera, la transmissió continua en directe",
+    "cameraResume": "Reprèn la càmera"
   },
   "completeProfile": {
     "title": "Completa el teu perfil",

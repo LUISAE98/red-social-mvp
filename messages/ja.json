@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "ファンが支払ったコメント1件ごとの収益",
     "scConfigSavedNote": "保存した設定は今後のすべてのライブ配信に適用されます。",
     "scConfigSaveButton": "設定を保存",
-    "createStreamError": "配信を作成できませんでした。"
+    "createStreamError": "配信を作成できませんでした。",
+    "cameraInterrupted": "カメラが切断されました、配信は続いています",
+    "cameraResume": "カメラを再開"
   },
   "completeProfile": {
     "title": "プロフィールを完成させましょう",

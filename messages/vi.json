@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Với mỗi bình luận fan trả tiền, bạn nhận",
     "scConfigSavedNote": "Cài đặt đã lưu sẽ áp dụng cho mọi buổi phát sắp tới của bạn.",
     "scConfigSaveButton": "Lưu cài đặt",
-    "createStreamError": "Không tạo được luồng phát."
+    "createStreamError": "Không tạo được luồng phát.",
+    "cameraInterrupted": "Mất camera, buổi phát vẫn đang trực tiếp",
+    "cameraResume": "Tiếp tục camera"
   },
   "completeProfile": {
     "title": "Hoàn tất hồ sơ của bạn",

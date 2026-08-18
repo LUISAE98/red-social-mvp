@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Pentru fiecare comentariu plătit de un fan vei câștiga",
     "scConfigSavedNote": "Setările salvate vor fi folosite în toate transmisiunile tale următoare.",
     "scConfigSaveButton": "Salvează setările",
-    "createStreamError": "Transmisiunea nu a putut fi creată."
+    "createStreamError": "Transmisiunea nu a putut fi creată.",
+    "cameraInterrupted": "Camera s-a pierdut, transmisiunea continuă în direct",
+    "cameraResume": "Reia camera"
   },
   "completeProfile": {
     "title": "Completează-ți profilul",

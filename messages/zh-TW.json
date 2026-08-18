@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "粉絲每付費一則留言，你就賺到",
     "scConfigSavedNote": "儲存的設定會套用到你之後所有的直播。",
     "scConfigSaveButton": "儲存設定",
-    "createStreamError": "無法建立直播。"
+    "createStreamError": "無法建立直播。",
+    "cameraInterrupted": "相機中斷，直播仍在進行",
+    "cameraResume": "繼續相機"
   },
   "completeProfile": {
     "title": "完成你的個人檔案",

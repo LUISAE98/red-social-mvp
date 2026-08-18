@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Për çdo koment që paguan një fans, do të fitosh",
     "scConfigSavedNote": "Cilësimet e ruajtura do të përdoren në të gjitha transmetimet e tua të ardhshme.",
     "scConfigSaveButton": "Ruaj cilësimet",
-    "createStreamError": "Transmetimi nuk u krijua dot."
+    "createStreamError": "Transmetimi nuk u krijua dot.",
+    "cameraInterrupted": "Kamera humbi, transmetimi vazhdon drejtpërdrejt",
+    "cameraResume": "Rifillo kamerën"
   },
   "completeProfile": {
     "title": "Plotëso profilin tënd",

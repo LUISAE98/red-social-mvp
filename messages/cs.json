@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Za každý komentář, který fanoušek zaplatí, vyděláš",
     "scConfigSavedNote": "Uložené nastavení se použije ve všech tvých dalších vysíláních.",
     "scConfigSaveButton": "Uložit nastavení",
-    "createStreamError": "Vysílání se nepodařilo vytvořit."
+    "createStreamError": "Vysílání se nepodařilo vytvořit.",
+    "cameraInterrupted": "Kamera se ztratila, vysílání stále běží živě",
+    "cameraResume": "Obnovit kameru"
   },
   "completeProfile": {
     "title": "Doplň si profil",

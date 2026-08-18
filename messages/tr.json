@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "Hayranın ödediği her yorum için kazancın",
     "scConfigSavedNote": "Kaydedilen ayarlar bundan sonraki tüm yayınlarında kullanılacak.",
     "scConfigSaveButton": "Ayarları kaydet",
-    "createStreamError": "Yayın oluşturulamadı."
+    "createStreamError": "Yayın oluşturulamadı.",
+    "cameraInterrupted": "Kamera koptu, yayın hâlâ canlı",
+    "cameraResume": "Kamerayı sürdür"
   },
   "completeProfile": {
     "title": "Profilini tamamla",

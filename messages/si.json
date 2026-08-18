@@ -2230,7 +2230,9 @@
     "scConfigEarnNote": "රසිකයා ගෙවන සෑම අදහසකින්ම ඔබ උපයනු ඇත",
     "scConfigSavedNote": "සුරකින ලද සැකසුම් ඔබේ අනාගත සියලු සජීවී විකාශවලට යොදනු ලැබේ.",
     "scConfigSaveButton": "සැකසුම් සුරකින්න",
-    "createStreamError": "ප්‍රවාහය සෑදිය නොහැකි විය."
+    "createStreamError": "ප්‍රවාහය සෑදිය නොහැකි විය.",
+    "cameraInterrupted": "කැමරාව නැති විය, විකාශය තවමත් සජීවීයි",
+    "cameraResume": "කැමරාව නැවත ආරම්භ කරන්න"
   },
   "completeProfile": {
     "title": "ඔබේ පැතිකඩ සම්පූර්ණ කරන්න",
