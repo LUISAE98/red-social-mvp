@@ -834,10 +834,11 @@ describe("DM — mensajes", () => {
   // pueden es verificar que el texto citado sea el que realmente se escribió:
   // eso exigiría leer el original y ambos son participantes del mismo hilo de
   // todos modos — quien cita ya vio el mensaje entero.
+  // ⚠️ B9: la cita ya NO guarda el texto. Era una copia del cliente que las
+  // reglas no podían comprobar; la interfaz lo lee ahora del mensaje original.
   const REPLY = {
     messageId: "m1",
     senderId: BOB,
-    text: "el mensaje original",
   };
 
   it("🟢 responder citando un mensaje del otro", async () => {
@@ -856,7 +857,7 @@ describe("DM — mensajes", () => {
     await seedAll([...base(), ...existingMessage(BOB, "m1")]);
     await assertSucceeds(
       enviarMensaje(as(ALICE), ALICE,
-        message({ replyTo: { ...REPLY, text: "", hasImage: true } })
+        message({ replyTo: { ...REPLY, hasImage: true } })
       )
     );
   });
@@ -885,11 +886,9 @@ describe("DM — mensajes", () => {
     await assertFails(col(message({ replyTo: { ...REPLY, evil: true } })));
     // No es un mapa.
     await assertFails(col(message({ replyTo: "m1" })));
-    // Extracto por encima del tope: la cita se pinta en dos líneas, guardar el
-    // mensaje entero solo engordaría cada respuesta.
-    await assertFails(
-      col(message({ replyTo: { ...REPLY, text: "x".repeat(201) } }))
-    );
+    // ⚠️ B9: guardar el texto de la cita ya no se admite en absoluto. Era una
+    // copia que el cliente podía inventar y que las reglas no podían comprobar.
+    await assertFails(col(message({ replyTo: { ...REPLY, text: "lo que yo diga" } })));
   });
 
   // ── Acciones sobre un mensaje ya enviado ──────────────────────────────────
@@ -1323,21 +1322,21 @@ describe("B9-medio — una cita no se puede fabricar", () => {
   it("🔴 citar un mensaje que no existe", async () => {
     await seedAll(CITA_BASE());
     await assertFails(
-      responder({ messageId: "inventado", senderId: BOB, text: "yo nunca dije esto" })
+      responder({ messageId: "inventado", senderId: BOB })
     );
   });
 
   it("🔴 atribuirle al otro un mensaje que escribí yo", async () => {
     await seedAll([...CITA_BASE(), ...existingMessage(ALICE, "m1")]);
     await assertFails(
-      responder({ messageId: "m1", senderId: BOB, text: "esto lo dijo Bob" })
+      responder({ messageId: "m1", senderId: BOB })
     );
   });
 
   it("🟢 citando de verdad, pasa", async () => {
     await seedAll([...CITA_BASE(), ...existingMessage(BOB, "m1")]);
     await assertSucceeds(
-      responder({ messageId: "m1", senderId: BOB, text: "hola" })
+      responder({ messageId: "m1", senderId: BOB })
     );
   });
 });

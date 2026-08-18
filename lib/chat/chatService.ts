@@ -32,7 +32,6 @@ import {
   DEFAULT_MESSAGE_POLICY,
   INBOX_PAGE_SIZE,
   MESSAGE_MAX_LENGTH,
-  REPLY_PREVIEW_MAX_LENGTH,
   buildParticipantsKey,
   isMessagePolicy,
   type ChatImage,
@@ -198,10 +197,20 @@ export async function createConversationWithFirstMessage(
 export function buildReplyPreview(message: MessageWithId): MessageReply | null {
   if (message.isDeleted) return null;
 
+  // ⚠️ B9. El TEXTO ya no se copia.
+  //
+  // Era una copia que escribía el cliente y que las reglas no podían comprobar:
+  // la cita se recorta a 200 caracteres y un mensaje llega a 2000, así que no hay
+  // con qué compararla y las reglas no saben cortar cadenas. Se podía poner en
+  // boca del otro cualquier cosa.
+  //
+  // Ahora la interfaz lee el texto del mensaje ORIGINAL por su id
+  // (`textoCitado` en ConversationThread). Lo que queda aquí es solo la
+  // referencia, y de eso sí responden las reglas: el mensaje tiene que existir en
+  // el hilo y `senderId` tiene que ser su autor real.
   return {
     messageId: message.id,
     senderId: message.senderId,
-    text: message.text.slice(0, REPLY_PREVIEW_MAX_LENGTH),
     ...(message.image ? { hasImage: true } : {}),
   };
 }
@@ -252,7 +261,6 @@ export async function sendMessage(
           replyTo: {
             messageId: replyTo.messageId,
             senderId: replyTo.senderId,
-            text: replyTo.text.slice(0, REPLY_PREVIEW_MAX_LENGTH),
             ...(replyTo.hasImage ? { hasImage: true } : {}),
           },
         }

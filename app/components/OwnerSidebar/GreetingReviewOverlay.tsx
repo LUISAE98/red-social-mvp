@@ -42,6 +42,12 @@ const VIBRA_GRADIENT = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6
 /** Guiones del prompter, indexados por encargo. Solo en el dispositivo. */
 const PROMPTER_STORAGE_KEY = "vibra.greetingPrompter.v1";
 
+/** Lo que tarda el cruce entre la grabación y la cámara en vivo. */
+const VIDEO_FADE_MS = 280;
+
+/** Lo que dura la salida del panel. Debe coincidir con vibraGreetingPanelOut. */
+const PANEL_CLOSE_MS = 200;
+
 function getGreetingStatusLabel(status: string, t: (key: string) => string): string {
   switch (status) {
     case "delivered": return t("statusDelivered");
@@ -170,6 +176,18 @@ export default function GreetingReviewOverlay({
   const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
   const speechTextRef = useRef<HTMLParagraphElement>(null);
   const speechCursorRef = useRef<HTMLSpanElement>(null);
+
+  // La cámara ya está dando imagen. Sirve para no enseñar el <video> mientras
+  // el navegador abre el dispositivo, que es cuando se ve el rectángulo negro.
+  const [cameraReady, setCameraReady] = useState(false);
+
+  // Cierre animado del panel de laptop
+  const [panelClosing, setPanelClosing] = useState(false);
+  const closeTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+  }, []);
 
   // Prompter (solo en el panel de grabación de laptop)
   //
@@ -594,11 +612,14 @@ export default function GreetingReviewOverlay({
   const handleStopRecording = () => { recorderRef.current?.stop(); };
 
   const handleRepeat = async () => {
+    // La grabación NO se tira aquí. Antes se soltaba de entrada y la zona se
+    // quedaba en negro hasta que el navegador devolvía la cámara; ahora se
+    // mantiene a la vista y se suelta al final, ya fundida bajo la imagen
+    // nueva, así que nunca hay un hueco negro entre las dos.
+    setCameraReady(false);
     cancelDrawLoopRef.current?.(); cancelDrawLoopRef.current = null; rafRecRef.current = null;
     canvasRecRef.current = null;
-    if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
     uploadBlobRef.current = null;
-    setRecordedBlobUrl(null);
     recorderRef.current = null;
     chunksRef.current = [];
     setRecordingSeconds(0);
@@ -617,6 +638,12 @@ export default function GreetingReviewOverlay({
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setRecordPhase("preview");
+      // Con "preview" la grabación empieza a fundirse y la cámara a aparecer.
+      // El desmontaje espera a que termine ese cruce.
+      window.setTimeout(() => {
+        if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+        setRecordedBlobUrl(null);
+      }, VIDEO_FADE_MS);
     } catch {
       setCameraError(tCommon("generalError"));
       stopCamera();
@@ -849,6 +876,18 @@ export default function GreetingReviewOverlay({
   };
 
   const handleClose = () => { stopCamera(); onClose(); };
+
+  /** Cierra el panel de laptop dejando correr antes la animación de salida.
+   *  Sirve tanto al tache como al clic fuera. Si ya se está cerrando no vuelve
+   *  a entrar, para no encadenar temporizadores con dobles clics. */
+  const handleAnimatedClose = () => {
+    if (closeTimerRef.current !== null) return;
+    setPanelClosing(true);
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null;
+      handleClose();
+    }, PANEL_CLOSE_MS);
+  };
 
   // Auto-scroll the instructions <p> to follow the speech cursor
   useEffect(() => {
@@ -1460,8 +1499,10 @@ export default function GreetingReviewOverlay({
     </>
   );
 
-  const recordControls = recordPhase === "done" ? (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+  // Estado de la subida: barra de progreso y ficha del archivo. Se queda en el
+  // panel lateral en las dos ramas; solo los BOTONES salen fuera en laptop.
+  const recordStatus = recordPhase === "done" ? (
+    <>
       {isUploading && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
@@ -1484,6 +1525,36 @@ export default function GreetingReviewOverlay({
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontFamily: fontStack }}>{tCommon("fileReady")}</span>
         </div>
       )}
+    </>
+  ) : null;
+
+  /** Etiqueta del botón de envío, con el progreso encima mientras sube. */
+  const sendLabel = isUploading
+    ? (uploadProgress < 100 ? tServices("uploadingProgress", { progress: uploadProgress }) : tServices("processing"))
+    : req.type === "consejo" ? tServices("sendAdvice") : tServices("sendGreeting");
+
+  const repeatLabel = wasUploadedRef.current ? tCommon("changeFile") : tServices("recordAgain");
+
+  /** Base de los botones que van sobre el video en laptop. Misma geometría que
+   *  el de subir video pregrabado; solo cambia el fondo. */
+  const videoActionsDisabled = busy || isUploading;
+  const videoActionButton: React.CSSProperties = {
+    padding: "11px 18px", borderRadius: 10, border: "none",
+    // Centrado explícito: al estirarse en la rejilla, el texto de un <button>
+    // no se recentra solo con el alto que le sobra.
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em",
+    fontFamily: fontStack, whiteSpace: "nowrap",
+    cursor: videoActionsDisabled ? "not-allowed" : "pointer",
+    filter: videoActionsDisabled ? "brightness(0.72) saturate(0.8)" : "none",
+    transition: "filter 200ms ease",
+    WebkitTapHighlightColor: "transparent",
+  };
+
+  // Los botones apilados a lo ancho del panel lateral. Es lo que sigue usando
+  // celular; en laptop se pintan aparte, sobre el video y en fila.
+  const recordActions = recordPhase === "done" ? (
+    <>
       <button type="button" onClick={handleRepeat} disabled={busy || isUploading} style={{
         width: "100%", height: 38, borderRadius: 10,
         border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)",
@@ -1491,7 +1562,7 @@ export default function GreetingReviewOverlay({
         fontWeight: 600, fontSize: 13,
         cursor: (busy || isUploading) ? "not-allowed" : "pointer", fontFamily: fontStack,
       }}>
-        {wasUploadedRef.current ? tCommon("changeFile") : tServices("recordAgain")}
+        {repeatLabel}
       </button>
       <button type="button" onClick={handleSendGreeting} disabled={busy || isUploading} style={{
         width: "100%", height: 42, borderRadius: 10,
@@ -1502,20 +1573,43 @@ export default function GreetingReviewOverlay({
         cursor: (busy || isUploading) ? "not-allowed" : "pointer",
         fontFamily: fontStack,
       }}>
-        {isUploading
-          ? (uploadProgress < 100 ? tServices("uploadingProgress", { progress: uploadProgress }) : tServices("processing"))
-          : req.type === "consejo" ? tServices("sendAdvice") : tServices("sendGreeting")}
+        {sendLabel}
       </button>
+    </>
+  ) : null;
+
+  const recordControls = recordPhase === "done" ? (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {recordStatus}
+      {recordActions}
     </div>
   ) : null;
 
   // Button overlaid on the camera zone
-  const cameraRecordButton = recordPhase !== "done" ? (
+  //
+  // La altura es un parámetro porque en laptop el botón comparte el pie con el
+  // de subir video pregrabado y tiene que subir para hacerle sitio. En celular
+  // sigue fijo en 28, igual que siempre.
+  const recordButtonHidden = recordPhase === "done";
+  const renderCameraRecordButton = (bottomValue: number) => (
     <button
       type="button"
       onClick={recordPhase === "preview" ? handleStartRecording : handleStopRecording}
+      tabIndex={recordButtonHidden ? -1 : 0}
       style={{
-        position: "absolute", bottom: 28, left: "50%", transform: "translateX(-50%)",
+        position: "absolute", bottom: bottomValue, left: "50%",
+        transform: recordButtonHidden
+          ? "translateX(-50%) scale(0.86)"
+          : "translateX(-50%) scale(1)",
+        opacity: recordButtonHidden ? 0 : 1,
+        visibility: recordButtonHidden ? "hidden" : "visible",
+        pointerEvents: recordButtonHidden ? "none" : "auto",
+        transition: [
+          "bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+          "transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+          "opacity 200ms ease",
+          "visibility 260ms",
+        ].join(", "),
         width: 68, height: 68, borderRadius: "50%",
         border: "3px solid rgba(255,255,255,0.88)",
         background: "transparent",
@@ -1529,7 +1623,7 @@ export default function GreetingReviewOverlay({
         <div style={{ width: 50, height: 50, borderRadius: "50%", background: "#ef4444" }} />
       )}
     </button>
-  ) : null;
+  );
 
   const fileInput = (
     <input
@@ -1781,7 +1875,7 @@ export default function GreetingReviewOverlay({
                   {getRecordingMessage(recordingSeconds, req.type)}
                 </div>
               )}
-              {cameraRecordButton}
+              {recordPhase !== "done" && renderCameraRecordButton(28)}
             </>
           )}
         </div>
@@ -1980,10 +2074,21 @@ export default function GreetingReviewOverlay({
           from { opacity: 0; transform: scale(0.92) translateY(12px); }
           to   { opacity: 1; transform: scale(1) translateY(0); }
         }
+        /* Salida: encoge y cae un poco, con curva de aceleración —sin rebote,
+           que al irse no pega—. Se queda en el último fotograma (forwards)
+           para que no dé un salto justo antes de desmontarse. */
+        @keyframes vibraGreetingPanelOut {
+          from { opacity: 1; transform: scale(1) translateY(0); }
+          to   { opacity: 0; transform: scale(0.94) translateY(8px); }
+        }
         @media (prefers-reduced-motion: reduce) {
           @keyframes vibraGreetingPanelPop {
             from { opacity: 0; transform: none; }
             to   { opacity: 1; transform: none; }
+          }
+          @keyframes vibraGreetingPanelOut {
+            from { opacity: 1; transform: none; }
+            to   { opacity: 0; transform: none; }
           }
         }
         /* El color del texto de ayuda no se puede dar en línea. */
@@ -2002,9 +2107,46 @@ export default function GreetingReviewOverlay({
         WebkitBackdropFilter: "blur(12px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "24px 10vw", boxSizing: "border-box", fontFamily: fontStack,
+        // El fondo se va con el panel, no de golpe al desmontarse.
+        opacity: panelClosing ? 0 : 1,
+        transition: `opacity ${PANEL_CLOSE_MS}ms ease`,
       }}
-        onClick={handleClose}
+        onClick={handleAnimatedClose}
       >
+
+        {/* El tache va FUERA del panel, sobre su esquina superior derecha.
+            Dentro se confundía con la flecha de plegar, que está a un dedo de
+            distancia y hace algo muy distinto. La animación de entrada y salida
+            se mueve a esta envoltura para que el tache entre y salga con el
+            panel en vez de aparecer y desaparecer de golpe. */}
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 1180,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 8,
+            animation: panelClosing
+              ? `vibraGreetingPanelOut ${PANEL_CLOSE_MS}ms cubic-bezier(0.4, 0, 1, 1) forwards`
+              : "vibraGreetingPanelPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+          }}
+        >
+          <IconButton
+            label={tCommon("closeAriaLabel")}
+            size="sm"
+            tone="bare"
+            shape="square"
+            style={{ boxShadow: "none" }}
+            onClick={(e) => { e.stopPropagation(); handleAnimatedClose(); }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M6 6L18 18M18 6L6 18"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+              />
+            </svg>
+          </IconButton>
 
         {/* UN SOLO panel de grabación. La información ya no es un panel
             hermano: va superpuesta sobre su lado izquierdo, para que el video
@@ -2015,7 +2157,6 @@ export default function GreetingReviewOverlay({
           style={{
             position: "relative",
             width: "100%",
-            maxWidth: 1180,
             height: "min(86dvh, 826px)",
             overflow: "hidden",
             background: "#000",
@@ -2023,7 +2164,6 @@ export default function GreetingReviewOverlay({
             borderRadius: 16,
             border: "1px solid rgba(255,255,255,0.10)",
             boxShadow: "0 24px 80px rgba(0,0,0,0.64)",
-            animation: "vibraGreetingPanelPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
           }}
         >
         {/* El VELO, en su propia capa y sin nada dentro. Es lo único que cambia
@@ -2184,7 +2324,7 @@ export default function GreetingReviewOverlay({
                       </div>
                     )
                   )}
-                  <button type="button" onClick={handleClose} style={{
+                  <button type="button" onClick={handleAnimatedClose} style={{
                     width: "100%", height: 38, borderRadius: 10,
                     border: "none", background: "transparent",
                     color: "rgba(255,255,255,0.38)", fontWeight: 500, fontSize: 13,
@@ -2194,19 +2334,10 @@ export default function GreetingReviewOverlay({
                   </button>
                 </>
               ) : uploadSucceeded ? successContent : (
-                <>
-                  {recordControls}
-                  {recordPhase === "preview" && (
-                    <button type="button" onClick={() => { setUploadError(null); fileInputRef.current?.click(); }} style={{
-                      width: "100%", height: 34, borderRadius: 10,
-                      border: "1px solid rgba(255,255,255,0.08)", background: "transparent",
-                      color: "rgba(255,255,255,0.38)", fontWeight: 500, fontSize: 12,
-                      cursor: "pointer", fontFamily: fontStack,
-                    }}>
-                      {tServices("uploadVideo")}
-                    </button>
-                  )}
-                </>
+                // Aquí solo queda el estado de la subida. Subir video
+                // pregrabado, repetir y enviar viven al pie de la zona de
+                // grabación, sobre el video.
+                recordStatus
               )}
             </div>
 
@@ -2216,43 +2347,49 @@ export default function GreetingReviewOverlay({
         {/* La FLECHA, en su propia capa. No viaja con el contenido: se queda
             siempre sobre la pestaña, alineada a la derecha del panel de datos
             cuando está abierto, y es lo que permite volver a consultarlo a
-            media grabación. Solo se desplaza, no reacomoda nada. */}
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setInfoOpen((prev) => !prev); }}
-          aria-expanded={infoOpen}
-          aria-label={infoOpen ? tCommon("closeAriaLabel") : tCommon("viewLabel")}
-          title={infoOpen ? tCommon("closeAriaLabel") : tCommon("viewLabel")}
+            media grabación. Solo se desplaza, no reacomoda nada.
+
+            La caja del botón mide 32, así que arranca en 31 para que el icono
+            quede centrado con el aro del avatar. */}
+        <div
           style={{
             position: "absolute",
             zIndex: 8,
-            // Centrada con el avatar: 20 de relleno del panel + 27 de medio aro,
-            // menos los 11 de media flecha.
-            top: 36,
-            insetInlineStart: infoOpen ? `calc(${infoWidth} - 42px)` : 17,
+            top: 31,
+            insetInlineStart: infoOpen ? `calc(${infoWidth} - 47px)` : 12,
             transition: "inset-inline-start 300ms cubic-bezier(0.4, 0, 0.2, 1)",
-            background: "transparent", border: "none", color: "rgba(255,255,255,0.78)",
-            cursor: "pointer", padding: 0, lineHeight: 0, borderRadius: 8,
-            display: "inline-flex", alignItems: "center",
+            display: "flex",
           }}
         >
-          {/* Apunta a la izquierda para plegar y a la derecha para volver a
-              abrir. La variable --vb-dir lo espeja en árabe y hebreo, donde
-              "cerrar hacia el lado" va al revés. */}
-          <svg
-            width="22" height="22" viewBox="0 0 24 24" fill="none"
-            style={{
-              transform: `scaleX(calc(var(--vb-dir, 1) * ${infoOpen ? 1 : -1}))`,
-              transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
-            }}
+          {/* Plegar no es cerrar, así que no se anuncia como "Cerrar": el tache
+              que sí cierra vive arriba, fuera del panel. */}
+          <IconButton
+            label={infoOpen ? tCommon("hide") : tCommon("show")}
+            size="sm"
+            tone="bare"
+            shape="square"
+            style={{ boxShadow: "none" }}
+            aria-expanded={infoOpen}
+            onClick={(e) => { e.stopPropagation(); setInfoOpen((prev) => !prev); }}
           >
-            <path
-              d="M15 5L8 12L15 19"
-              stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+            {/* Apunta a la izquierda para plegar y a la derecha para volver a
+                abrir. La variable --vb-dir lo espeja en árabe y hebreo, donde
+                "cerrar hacia el lado" va al revés. */}
+            <svg
+              width="22" height="22" viewBox="0 0 24 24" fill="none"
+              style={{
+                transform: `scaleX(calc(var(--vb-dir, 1) * ${infoOpen ? 1 : -1}))`,
+                transition: "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+              }}
+            >
+              <path
+                d="M15 5L8 12L15 19"
+                stroke="currentColor" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round"
+              />
+            </svg>
+          </IconButton>
+        </div>
 
         {/* ── PROMPTER ────────────────────────────────────────────────────────
             Espejo del panel de datos, en el borde opuesto y con las mismas tres
@@ -2435,21 +2572,36 @@ export default function GreetingReviewOverlay({
                 )
               ) : (
                 <>
-                  {/* Live webcam — hidden when done */}
+                  {/* Cámara en vivo. Se superpone con la grabación en lugar de
+                      alternarse con display, que es lo que producía el corte
+                      seco. Solo se muestra cuando ya hay imagen que enseñar. */}
                   <video
                     ref={videoRef}
                     autoPlay muted playsInline
                     disablePictureInPicture
                     onContextMenu={(e) => e.preventDefault()}
+                    onPlaying={() => setCameraReady(true)}
+                    onLoadedData={() => setCameraReady(true)}
                     style={{
+                      position: "absolute", inset: 0,
                       height: "100%", width: "100%",
                       objectFit: "cover", background: "#000",
-                      display: recordPhase === "done" ? "none" : "block",
+                      opacity: (recordPhase !== "done" && cameraReady) ? 1 : 0,
+                      transition: `opacity ${VIDEO_FADE_MS}ms ease`,
                       border: "1px solid rgba(255,255,255,0.08)",
                     }}
                   />
-                  {recordPhase === "done" && recordedBlobUrl && (
-                    <div style={{ position: "relative", height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {recordedBlobUrl && (
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      height: "100%", width: "100%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      // Se queda montada un instante tras pulsar repetir, ya
+                      // invisible, para poder fundirse en vez de esfumarse.
+                      opacity: recordPhase === "done" ? 1 : 0,
+                      pointerEvents: recordPhase === "done" ? "auto" : "none",
+                      transition: `opacity ${VIDEO_FADE_MS}ms ease`,
+                    }}>
                     <video
                       ref={playbackVideoRef}
                       src={recordedBlobUrl}
@@ -2494,11 +2646,105 @@ export default function GreetingReviewOverlay({
                       {getRecordingMessage(recordingSeconds, req.type)}
                     </div>
                   )}
-                  {cameraRecordButton}
+                  {renderCameraRecordButton(recordPhase === "recording" ? 28 : 84)}
+
+                  {/* Subir un video pregrabado, justo debajo del botón rojo.
+                      Se queda montado durante la grabación en vez de quitarse
+                      del árbol, que es lo único que permite despedirlo con una
+                      transición en lugar de que desaparezca de golpe. */}
+                  {(() => {
+                    const hidden = recordPhase !== "preview";
+                    return (
+                    <button
+                      type="button"
+                      onClick={() => { setUploadError(null); fileInputRef.current?.click(); }}
+                      tabIndex={hidden ? -1 : 0}
+                      style={{
+                        position: "absolute", bottom: 28, left: "50%",
+                        transform: hidden
+                          ? "translateX(-50%) translateY(12px) scale(0.94)"
+                          : "translateX(-50%) translateY(0) scale(1)",
+                        opacity: hidden ? 0 : 1,
+                        visibility: hidden ? "hidden" : "visible",
+                        pointerEvents: hidden ? "none" : "auto",
+                        transition:
+                          "opacity 200ms ease, transform 300ms cubic-bezier(0.4, 0, 0.2, 1), visibility 300ms",
+                        padding: "11px 18px", borderRadius: 10, border: "none",
+                        background: "#3b82f6", color: "#fff",
+                        fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em",
+                        fontFamily: fontStack, cursor: "pointer", whiteSpace: "nowrap",
+                        WebkitTapHighlightColor: "transparent",
+                      }}
+                    >
+                      {tServices("uploadPrerecordedVideo")}
+                    </button>
+                    );
+                  })()}
+
+                  {/* Repetir y enviar, al pie del video igual que el de subir.
+                      Suben para dejar libre la línea de tiempo cuando aparece,
+                      y vuelven a bajar cuando se esconde. Van por encima de los
+                      controles del video, que traen un cazador de clics a todo
+                      lo ancho y si no se los tragaría. */}
+                  {(() => {
+                    const hidden = recordPhase !== "done" || uploadSucceeded;
+                    return (
+                    <div style={{
+                      position: "absolute", zIndex: 6, left: "50%",
+                      bottom: vpChromeVisible ? 60 : 28,
+                      // Se quedan montados para poder despedirse con el mismo
+                      // fundido con el que entran los de grabar y subir.
+                      transform: hidden
+                        ? "translateX(-50%) translateY(12px) scale(0.94)"
+                        : "translateX(-50%) translateY(0) scale(1)",
+                      opacity: hidden ? 0 : 1,
+                      visibility: hidden ? "hidden" : "visible",
+                      pointerEvents: hidden ? "none" : "auto",
+                      transition: [
+                        "bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+                        "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+                        "opacity 200ms ease",
+                        "visibility 300ms",
+                      ].join(", "),
+                      // Rejilla en vez de fila: dos columnas de 1fr en un
+                      // contenedor de ancho automático se igualan al contenido
+                      // más ancho, así que los dos botones miden lo mismo y esa
+                      // medida la marca el texto más largo. Con flex cada uno
+                      // mediría lo suyo. `stretch` iguala también el alto.
+                      display: "grid",
+                      gridAutoFlow: "column",
+                      gridAutoColumns: "1fr",
+                      alignItems: "stretch",
+                      gap: 10,
+                    }}>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleRepeat(); }}
+                        disabled={busy || isUploading}
+                        style={{ ...videoActionButton, background: "#3b82f6" }}
+                      >
+                        {repeatLabel}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleSendGreeting(); }}
+                        disabled={busy || isUploading}
+                        style={{
+                          ...videoActionButton,
+                          // El degradado del botón de seguir de un perfil ajeno.
+                          background: "linear-gradient(135deg, #ec4899, #9333ea)",
+                        }}
+                      >
+                        {sendLabel}
+                      </button>
+                    </div>
+                    );
+                  })()}
                 </>
               )}
             </div>
           </div>
+        </div>
         </div>
       </div>
       </>,

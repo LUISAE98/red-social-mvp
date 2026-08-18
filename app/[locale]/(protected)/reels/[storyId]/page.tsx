@@ -18,7 +18,8 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import { useScreenReady } from "@/lib/useScreenReady";
 import { useReelFeed } from "@/lib/reels/useReelFeed";
-import { dedupeStories, storyVideoKey } from "@/lib/reels/reelStories";
+import { dedupeItems, storyItem } from "@/lib/reels/reelItems";
+import { storyVideoKey } from "@/lib/reels/reelStories";
 import type { StoryDoc } from "@/lib/stories/types";
 import ReelsSurface from "@/components/reels/ReelsSurface";
 
@@ -28,7 +29,7 @@ export default function ReelStoryPage() {
   const params = useParams<{ storyId: string }>();
   const storyId = typeof params?.storyId === "string" ? params.storyId : "";
 
-  const { stories, ready, loadMore, recordEngagement } = useReelFeed(user?.uid);
+  const { items, ready, loadMore, recordEngagement } = useReelFeed(user?.uid);
   // `undefined` = todavía buscando; `null` = no existe o no se puede leer.
   const [target, setTarget] = useState<StoryDoc | null | undefined>(undefined);
 
@@ -58,17 +59,19 @@ export default function ReelStoryPage() {
     };
   }, [storyId]);
 
-  // La historia va DELANTE y el resto del feed detrás, quitando la copia que ya
-  // esté en la lista para que no salga dos veces.
-  const feed = useMemo(
+  // La historia compartida abre el feed y su copia sale de donde estuviera,
+  // para no verla dos veces.
+  const feedItems = useMemo(
     () =>
       target
-        ? dedupeStories([
-            target,
-            ...stories.filter((s) => storyVideoKey(s) !== storyVideoKey(target)),
+        ? dedupeItems([
+            storyItem(target),
+            ...items.filter(
+              (i) => i.kind !== "story" || storyVideoKey(i.story) !== storyVideoKey(target),
+            ),
           ])
-        : stories,
-    [target, stories],
+        : items,
+    [target, items],
   );
 
   if (!user) return null;
@@ -77,7 +80,7 @@ export default function ReelStoryPage() {
     <ReelsSurface
       uid={user.uid}
       isAnonymous={!!user.isAnonymous}
-      stories={feed}
+      items={feedItems}
       ready={ready && resolved}
       loadMore={loadMore}
       recordEngagement={recordEngagement}

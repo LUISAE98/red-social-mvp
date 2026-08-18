@@ -2014,7 +2014,8 @@
     "transitionFailed": "Přechod členů se nepodařilo dokončit.",
     "configAllSaved": "Předplatné, katalog a dar uloženy.",
     "prompterTitle": "Teleprompter",
-    "prompterPlaceholder": "Napiš sem, co chceš říct"
+    "prompterPlaceholder": "Napiš sem, co chceš říct",
+    "uploadPrerecordedVideo": "Nahrát předem natočené video"
   },
   "live": {
     "accessTicket": "Vstupenka",

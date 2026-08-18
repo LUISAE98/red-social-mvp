@@ -2014,7 +2014,8 @@
     "transitionFailed": "Liikmete üleminekut ei õnnestunud lõpule viia.",
     "configAllSaved": "Tellimus, kataloog ja annetus salvestatud.",
     "prompterTitle": "Teleprompter",
-    "prompterPlaceholder": "Kirjuta siia, mida tahad öelda"
+    "prompterPlaceholder": "Kirjuta siia, mida tahad öelda",
+    "uploadPrerecordedVideo": "Laadi üles eelsalvestatud video"
   },
   "live": {
     "accessTicket": "Ligipääsupilet",

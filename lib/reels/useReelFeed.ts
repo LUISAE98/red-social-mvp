@@ -14,20 +14,29 @@
 // por fecha, se rankea entera y se sirve. Rankear de a una daría un orden que en
 // realidad es solo cronológico.
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { collection, getDocs, limit, orderBy, query, type QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getUserTasteVector } from "@/app/components/GroupRecommendations/recommendation-engine";
 import type { CanonicalGroupCategory } from "@/types/group";
 import type { StoryDoc } from "@/lib/stories/types";
 import {
-  dedupeStories,
   fetchDiscoveryReelPage,
   fetchFollowedReelStories,
   preferCreatorCopy,
   storyVideoKey,
 } from "./reelStories";
-import { mixByQuota, rankStories, spreadByCreator, splitLanes } from "./reelRanking";
+import {
+  authorOfItem,
+  laneOfItem,
+  mixByQuota,
+  rankLives,
+  rankStories,
+  spreadByCreator,
+  splitLanes,
+} from "./reelRanking";
+import { dedupeItems, storiesOf, storyItem, type ReelItem } from "./reelItems";
+import { subscribeReelLives } from "./reelLives";
 import {
   getReelFeedGeneration,
   getReelFeedGenerationServer,
@@ -61,11 +70,11 @@ const MAX_EMPTY_PAGES = 5;
 // fotograma las historias de la sesión anterior.
 type State = {
   uid: string | null;
-  stories: StoryDoc[];
+  items: ReelItem[];
   ready: boolean;
 };
 
-const EMPTY: State = { uid: null, stories: [], ready: false };
+const EMPTY: State = { uid: null, items: [], ready: false };
 
 async function fetchViewedMap(uid: string): Promise<Map<string, number>> {
   const map = new Map<string, number>();
@@ -116,25 +125,48 @@ export function useReelFeed(uid: string | null | undefined) {
   const interestUidRef = useRef<string | null>(null);
   // Solo se escribe si de verdad cambió algo durante la sesión.
   const interestDirtyRef = useRef(false);
+  // Lives en curso según la suscripción. Estar aquí no es estar en el feed: solo
+  // entran cuando una tanda de descubrimiento los coloca.
+  const livesRef = useRef<ReelItem[]>([]);
+  const placedLivesRef = useRef<Set<string>>(new Set());
+  // A quién sigue el usuario. Es la señal fuerte del ranking de lives.
+  const followingIdsRef = useRef<Set<string>>(new Set());
 
   /** Rankea y reparte una tanda cruda de descubrimiento. */
-  const arrange = useCallback((pool: StoryDoc[]): StoryDoc[] => {
+  const arrange = useCallback((pool: StoryDoc[]): ReelItem[] => {
     // Dentro de la tanda puede venir el mismo video dos veces (la copia del
     // creador y la del comprador). Se queda la del creador, para que las vistas
     // y la popularidad se acumulen en SU documento.
     const fresh = preferCreatorCopy(pool).filter(
       (s) => !seenIdsRef.current.has(s.id) && !seenVideosRef.current.has(storyVideoKey(s)),
     );
-    if (fresh.length === 0) return [];
+    // Los lives que aún no ha colocado ninguna tanda. Uno ya colocado no vuelve
+    // a entrar aunque siga transmitiendo.
+    const lives = livesRef.current.filter((l) => !placedLivesRef.current.has(l.key));
+    if (fresh.length === 0 && lives.length === 0) return [];
+
     const ranked = rankStories(fresh, tasteRef.current, viewedRef.current, Date.now(), (s) =>
       termAffinity(s, interestRef.current),
+    ).map(storyItem);
+
+    const rankedLives = rankLives(lives, {
+      followedIds: followingIdsRef.current,
+      nowMs: Date.now(),
+    });
+
+    // Primero la cuota entre consejos, saludos y lives, y DESPUÉS se separan los
+    // del mismo creador. Al revés, la cuota volvería a juntarlos.
+    const mixed = spreadByCreator(
+      mixByQuota(splitLanes([...ranked, ...rankedLives], laneOfItem)),
+      authorOfItem,
     );
-    // Primero la cuota entre consejos y saludos, y DESPUÉS se separan los del
-    // mismo creador. Al revés, la cuota volvería a juntarlos.
-    const mixed = spreadByCreator(mixByQuota(splitLanes(ranked)));
-    for (const s of mixed) {
-      seenIdsRef.current.add(s.id);
-      seenVideosRef.current.add(storyVideoKey(s));
+    for (const item of mixed) {
+      if (item.kind === "live") {
+        placedLivesRef.current.add(item.key);
+        continue;
+      }
+      seenIdsRef.current.add(item.story.id);
+      seenVideosRef.current.add(storyVideoKey(item.story));
     }
     return mixed;
   }, []);
@@ -151,6 +183,7 @@ export function useReelFeed(uid: string | null | undefined) {
     exhaustedRef.current = false;
     seenIdsRef.current = new Set();
     seenVideosRef.current = new Set();
+    placedLivesRef.current = new Set();
 
     // El vector de intereses se ata al USUARIO, no a la recarga. Un refresco no
     // puede tirar lo aprendido en esta sesión, que aún no está guardado: se
@@ -183,24 +216,47 @@ export function useReelFeed(uid: string | null | undefined) {
       //
       // También aquí se deduplica por video: si sigues al creador Y al comprador
       // del mismo saludo, te llegan las dos copias y solo debe circular una.
-      const head: StoryDoc[] = [];
-      for (const s of rankStories(preferCreatorCopy(followed), taste, viewed, Date.now())) {
+      followingIdsRef.current = followed.followingIds;
+
+      const head: ReelItem[] = [];
+      for (const s of rankStories(preferCreatorCopy(followed.stories), taste, viewed, Date.now())) {
         const videoKey = storyVideoKey(s);
         if (seenVideosRef.current.has(videoKey)) continue;
         seenVideosRef.current.add(videoKey);
         seenIdsRef.current.add(s.id);
-        head.push(s);
+        head.push(storyItem(s));
       }
 
       const tail = arrange(pool.stories);
 
-      setState({ uid, stories: dedupeStories([...head, ...tail]), ready: true });
+      setState({ uid, items: dedupeItems([...head, ...tail]), ready: true });
     })();
 
     return () => {
       cancelled = true;
     };
   }, [uid, arrange, generation]);
+
+  // Los lives entran y salen solos mientras el feed está abierto.
+  //
+  // Aquí solo se RETIRAN. Insertar uno nuevo en mitad de la lista movería el
+  // contenido bajo el dedo de quien está scrolleando, que es de las cosas que
+  // peor se sienten en un feed. Los nuevos esperan a la siguiente tanda, que es
+  // cuando la lista crece por abajo de todas formas.
+  useEffect(() => {
+    if (!uid) return;
+    return subscribeReelLives({ uid }, (lives) => {
+      livesRef.current = lives;
+      const enCurso = new Set(lives.map((l) => l.key));
+      setState((prev) => {
+        if (prev.uid !== uid) return prev;
+        const next = prev.items.filter((i) => i.kind !== "live" || enCurso.has(i.key));
+        // Sin cambios se devuelve el mismo objeto: si no, cada aviso repintaría
+        // el feed entero para nada.
+        return next.length === prev.items.length ? prev : { ...prev, items: next };
+      });
+    });
+  }, [uid]);
 
   /**
    * Pide más hasta CONSEGUIR algo nuevo, no hasta pedir una vez.
@@ -230,7 +286,7 @@ export function useReelFeed(uid: string | null | undefined) {
           if (next.length > 0) {
             setState((prev) => ({
               ...prev,
-              stories: dedupeStories([...prev.stories, ...next]),
+              items: dedupeItems([...prev.items, ...next]),
             }));
             return;
           }
@@ -271,5 +327,8 @@ export function useReelFeed(uid: string | null | undefined) {
 
   // Si el estado es de otra sesión, se ignora hasta que llegue el de esta.
   const current = state.uid === uid ? state : EMPTY;
-  return { stories: current.stories, ready: current.ready, loadMore, recordEngagement };
+  // `stories` se mantiene para quien solo entiende de historias, como el rail
+  // del home: ahí un live no pinta nada.
+  const stories = useMemo(() => storiesOf(current.items), [current.items]);
+  return { items: current.items, stories, ready: current.ready, loadMore, recordEngagement };
 }

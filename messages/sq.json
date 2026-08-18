@@ -2014,7 +2014,8 @@
     "transitionFailed": "Kalimi i anëtarëve nuk u përfundua dot.",
     "configAllSaved": "Abonimi, katalogu dhe donacioni u ruajtën.",
     "prompterTitle": "Prompter",
-    "prompterPlaceholder": "Shkruaj këtu çfarë do të thuash"
+    "prompterPlaceholder": "Shkruaj këtu çfarë do të thuash",
+    "uploadPrerecordedVideo": "Ngarko video të regjistruar më parë"
   },
   "live": {
     "accessTicket": "Biletë hyrjeje",

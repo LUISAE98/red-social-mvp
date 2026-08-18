@@ -2014,7 +2014,8 @@
     "transitionFailed": "Dalībnieku pāreju neizdevās pabeigt.",
     "configAllSaved": "Abonements, katalogs un ziedojums saglabāti.",
     "prompterTitle": "Sufliers",
-    "prompterPlaceholder": "Ieraksti šeit, ko vēlies pateikt"
+    "prompterPlaceholder": "Ieraksti šeit, ko vēlies pateikt",
+    "uploadPrerecordedVideo": "Augšupielādēt iepriekš ierakstītu video"
   },
   "live": {
     "accessTicket": "Piekļuves biļete",

@@ -11,6 +11,7 @@
 // decisión vive en un solo sitio y no puede quedarse a medias en una de ellas.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { collection, documentId, getDocs, query, where } from "firebase/firestore";
@@ -21,7 +22,15 @@ import { useReelFeed } from "@/lib/reels/useReelFeed";
 import HomeStoryCarouselDesktop, {
   type CarouselGroup,
 } from "@/app/components/Stories/HomeStoryCarouselDesktop";
+import type { ReelItem, ReelLivePost } from "@/lib/reels/reelItems";
 import ReelFeed from "./ReelFeed";
+
+// El visor completo del live, con chat y donaciones, pesa lo suyo. Se carga solo
+// cuando alguien entra a un live, no por abrir el feed.
+const LiveViewerModal = dynamic(
+  () => import("@/app/components/LiveViewerModal/LiveViewerModal"),
+  { ssr: false },
+);
 
 /** Alto del nav inferior. El reel NO se recorta con esto: solo aparta sus
  *  controles para que no queden debajo del nav. */
@@ -58,8 +67,11 @@ function chunk<T>(arr: T[], size: number): T[][] {
 type Props = {
   uid: string;
   isAnonymous: boolean;
-  /** Historias ya ordenadas. Si viene una destacada, va primera. */
-  stories: StoryDoc[];
+  /**
+   * Historias y lives ya ordenados y mezclados. Si viene una destacada, va
+   * primera.
+   */
+  items: ReelItem[];
   ready: boolean;
   loadMore: () => void;
   recordEngagement: ReturnType<typeof useReelFeed>["recordEngagement"];
@@ -70,7 +82,7 @@ type Props = {
 export default function ReelsSurface({
   uid,
   isAnonymous,
-  stories,
+  items,
   ready,
   loadMore,
   recordEngagement,
@@ -81,6 +93,10 @@ export default function ReelsSurface({
 
   const [mounted, setMounted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  // El live que se está viendo. El feed NO se desmonta debajo: al cerrar, el
+  // usuario vuelve exactamente a donde iba, con su posición de scroll intacta.
+  // Es la razón por la que el visor es un modal y no una ruta.
+  const [openLive, setOpenLive] = useState<ReelLivePost | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -102,8 +118,14 @@ export default function ReelsSurface({
   // En celular no se usan, así que ni se piden.
   const [photos, setPhotos] = useState<Map<string, string | null>>(new Map());
   const authorIds = useMemo(
-    () => [...new Set(stories.map(authorOf).filter((id): id is string => !!id))],
-    [stories],
+    () => [
+      ...new Set(
+        items
+          .map((i) => (i.kind === "live" ? i.post.authorId : authorOf(i.story)))
+          .filter((id): id is string => !!id),
+      ),
+    ],
+    [items],
   );
 
   useEffect(() => {
@@ -144,19 +166,37 @@ export default function ReelsSurface({
   // carrusel se mueve historia a historia y no creador a creador.
   const carouselGroups: CarouselGroup[] = useMemo(
     () =>
-      stories.map((story) => ({
-        key: story.id,
-        stories: [story],
-        startIndex: 0,
-        thumbnailUrl: resolveThumb(story),
-        info: {
-          // `creatorName` se denormaliza al publicar con el nombre de quien
-          // GRABÓ, así que ya es la cara correcta sin pedir nada.
-          displayName: story.creatorName ?? null,
-          photoURL: photos.get(authorOf(story) ?? "") ?? null,
-        },
-      })),
-    [stories, photos],
+      items.map((item) => {
+        if (item.kind === "live") {
+          const ld = item.post.liveData;
+          return {
+            key: item.key,
+            // Un live no se recorre historia a historia: es uno solo.
+            stories: [],
+            startIndex: 0,
+            thumbnailUrl: ld?.coverUrl ?? null,
+            info: {
+              displayName: null,
+              photoURL: photos.get(item.post.authorId ?? "") ?? null,
+            },
+            live: item.post,
+          };
+        }
+        const story = item.story;
+        return {
+          key: story.id,
+          stories: [story],
+          startIndex: 0,
+          thumbnailUrl: resolveThumb(story),
+          info: {
+            // creatorName se denormaliza al publicar con el nombre de quien
+            // GRABO, asi que ya es la cara correcta sin pedir nada.
+            displayName: story.creatorName ?? null,
+            photoURL: photos.get(authorOf(story) ?? "") ?? null,
+          },
+        };
+      }),
+    [items, photos],
   );
 
   if (!mounted || !ready) {
@@ -179,7 +219,7 @@ export default function ReelsSurface({
     );
   }
 
-  if (stories.length === 0) {
+  if (items.length === 0) {
     return (
       <div style={fullScreenCenter}>
         <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, textAlign: "center" }}>
@@ -191,23 +231,35 @@ export default function ReelsSurface({
 
   if (isDesktop) {
     return (
-      <HomeStoryCarouselDesktop
-        groups={carouselGroups}
-        // La destacada ya viene primera en la lista.
-        initialGroupIndex={0}
-        onClose={() => router.push(closeHref)}
-        onStoryViewed={handleStoryViewed}
-      />
+      <>
+        <HomeStoryCarouselDesktop
+          groups={carouselGroups}
+          // La destacada ya viene primera en la lista.
+          initialGroupIndex={0}
+          onClose={() => router.push(closeHref)}
+          onStoryViewed={handleStoryViewed}
+          onOpenLive={setOpenLive}
+        />
+        {openLive && (
+          <LiveViewerModal open onClose={() => setOpenLive(null)} post={openLive} />
+        )}
+      </>
     );
   }
 
   return (
-    <ReelFeed
-      stories={stories}
-      onLoadMore={loadMore}
-      onStoryViewed={handleStoryViewed}
-      onEngagement={recordEngagement}
-      navClearance={NAV_CLEARANCE}
-    />
+    <>
+      <ReelFeed
+        items={items}
+        onOpenLive={setOpenLive}
+        onLoadMore={loadMore}
+        onStoryViewed={handleStoryViewed}
+        onEngagement={recordEngagement}
+        navClearance={NAV_CLEARANCE}
+      />
+      {openLive && (
+        <LiveViewerModal open onClose={() => setOpenLive(null)} post={openLive} />
+      )}
+    </>
   );
 }

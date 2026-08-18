@@ -2014,7 +2014,8 @@
     "transitionFailed": "Medlemsovergangen kunne ikke fullføres.",
     "configAllSaved": "Abonnement, katalog og donasjon er lagret.",
     "prompterTitle": "Teleprompter",
-    "prompterPlaceholder": "Skriv her hva du vil si"
+    "prompterPlaceholder": "Skriv her hva du vil si",
+    "uploadPrerecordedVideo": "Last opp forhåndsinnspilt video"
   },
   "live": {
     "accessTicket": "Tilgangsbillet",

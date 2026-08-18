@@ -6,19 +6,20 @@
 
 import { normalizeGroupCategory, type CanonicalGroupCategory } from "@/types/group";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
+import { isLiveItem, liveStartedAtMs, type ReelItem, type ReelLivePost } from "./reelItems";
 
 /**
- * Cuota del carril de descubrimiento.
+ * Cuota del carril de descubrimiento: 70% consejos, 15% saludos y 15% lives.
  *
- * El acuerdo es 70% consejos, 15% saludos y 15% lives. Los lives todavía no
- * entran al feed, así que su hueco queda declarado en cero y el resto se reparte
- * en proporción (≈82/18). Cuando entren, se cambian estos tres números y el
- * mezclador ya sabe repartir: no hay que rediseñar nada.
+ * Es un objetivo, no un reparto exacto. Casi nunca hay lives transmitiendo, y el
+ * mezclador reparte su turno entre los demás en vez de dejar el hueco vacío. En
+ * la práctica el feed se ve como un 82/18 cuando no hay nadie en vivo, y se
+ * acerca a estos números cuando sí lo hay.
  */
 export const REEL_QUOTA: Record<ReelLane, number> = {
-  consejo: 0.82,
-  saludo: 0.18,
-  live: 0,
+  consejo: 0.7,
+  saludo: 0.15,
+  live: 0.15,
 };
 
 export type ReelLane = StoryType | "live";
@@ -148,10 +149,10 @@ export function rankStories(
  * El orden de entrada de cada carril se respeta, así que lo que ya venía
  * rankeado sigue rankeado dentro de su carril.
  */
-export function mixByQuota(
-  lanes: Partial<Record<ReelLane, StoryDoc[]>>,
+export function mixByQuota<T>(
+  lanes: Partial<Record<ReelLane, T[]>>,
   quota: Record<ReelLane, number> = REEL_QUOTA,
-): StoryDoc[] {
+): T[] {
   const cursors: Record<string, number> = {};
   const debt: Record<string, number> = {};
   const active: ReelLane[] = [];
@@ -172,7 +173,7 @@ export function mixByQuota(
   }
 
   const total = active.reduce((sum, lane) => sum + (lanes[lane]?.length ?? 0), 0);
-  const out: StoryDoc[] = [];
+  const out: T[] = [];
 
   for (let emitted = 0; emitted < total; emitted++) {
     // El de más deuda que aún tenga material.
@@ -206,17 +207,20 @@ export function mixByQuota(
  * primero que no lo esté. Si no hay ninguno, sale igual. Nunca se pierde nada ni
  * se altera el orden más de lo imprescindible.
  *
- * Se mira quién GRABÓ el video, no quién publicó la copia.
+ * De quién es cada cosa se pide como función, por el mismo motivo que el carril:
+ * esto reparte historias y lives, y cada uno guarda a su autor en otro campo.
  */
-export function spreadByCreator(stories: StoryDoc[], minGap = 3): StoryDoc[] {
-  if (stories.length <= 2 || minGap < 1) return stories;
+export function spreadByCreator<T>(
+  items: T[],
+  authorOf: (item: T) => string,
+  minGap = 3,
+): T[] {
+  if (items.length <= 2 || minGap < 1) return items;
 
-  const pending = [...stories];
-  const out: StoryDoc[] = [];
+  const pending = [...items];
+  const out: T[] = [];
   /** Últimos creadores emitidos, del más reciente al más antiguo. */
   const recent: string[] = [];
-
-  const authorOf = (s: StoryDoc) => s.greetingCreatorId ?? s.creatorId ?? "";
 
   while (pending.length > 0) {
     let pick = pending.findIndex((s) => !recent.includes(authorOf(s)));
@@ -234,12 +238,105 @@ export function spreadByCreator(stories: StoryDoc[], minGap = 3): StoryDoc[] {
   return out;
 }
 
-/** Separa una lista rankeada en sus carriles, conservando el orden. */
-export function splitLanes(stories: StoryDoc[]): Partial<Record<ReelLane, StoryDoc[]>> {
-  const lanes: Partial<Record<ReelLane, StoryDoc[]>> = {};
-  for (const story of stories) {
-    const lane: ReelLane = story.type === "saludo" ? "saludo" : "consejo";
-    (lanes[lane] ??= []).push(story);
+/**
+ * Quién GRABÓ la historia, que no siempre es quien la publicó: cuando el
+ * comprador republica el saludo que le hicieron, la cara que cuenta sigue siendo
+ * la del creador.
+ */
+export function authorOfStory(story: StoryDoc): string {
+  return story.greetingCreatorId ?? story.creatorId ?? "";
+}
+
+/** Quién está detrás de cualquier cosa del feed. */
+export function authorOfItem(item: ReelItem): string {
+  return isLiveItem(item) ? (item.post.authorId ?? "") : authorOfStory(item.story);
+}
+
+/** A qué carril pertenece una historia. */
+export function laneOfStory(story: StoryDoc): ReelLane {
+  return story.type === "saludo" ? "saludo" : "consejo";
+}
+
+/** A qué carril pertenece cualquier cosa del feed. */
+export function laneOfItem(item: ReelItem): ReelLane {
+  return isLiveItem(item) ? "live" : laneOfStory(item.story);
+}
+
+/**
+ * Separa una lista rankeada en sus carriles, conservando el orden.
+ *
+ * El carril se pide como función en vez de mirarlo aquí dentro porque esto se
+ * usa con dos cosas distintas —historias sueltas y la mezcla de historias y
+ * lives— y duplicar la función para cada una era peor que pasar la regla.
+ */
+export function splitLanes<T>(
+  items: T[],
+  laneOf: (item: T) => ReelLane,
+): Partial<Record<ReelLane, T[]>> {
+  const lanes: Partial<Record<ReelLane, T[]>> = {};
+  for (const item of items) {
+    (lanes[laneOf(item)] ??= []).push(item);
   }
   return lanes;
+}
+
+/**
+ * Media vida de lo recién empezado, en minutos. Un live que lleva dos horas no
+ * es peor que uno que acaba de arrancar, pero entrar al principio se disfruta
+ * más que entrar al final, así que pesa un poco y no mucho.
+ */
+const LIVE_START_HALF_LIFE_MIN = 60;
+/** Con estos espectadores la señal social ya vale su peso entero. */
+const LIVE_VIEWERS_SATURATION = 500;
+
+type RankLivesOptions = {
+  /** A quién sigue el usuario. Es la señal fuerte y la única que sale gratis. */
+  followedIds?: Set<string>;
+  /**
+   * Espectadores de cada live.
+   *
+   * Se inyecta porque el dato NO está en el post: vive en la subcolección
+   * `liveViewers`, y contarlo cuesta una consulta por live. Quien llame decide
+   * si le sale a cuenta pagarla; sin ella, el orden sigue teniendo sentido.
+   */
+  viewersOf?: (post: ReelLivePost) => number;
+  nowMs: number;
+};
+
+/**
+ * Ordena los lives entre sí.
+ *
+ * Es MUCHO más simple que el ranking de historias, y a propósito. Un live no
+ * tiene vistas acumuladas, ni texto de contexto, ni categorías denormalizadas,
+ * ni antigüedad que signifique nada: nace y muere en unas horas. Inventarle esas
+ * señales para poder usar la misma fórmula habría dado un número con aspecto de
+ * riguroso y sin sustancia detrás.
+ *
+ * Además suele haber un puñado, no cientos, así que afinar aquí rinde poco.
+ */
+export function rankLives(lives: ReelItem[], options: RankLivesOptions): ReelItem[] {
+  const { followedIds, viewersOf, nowMs } = options;
+
+  const scored = lives.filter(isLiveItem).map((item) => {
+    const post = item.post;
+
+    const followed = followedIds?.has(post.authorId) ? 1 : 0;
+
+    const viewers = viewersOf?.(post) ?? 0;
+    const viewersNorm =
+      viewers > 0
+        ? Math.min(1, Math.log10(1 + viewers) / Math.log10(1 + LIVE_VIEWERS_SATURATION))
+        : 0;
+
+    const startedMs = liveStartedAtMs(post);
+    const minutesLive = startedMs > 0 ? Math.max(0, (nowMs - startedMs) / 60_000) : Infinity;
+    const startRecency = Number.isFinite(minutesLive)
+      ? Math.pow(2, -minutesLive / LIVE_START_HALF_LIFE_MIN)
+      : 0;
+
+    return { item, score: followed * 2 + viewersNorm * 1 + startRecency * 0.5 };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map((e) => e.item);
 }

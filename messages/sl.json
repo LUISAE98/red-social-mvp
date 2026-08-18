@@ -2014,7 +2014,8 @@
     "transitionFailed": "Prehoda članov ni bilo mogoče dokončati.",
     "configAllSaved": "Naročnina, katalog in donacija shranjeni.",
     "prompterTitle": "Prompter",
-    "prompterPlaceholder": "Napiši sem, kaj želiš povedati"
+    "prompterPlaceholder": "Napiši sem, kaj želiš povedati",
+    "uploadPrerecordedVideo": "Naloži vnaprej posnet videoposnetek"
   },
   "live": {
     "accessTicket": "Vstopnica",

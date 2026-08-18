@@ -149,6 +149,11 @@ const [headerData, setHeaderData] = useState<MobileHeaderData>({ avatarUrl: null
 // Scroll state: home=true → header se oculta; context=true → header se comprime+swap
 const [homeHeaderHidden, setHomeHeaderHidden] = useState(false);
 const [contextScrolled, setContextScrolled] = useState(false);
+// Laptop: el header entero (con el buscador) se desliza fuera de vista al bajar
+// y vuelve al subir, igual que el público de RootChrome. Va aparte de
+// `homeHeaderHidden` a propósito: ese es de celular, se desvanece en vez de
+// deslizarse y solo actúa en home y wallet.
+const [desktopHeaderHidden, setDesktopHeaderHidden] = useState(false);
 
 const isHomePage = pathname === "/";
 const isProfilePage = /^\/u\/[^/]+/.test(pathname);
@@ -181,6 +186,10 @@ useLayoutEffect(() => {
     setMobileSearchOpen(false);
     setHomeHeaderHidden(false);
     setContextScrolled(false);
+    // Al cambiar de pantalla el header vuelve. Como el layout no se desmonta al
+    // navegar y la vuelta es un `transform`, baja deslizándose con su transición
+    // en vez de aparecer de golpe.
+    setDesktopHeaderHidden(false);
   }, [pathname]);
 
   // Restaurar scroll antes del paint (sin salto visible) y guardar la dirección
@@ -275,6 +284,56 @@ useLayoutEffect(() => {
     return () => window.removeEventListener("scroll", handler);
   }, [pathname, isHomePage, isProfilePage, isWalletPage]);
 
+  /**
+   * Laptop: esconder el header al bajar y devolverlo al subir.
+   *
+   * Mismo criterio y misma curva que el header público de `RootChrome`, para que
+   * entrar con sesión no cambie el comportamiento de la barra. A diferencia del
+   * listener de arriba, este corre en TODAS las rutas: sin sesión la barra se
+   * comporta igual en cualquier pantalla y no hay motivo para que con sesión
+   * dependa de dónde estés.
+   *
+   * Solo por encima de 900px: en celular el header logueado tiene su propio
+   * guion (se desvanece en home y wallet, se comprime en perfil) y meterle
+   * además un deslizamiento lo pelearía.
+   */
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 901px)");
+    let lastY = window.scrollY;
+
+    const onScroll = () => {
+      if (!mq.matches) return;
+
+      const y = window.scrollY;
+      const last = lastY;
+      lastY = y;
+
+      // Escribiendo en el buscador: no se esconde aunque la página se mueva, o
+      // el campo se iría con el foco puesto.
+      const el = headerRef.current;
+      if (el && document.activeElement && el.contains(document.activeElement)) {
+        setDesktopHeaderHidden(false);
+        return;
+      }
+
+      if (y > 60 && y > last) setDesktopHeaderHidden(true);
+      else if (y < last || y <= 20) setDesktopHeaderHidden(false);
+    };
+
+    // Al bajar a anchos de celular, devolverlo: allí manda el otro guion y un
+    // header escondido se quedaría escondido para siempre.
+    const onBreakpoint = () => {
+      if (!mq.matches) setDesktopHeaderHidden(false);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    mq.addEventListener("change", onBreakpoint);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      mq.removeEventListener("change", onBreakpoint);
+    };
+  }, [headerRef]);
+
 const contentAreaClassName = isEmbed
   ? "contentArea contentAreaEmbed"
   : "contentArea contentAreaWithWallet";
@@ -351,6 +410,42 @@ const contentAreaClassName = isEmbed
   background: transparent;
   pointer-events: none;
   transition: opacity 220ms ease;
+}
+
+/* Laptop: al bajar se va SOLO el buscador; el logo y los iconos de la derecha se
+   quedan. Sin sesión el header entero se esconde porque allí es casi solo la
+   barra, pero aquí .desktopHeader es una fila de tres columnas
+   (marca | buscador | acciones) y llevarse las tres dejaría la pantalla sin
+   navegación.
+
+   Mismos tiempos y curva que .rootChromePublicHeader en RootChrome.tsx — si se
+   toca uno, tocar el otro. La columna conserva su hueco en el grid, así que la
+   marca y las acciones no se mueven al esconderse la barra.
+
+   Va en min-width porque en celular el header logueado tiene otro guion. */
+@media (min-width: 901px) {
+  .desktopSearchCol {
+    transition:
+      transform 260ms cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 200ms ease;
+    will-change: transform;
+  }
+
+  .header[data-hidden="true"] .desktopSearchCol {
+    transform: translateY(-140%);
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktopSearchCol {
+    transition: opacity 200ms ease;
+  }
+
+  .header[data-hidden="true"] .desktopSearchCol {
+    transform: none;
+  }
 }
 
 .headerInner,
@@ -548,6 +643,10 @@ const contentAreaClassName = isEmbed
   align-items: center;
   gap: 10px;
   width: 100%;
+  /* Devuelve el puntero a todo lo de dentro (ver la nota en .mobileActions).
+     Cuando la fila está en modo contexto, .mobileHeaderScrolled lo vuelve a
+     apagar con más especificidad, así que el header comprimido sigue igual. */
+  pointer-events: auto;
   transition: opacity 220ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -650,6 +749,10 @@ const contentAreaClassName = isEmbed
 .mobileBrandVisible {
   opacity: 1;
   transform: scale(1);
+  /* Vence al pointer-events none de .mobileBrand, que es para cuando el logo
+     está oculto. Visible tiene que poder pulsarse sin depender de que el hash de
+     styled-jsx llegue al enlace que pinta next/link. */
+  pointer-events: auto;
   animation: mobileBrandPopIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -676,6 +779,17 @@ const contentAreaClassName = isEmbed
           gap: 8px;
           margin-inline-start: auto;
           flex-shrink: 0;
+          /* Reactiva el puntero para TODO lo que va dentro.
+             .mobileHeaderRow lo apaga (el header es transparente y no debe
+             tragarse clics fuera de sus controles) y hasta ahora lo recuperaban
+             las reglas .headerInner a y .headerInner button de más arriba. Eso
+             dependía de que el botón fuese un elemento button escrito aquí
+             mismo, al que styled-jsx le pone su hash. Desde que buscar y
+             guardados son IconButton, el hash no está garantizado en el button
+             que ese componente pinta, la regla dejaba de encajar y los dos se
+             quedaban muertos al tacto. Puesto en el contenedor, que sí es un
+             elemento de este archivo, funciona pase lo que pase con el hijo. */
+          pointer-events: auto;
         }
 
         /* Campanita del panel en el header móvil: solo aparece en el rango de
@@ -1023,6 +1137,7 @@ const contentAreaClassName = isEmbed
 {!isReelsPage && (
 <header
   ref={headerRef}
+  data-hidden={desktopHeaderHidden ? "true" : undefined}
   className={[
     "header",
     mobileSearchOpen ? "headerMobileSearchOpen" : "",

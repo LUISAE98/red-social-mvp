@@ -2014,7 +2014,8 @@
     "transitionFailed": "A transição de membros não pôde ser concluída.",
     "configAllSaved": "Assinatura, catálogo e doação salvos.",
     "prompterTitle": "Teleprompter",
-    "prompterPlaceholder": "Escreva aqui o que você quer dizer"
+    "prompterPlaceholder": "Escreva aqui o que você quer dizer",
+    "uploadPrerecordedVideo": "Enviar vídeo pré-gravado"
   },
   "live": {
     "accessTicket": "Ticket de acesso",

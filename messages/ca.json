@@ -2014,7 +2014,8 @@
     "transitionFailed": "La transició de membres no s'ha pogut completar.",
     "configAllSaved": "Subscripció, catàleg i donació desats.",
     "prompterTitle": "Prompter",
-    "prompterPlaceholder": "Escriu aquí el que vols dir"
+    "prompterPlaceholder": "Escriu aquí el que vols dir",
+    "uploadPrerecordedVideo": "Puja un vídeo pregravat"
   },
   "live": {
     "accessTicket": "Entrada d'accés",

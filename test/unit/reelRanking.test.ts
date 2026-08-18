@@ -4,10 +4,16 @@ import {
   rankStories,
   spreadByCreator,
   splitLanes,
+  laneOfStory,
+  authorOfStory,
+  laneOfItem,
+  rankLives,
+  REEL_QUOTA,
   type ReelLane,
 } from "@/lib/reels/reelRanking";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import type { CanonicalGroupCategory } from "@/types/group";
+import { liveItem, storyItem, type ReelItem } from "@/lib/reels/reelItems";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = 1_760_000_000_000;
@@ -190,7 +196,7 @@ describe("spreadByCreator", () => {
       story("c1", { creatorId: "caro" }),
     ];
 
-    const out = spreadByCreator(stories, 2).map((s) => s.creatorId);
+    const out = spreadByCreator(stories, authorOfStory, 2).map((s) => s.creatorId);
 
     // Sin reparto saldrían ana, ana, ana de entrada. Lo que se puede exigir es
     // que la cabeza esté repartida; que las últimas de Ana acaben pegadas es
@@ -208,7 +214,7 @@ describe("spreadByCreator", () => {
       story("c2", { creatorId: "caro" }),
     ];
 
-    const out = spreadByCreator(stories, 2).map((s) => s.creatorId);
+    const out = spreadByCreator(stories, authorOfStory, 2).map((s) => s.creatorId);
 
     for (let i = 1; i < out.length; i++) {
       expect(out[i]).not.toBe(out[i - 1]);
@@ -223,7 +229,7 @@ describe("spreadByCreator", () => {
       story("b1", { creatorId: "beto" }),
     ];
 
-    const out = spreadByCreator(stories, 3);
+    const out = spreadByCreator(stories, authorOfStory, 3);
 
     expect(out).toHaveLength(4);
     expect(new Set(out.map((s) => s.id)).size).toBe(4);
@@ -236,7 +242,7 @@ describe("spreadByCreator", () => {
       story("a3", { creatorId: "ana" }),
     ];
 
-    const out = spreadByCreator(stories, 3).map((s) => s.id);
+    const out = spreadByCreator(stories, authorOfStory, 3).map((s) => s.id);
 
     expect(out).toEqual(["a1", "a2", "a3"]);
   });
@@ -248,7 +254,7 @@ describe("spreadByCreator", () => {
     const b = { ...story("pub2", { creatorId: "mario" }), greetingCreatorId: "ana" };
     const c = story("otro", { creatorId: "beto" });
 
-    const out = spreadByCreator([a, b, c], 2).map((s) => s.id);
+    const out = spreadByCreator([a, b, c], authorOfStory, 2).map((s) => s.id);
 
     expect(out[1]).toBe("otro");
   });
@@ -260,7 +266,7 @@ describe("spreadByCreator", () => {
       story("c", { creatorId: "caro" }),
     ];
 
-    expect(spreadByCreator(stories, 2).map((s) => s.id)).toEqual(["a", "b", "c"]);
+    expect(spreadByCreator(stories, authorOfStory, 2).map((s) => s.id)).toEqual(["a", "b", "c"]);
   });
 });
 
@@ -272,9 +278,109 @@ describe("splitLanes", () => {
       story("c1", { type: "consejo" }),
     ];
 
-    const lanes = splitLanes(stories);
+    const lanes = splitLanes(stories, laneOfStory);
 
     expect(lanes.consejo?.map((s) => s.id)).toEqual(["c0", "c1"]);
     expect(lanes.saludo?.map((s) => s.id)).toEqual(["s0"]);
+  });
+});
+
+// ── Lives ────────────────────────────────────────────────────────────────────
+
+function ts(ms: number) {
+  return { toMillis: () => ms } as unknown as never;
+}
+
+function liveOf(id: string, opts: { authorId?: string; startedMinAgo?: number } = {}): ReelItem {
+  return liveItem({
+    id,
+    authorId: opts.authorId ?? `creator-${id}`,
+    liveData: {
+      status: "live",
+      visibilityMode: "everyone",
+      startedAt: ts(NOW - (opts.startedMinAgo ?? 0) * 60_000),
+    },
+  } as never);
+}
+
+describe("REEL_QUOTA", () => {
+  it("reparte 70/15/15 y suma uno", () => {
+    expect(REEL_QUOTA).toEqual({ consejo: 0.7, saludo: 0.15, live: 0.15 });
+    const total = REEL_QUOTA.consejo + REEL_QUOTA.saludo + REEL_QUOTA.live;
+    expect(total).toBeCloseTo(1, 5);
+  });
+});
+
+describe("laneOfItem", () => {
+  it("manda los lives a su carril y las historias al suyo", () => {
+    expect(laneOfItem(liveOf("l0"))).toBe("live");
+    expect(laneOfItem(storyItem(story("s0", { type: "saludo" })))).toBe("saludo");
+    expect(laneOfItem(storyItem(story("c0", { type: "consejo" })))).toBe("consejo");
+  });
+});
+
+describe("mixByQuota con lives", () => {
+  it("intercala lives sin agruparlos al principio", () => {
+    const consejo = Array.from({ length: 14 }, (_, i) => `c${i}`);
+    const live = ["l0", "l1", "l2"];
+    const out = mixByQuota({ consejo, live }, REEL_QUOTA);
+
+    // Todos salen, y los lives quedan separados entre sí.
+    expect(out).toHaveLength(17);
+    const posiciones = live.map((id) => out.indexOf(id));
+    expect(Math.min(...posiciones)).toBeGreaterThan(0);
+    for (let i = 1; i < posiciones.length; i++) {
+      expect(posiciones[i]! - posiciones[i - 1]!).toBeGreaterThan(1);
+    }
+  });
+
+  // El motivo por el que la cuota es un objetivo y no un reparto exacto: casi
+  // nunca hay nadie transmitiendo, y el hueco no puede quedarse vacío.
+  it("sin lives reparte su turno entre los demás en vez de dejar huecos", () => {
+    const out = mixByQuota(
+      { consejo: ["c0", "c1", "c2"], saludo: ["s0"] },
+      REEL_QUOTA,
+    );
+    expect(out).toHaveLength(4);
+  });
+});
+
+describe("rankLives", () => {
+  it("pone delante el live de alguien a quien sigues", () => {
+    const seguido = liveOf("l0", { authorId: "amigo", startedMinAgo: 180 });
+    const desconocido = liveOf("l1", { startedMinAgo: 0 });
+
+    const out = rankLives([desconocido, seguido], {
+      followedIds: new Set(["amigo"]),
+      nowMs: NOW,
+    });
+
+    expect(out[0]).toBe(seguido);
+  });
+
+  it("entre desconocidos, delante el que acaba de empezar", () => {
+    const viejo = liveOf("l0", { startedMinAgo: 240 });
+    const nuevo = liveOf("l1", { startedMinAgo: 2 });
+
+    const out = rankLives([viejo, nuevo], { nowMs: NOW });
+
+    expect(out[0]).toBe(nuevo);
+  });
+
+  it("los espectadores pesan cuando se los dan", () => {
+    const vacio = liveOf("l0", { startedMinAgo: 5 });
+    const lleno = liveOf("l1", { startedMinAgo: 5 });
+
+    const out = rankLives([vacio, lleno], {
+      nowMs: NOW,
+      viewersOf: (post) => (post.id === "l1" ? 400 : 0),
+    });
+
+    expect(out[0]).toBe(lleno);
+  });
+
+  it("descarta lo que no sea un live", () => {
+    const out = rankLives([storyItem(story("s0")), liveOf("l0")], { nowMs: NOW });
+    expect(out).toHaveLength(1);
   });
 });

@@ -2014,7 +2014,8 @@
     "transitionFailed": "Prijelaz članova nije se mogao dovršiti.",
     "configAllSaved": "Pretplata, katalog i donacija su spremljeni.",
     "prompterTitle": "Prompter",
-    "prompterPlaceholder": "Napiši ovdje što želiš reći"
+    "prompterPlaceholder": "Napiši ovdje što želiš reći",
+    "uploadPrerecordedVideo": "Prenesi unaprijed snimljeni videozapis"
   },
   "live": {
     "accessTicket": "Ulaznica",

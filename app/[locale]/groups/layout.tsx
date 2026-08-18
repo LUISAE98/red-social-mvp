@@ -107,6 +107,9 @@ const firstRenderRef = useRef(true);
 // Estado para header contextual (avatar + nombre del grupo)
 const [headerData, setHeaderData] = useState<MobileHeaderData>({ avatarUrl: null, name: null });
 const [contextScrolled, setContextScrolled] = useState(false);
+// Laptop: el header se desliza fuera de vista al bajar. Ver la misma lógica en
+// (protected)/layout.tsx y el original sin sesión en RootChrome.tsx.
+const [desktopHeaderHidden, setDesktopHeaderHidden] = useState(false);
 
 // Páginas de grupo específico: /groups/[groupId]/... (excluyendo /groups/new)
 const isGroupDetailPage = /^\/groups\/[^/]+/.test(pathname) && !pathname.startsWith("/groups/new");
@@ -179,6 +182,9 @@ useEffect(() => {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   setMobileSearchOpen(false);
   setContextScrolled(false);
+  // Al cambiar de pantalla el header vuelve deslizándose: el layout no se
+  // desmonta al navegar y la vuelta es un transform con transición.
+  setDesktopHeaderHidden(false);
 }, [pathname]);
 
 // Scroll listener: context shrink solo en páginas de grupo específico
@@ -197,6 +203,47 @@ useEffect(() => {
   window.addEventListener("scroll", handler, { passive: true });
   return () => window.removeEventListener("scroll", handler);
 }, [pathname, isGroupDetailPage]);
+
+/**
+ * Laptop: esconder el header al bajar y devolverlo al subir. Copia exacta del
+ * criterio de (protected)/layout.tsx, que a su vez sigue al header público de
+ * RootChrome — los tres usan 60px para esconder y 20px para forzar visible.
+ *
+ * Solo por encima de 900px: en celular el header logueado tiene otro guion.
+ */
+useEffect(() => {
+  const mq = window.matchMedia("(min-width: 901px)");
+  let lastY = window.scrollY;
+
+  const onScroll = () => {
+    if (!mq.matches) return;
+
+    const y = window.scrollY;
+    const last = lastY;
+    lastY = y;
+
+    // Escribiendo en el buscador: no se esconde con el foco puesto.
+    const el = headerRef.current;
+    if (el && document.activeElement && el.contains(document.activeElement)) {
+      setDesktopHeaderHidden(false);
+      return;
+    }
+
+    if (y > 60 && y > last) setDesktopHeaderHidden(true);
+    else if (y < last || y <= 20) setDesktopHeaderHidden(false);
+  };
+
+  const onBreakpoint = () => {
+    if (!mq.matches) setDesktopHeaderHidden(false);
+  };
+
+  window.addEventListener("scroll", onScroll, { passive: true });
+  mq.addEventListener("change", onBreakpoint);
+  return () => {
+    window.removeEventListener("scroll", onScroll);
+    mq.removeEventListener("change", onBreakpoint);
+  };
+}, [headerRef]);
 
 
 const contentAreaClassName = isEmbed
@@ -256,6 +303,34 @@ const contentAreaClassName = isEmbed
   background: transparent;
   pointer-events: none;
   transition: opacity 220ms ease;
+}
+
+/* Laptop: al bajar se va SOLO el buscador; la marca y los iconos se quedan.
+   Mismos tiempos y curva que .rootChromePublicHeader (RootChrome.tsx) y que el
+   layout protegido — los tres tienen que moverse igual. */
+@media (min-width: 901px) {
+  .desktopSearchCol {
+    transition:
+      transform 260ms cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 200ms ease;
+    will-change: transform;
+  }
+
+  .header[data-hidden="true"] .desktopSearchCol {
+    transform: translateY(-140%);
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktopSearchCol {
+    transition: opacity 200ms ease;
+  }
+
+  .header[data-hidden="true"] .desktopSearchCol {
+    transform: none;
+  }
 }
 
 .headerInner,
@@ -447,6 +522,9 @@ const contentAreaClassName = isEmbed
   align-items: center;
   gap: 10px;
   width: 100%;
+  /* Devuelve el puntero a lo de dentro; .mobileHeaderRow lo apaga. Ver la nota
+     en (protected)/layout.tsx. */
+  pointer-events: auto;
   transition: opacity 220ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -546,6 +624,8 @@ const contentAreaClassName = isEmbed
 .mobileBrandVisible {
   opacity: 1;
   transform: scale(1);
+  /* Vence al pointer-events none de .mobileBrand, que es para el logo oculto. */
+  pointer-events: auto;
   animation: mobileBrandPopIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -572,6 +652,10 @@ const contentAreaClassName = isEmbed
           gap: 8px;
           margin-inline-start: auto;
           flex-shrink: 0;
+          /* Reactiva el puntero para lo que va dentro: .mobileHeaderRow lo apaga
+             y los <IconButton> de buscar y guardados ya no lo recuperan por sí
+             solos. Ver la nota larga en (protected)/layout.tsx. */
+          pointer-events: auto;
         }
 
         /* Campanita del panel en el header móvil: solo en laptop angosto (769–900px);
@@ -873,6 +957,7 @@ const contentAreaClassName = isEmbed
 
 <header
   ref={headerRef}
+  data-hidden={desktopHeaderHidden ? "true" : undefined}
   className={[
     "header",
     mobileSearchOpen ? "headerMobileSearchOpen" : "",

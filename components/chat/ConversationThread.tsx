@@ -786,6 +786,35 @@ export default function ConversationThread({
    * hace nada: la cita lleva el texto dentro, así que no se pierde información
    * por no poder llegar al original.
    */
+  /**
+   * El texto de una cita, leído del mensaje ORIGINAL.
+   *
+   * ⚠️ B9. Antes se pintaba `replyTo.text`, una copia que escribe el cliente al
+   * enviar y que las reglas no podían comprobar: la cita se recorta a 200
+   * caracteres y un mensaje llega a 2000, así que no hay con qué compararla, y
+   * las reglas no saben cortar cadenas. Es decir, se podía poner en boca del
+   * otro cualquier cosa y la interfaz la pintaba tal cual.
+   *
+   * Ahora la copia se IGNORA y el texto sale del mensaje de verdad, buscado por
+   * su id entre los cargados. Las reglas ya garantizan que ese mensaje existe en
+   * este hilo y que `replyTo.senderId` es su autor real, así que el globo
+   * completo —quién y qué— pasa a ser cierto.
+   *
+   * Si el original quedó en una página anterior y no está en memoria, la cita se
+   * pinta SIN texto: se sigue viendo de quién es y sigue llevando a su mensaje
+   * al pulsarla. Preferimos no decir nada antes que repetir algo que no podemos
+   * verificar, y no se inventa un texto nuevo para 47 idiomas por un caso que se
+   * resuelve solo al cargar la página anterior.
+   */
+  function textoCitado(replyTo: MessageReply): string {
+    const original = messages.find((m) => m.id === replyTo.messageId);
+
+    if (!original) return "";
+    if (original.isDeleted) return tChat("messageDeleted");
+
+    return original.text || (original.image ? tChat("photoPreview") : "");
+  }
+
   function jumpToMessage(messageId: string) {
     const node = messageNodes.current.get(messageId);
     if (!node) return;
@@ -1558,8 +1587,7 @@ export default function ConversationThread({
                       textOverflow: "ellipsis",
                     }}
                   >
-                    {message.replyTo.text ||
-                      (message.replyTo.hasImage ? tChat("photoPreview") : "")}
+                    {textoCitado(message.replyTo)}
                   </span>
                 </span>
               </button>
@@ -1967,7 +1995,10 @@ export default function ConversationThread({
                   textOverflow: "ellipsis",
                 }}
               >
-                {replyingTo.text || (replyingTo.hasImage ? tChat("photoPreview") : "")}
+                {/* La barra de "respondiendo a" que se ve al escribir. Lee del
+                    mensaje original igual que la cita ya enviada, así que enseña
+                    exactamente lo mismo que verá el otro. */}
+                {textoCitado(replyingTo)}
               </span>
             </div>
             <IconButton label={tChat("cancelReply")} size="sm" tone="bare" style={{ placeItems: "center" }} onClick={() => setReplyingTo(null)}>

@@ -2014,7 +2014,8 @@
     "transitionFailed": "Narių perkėlimo nepavyko užbaigti.",
     "configAllSaved": "Prenumerata, katalogas ir auka išsaugoti.",
     "prompterTitle": "Suflerius",
-    "prompterPlaceholder": "Parašyk čia, ką nori pasakyti"
+    "prompterPlaceholder": "Parašyk čia, ką nori pasakyti",
+    "uploadPrerecordedVideo": "Įkelti iš anksto įrašytą vaizdo įrašą"
   },
   "live": {
     "accessTicket": "Prieigos bilietas",

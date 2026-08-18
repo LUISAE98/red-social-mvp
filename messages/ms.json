@@ -2014,7 +2014,8 @@
     "transitionFailed": "Peralihan ahli tidak dapat diselesaikan.",
     "configAllSaved": "Langganan, katalog dan derma disimpan.",
     "prompterTitle": "Prompter",
-    "prompterPlaceholder": "Tulis di sini apa yang anda mahu katakan"
+    "prompterPlaceholder": "Tulis di sini apa yang anda mahu katakan",
+    "uploadPrerecordedVideo": "Muat naik video yang telah dirakam"
   },
   "live": {
     "accessTicket": "Tiket akses",

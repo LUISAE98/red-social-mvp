@@ -2014,7 +2014,8 @@
     "transitionFailed": "Tranziția membrilor nu a putut fi finalizată.",
     "configAllSaved": "Abonamentul, catalogul și donația au fost salvate.",
     "prompterTitle": "Teleprompter",
-    "prompterPlaceholder": "Scrie aici ce vrei să spui"
+    "prompterPlaceholder": "Scrie aici ce vrei să spui",
+    "uploadPrerecordedVideo": "Încarcă un videoclip preînregistrat"
   },
   "live": {
     "accessTicket": "Bilet de acces",

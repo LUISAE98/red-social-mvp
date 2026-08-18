@@ -2014,7 +2014,8 @@
     "transitionFailed": "Гишүүдийн шилжилтийг дуусгаж чадсангүй.",
     "configAllSaved": "Захиалга, каталог, хандивыг хадгаллаа.",
     "prompterTitle": "Промптер",
-    "prompterPlaceholder": "Хэлэхийг хүсэж буй зүйлээ энд бичнэ үү"
+    "prompterPlaceholder": "Хэлэхийг хүсэж буй зүйлээ энд бичнэ үү",
+    "uploadPrerecordedVideo": "Урьдчилан бичсэн видео байршуулах"
   },
   "live": {
     "accessTicket": "Хандах тасалбар",

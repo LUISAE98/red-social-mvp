@@ -6,7 +6,10 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
+import { useTranslations } from "next-intl";
 import StoryViewer, { desktopPanelSize } from "./StoryViewer";
+import ReelLiveSlide from "@/components/reels/ReelLiveSlide";
+import type { ReelLivePost } from "@/lib/reels/reelItems";
 
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const LABELS: Record<StoryType, string> = { saludo: "Saludo", consejo: "Consejo" };
@@ -31,6 +34,11 @@ export type CarouselGroup = {
   startIndex: number;
   thumbnailUrl: string | null;
   info: { displayName: string | null; photoURL: string | null };
+  /**
+   * Si el panel es un live en curso. Cuando viene, la lista de historias va
+   * vacia: un live no es una historia y no se recorre como tal.
+   */
+  live?: ReelLivePost;
 };
 
 type Props = {
@@ -38,11 +46,14 @@ type Props = {
   initialGroupIndex: number;
   onClose: () => void;
   onStoryViewed: (storyId: string) => void;
+  /** Entrar al visor de un live. */
+  onOpenLive?: (post: ReelLivePost) => void;
 };
 
 type Phase = "idle" | "to-next" | "to-prev";
 
 function GroupPreview({ group }: { group: CarouselGroup }) {
+  const tLive = useTranslations("live");
   const type = (group.stories[0]?.type ?? "saludo") as StoryType;
   const { photoURL, displayName } = group.info;
 
@@ -77,9 +88,30 @@ function GroupPreview({ group }: { group: CarouselGroup }) {
           <span style={{ color: "#fff", fontSize: 17, fontWeight: 600, fontFamily: FONT, maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>
             {displayName ?? ""}
           </span>
-          <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, fontFamily: FONT }}>
-            {LABELS[type]}
-          </span>
+          {/* Los costados NO reproducen: son portada. Con seis paneles a la
+              vista, reproducir todos abriria seis conexiones a la vez para algo
+              en lo que quiza ni se entra. Solo suena y corre el del centro. */}
+          {group.live ? (
+            <span
+              style={{
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 700,
+                fontFamily: FONT,
+                letterSpacing: 0.4,
+                textTransform: "uppercase",
+                padding: "4px 10px",
+                borderRadius: 999,
+                background: "#ef4444",
+              }}
+            >
+              {tLive("statusLive")}
+            </span>
+          ) : (
+            <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, fontFamily: FONT }}>
+              {LABELS[type]}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -91,6 +123,7 @@ export default function HomeStoryCarouselDesktop({
   initialGroupIndex,
   onClose,
   onStoryViewed,
+  onOpenLive,
 }: Props) {
   // Freeze groups at mount so live Firestore updates don't shift indices mid-session
   const groups = useRef(groupsProp).current;
@@ -260,6 +293,14 @@ export default function HomeStoryCarouselDesktop({
 
         {/* Active story */}
         <div style={panelStyle("active")}>
+          {activeGroup.live ? (
+            <ReelLiveSlide
+              key={activeGroup.key}
+              post={activeGroup.live}
+              compact
+              onOpen={() => onOpenLive?.(activeGroup.live!)}
+            />
+          ) : (
           <StoryViewer
             key={activeIdx}
             stories={activeGroup.stories}
@@ -274,6 +315,7 @@ export default function HomeStoryCarouselDesktop({
             onStoryViewed={onStoryViewed}
             onCloseCarousel={onClose}
           />
+          )}
         </div>
 
         {/* Next group — right side */}

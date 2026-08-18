@@ -2014,7 +2014,8 @@
     "transitionFailed": "Hindi natapos ang paglipat ng miyembro.",
     "configAllSaved": "Na-save ang subscription, katalogo at donasyon.",
     "prompterTitle": "Prompter",
-    "prompterPlaceholder": "Isulat dito ang gusto mong sabihin"
+    "prompterPlaceholder": "Isulat dito ang gusto mong sabihin",
+    "uploadPrerecordedVideo": "Mag-upload ng naunang na-record na video"
   },
   "live": {
     "accessTicket": "Access ticket",

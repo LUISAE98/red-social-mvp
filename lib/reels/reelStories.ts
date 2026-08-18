@@ -58,6 +58,12 @@ function byDateDesc(a: StoryDoc, b: StoryDoc): number {
   return (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0);
 }
 
+export type FollowedReel = {
+  stories: StoryDoc[];
+  /** A quién sigue el usuario. Lo aprovecha el ranking de lives. */
+  followingIds: Set<string>;
+};
+
 /** Cuántas historias como mucho se traen por cada tanda de 30 seguidos. */
 const FOLLOWED_PER_CHUNK = 40;
 
@@ -73,14 +79,18 @@ const FOLLOWED_PER_CHUNK = 40;
  * poder ordenar por fecha con el índice que ya existe (`creatorId` + `createdAt`)
  * en vez de necesitar uno nuevo de tres campos.
  */
-export async function fetchFollowedReelStories(uid: string): Promise<StoryDoc[]> {
-  if (!uid) return [];
+export async function fetchFollowedReelStories(uid: string): Promise<FollowedReel> {
+  if (!uid) return { stories: [], followingIds: new Set() };
   try {
     const followingSnap = await getDocs(
       query(collection(db, "users", uid, "following"), limit(200)),
     );
     const ids = followingSnap.docs.map((d) => (d.data().targetUserId as string) ?? d.id);
-    if (ids.length === 0) return [];
+    // A quién sigue se devuelve aparte de sus historias: el ranking de lives lo
+    // necesita y ya está pagada la lectura. Pedirlo por separado habría sido
+    // leer dos veces lo mismo.
+    const followingIds = new Set(ids);
+    if (ids.length === 0) return { stories: [], followingIds };
 
     const batches = await Promise.all(
       chunk(ids, IN_CHUNK).map((batch) =>
@@ -106,10 +116,10 @@ export async function fetchFollowedReelStories(uid: string): Promise<StoryDoc[]>
         merged.set(story.id, story);
       }
     }
-    return [...merged.values()].sort(byDateDesc);
+    return { stories: [...merged.values()].sort(byDateDesc), followingIds };
   } catch (err) {
     console.error("[fetchFollowedReelStories]", err);
-    return [];
+    return { stories: [], followingIds: new Set() };
   }
 }
 

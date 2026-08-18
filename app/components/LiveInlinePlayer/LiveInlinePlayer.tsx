@@ -90,6 +90,17 @@ type Props = {
   onClick?: () => void;
   onOrientationDetected?: (portrait: boolean) => void;
   onStreamReady?: (stream: MediaStream | null) => void;
+  /**
+   * Si arranca en silencio. Por omisión sí: es lo único que los navegadores
+   * dejan reproducir sin que el usuario haya tocado nada.
+   */
+  initialMuted?: boolean;
+  /**
+   * Avisa de cada cambio de sonido, INCLUIDO el silencio que impone el navegador
+   * cuando bloquea la reproducción con audio. Sirve para que quien lo monta
+   * mantenga una sola preferencia de sonido para toda su superficie.
+   */
+  onMutedChange?: (muted: boolean) => void;
 };
 
 export default function LiveInlinePlayer({
@@ -108,6 +119,8 @@ export default function LiveInlinePlayer({
   onClick,
   onOrientationDetected,
   onStreamReady,
+  initialMuted = true,
+  onMutedChange,
 }: Props) {
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
@@ -126,9 +139,18 @@ export default function LiveInlinePlayer({
   const isIntersectingRef = useRef(false);
   const prevScKeyRef = useRef<string | null>(null);
 
-  const [muted, setMuted] = useState(true);
-  const mutedRef = useRef(true);
+  const [muted, setMuted] = useState(initialMuted);
+  const mutedRef = useRef(initialMuted);
   useEffect(() => { mutedRef.current = muted; }, [muted]);
+
+  // El primer aviso se salta: arrancar con un valor no es cambiarlo.
+  const onMutedChangeRef = useRef(onMutedChange);
+  useEffect(() => { onMutedChangeRef.current = onMutedChange; });
+  const mutedReportedRef = useRef(false);
+  useEffect(() => {
+    if (!mutedReportedRef.current) { mutedReportedRef.current = true; return; }
+    onMutedChangeRef.current?.(muted);
+  }, [muted]);
 
   // ── SC overlay state ───────────────────────────────────────────────────────
   const [activeSC, setActiveSC] = useState<ActiveSuperComment | null>(null);

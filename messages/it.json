@@ -2014,7 +2014,8 @@
     "transitionFailed": "Il passaggio dei membri non è stato completato.",
     "configAllSaved": "Abbonamento, catalogo e donazione salvati.",
     "prompterTitle": "Teleprompter",
-    "prompterPlaceholder": "Scrivi qui quello che vuoi dire"
+    "prompterPlaceholder": "Scrivi qui quello che vuoi dire",
+    "uploadPrerecordedVideo": "Carica un video preregistrato"
   },
   "live": {
     "accessTicket": "Biglietto d'accesso",

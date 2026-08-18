@@ -2014,7 +2014,8 @@
     "transitionFailed": "Perpindahan anggota tidak bisa diselesaikan.",
     "configAllSaved": "Langganan, katalog dan donasi disimpan.",
     "prompterTitle": "Prompter",
-    "prompterPlaceholder": "Tulis di sini apa yang ingin kamu katakan"
+    "prompterPlaceholder": "Tulis di sini apa yang ingin kamu katakan",
+    "uploadPrerecordedVideo": "Unggah video yang sudah direkam"
   },
   "live": {
     "accessTicket": "Tiket akses",

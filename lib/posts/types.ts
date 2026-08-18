@@ -254,6 +254,12 @@ export type PostLiveData = {
   scheduleHasTime?: boolean | null;
   startedAt?: Timestamp | null;
   endedAt?: Timestamp | null;
+  /**
+   * Señal de vida de una transmisión directa desde el navegador, que se
+   * refresca cada 20 s mientras dura. La escribe `/api/cf-broadcast` y la vigila
+   * `liveHeartbeatCleanup` para cerrar los lives que se cortaron mal.
+   */
+  heartbeatAt?: Timestamp | null;
   streamProvider?: "mux" | "cloudflare" | "custom_hls" | null;
   liveStreamId?: string | null;
   playbackId?: string | null;

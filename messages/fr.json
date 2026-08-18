@@ -2014,7 +2014,8 @@
     "transitionFailed": "La transition des membres n'a pas pu se terminer.",
     "configAllSaved": "Abonnement, catalogue et don enregistrés.",
     "prompterTitle": "Prompteur",
-    "prompterPlaceholder": "Écris ici ce que tu veux dire"
+    "prompterPlaceholder": "Écris ici ce que tu veux dire",
+    "uploadPrerecordedVideo": "Importer une vidéo préenregistrée"
   },
   "live": {
     "accessTicket": "Billet d'accès",

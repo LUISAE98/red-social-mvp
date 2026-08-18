@@ -2014,7 +2014,8 @@
     "transitionFailed": "The member transition could not be completed.",
     "configAllSaved": "Subscription, catalogue and donation saved.",
     "prompterTitle": "Prompter",
-    "prompterPlaceholder": "Write here what you want to say"
+    "prompterPlaceholder": "Write here what you want to say",
+    "uploadPrerecordedVideo": "Upload pre-recorded video"
   },
   "live": {
     "accessTicket": "Access ticket",

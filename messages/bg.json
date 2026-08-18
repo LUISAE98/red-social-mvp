@@ -2014,7 +2014,8 @@
     "transitionFailed": "Прехвърлянето на членовете не можа да завърши.",
     "configAllSaved": "Абонаментът, каталогът и дарението са запазени.",
     "prompterTitle": "Промптер",
-    "prompterPlaceholder": "Напишете тук какво искате да кажете"
+    "prompterPlaceholder": "Напишете тук какво искате да кажете",
+    "uploadPrerecordedVideo": "Качване на предварително записано видео"
   },
   "live": {
     "accessTicket": "Билет за достъп",

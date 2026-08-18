@@ -2014,7 +2014,8 @@
     "transitionFailed": "멤버 전환을 끝내지 못했습니다.",
     "configAllSaved": "구독, 카탈로그, 후원을 저장했습니다.",
     "prompterTitle": "프롬프터",
-    "prompterPlaceholder": "하고 싶은 말을 여기에 적어 주세요"
+    "prompterPlaceholder": "하고 싶은 말을 여기에 적어 주세요",
+    "uploadPrerecordedVideo": "미리 녹화한 영상 업로드"
   },
   "live": {
     "accessTicket": "입장 티켓",

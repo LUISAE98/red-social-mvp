@@ -2014,7 +2014,8 @@
     "transitionFailed": "ย้ายสมาชิกไม่สำเร็จ",
     "configAllSaved": "บันทึกการสมัครสมาชิก แคตตาล็อก และการบริจาคแล้ว",
     "prompterTitle": "พรอมป์เตอร์",
-    "prompterPlaceholder": "เขียนสิ่งที่คุณอยากพูดไว้ที่นี่"
+    "prompterPlaceholder": "เขียนสิ่งที่คุณอยากพูดไว้ที่นี่",
+    "uploadPrerecordedVideo": "อัปโหลดวิดีโอที่บันทึกไว้ล่วงหน้า"
   },
   "live": {
     "accessTicket": "ตั๋วเข้าชม",

@@ -2014,7 +2014,8 @@
     "transitionFailed": "La transición de miembros no pudo completarse.",
     "configAllSaved": "Suscripción, catálogo y donación guardados.",
     "prompterTitle": "Prompter",
-    "prompterPlaceholder": "Escribe aquí lo que quieres decir"
+    "prompterPlaceholder": "Escribe aquí lo que quieres decir",
+    "uploadPrerecordedVideo": "Subir video pregrabado"
   },
   "live": {
     "accessTicket": "Ticket de acceso",

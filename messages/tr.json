@@ -2014,7 +2014,8 @@
     "transitionFailed": "Üye geçişi tamamlanamadı.",
     "configAllSaved": "Abonelik, katalog ve bağış kaydedildi.",
     "prompterTitle": "Suflör",
-    "prompterPlaceholder": "Söylemek istediklerini buraya yaz"
+    "prompterPlaceholder": "Söylemek istediklerini buraya yaz",
+    "uploadPrerecordedVideo": "Önceden kaydedilmiş video yükle"
   },
   "live": {
     "accessTicket": "Giriş bileti",

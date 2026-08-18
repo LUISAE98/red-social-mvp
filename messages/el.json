@@ -2014,7 +2014,8 @@
     "transitionFailed": "Η μετάβαση των μελών δεν ολοκληρώθηκε.",
     "configAllSaved": "Η συνδρομή, ο κατάλογος και η δωρεά αποθηκεύτηκαν.",
     "prompterTitle": "Υποβολέας",
-    "prompterPlaceholder": "Γράψε εδώ τι θέλεις να πεις"
+    "prompterPlaceholder": "Γράψε εδώ τι θέλεις να πεις",
+    "uploadPrerecordedVideo": "Μεταφόρτωση προηχογραφημένου βίντεο"
   },
   "live": {
     "accessTicket": "Εισιτήριο πρόσβασης",

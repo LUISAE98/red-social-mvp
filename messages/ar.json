@@ -2014,7 +2014,8 @@
     "transitionFailed": "تعذّر إتمام نقل الأعضاء.",
     "configAllSaved": "تم حفظ الاشتراك والكتالوج والتبرّع.",
     "prompterTitle": "التلقين",
-    "prompterPlaceholder": "اكتب هنا ما تريد قوله"
+    "prompterPlaceholder": "اكتب هنا ما تريد قوله",
+    "uploadPrerecordedVideo": "رفع فيديو مسجّل مسبقًا"
   },
   "live": {
     "accessTicket": "تذكرة دخول",

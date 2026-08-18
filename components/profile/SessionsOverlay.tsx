@@ -191,35 +191,15 @@ export default function SessionsOverlay({
     []
   );
 
-  // Cerrar CUALQUIER sesión cierra TODAS, incluida la de este dispositivo.
-  // Firebase no sabe revocar un dispositivo suelto, y una revocación que solo
-  // escribía un campo en Firestore no detenía a quien se llevó el token: le
-  // bastaba con no ejecutar el JavaScript de la app. Se confirma antes.
-  async function handleRevokeOne(session: UserSession) {
-    if (!uid || busyKey) return;
-    const ok = await confirm({
-      title: tProfile("sessionsRevokeOthers"),
-      body: tProfile("sessionRevokeAllConfirm"),
-      confirmLabel: tProfile("sessionRevoke"),
-      tone: "danger",
-    });
-    if (!ok) return;
-
-    setBusyKey(session.id);
-    setError(null);
-
-    try {
-      await revokeAllSessions();
-    } catch (err: unknown) {
-      setError(
-        (err instanceof Error ? err.message : null) ??
-          tProfile("sessionRevokeError")
-      );
-    } finally {
-      setBusyKey(null);
-    }
-  }
-
+  // Cerrar sesión es TODO o NADA, y por eso hay un solo botón.
+  //
+  // Firebase no sabe revocar un dispositivo suelto: una revocación que solo
+  // escribía un campo en Firestore no detenía a quien se llevó el token —le
+  // bastaba con no ejecutar el JavaScript de la app—. Los botones por
+  // dispositivo llamaban igualmente a `revokeAllSessions`, así que prometían una
+  // precisión que no existía: pulsar "cerrar" en un aparato ajeno te cerraba
+  // también el tuyo. La lista se queda como lo que sí es, un registro de dónde
+  // hay sesión abierta.
   async function handleRevokeOthers() {
     if (!uid || !currentSessionId || busyKey) return;
     const ok = await confirm({
@@ -268,16 +248,14 @@ export default function SessionsOverlay({
         >
           {!uid && <EmptyState text={tProfile("sessionsLoginRequired")} />}
 
-          {/* El renglón de una sesión es glifo del aparato + nombre y lugar +
-              botón de revocar, así que el hueco lleva las tres piezas: sin la
-              última el skeleton quedaría corto justo del lado donde el usuario
-              va a apuntar. */}
+          {/* El renglón de una sesión es glifo del aparato + nombre y lugar. Sin
+              `trailing`: ya no hay botón por dispositivo al que reservarle hueco
+              a la derecha. */}
           {uid && loading && (
             <ListSkeleton
               rows={4}
               avatarSize={34}
               avatarShape="square"
-              trailing={84}
               padding="0"
             />
           )}
@@ -333,7 +311,6 @@ export default function SessionsOverlay({
 
           {sessions.map((session) => {
             const isCurrent = session.id === currentSessionId;
-            const isBusy = busyKey === session.id;
             const relative = formatRelative(session.lastSeenAt, relativeLabels);
             const location = session.locationLabel?.trim();
 
@@ -417,32 +394,6 @@ export default function SessionsOverlay({
                   </div>
                 </div>
 
-                {!isCurrent && (
-                  <button
-                    className="session-action"
-                    type="button"
-                    disabled={isBusy}
-                    onClick={() => handleRevokeOne(session)}
-                    style={{
-                      height: 36,
-                      padding: "0 16px",
-                      borderRadius: 6,
-                      border: "none",
-                      background: "rgba(255,255,255,0.10)",
-                      color: "rgba(255,255,255,0.70)",
-                      fontWeight: 500,
-                      fontSize: 13,
-                      fontFamily: fontStack,
-                      opacity: isBusy ? 0.7 : 1,
-                      cursor: isBusy ? "not-allowed" : "pointer",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {isBusy
-                      ? tProfile("sessionRevoking")
-                      : tProfile("sessionRevoke")}
-                  </button>
-                )}
               </div>
             );
           })}

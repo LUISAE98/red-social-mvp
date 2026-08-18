@@ -467,7 +467,7 @@ Cerrado y desplegado el 2026-08-15 **todo lo que no depende de Stripe USA**: 4 c
 
 **No se cambió** (decisión de Luis, 2026-08-16): cambiar la política a "nadie" NO corta las conversaciones ya abiertas. El ajuste decide quién puede EMPEZAR.
 
-**Sigue abierto:** el TEXTO de una cita lo sigue poniendo el cliente. No se puede comparar con el original porque la cita se recorta a 200 y un mensaje llega a 2000, y las reglas no saben cortar cadenas. Cerrarlo pide que la interfaz resuelva el texto citado por id en vez de copiarlo.
+- **El texto de las citas, cerrado del todo.** Era una copia que escribía el cliente y que las reglas NO podían comprobar: la cita se recorta a 200 caracteres y un mensaje llega a 2000, así que no hay con qué compararla y las reglas no saben cortar cadenas. Se podía poner en boca del otro cualquier cosa. Se resolvió por donde había que resolverlo: **el texto ya no se guarda**. La interfaz lo lee del mensaje ORIGINAL por su id, y en `replyTo` solo queda la referencia, de la que sí responden las reglas (el mensaje existe en el hilo y `senderId` es su autor real). Si el original quedó en una página anterior, la cita se pinta sin texto y sigue llevando a su mensaje al pulsarla: mejor no decir nada que repetir algo no verificable. Los mensajes antiguos que ya llevan `text` se leen igual, la interfaz ignora esa copia.
 
 **Cobertura:** `directMessages.rules.test.ts`, suite de reglas **352 verdes**.
 

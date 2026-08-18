@@ -16,7 +16,7 @@ export default function ReelsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
-  const { stories, ready, loadMore, recordEngagement } = useReelFeed(user?.uid);
+  const { items, ready, loadMore, recordEngagement } = useReelFeed(user?.uid);
 
   useScreenReady(ready);
 
@@ -31,7 +31,7 @@ export default function ReelsPage() {
     <ReelsSurface
       uid={user.uid}
       isAnonymous={!!user.isAnonymous}
-      stories={stories}
+      items={items}
       ready={ready}
       loadMore={loadMore}
       recordEngagement={recordEngagement}

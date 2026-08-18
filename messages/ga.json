@@ -2014,7 +2014,8 @@
     "transitionFailed": "Níorbh fhéidir aistriú na mball a chríochnú.",
     "configAllSaved": "Sábháladh an síntiús, an catalóg agus an síntiús deonach.",
     "prompterTitle": "Teileaphromptar",
-    "prompterPlaceholder": "Scríobh anseo an rud is mian leat a rá"
+    "prompterPlaceholder": "Scríobh anseo an rud is mian leat a rá",
+    "uploadPrerecordedVideo": "Uaslódáil físeán réamhthaifeadta"
   },
   "live": {
     "accessTicket": "Ticéad rochtana",

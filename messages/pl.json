@@ -2014,7 +2014,8 @@
     "transitionFailed": "Nie udało się dokończyć przenoszenia członków.",
     "configAllSaved": "Subskrypcja, katalog i wsparcie zapisane.",
     "prompterTitle": "Prompter",
-    "prompterPlaceholder": "Napisz tutaj, co chcesz powiedzieć"
+    "prompterPlaceholder": "Napisz tutaj, co chcesz powiedzieć",
+    "uploadPrerecordedVideo": "Prześlij nagrane wcześniej wideo"
   },
   "live": {
     "accessTicket": "Bilet wstępu",

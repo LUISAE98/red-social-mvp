@@ -5116,17 +5116,20 @@ function canUpdateReplyCount(delta) {
             // cita a un mensaje inventado ni atribuirle al otro algo que dijo
             // uno mismo.
             //
-            // ⚠️ Lo que esto NO cierra: el TEXTO de la cita sigue viniendo del
-            // cliente. No se puede comparar con el original porque la cita se
-            // recorta a 200 caracteres y un mensaje llega a 2000, y las reglas no
-            // saben cortar cadenas. Cerrarlo del todo pide que la interfaz
-            // resuelva el texto citado por id en vez de copiarlo. Anotado.
+            // ⚠️ El TEXTO ya no se guarda. Era una copia del cliente que las
+            // reglas no podían comprobar —la cita se recorta a 200 y un mensaje
+            // llega a 2000, y las reglas no saben cortar cadenas—, así que se
+            // podía poner en boca del otro cualquier cosa. La interfaz lo lee
+            // ahora del mensaje ORIGINAL por su id, y aquí solo queda la
+            // referencia, de la que sí responden estas reglas.
+            //
+            // Los mensajes antiguos que ya llevan `text` se siguen leyendo sin
+            // problema: esto solo gobierna la escritura, y la interfaz ignora esa
+            // copia igualmente.
             && mensajeCitadoExiste()
             && request.resource.data.replyTo.senderId == mensajeCitado().senderId
-            && request.resource.data.replyTo.text is string
-            && request.resource.data.replyTo.text.size() <= 200
             && request.resource.data.replyTo.keys().hasOnly([
-                 'messageId', 'senderId', 'text', 'hasImage'
+                 'messageId', 'senderId', 'hasImage'
                ])
           );
         }

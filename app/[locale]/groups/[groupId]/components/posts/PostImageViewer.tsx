@@ -999,23 +999,24 @@ const previousMedia =
     // queda a pantalla completa haciendo de velo, y quien baja es la superficie
     // de dentro (ver `renderCurrentMedia`). Antes se movía y encogía aquí Y la
     // imagen volvía a trasladarse dentro, así que el gesto avanzaba al doble y
-    // en diagonal. El velo se aclara con la distancia recorrida —mismos números
-    // que `CommentImageLightbox`: 320px de recorrido, hasta un 85%.
+    // en diagonal.
+    //
+    // El fondo se queda NEGRO SÓLIDO: quien lo transparenta es la opacidad del
+    // contenedor entero (ver `mobileContent`). Aclararlo también aquí lo haría
+    // dos veces.
     if (mobileDragOffsetY > 0) {
-      const t = Math.min(1, mobileDragOffsetY / MOBILE_DRAG_FADE_PX);
       return {
         insetInlineStart: 0,
         top: 0,
         width: vw,
         height: vh,
         borderRadius: 0,
-        background: mobileVerticalClosing
-          ? "rgba(0,0,0,0)"
-          : `rgba(0,0,0,${1 - t * 0.85})`,
-        // Durante el arrastre el velo sigue al dedo sin transición; al soltar,
-        // se apaga acompañando a la salida.
+        background: "#000",
+        // Este objeto se esparce DESPUÉS de la transición del contenedor, así que
+        // hay que repetirla aquí o el spread la anularía y la opacidad saltaría a
+        // 0 de golpe al soltar. Durante el arrastre, sin transición: sigue al dedo.
         transition: mobileSwipeAnimating
-          ? `background ${MOBILE_CLOSE_MS}ms ease`
+          ? `opacity ${MOBILE_CLOSE_MS}ms ${MOBILE_CLOSE_EASE}`
           : (undefined as string | undefined),
       };
     }
@@ -1393,12 +1394,9 @@ const previewUrl = media.url;
               ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
               : `translate3d(${mobileDragOffsetX * dirX}px, 0, 0) scale(1)`,
             transition: mobileSurfaceTransition,
-            opacity: mobileOverlayOpacity,
-            // El fondo negro solo mientras NO se arrastra. Al deslizar estorba:
-            // son dos capas opacas y la de arriba tapa el aclarado del velo, así
-            // que el feed no llegaba a asomar. En reposo y durante la entrada sí
-            // se conserva, que es quien rellena las franjas del medio.
-            background: mobileVerticalActive ? "transparent" : "#000",
+            // Sin opacidad propia: la pone el contenedor de fuera, para todo el
+            // visor a la vez. Aquí solo se mueve.
+            background: "#000",
           }}
         >
           {videoSurface}
@@ -1416,9 +1414,8 @@ const previewUrl = media.url;
             ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
             : `translate3d(${mobileDragOffsetX * dirX}px, 0, 0) scale(1)`,
           transition: mobileSurfaceTransition,
-          opacity: mobileOverlayOpacity,
-          // Transparente solo al arrastrar; ver la superficie de video.
-          background: mobileVerticalActive ? "transparent" : "#000",
+          // Sin opacidad propia; ver la superficie de video.
+          background: "#000",
         }}
       >
         {useMobileLayout ? (
@@ -1462,13 +1459,23 @@ const previewUrl = media.url;
         WebkitUserSelect: "none",
         color: "#fff",
         overflow: "hidden",
-        // Este contenedor ES el velo, y es la ÚNICA capa que oscurece: se aclara
-        // con el arrastre para que el feed asome por detrás mientras bajas, en
-        // vez de aparecer de golpe al soltar. Sin hero también, que antes se
-        // quedaba en negro sólido hasta el cierre.
+        // TODO el visor se transparenta a la vez mientras arrastras: fondo negro,
+        // imagen y controles. Es la única forma sensata de dejar ver el feed de
+        // detrás —dentro hay ocho capas con `background: #000` propias (el marco
+        // del visor de pellizco, el <img>, las superficies de video…), y volverlas
+        // transparentes una a una es una lista que se desactualiza sola.
+        //
+        // Aquí es donde se hace, y por eso las capas de dentro NO tocan su
+        // opacidad: se multiplicaría.
+        opacity: mobileOverlayOpacity,
+        // La transición la trae cada rama (con y sin hero): ponerla también aquí
+        // la duplicaría y el spread de abajo se quedaría con la última.
         ...(heroContainerStyle ?? {
           inset: 0,
-          background: `rgba(0,0,0,${mobileOverlayOpacity})`,
+          background: "#000",
+          transition: mobileSwipeAnimating
+            ? `opacity ${MOBILE_CLOSE_MS}ms ${MOBILE_CLOSE_EASE}`
+            : undefined,
         }),
       }}
     >

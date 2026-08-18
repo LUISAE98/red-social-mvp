@@ -2014,7 +2014,8 @@
     "transitionFailed": "Üzv keçidi tamamlana bilmədi.",
     "configAllSaved": "Abunə, kataloq və ianə yadda saxlanıldı.",
     "prompterTitle": "Prompter",
-    "prompterPlaceholder": "Demək istədiyinizi buraya yazın"
+    "prompterPlaceholder": "Demək istədiyinizi buraya yazın",
+    "uploadPrerecordedVideo": "Əvvəlcədən çəkilmiş video yüklə"
   },
   "live": {
     "accessTicket": "Giriş bileti",

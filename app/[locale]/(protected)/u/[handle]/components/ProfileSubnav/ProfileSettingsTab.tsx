@@ -21,7 +21,7 @@ import SocialLinksEditor, {
   socialLinksToDraft,
 } from "@/components/profile/SocialLinksEditor";
 import { listSocialLinks } from "@/lib/profile/socialNetworks";
-import type { MessagePolicy } from "@/lib/chat/types";
+import { DEFAULT_MESSAGE_POLICY, type MessagePolicy } from "@/lib/chat/types";
 
 export default function ProfileSettingsTab({
   isSaving = false,
@@ -30,7 +30,10 @@ export default function ProfileSettingsTab({
   commentsEnabled = true,
   onToggleCommentsEnabled,
   isSavingComments = false,
-  messagePolicy = "everyone",
+  // Mismo default que las rules y que el botón de mensaje del perfil. Con
+  // "everyone" el selector mentía: enseñaba la bandeja abierta a quien la tenía
+  // cerrada por omisión.
+  messagePolicy = DEFAULT_MESSAGE_POLICY,
   onChangeMessagePolicy,
   isSavingMessagePolicy = false,
   uid = null,

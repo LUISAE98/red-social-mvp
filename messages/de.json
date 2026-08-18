@@ -2014,7 +2014,8 @@
     "transitionFailed": "Der Mitgliederwechsel konnte nicht abgeschlossen werden.",
     "configAllSaved": "Abo, Katalog und Spende gespeichert.",
     "prompterTitle": "Teleprompter",
-    "prompterPlaceholder": "Schreib hier, was du sagen möchtest"
+    "prompterPlaceholder": "Schreib hier, was du sagen möchtest",
+    "uploadPrerecordedVideo": "Vorab aufgenommenes Video hochladen"
   },
   "live": {
     "accessTicket": "Zugangsticket",

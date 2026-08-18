@@ -2014,7 +2014,8 @@
     "transitionFailed": "It-tranżizzjoni tal-membri ma setgħetx titlesta.",
     "configAllSaved": "L-abbonament, il-katalgu u d-donazzjoni ġew salvati.",
     "prompterTitle": "Prompter",
-    "prompterPlaceholder": "Ikteb hawn dak li trid tgħid"
+    "prompterPlaceholder": "Ikteb hawn dak li trid tgħid",
+    "uploadPrerecordedVideo": "Tella vidjo rrekordjat minn qabel"
   },
   "live": {
     "accessTicket": "Biljett ta' aċċess",

@@ -184,17 +184,10 @@ export const MESSAGE_EDIT_WINDOW_MS = 10 * 60 * 1000;
 export type MessageReply = {
   messageId: string;
   senderId: string;
-  /** Recortado a `REPLY_PREVIEW_MAX_LENGTH`; vacío si el original era solo imagen. */
-  text: string;
   /** El original llevaba imagen: la cita lo anuncia aunque no haya texto. */
   hasImage?: boolean;
 };
 
-/**
- * Tope del extracto citado. La cita se pinta en dos líneas como mucho, así que
- * guardar el mensaje entero solo engordaría cada respuesta en Firestore.
- */
-export const REPLY_PREVIEW_MAX_LENGTH = 200;
 
 export type MessageDoc = {
   senderId: string;

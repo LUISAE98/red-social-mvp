@@ -1045,7 +1045,15 @@ export default function GroupRecommendationsRail({
 
           {isDesktopRail ? (
             // Laptop: sin scroll. Solo las cards completas que quepan + "Ver más".
-            <div style={{ width: "100%", overflow: "hidden" }}>
+            //
+            // `position: relative` NO es decorativo: `mode="popLayout"` saca la
+            // página saliente del flujo con `position: absolute`, y un absoluto
+            // solo lo recorta el `overflow` de un ancestro que además sea su
+            // bloque contenedor. Sin esto se anclaba a un ancestro de más arriba,
+            // se escapaba del recorte y las cards cruzaban por encima del sidebar
+            // y del rail de la wallet al pasar de página. Es lo mismo que ya hace
+            // el bloque de intereses de arriba.
+            <div style={{ position: "relative", width: "100%", overflow: "hidden" }}>
               <AnimatePresence initial={false} custom={railDirection} mode="popLayout">
                 <motion.div
                   key={railPageClamped}

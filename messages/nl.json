@@ -2014,7 +2014,8 @@
     "transitionFailed": "De ledenovergang kon niet worden voltooid.",
     "configAllSaved": "Abonnement, catalogus en donatie opgeslagen.",
     "prompterTitle": "Teleprompter",
-    "prompterPlaceholder": "Schrijf hier wat je wilt zeggen"
+    "prompterPlaceholder": "Schrijf hier wat je wilt zeggen",
+    "uploadPrerecordedVideo": "Vooraf opgenomen video uploaden"
   },
   "live": {
     "accessTicket": "Toegangsticket",

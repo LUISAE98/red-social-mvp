@@ -176,7 +176,13 @@ export default function OwnerSidebarSettings({
           lastName: (raw.lastName as string) ?? null,
           handle: (raw.handle as string) ?? null,
           bio: (raw.bio as string) ?? null,
-          messagePolicy: isMessagePolicy(policy) ? policy : "everyone",
+          // ⚠️ El fallback tiene que ser DEFAULT_MESSAGE_POLICY, no "everyone".
+          // Sin campo en Firestore, las rules y el botón de mensaje del perfil
+          // aplican "following"; poniendo "everyone" aquí, el selector enseñaba
+          // "Todos" a quien nunca tocó el ajuste. Como ya lo veía puesto, no lo
+          // guardaba nunca — y su bandeja seguía cerrada a los desconocidos sin
+          // que nada se lo dijera.
+          messagePolicy: isMessagePolicy(policy) ? policy : DEFAULT_MESSAGE_POLICY,
           // La fecha de nacimiento ya no está en el documento público; se lee
           // aparte con `usePrivateProfile`. El fallback a `raw.birthDate`
           // sostiene a los perfiles que aún no pasaron por la migración.

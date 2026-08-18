@@ -2014,7 +2014,8 @@
     "transitionFailed": "無法完成成員轉換。",
     "configAllSaved": "已儲存訂閱、型錄與贊助。",
     "prompterTitle": "提詞機",
-    "prompterPlaceholder": "在這裡寫下你想說的話"
+    "prompterPlaceholder": "在這裡寫下你想說的話",
+    "uploadPrerecordedVideo": "上傳預先錄好的影片"
   },
   "live": {
     "accessTicket": "觀看門票",

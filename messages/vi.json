@@ -2014,7 +2014,8 @@
     "transitionFailed": "Không hoàn tất được việc chuyển thành viên.",
     "configAllSaved": "Đã lưu gói đăng ký, danh mục và quyên góp.",
     "prompterTitle": "Máy nhắc chữ",
-    "prompterPlaceholder": "Viết ở đây điều bạn muốn nói"
+    "prompterPlaceholder": "Viết ở đây điều bạn muốn nói",
+    "uploadPrerecordedVideo": "Tải lên video đã quay sẵn"
   },
   "live": {
     "accessTicket": "Vé vào cửa",

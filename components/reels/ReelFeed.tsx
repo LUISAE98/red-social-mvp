@@ -13,8 +13,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { StoryDoc } from "@/lib/stories/types";
+import type { ReelItem, ReelLivePost } from "@/lib/reels/reelItems";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
 import ReelStorySlide from "./ReelStorySlide";
+import ReelLiveSlide from "./ReelLiveSlide";
 
 /** Cuántas historias se montan a cada lado de la activa. */
 const WINDOW = 1;
@@ -22,7 +24,10 @@ const WINDOW = 1;
 const LOAD_MORE_MARGIN = 3;
 
 type Props = {
-  stories: StoryDoc[];
+  /** Historias y lives, ya mezclados y en orden. */
+  items: ReelItem[];
+  /** Entrar al visor de un live. */
+  onOpenLive?: (post: ReelLivePost) => void;
   /** Se llama al acercarse al final. Debe ser estable. */
   onLoadMore?: () => void;
   /** Una historia se dio por vista. */
@@ -44,7 +49,8 @@ type Props = {
 };
 
 export default function ReelFeed({
-  stories,
+  items,
+  onOpenLive,
   onLoadMore,
   onStoryViewed,
   onEngagement,
@@ -137,20 +143,22 @@ export default function ReelFeed({
   // reinicie la medición cada vez que el padre repinta. Se actualizan en un
   // efecto, no al pintar.
   const onEngagementRef = useRef(onEngagement);
-  const storiesRef = useRef(stories);
+  const itemsRef = useRef(items);
   useEffect(() => {
     onEngagementRef.current = onEngagement;
-    storiesRef.current = stories;
+    itemsRef.current = items;
   });
 
   const closeDwell = useCallback(() => {
     const open = dwellRef.current;
     dwellRef.current = null;
     if (!open) return;
-    const story = storiesRef.current[open.index];
-    if (!story) return;
+    const item = itemsRef.current[open.index];
+    // Un live no alimenta el vector de intereses: no tiene texto de contexto ni
+    // categorías, que es de donde ese vector aprende.
+    if (!item || item.kind !== "story") return;
     onEngagementRef.current?.({
-      story,
+      story: item.story,
       dwellMs: Date.now() - open.startedAt,
       completion: completionRef.current,
     });
@@ -159,13 +167,13 @@ export default function ReelFeed({
 
   // Abre la medición de la historia activa y cierra la anterior.
   useEffect(() => {
-    if (stories.length === 0) return;
+    if (items.length === 0) return;
     closeDwell();
     dwellRef.current = { index: activeIndex, startedAt: Date.now() };
     return () => {
       closeDwell();
     };
-  }, [activeIndex, stories.length, closeDwell]);
+  }, [activeIndex, items.length, closeDwell]);
 
   // Salir de la app cuenta como salir de la historia. Sin esto, la última que
   // miras —que suele ser la que más te interesó— nunca registra nada.
@@ -187,12 +195,12 @@ export default function ReelFeed({
 
   useEffect(() => {
     if (!onLoadMore) return;
-    if (stories.length === 0) return;
-    if (activeIndex < stories.length - 1 - LOAD_MORE_MARGIN) return;
-    if (lastLoadRequestRef.current === stories.length) return;
-    lastLoadRequestRef.current = stories.length;
+    if (items.length === 0) return;
+    if (activeIndex < items.length - 1 - LOAD_MORE_MARGIN) return;
+    if (lastLoadRequestRef.current === items.length) return;
+    lastLoadRequestRef.current = items.length;
     onLoadMore();
-  }, [activeIndex, stories.length, onLoadMore]);
+  }, [activeIndex, items.length, onLoadMore]);
 
   const handleMutedChange = useCallback((next: boolean) => {
     setMuted(next);
@@ -252,13 +260,27 @@ export default function ReelFeed({
       `}</style>
 
       <div className="scroller" ref={scrollerRef} onScroll={handleScroll}>
-        {stories.map((story, i) => {
+        {items.map((item, i) => {
           const mounted = Math.abs(i - activeIndex) <= WINDOW;
+          const safeBottom = navH !== null ? `${Math.round(navH)}px` : navClearance;
           return (
-            <div className="slide" key={story.id} onContextMenu={(e) => e.preventDefault()}>
-              {mounted && (
+            <div className="slide" key={item.key} onContextMenu={(e) => e.preventDefault()}>
+              {mounted && item.kind === "live" && (
+                <ReelLiveSlide
+                  post={item.post}
+                  // Fuera de pantalla suelta la conexión: un live que no se ve no
+                  // puede seguir gastando datos.
+                  paused={i !== activeIndex}
+                  muted={muted}
+                  onMutedChange={handleMutedChange}
+                  onOpen={() => onOpenLive?.(item.post)}
+                  safeTop="env(safe-area-inset-top, 0px)"
+                  safeBottom={safeBottom}
+                />
+              )}
+              {mounted && item.kind === "story" && (
                 <ReelStorySlide
-                  story={story}
+                  story={item.story}
                   // El reel NO avanza solo al terminar: repite. Avanzar por su
                   // cuenta pelearía con el scroll del dedo, que es quien manda.
                   loop
@@ -273,8 +295,8 @@ export default function ReelFeed({
                   safeTop="env(safe-area-inset-top, 0px)"
                   // Justo encima del nav, sin holgura extra: con margen de más
                   // los botones flotaban despegados y se leía como un error.
-                  safeBottom={navH !== null ? `${Math.round(navH)}px` : navClearance}
-                  onViewed={() => onStoryViewed?.(story.id)}
+                  safeBottom={safeBottom}
+                  onViewed={() => onStoryViewed?.(item.story.id)}
                   onProgress={
                     i === activeIndex
                       ? (ratio) => {

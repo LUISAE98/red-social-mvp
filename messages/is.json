@@ -2014,7 +2014,8 @@
     "transitionFailed": "Ekki tókst að ljúka flutningi meðlima.",
     "configAllSaved": "Áskrift, listi og framlag vistuð.",
     "prompterTitle": "Textavél",
-    "prompterPlaceholder": "Skrifaðu hér það sem þú vilt segja"
+    "prompterPlaceholder": "Skrifaðu hér það sem þú vilt segja",
+    "uploadPrerecordedVideo": "Hlaða upp fyrirfram teknu myndbandi"
   },
   "live": {
     "accessTicket": "Aðgangsmiði",

@@ -2014,7 +2014,8 @@
     "transitionFailed": "メンバーの移行を完了できませんでした。",
     "configAllSaved": "サブスクリプション、カタログ、寄付を保存しました。",
     "prompterTitle": "プロンプター",
-    "prompterPlaceholder": "話したい内容をここに書いてください"
+    "prompterPlaceholder": "話したい内容をここに書いてください",
+    "uploadPrerecordedVideo": "録画済みの動画をアップロード"
   },
   "live": {
     "accessTicket": "アクセスチケット",

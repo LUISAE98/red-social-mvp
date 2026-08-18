@@ -772,31 +772,7 @@ export default function ReelStorySlide({
             </div>
           </div>
 
-          <style>{`
-            @keyframes reelActionsIn {
-              from { opacity: 0; transform: translateY(14px) scale(0.97); }
-              to   { opacity: 1; transform: none; }
-            }
-            @media (prefers-reduced-motion: reduce) {
-              @keyframes reelActionsIn {
-                from { opacity: 0; }
-                to   { opacity: 1; }
-              }
-            }
-          `}</style>
-          <div
-            // Al cambiar la clave, el bloque se vuelve a montar y la animación
-            // se repite. Sin cambio de clave simplemente no se repite; nunca
-            // desaparece.
-            key={enterCount}
-            style={{
-              display: "flex",
-              gap: 10,
-              padding: "0 14px",
-              paddingBottom: btnPadBottom,
-              animation: "reelActionsIn 340ms cubic-bezier(0.22, 1, 0.36, 1) both",
-            }}
-          >
+          <div style={{ display: "flex", gap: 10, padding: "0 14px", paddingBottom: btnPadBottom }}>
             <button
               type="button"
               onTouchStart={(e) => e.stopPropagation()}
