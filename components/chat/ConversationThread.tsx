@@ -43,6 +43,7 @@ import {
 } from "@/app/[locale]/groups/[groupId]/components/posts/CommentImageUI";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { captureError } from "@/lib/observability/captureError";
 
 /**
  * Hilo de conversación SIN chrome: solo el área de mensajes y el pie de acción.
@@ -1094,7 +1095,15 @@ export default function ConversationThread({
     try {
       await deliver(body, null, replyingTo);
       setReplyingTo(null);
-    } catch {
+    } catch (err) {
+      // El motivo real se descartaba aqui: la persona veia "no se pudo enviar"
+      // y no quedaba rastro de si fue el freno de ritmo, una regla de Firestore
+      // o la red. Sin eso, un fallo de envio no se puede diagnosticar.
+      captureError(err, {
+        scope: "chat",
+        code: (err as { code?: string })?.code,
+        extra: { conversationId, threadExists: exists },
+      });
       setError(tChat("sendError"));
       // Si falló, lo escrito VUELVE al campo: perder un mensaje por un corte de
       // red es mucho peor que cualquier animación.
