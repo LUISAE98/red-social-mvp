@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Hls from "hls.js";
@@ -9,7 +10,7 @@ import type { ActiveSuperComment } from "@/lib/posts/types";
 import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 
 const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
 
@@ -128,7 +129,7 @@ export default function LiveInlinePlayer({
   // Monto mostrado de una donación = total que pagó el fan (base + $3 + IVA) en MXN.
   // `baseCurrency:"MXN"` evita el bug ×FX (tratar el MXN como USD → 1095).
   const fanPaidTotal = (baseMxn: number) =>
-    pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN", code: true }).total;
+    pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total;
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);

@@ -6,6 +6,7 @@
 // alimentado por el hook autocontenido useMyExperiences. Ver docs de experiencias.
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { TextButton, IconButton } from "@/components/ui";
 import { useCfError } from "@/lib/i18n/cfError";
 import { useTranslations, useLocale } from "next-intl";
@@ -130,7 +131,7 @@ export default function ExperienciasPage() {
     const ok = await confirm({
       title: tWallet("cashoutRequestTitle"),
       body: tWallet("cashoutConfirmBody"),
-      highlight: pf.format(credit.balance, { baseCurrency: "MXN", code: true }),
+      highlight: pf.format(credit.balance, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
       confirmLabel: tCommon("confirm"),
       tone: "neutral",
     });
@@ -539,7 +540,7 @@ export default function ExperienciasPage() {
             </div>
           </div>
           <span style={{ fontSize: 18, fontWeight: 700, color: "#22c55e", whiteSpace: "nowrap", flexShrink: 0 }}>
-            {pf.format(credit.balance, { baseCurrency: "MXN", code: true })}
+            {pf.format(credit.balance, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}
           </span>
         </div>
       ) : null}
@@ -550,13 +551,13 @@ export default function ExperienciasPage() {
       {cashout.latest?.status === "pending" ? (
         <div style={{ marginTop: -13, marginBottom: 16, padding: "0 8px", fontSize: 12.5, color: "#fff", textAlign: "center", lineHeight: 1.4 }}>
           {tWallet("cashoutPendingReview", {
-            amount: pf.format(cashout.latest.amount, { baseCurrency: "MXN", code: true }),
+            amount: pf.format(cashout.latest.amount, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
           })}
         </div>
       ) : cashout.latest?.status === "approved" ? (
         <div style={{ marginTop: -13, marginBottom: 16, padding: "0 8px", fontSize: 12.5, color: "#fff", textAlign: "center", lineHeight: 1.4 }}>
           {tWallet("cashoutApproved", {
-            amount: pf.format(cashout.latest.refundedAmount || cashout.latest.amount, { baseCurrency: "MXN", code: true }),
+            amount: pf.format(cashout.latest.refundedAmount || cashout.latest.amount, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
           })}
         </div>
       ) : cashout.latest?.status === "rejected" ? (
@@ -577,7 +578,7 @@ export default function ExperienciasPage() {
             {cashoutBusy
               ? tWallet("cashoutSending")
               : tWallet("cashoutRequest", {
-                  amount: pf.format(credit.balance, { baseCurrency: "MXN", code: true }),
+                  amount: pf.format(credit.balance, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
                 })}
           </TextButton>
           {cashoutError && (

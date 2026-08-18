@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -37,7 +38,7 @@ import {
   type PublicUser, type SearchHistoryEntry,
 } from "./GroupsSearchPanel.parts";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 
 export default function GroupsSearchPanel({
   fontStack,
@@ -2002,7 +2003,7 @@ const visLabel =
     const base = resolveSubscriptionBasePrice(g);
     return base != null
       ? tGroups("subscribeForPrice", {
-          price: pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total,
+          price: pf.formatWithTax(base + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total,
         })
       : tGroups("subscribeCta");
   })()}

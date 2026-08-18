@@ -8,6 +8,7 @@
 // idempotentes por (sourceType, sourceId).
 
 import * as admin from "firebase-admin";
+import { SETTLEMENT_CURRENCY } from "./ledger";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -50,13 +51,13 @@ export async function issueBuyerCredit(
     const next = round2(readBalance(sSnap.data()) + amount);
     tx.set(
       sRef,
-      { balance: next, currency: "MXN", updatedAt: FieldValue.serverTimestamp() },
+      { balance: next, currency: SETTLEMENT_CURRENCY, updatedAt: FieldValue.serverTimestamp() },
       { merge: true }
     );
     tx.set(mRef, {
       type: "issued",
       amount,
-      currency: "MXN",
+      currency: SETTLEMENT_CURRENCY,
       sourceType: params.sourceType,
       sourceId: params.sourceId,
       createdAt: FieldValue.serverTimestamp(),
@@ -86,7 +87,7 @@ export async function revertBuyerCreditSpend(
       const next = round2(readBalance(sSnap.data()) + amount);
       tx.set(
         sRef,
-        { balance: next, currency: "MXN", updatedAt: FieldValue.serverTimestamp() },
+        { balance: next, currency: SETTLEMENT_CURRENCY, updatedAt: FieldValue.serverTimestamp() },
         { merge: true }
       );
     }
@@ -117,13 +118,13 @@ export async function spendBuyerCredit(
     if (applied <= 0) return 0;
     tx.set(
       sRef,
-      { balance: round2(prev - applied), currency: "MXN", updatedAt: FieldValue.serverTimestamp() },
+      { balance: round2(prev - applied), currency: SETTLEMENT_CURRENCY, updatedAt: FieldValue.serverTimestamp() },
       { merge: true }
     );
     tx.set(mRef, {
       type: "spent",
       amount: applied,
-      currency: "MXN",
+      currency: SETTLEMENT_CURRENCY,
       sourceType: params.sourceType,
       sourceId: params.sourceId,
       createdAt: FieldValue.serverTimestamp(),

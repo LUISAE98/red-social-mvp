@@ -19,8 +19,12 @@
 // Regla de aplicación (Art. 18-C LIVA): el impuesto lo determina DÓNDE ESTÁ EL COMPRADOR al
 // comprar, no su nacionalidad. Ver lib/tax/useBuyerCountry.ts para la señal (por IP).
 
-/** Moneda de LIQUIDACIÓN de Vibra (mantener en sync con SETTLEMENT_CURRENCY del catálogo/wallet). */
-const SETTLEMENT_CURRENCY = "MXN";
+/**
+ * Moneda de LIQUIDACIÓN de Vibra (mantener en sync con SETTLEMENT_CURRENCY del catálogo/wallet).
+ * ⚠️ Espejo del backend: decide `shouldAddFxFee`. Si los dos se separan, el precio que
+ * se MUESTRA y el que se COBRA dejan de coincidir.
+ */
+const SETTLEMENT_CURRENCY = "USD";
 
 // Cargo por conversión de divisa: FUENTE ÚNICA en lib/currency/catalog.ts. Se re-exporta
 // aquí por compatibilidad con los imports existentes, pero NO se redefine: tenerlo dos

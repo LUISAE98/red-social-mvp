@@ -17,7 +17,7 @@ import { useAuth } from "@/app/providers";
 import type { StoryType } from "@/lib/stories/types";
 import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
 import { createGreetingStripeIntent } from "@/lib/stripe/stripePayments";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
@@ -124,7 +124,7 @@ export function useGreetingPurchase({
   /** ¿Hay algún modal abierto? El slide lo usa para pausar el video. */
   const isOpen = formOpen || payOpen;
 
-  const totalAmount = payAmount != null ? payAmount + FIXED_SERVICE_FEE_MXN : null;
+  const totalAmount = payAmount != null ? payAmount + FIXED_SERVICE_FEE_USD : null;
 
   const modals = useMemo(
     () => (

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useCfError } from "@/lib/i18n/cfError";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
@@ -1858,7 +1859,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
             productType="Devolución aplicada"
             successMessage={
               refundDone.credited > 0
-                ? `Se agregaron ${formatMoney(refundDone.credited, { baseCurrency: "MXN" })} MXN a tu crédito disponible. Úsalo para pagar otras experiencias dentro de la plataforma, o solicita el efectivo desde Experiencias.`
+                ? `Se agregaron ${formatMoney(refundDone.credited, { baseCurrency: SETTLEMENT_CURRENCY })} MXN a tu crédito disponible. Úsalo para pagar otras experiencias dentro de la plataforma, o solicita el efectivo desde Experiencias.`
                 : "Tu solicitud de devolución se procesó. Revisa tu crédito disponible en Experiencias."
             }
             onClose={() => setRefundDone(null)}

@@ -32,18 +32,25 @@ export const WALLET_NET_RATE = 1 - WALLET_COMMISSION_RATE; // 0.75
 
 /**
  * Moneda de LIQUIDACIÓN de Vibra (en la que se guarda el ledger y se cobra en Stripe).
- * Hoy MXN (billetera Stripe en MXN). ⚠️ ÚNICO punto para cambiar a "USD" en el backend
- * (mantener en sync con SETTLEMENT_CURRENCY del frontend en lib/currency/catalog.ts).
- * El comprador siempre ve su moneda local vía Adaptive Pricing (Stripe) + pf (UI).
+ * USD desde el corte a Vibra On, LLC (2026-08-18). ⚠️ Mantener en sync con
+ * SETTLEMENT_CURRENCY del frontend en lib/currency/catalog.ts.
+ * El comprador siempre ve y paga en su moneda local (ver tax/presentment.ts).
+ *
+ * ⚠️ Los asientos ANTERIORES al corte llevan `currency: "MXN"` propio y se quedan así:
+ * son historia y se describen solos. No se convierten.
  */
-export const SETTLEMENT_CURRENCY = "MXN";
+export const SETTLEMENT_CURRENCY = "USD";
 
 /**
  * Cargo fijo por transacción que ABSORBE EL COMPRADOR (no el creador). Se suma al
- * precio base del creador antes del IVA: el comprador paga (base + $3) + IVA, el
- * creador recibe 75% de la base. Protege el margen en cobros chicos. Ver docs/modelo-financiero.md (D1).
+ * precio base del creador antes del impuesto: el comprador paga (base + cargo) + impuesto,
+ * el creador recibe 75% de la base. Protege el margen en cobros chicos. Ver docs/modelo-financiero.md (D1).
+ *
+ * 💵 $0.40 = $0.30 del fijo de Stripe en EE. UU. + $0.05 de Radar, con el margen que
+ * exige que Stripe cobre su PORCENTAJE también sobre este cargo (mínimo real
+ * 0.35÷(1−tasa): 0.361 nacional, 0.370 internacional).
  */
-export const FIXED_SERVICE_FEE_MXN = 3;
+export const FIXED_SERVICE_FEE_USD = 0.4;
 
 export type LedgerServiceType =
   | "supercomment"

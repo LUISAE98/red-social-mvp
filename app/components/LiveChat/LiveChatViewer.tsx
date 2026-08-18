@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -20,7 +21,7 @@ import { DEFAULT_SUPER_COMMENT_CONFIG } from "@/lib/liveChat/types";
 import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 
 const FONT = 'inherit';
 
@@ -85,7 +86,7 @@ export default function LiveChatViewer({
   // total que pagó el fan (base + $3 + IVA), que es lo que donó/pagó — igual que ve el
   // comprador. `baseCurrency:"MXN"` evita que se trate el MXN como USD (bug ×FX → 1095).
   const paidTotal = (baseMxn: number) =>
-    pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN", code: true }).total;
+    pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total;
   const { user } = useAuth();
   const { reportTarget, openReport, closeReport } = useReport();
   const { messages, send } = useLiveChat(liveId);

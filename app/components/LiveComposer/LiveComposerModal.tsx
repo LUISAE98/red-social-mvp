@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { TextButton, IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react";
@@ -8,7 +9,7 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
-import { FIXED_SERVICE_FEE_MXN, LIVE_TICKET_MIN_PRICE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, LIVE_TICKET_MIN_PRICE_USD } from "@/lib/currency/catalog";
 import { createPortal } from "react-dom";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -330,8 +331,8 @@ export default function LiveComposerModal({
       showLiveComposerToast(tLive("ticketPriceRequired"), "error");
       return;
     }
-    if (accessType === "paid" && priceNum < LIVE_TICKET_MIN_PRICE_MXN) {
-      showLiveComposerToast(tCommon("priceMin", { min: LIVE_TICKET_MIN_PRICE_MXN }), "error");
+    if (accessType === "paid" && priceNum < LIVE_TICKET_MIN_PRICE_USD) {
+      showLiveComposerToast(tCommon("priceMin", { min: LIVE_TICKET_MIN_PRICE_USD }), "error");
       return;
     }
 
@@ -530,7 +531,7 @@ export default function LiveComposerModal({
   const ticketPriceNum = parseFloat(ticketPrice.replace(",", "."));
   const ticketHasValidPrice =
     ticketPrice.trim() !== "" && Number.isFinite(ticketPriceNum) && ticketPriceNum > 0;
-  const ticketBelowMin = ticketHasValidPrice && ticketPriceNum < LIVE_TICKET_MIN_PRICE_MXN;
+  const ticketBelowMin = ticketHasValidPrice && ticketPriceNum < LIVE_TICKET_MIN_PRICE_USD;
   const ticketEarnings = ticketHasValidPrice ? ticketPriceNum * WALLET_NET_RATE : null;
   const ticketEarningsVisible = ticketEarnings != null && ticketEarnings > 0 && !ticketBelowMin;
 
@@ -617,7 +618,7 @@ export default function LiveComposerModal({
               }}
             >
               <span style={{ display: "block", color: "#f87171", fontSize: 12, lineHeight: 1.45, fontFamily: fontStack }}>
-                {tCommon("priceMin", { min: LIVE_TICKET_MIN_PRICE_MXN })}
+                {tCommon("priceMin", { min: LIVE_TICKET_MIN_PRICE_USD })}
               </span>
             </div>
 
@@ -633,14 +634,14 @@ export default function LiveComposerModal({
               <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.45, fontFamily: fontStack }}>
                 Ganas{" "}
                 <strong style={{ color: "#a855f7", fontWeight: 700 }}>
-                  {formatMoney(ticketEarnings ?? 0, { baseCurrency: "MXN", code: true })}
+                  {formatMoney(ticketEarnings ?? 0, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}
                 </strong>{" "}
                 por cada entrada
               </span>
             </div>
 
             <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, lineHeight: 1.4, fontFamily: fontStack, marginTop: 3 }}>
-              Se suman ${FIXED_SERVICE_FEE_MXN} MXN por el cargo de procesamiento de Stripe.
+              Se suman ${FIXED_SERVICE_FEE_USD} MXN por el cargo de procesamiento de Stripe.
             </div>
           </div>
 

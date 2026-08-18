@@ -9,6 +9,7 @@
 // CVV (Stripe off-session; el cobro de guardadas se conecta en S3c).
 
 import { createPortal } from "react-dom";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { intlLocale } from "@/i18n/locales";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
@@ -17,7 +18,7 @@ import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { isChargeableCountry } from "@/lib/tax/config";
@@ -105,7 +106,8 @@ const ID_EXP = "vibra-stripe-card-exp";
 const ID_CVC = "vibra-stripe-card-cvc";
 
 const BLUE = "#009ee3";
-const DEFAULT_DONATION_PRESETS_MXN = [50, 120, 250, 490];
+// 💵 USD. Respaldo para cuando el creador no configuró sus propios montos sugeridos.
+const DEFAULT_DONATION_PRESETS_USD = [3, 7, 15, 30];
 
 const STRIPE_STYLE = {
   base: { fontSize: "15px", color: "#3a3f4a", fontFamily: "inherit", "::placeholder": { color: "#9aa0a8" } },
@@ -115,7 +117,7 @@ const STRIPE_STYLE = {
 export default function StripePaymentModal({
   open,
   amount,
-  amountCurrency = "MXN",
+  amountCurrency = "USD",
   createIntent,
   amountEditable = false,
   donationPresets,
@@ -217,7 +219,7 @@ export default function StripePaymentModal({
   // Total estimado en MXN (base + $3 en donación + IVA) para calcular cuánto crédito se
   // aplica y si cubre el 100%. El monto EXACTO lo decide el backend; esto es para la UI.
   const creditChargedBaseMxn =
-    mxnAmount != null ? mxnAmount + (amountEditable ? FIXED_SERVICE_FEE_MXN : 0) : null;
+    mxnAmount != null ? mxnAmount + (amountEditable ? FIXED_SERVICE_FEE_USD : 0) : null;
   const estTotalMxn =
     creditChargedBaseMxn != null
       ? Math.round((creditChargedBaseMxn * (1 + pf.taxRate) + Number.EPSILON) * 100) / 100
@@ -293,12 +295,20 @@ export default function StripePaymentModal({
       } catch {
         // Sin país de tarjeta se sigue con el de la IP. No se muestra error al comprador.
       } finally {
-        if (!cancelled) setReadingCard(false);
+        // ⚠️ SIEMPRE, aunque se haya cancelado. Atarlo a `cancelled` dejaba el precio
+        // en skeleton para siempre: al cancelarse nadie volvía a apagar la bandera.
+        setReadingCard(false);
       }
     })();
 
     return () => { cancelled = true; };
-  }, [cardComplete, cardPm, readingCard, cardName]);
+    // ⚠️ `readingCard` NO va aquí: es la guarda de "ya hay una lectura en vuelo", y
+    // ponerlo como dependencia hacía que el efecto se cancelara a sí mismo —
+    // setReadingCard(true) lo re-disparaba, el cleanup marcaba `cancelled` y la
+    // respuesta de Stripe se descartaba entera (ni país de tarjeta, ni fin del skeleton).
+    // `cardName` tampoco: solo viaja en billing_details y re-tokenizaba en cada tecla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardComplete, cardPm]);
 
   // País que MANDA para el precio mostrado. Espeja la regla del backend
   // (backend/src/tax/resolveCountry.ts): gana la tarjeta, salvo que la IP sea de México
@@ -827,7 +837,7 @@ export default function StripePaymentModal({
                   <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" /><rect x="3" y="7" width="18" height="12" rx="2.5" /><path d="M16 12.5h3" />
                 </svg>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "start" }}>
-                  {tWallet("creditAvailable")} <span style={{ color: "#8a8f99", fontWeight: 500 }}>· {pf.format(creditBalance, { baseCurrency: "MXN", code: true })}</span>
+                  {tWallet("creditAvailable")} <span style={{ color: "#8a8f99", fontWeight: 500 }}>· {pf.format(creditBalance, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span>
                 </span>
                 {radio(useCredit)}
               </button>
@@ -837,7 +847,7 @@ export default function StripePaymentModal({
                     {creditCoversAll
                       ? tWallet("payCreditCoversAll")
                       : tWallet("creditMissingAmount", {
-                          amount: remainderAfterCredit != null ? pf.format(remainderAfterCredit, { baseCurrency: "MXN", code: true }) : "",
+                          amount: remainderAfterCredit != null ? pf.format(remainderAfterCredit, { baseCurrency: SETTLEMENT_CURRENCY, code: true }) : "",
                         })}
                   </p>
                 </div>
@@ -862,7 +872,7 @@ export default function StripePaymentModal({
   const isNonAnchor = pf.currency !== "USD";
   // En donación (amountEditable) el monto elegido es la BASE; el $3 fijo se suma en el
   // DISPLAY (el backend lo suma al cobrar). Los servicios ya reciben base+$3 en `amount`.
-  const chargedBase = effectiveAmount != null ? effectiveAmount + (amountEditable ? FIXED_SERVICE_FEE_MXN : 0) : null;
+  const chargedBase = effectiveAmount != null ? effectiveAmount + (amountEditable ? FIXED_SERVICE_FEE_USD : 0) : null;
   const totalLabel = chargedBase != null ? pf.format(chargedBase, { baseCurrency: amountCurrency, code: true }) : priceLabel ?? "";
   // El desglose se calcula con el país EFECTIVO: la IP al abrir, y el de la tarjeta en cuanto
   // se lee. Así el precio en pantalla coincide con lo que el backend va a cobrar.
@@ -916,7 +926,7 @@ export default function StripePaymentModal({
         <>
           <div style={{ height: 1, background: "#e6e8ec" }} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-            {(donationPresets && donationPresets.length ? donationPresets : DEFAULT_DONATION_PRESETS_MXN).map((base) => {
+            {(donationPresets && donationPresets.length ? donationPresets : DEFAULT_DONATION_PRESETS_USD).map((base) => {
               const selected = selectedPreset === base;
               return (
                 <button key={base} type="button"
@@ -925,12 +935,12 @@ export default function StripePaymentModal({
                     // En modo inclusivo el input custom muestra el TOTAL (base+$3+IVA), igual
                     // que el botón, para no confundir al usuario. En modo base, muestra la base.
                     setCustomAmount(donationCustomInclusive
-                      ? String(Math.round((base + FIXED_SERVICE_FEE_MXN) * (1 + pf.taxRate) * 100) / 100)
+                      ? String(Math.round((base + FIXED_SERVICE_FEE_USD) * (1 + pf.taxRate) * 100) / 100)
                       : String(base));
                   }}
                   style={{ padding: "9px 2px", borderRadius: 10, border: "none", background: selected ? "#eaf6fd" : "transparent", color: selected ? BLUE : "#3a3f4a", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}>
                   {/* Todo-incluido desde el inicio: (base + $3) + IVA. */}
-                  {pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total}
+                  {pf.formatWithTax(base + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total}
                 </button>
               );
             })}
@@ -948,7 +958,7 @@ export default function StripePaymentModal({
                     // Lo tecleado YA es el TOTAL (incluye $3 + IVA): NO se suma nada. Despejamos
                     // la base (base + $3 = total/(1+iva)) para que abajo se DESGLOSE el IVA de
                     // ese total y el total cobrado sea exactamente lo que escribió el usuario.
-                    const base = typed / (1 + pf.taxRate) - FIXED_SERVICE_FEE_MXN;
+                    const base = typed / (1 + pf.taxRate) - FIXED_SERVICE_FEE_USD;
                     setChosenAmount(base > 0 ? Math.round(base * 100) / 100 : null);
                   } else {
                     // El donador teclea la BASE directo en MXN (México-only, sin conversión).
@@ -963,7 +973,7 @@ export default function StripePaymentModal({
           {minBaseAmount > 0 && (
             <div style={{ textAlign: "center", fontSize: 11.5, fontWeight: 600, color: belowMin ? "#c0392b" : "#9aa0a8" }}>
               {tWallet("minimumAmount", {
-                amount: pf.formatWithTax(minBaseAmount + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN", code: true }).total,
+                amount: pf.formatWithTax(minBaseAmount + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total,
               })}
             </div>
           )}
@@ -975,8 +985,8 @@ export default function StripePaymentModal({
               <div style={{ display: "grid", gridTemplateRows: useCredit && creditApplied > 0 ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
                 <div style={{ overflow: "hidden", opacity: useCredit && creditApplied > 0 ? 1 : 0, transition: "opacity 240ms ease" }}>
                   <div style={{ display: "grid", gap: 5 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>{tWallet("creditAvailable")}</span><span>−{pf.format(creditApplied, { baseCurrency: "MXN", code: true })}</span></div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? tWallet("creditPayWithBalance") : tWallet("creditRemainderOnCard")}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: "MXN", code: true })}</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>{tWallet("creditAvailable")}</span><span>−{pf.format(creditApplied, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? tWallet("creditPayWithBalance") : tWallet("creditRemainderOnCard")}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span></div>
                   </div>
                 </div>
               </div>
@@ -997,8 +1007,8 @@ export default function StripePaymentModal({
               <div style={{ display: "grid", gridTemplateRows: useCredit && creditApplied > 0 ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
                 <div style={{ overflow: "hidden", opacity: useCredit && creditApplied > 0 ? 1 : 0, transition: "opacity 240ms ease" }}>
                   <div style={{ display: "grid", gap: 5 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>{tWallet("creditAvailable")}</span><span>−{pf.format(creditApplied, { baseCurrency: "MXN", code: true })}</span></div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? tWallet("creditPayWithBalance") : tWallet("creditRemainderOnCard")}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: "MXN", code: true })}</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>{tWallet("creditAvailable")}</span><span>−{pf.format(creditApplied, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? tWallet("creditPayWithBalance") : tWallet("creditRemainderOnCard")}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span></div>
                   </div>
                 </div>
               </div>

@@ -6,7 +6,7 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { formatCurrency } from "@/lib/currency/format";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 
 type Props = {
   open: boolean;
@@ -36,7 +36,7 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
   // Precio TODO-INCLUIDO que ve/paga el donador (SOLO MÉXICO, en MXN, sin convertir a la
   // moneda del que mira): (monto base + $3 cargo fijo) × IVA 16%.
   const allIn = (base: number): string =>
-    formatCurrency(Math.round((base + FIXED_SERVICE_FEE_MXN) * 1.16 * 100) / 100, "MXN", locale);
+    formatCurrency(Math.round((base + FIXED_SERVICE_FEE_USD) * 1.16 * 100) / 100, "MXN", locale);
 
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);

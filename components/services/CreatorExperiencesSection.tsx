@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import type { CreatorService, CreatorServiceType } from "@/types/group";
 import { getVisibleServices } from "@/lib/services/normalizeServices";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import TaxNote from "@/components/payments/TaxNote";
 
 type ViewerMembershipStatus =
@@ -159,7 +159,7 @@ export default function CreatorExperiencesSection({
       // Precio PUBLICADO = (base del creador + cargo fijo $3) con IVA INCLUIDO (lo que
       // ve/paga el comprador, todo-incluido). `.total` = base+impuesto según su país;
       // si no aplica impuesto, total == base (mismo formato que antes).
-      numberPart: priceFmt.formatWithTax(price + FIXED_SERVICE_FEE_MXN, { baseCurrency: currency, code: true }).total,
+      numberPart: priceFmt.formatWithTax(price + FIXED_SERVICE_FEE_USD, { baseCurrency: currency, code: true }).total,
     };
   }
 

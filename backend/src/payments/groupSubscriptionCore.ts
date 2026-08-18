@@ -10,7 +10,7 @@ import { HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { applyConsumptionTax } from "../tax/config";
-import { FIXED_SERVICE_FEE_MXN } from "../wallet/ledger";
+import { FIXED_SERVICE_FEE_USD } from "../wallet/ledger";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -300,11 +300,11 @@ export type MonthlyCharge = {
 
 /** Cobro mensual = (base + $3) × IVA. Igual que los otros servicios. */
 export function computeMonthlyCharge(base: number, country: string): MonthlyCharge {
-  const published = round2(base + FIXED_SERVICE_FEE_MXN);
+  const published = round2(base + FIXED_SERVICE_FEE_USD);
   const tax = applyConsumptionTax(published, country);
   return {
     base: round2(base),
-    fixedFee: FIXED_SERVICE_FEE_MXN,
+    fixedFee: FIXED_SERVICE_FEE_USD,
     published,
     taxCountry: tax.taxCountry,
     taxRate: tax.taxRate,

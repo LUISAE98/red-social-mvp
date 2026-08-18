@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { TextButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
@@ -13,7 +14,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
 import { createSuperCommentStripeIntent } from "@/lib/stripe/stripePayments";
 import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import StripePaymentModal, { type SavedCard } from "@/components/payments/StripePaymentModal";
 import PaymentSuccessCard from "@/components/payments/PaymentSuccessCard";
 import type { SuperCommentConfig, SuperCommentTier } from "@/lib/liveChat/types";
@@ -64,7 +65,7 @@ export default function SuperCommentModal({
   const tCommon = useTranslations("common");
   const pf = usePriceFormat();
   // Precio TODO-INCLUIDO que ve el fan (base del creador + $3 + IVA), en MXN.
-  const tierTotal = (base: number) => pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total;
+  const tierTotal = (base: number) => pf.formatWithTax(base + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total;
 
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
@@ -88,7 +89,7 @@ export default function SuperCommentModal({
   const creditBalance = isGuest ? 0 : creditState.balance;
   const [useCredit, setUseCredit] = useState(false);
   const tierTotalMxn = selectedTier
-    ? Math.round(((selectedTier.price + FIXED_SERVICE_FEE_MXN) * (1 + pf.taxRate) + Number.EPSILON) * 100) / 100
+    ? Math.round(((selectedTier.price + FIXED_SERVICE_FEE_USD) * (1 + pf.taxRate) + Number.EPSILON) * 100) / 100
     : 0;
   const creditApplied = useCredit && creditBalance > 0 ? Math.min(creditBalance, tierTotalMxn) : 0;
   const creditCoversAll = useCredit && creditBalance > 0 && selectedTier != null && creditBalance >= tierTotalMxn;
@@ -431,10 +432,10 @@ export default function SuperCommentModal({
                           </span>
                           <span style={{ flex: 1, minWidth: 0 }}>
                             <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#fff" }}>Crédito disponible</span>
-                            <span style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>{pf.format(creditBalance, { baseCurrency: "MXN", code: true })} disponible</span>
+                            <span style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>{pf.format(creditBalance, { baseCurrency: SETTLEMENT_CURRENCY, code: true })} disponible</span>
                           </span>
                           {useCredit && creditApplied > 0 && (
-                            <span style={{ fontSize: 13, fontWeight: 700, color: "#3b82f6", whiteSpace: "nowrap" }}>−{pf.format(creditApplied, { baseCurrency: "MXN" })}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#3b82f6", whiteSpace: "nowrap" }}>−{pf.format(creditApplied, { baseCurrency: SETTLEMENT_CURRENCY })}</span>
                           )}
                         </button>
                         {useCredit && (
@@ -646,7 +647,7 @@ export default function SuperCommentModal({
         paymentHeading={tLive("scPaymentHeading")}
         payButtonLabel={tLive("scPayButtonLabel")}
         autoCloseMs={4000}
-        amount={selectedTier ? selectedTier.price + FIXED_SERVICE_FEE_MXN : null}
+        amount={selectedTier ? selectedTier.price + FIXED_SERVICE_FEE_USD : null}
         amountCurrency="MXN"
         createIntent={async (args) => {
           // Invitado (sin login): firma anónima antes de cobrar → buyerId server-authoritative.

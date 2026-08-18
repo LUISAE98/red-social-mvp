@@ -8,7 +8,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
-import { SUBSCRIPTION_MIN_PRICE_MXN } from "@/lib/currency/catalog";
+import { SUBSCRIPTION_MIN_PRICE_USD } from "@/lib/currency/catalog";
 
 // Color de acento del servicio de suscripción: azul celeste. Tiñe todos sus iconos
 // (info de la descripción, aviso de comunidad pública e items informativos).
@@ -362,7 +362,7 @@ export default function Subscription({
   }, [overlayDraft.subscription.price, calcNetAmount]);
 
   // Precio mínimo permitido (MXN) para la suscripción mensual.
-  const minPrice = SUBSCRIPTION_MIN_PRICE_MXN;
+  const minPrice = SUBSCRIPTION_MIN_PRICE_USD;
   const priceBelowMin =
     overlayDraft.subscription.price.trim() !== "" &&
     Number(overlayDraft.subscription.price) < minPrice;

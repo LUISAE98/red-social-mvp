@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { leaveGroup } from "@/lib/groups/membership";
 import { useTranslations } from "next-intl";
 import { usePriceFormat, type PriceFormatter } from "@/lib/currency/usePriceFormat";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
 import type { Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
@@ -66,7 +67,7 @@ export default function OwnerSidebarOtherGroups({
         : null;
     return base != null && base > 0
       ? tGroups("subscribeForPrice", {
-          price: pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total,
+          price: pf.formatWithTax(base + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total,
         })
       : tGroups("subscribeCta");
   };

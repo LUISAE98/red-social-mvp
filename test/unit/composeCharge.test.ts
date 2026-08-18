@@ -25,30 +25,34 @@ const UNCONFIGURED =
     (code) => !(code in COUNTRY_TAX_CONFIG),
   ) ?? "ZZ";
 
-// Composición del precio: base + $3 → +2% FX → + impuesto (solo si lo cobra Vibra).
+// Composición del precio: base + cargo fijo → +2% FX → + impuesto (solo si lo cobra Vibra).
 // Orden y justificación: impuestos.md §2.
 describe("backend/tax/composeCharge", () => {
   describe("🇲🇽 México — Vibra cobra el 16%", () => {
     const c = composeCharge(100, "MX");
 
-    it("suma el cargo fijo de $3", () => {
+    it("suma el cargo fijo de $0.40", () => {
       expect(c.baseAmount).toBe(100);
-      expect(c.fixedFee).toBe(3);
-      expect(c.publishedAmount).toBe(103);
+      expect(c.fixedFee).toBe(0.4);
+      expect(c.publishedAmount).toBe(100.4);
     });
 
-    it("NO lleva 2% de conversión: cobra en la moneda de liquidación", () => {
-      expect(c.fxFeeRate).toBe(0);
-      expect(c.fxFeeAmount).toBe(0);
-      expect(c.taxableAmount).toBe(103);
+    // 🔄 Se INVIRTIÓ con el corte a USD (2026-08-18). Con liquidación en pesos, México
+    // era el único país sin cargo de conversión; ahora es al revés y el que no lo lleva
+    // es Estados Unidos. La regla no se tocó —sigue siendo "moneda del país ≠ moneda de
+    // liquidación"—, lo que cambió es de qué lado cae México.
+    it("SÍ lleva 2% de conversión: su moneda ya no es la de liquidación", () => {
+      expect(c.fxFeeRate).toBe(0.02);
+      expect(c.fxFeeAmount).toBe(2.01); // 100.40 × 0.02
+      expect(c.taxableAmount).toBe(102.41);
       expect(c.displayCurrency).toBe("MXN");
     });
 
     it("cobra el 16% y lo suma al total", () => {
       expect(c.buyerTax.rate).toBe(0.16);
-      expect(c.buyerTax.amount).toBe(16.48); // 103 × 0.16
+      expect(c.buyerTax.amount).toBe(16.39); // 102.41 × 0.16
       expect(c.buyerTax.collectedByPlatform).toBe(true);
-      expect(c.chargedAmount).toBe(119.48);
+      expect(c.chargedAmount).toBe(118.8);
     });
 
     it("no devenga IVA mexicano aparte: ya está cobrado como impuesto del comprador", () => {
@@ -67,7 +71,7 @@ describe("backend/tax/composeCharge", () => {
       expect(c.buyerTax.amount).toBe(0);
       expect(c.buyerTax.collectionMode).toBe("none");
       expect(c.fxFeeAmount).toBe(0);
-      expect(c.chargedAmount).toBe(103); // solo base + $3
+      expect(c.chargedAmount).toBe(100.4); // solo base + cargo fijo
     });
   });
 
@@ -103,11 +107,13 @@ describe("backend/tax/composeCharge", () => {
     // Colombia cobra (2026-08-11) compara dos impuestos reales, que es el caso que importa:
     // la tarjeta no solo agrega impuesto, puede CAMBIARLO de país.
     it("al corregir a México cambia el impuesto: 19% colombiano → 16% mexicano", () => {
-      // Fase 1 — IP colombiana: 19% sobre (base + $3) + 2% de conversión.
-      expect(composeCharge(100, fase1.country).buyerTax.amount).toBeCloseTo(19.96, 2);
-      // Fase 2 — tarjeta mexicana: 16% y SIN 2% de FX, porque se cobra en pesos.
-      expect(composeCharge(100, fase2.country).chargedAmount).toBe(119.48);
-      expect(composeCharge(100, fase2.country).fxFeeAmount).toBe(0);
+      // Fase 1 — IP colombiana: 19% sobre (base + cargo fijo) + 2% de conversión.
+      expect(composeCharge(100, fase1.country).buyerTax.amount).toBeCloseTo(19.46, 2);
+      // Fase 2 — tarjeta mexicana: 16%. Desde el corte a USD el peso TAMBIÉN lleva
+      // el 2% de conversión, así que lo que distingue a México ya no es la ausencia de
+      // FX sino la tasa del impuesto.
+      expect(composeCharge(100, fase2.country).chargedAmount).toBe(118.8);
+      expect(composeCharge(100, fase2.country).fxFeeAmount).toBe(2.01);
     });
   });
 
@@ -126,8 +132,12 @@ describe("backend/tax/composeCharge", () => {
       // En "export_taxable" Vibra debe el 16% pero no se lo traslada al extranjero.
       for (const country of ["MX", "AR", "JP"]) {
         const c = composeCharge(100, country);
-        expect(c.chargedAmount).toBe(
-          c.baseAmount + c.fixedFee + c.fxFeeAmount + c.buyerTax.amount
+        // toBeCloseTo, no toBe: sumar los componentes en crudo arrastra el error de
+        // coma flotante (100 + 0.4 + 2.01 + 16.39 da 118.80000000000001), mientras que
+        // composeCharge redondea a dos decimales. Comparar dinero con igualdad exacta de
+        // floats es la fragilidad, no el invariante.
+        expect(c.chargedAmount).toBeCloseTo(
+          c.baseAmount + c.fixedFee + c.fxFeeAmount + c.buyerTax.amount, 2
         );
       }
     });

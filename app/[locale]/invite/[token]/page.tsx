@@ -18,7 +18,7 @@ import { useAuth } from "@/app/providers";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import { createGroupSubscription } from "@/lib/stripe/stripePayments";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
@@ -626,7 +626,7 @@ const { user } = useAuth();
           concede la membresía. `amount` = base + $3 → total mensual (base+$3)×IVA. */}
       <StripePaymentModal
         open={payOpen}
-        amount={group.subscriptionPrice != null ? group.subscriptionPrice + FIXED_SERVICE_FEE_MXN : null}
+        amount={group.subscriptionPrice != null ? group.subscriptionPrice + FIXED_SERVICE_FEE_USD : null}
         amountCurrency="MXN"
         pricePeriodLabel="mes"
         allowCredit={false}

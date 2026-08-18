@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
@@ -8,7 +9,7 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
-import { FIXED_SERVICE_FEE_MXN, PREMIUM_MIN_PRICE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, PREMIUM_MIN_PRICE_USD } from "@/lib/currency/catalog";
 import type { Post } from "@/lib/posts/types";
 import { finalizeVodSettings } from "@/lib/posts/post-service";
 
@@ -56,7 +57,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
   const vodPriceNum = parseFloat(priceInput);
   const vodHasValidPrice =
     priceInput.trim() !== "" && Number.isFinite(vodPriceNum) && vodPriceNum > 0;
-  const vodBelowMin = vodHasValidPrice && vodPriceNum < PREMIUM_MIN_PRICE_MXN;
+  const vodBelowMin = vodHasValidPrice && vodPriceNum < PREMIUM_MIN_PRICE_USD;
   const vodEarnings = vodHasValidPrice ? vodPriceNum * WALLET_NET_RATE : null;
   const vodEarningsVisible = vodEarnings != null && vodEarnings > 0 && !vodBelowMin;
 
@@ -120,8 +121,8 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
       showSummaryToast(tWallet("payErrorInvalidAmount"), "error");
       return;
     }
-    if (vodAvailable && vodPaid && typedPrice != null && typedPrice < PREMIUM_MIN_PRICE_MXN) {
-      showSummaryToast(tCommon("priceMin", { min: PREMIUM_MIN_PRICE_MXN }), "error");
+    if (vodAvailable && vodPaid && typedPrice != null && typedPrice < PREMIUM_MIN_PRICE_USD) {
+      showSummaryToast(tCommon("priceMin", { min: PREMIUM_MIN_PRICE_USD }), "error");
       return;
     }
     const price = typedPrice;
@@ -253,15 +254,15 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
               {/* 3 leyendas que COLAPSAN suave: mínimo rojo / cuánto ganas (75%) / cargo Stripe. */}
               <div style={{ marginTop: 8 }}>
                 <div style={{ maxHeight: vodBelowMin ? 24 : 0, opacity: vodBelowMin ? 1 : 0, transform: vodBelowMin ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease" }}>
-                  <span style={{ display: "block", color: "#f87171", fontSize: 12, lineHeight: 1.45, fontFamily: FONT }}>{tCommon("priceMin", { min: PREMIUM_MIN_PRICE_MXN })}</span>
+                  <span style={{ display: "block", color: "#f87171", fontSize: 12, lineHeight: 1.45, fontFamily: FONT }}>{tCommon("priceMin", { min: PREMIUM_MIN_PRICE_USD })}</span>
                 </div>
                 <div style={{ maxHeight: vodEarningsVisible ? 24 : 0, opacity: vodEarningsVisible ? 1 : 0, transform: vodEarningsVisible ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease" }}>
                   <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.45, fontFamily: FONT }}>
-                    Ganas <strong style={{ color: "#a855f7", fontWeight: 700 }}>{formatMoney(vodEarnings ?? 0, { baseCurrency: "MXN", code: true })}</strong> por cada desbloqueo
+                    Ganas <strong style={{ color: "#a855f7", fontWeight: 700 }}>{formatMoney(vodEarnings ?? 0, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</strong> por cada desbloqueo
                   </span>
                 </div>
                 <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, lineHeight: 1.4, fontFamily: FONT, marginTop: 3 }}>
-                  Se suman ${FIXED_SERVICE_FEE_MXN} MXN por el cargo de procesamiento de Stripe.
+                  Se suman ${FIXED_SERVICE_FEE_USD} MXN por el cargo de procesamiento de Stripe.
                 </div>
               </div>
             </div>

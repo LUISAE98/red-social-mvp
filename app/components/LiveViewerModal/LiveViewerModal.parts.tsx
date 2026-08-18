@@ -3,6 +3,7 @@
 // Tipos, helpers y sub-componentes de LiveViewerModal (aislados).
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
@@ -316,7 +317,7 @@ export function DonationPanel({ onClose, postId, authorId, userId, username, ava
                 transition: "all 0.2s",
               }}
             >
-              {paying ? "Procesando..." : valid ? `Donar ${formatMoney(finalAmount!, { baseCurrency: "MXN", code: true })}` : "Selecciona un monto"}
+              {paying ? "Procesando..." : valid ? `Donar ${formatMoney(finalAmount!, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}` : "Selecciona un monto"}
             </button>
           </>
         )}

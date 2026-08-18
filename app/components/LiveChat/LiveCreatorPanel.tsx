@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
@@ -61,7 +62,7 @@ import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import {
   OBSBrowserSourceBanner, ChatMessageRow, ScAvatar, ModActionBtn,
   MuxLivePlaceholder, VideoPreview, DIV, FONT,
@@ -79,9 +80,9 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   //  · netEarned    = lo que gana el creador (75% de la base).
   // `baseCurrency:"MXN"` evita tratar el MXN como USD (bug ×FX → 1095).
   const fanPaidTotal = (baseMxn: number) =>
-    pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN", code: true }).total;
+    pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total;
   const netEarned = (baseMxn: number) =>
-    formatMoney(baseMxn * WALLET_NET_RATE, { baseCurrency: "MXN", code: true });
+    formatMoney(baseMxn * WALLET_NET_RATE, { baseCurrency: SETTLEMENT_CURRENCY, code: true });
   const { user } = useAuth();
   const { messages, deleteMessage } = useLiveChat(open ? post.id : null, 50);
   const [isDesktop, setIsDesktop] = useState(false);

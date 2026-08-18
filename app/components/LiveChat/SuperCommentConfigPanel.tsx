@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useTranslations } from "next-intl";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
@@ -18,7 +19,7 @@ import {
 } from "@/lib/liveChat/types";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
-import { FIXED_SERVICE_FEE_MXN, SUPER_COMMENT_MIN_PRICE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, SUPER_COMMENT_MIN_PRICE_USD } from "@/lib/currency/catalog";
 
 const FONT = "inherit";
 const PANEL_CLOSE_THRESHOLD = 130;
@@ -218,9 +219,9 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
             {scConfig.tiers.map((tier) => {
               // Mexico-only: tier.price es la BASE en MXN (lo que teclea el creador).
               const priceMxn = tier.price > 0 ? tier.price : 0;
-              const belowMin = priceMxn > 0 && priceMxn < SUPER_COMMENT_MIN_PRICE_MXN;
-              const earningsVisible = priceMxn >= SUPER_COMMENT_MIN_PRICE_MXN;
-              const creatorEarns = formatMoney(priceMxn * WALLET_NET_RATE, { baseCurrency: "MXN", code: true });
+              const belowMin = priceMxn > 0 && priceMxn < SUPER_COMMENT_MIN_PRICE_USD;
+              const earningsVisible = priceMxn >= SUPER_COMMENT_MIN_PRICE_USD;
+              const creatorEarns = formatMoney(priceMxn * WALLET_NET_RATE, { baseCurrency: SETTLEMENT_CURRENCY, code: true });
               const collapse = "max-height 220ms ease, opacity 220ms ease, transform 220ms ease";
               return (
                 <div key={tier.id} style={{ marginBottom: 14 }}>
@@ -255,7 +256,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
                   {/* Aviso mínimo (rojo) — colapsa suave. */}
                   <div style={{ maxHeight: belowMin ? 22 : 0, opacity: belowMin ? 1 : 0, transform: belowMin ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: collapse }}>
                     <p style={{ margin: "5px 0 0", fontSize: 10.5, color: "#f87171", fontFamily: FONT, lineHeight: 1.4 }}>
-                      {tCommon("priceMin", { min: SUPER_COMMENT_MIN_PRICE_MXN })}
+                      {tCommon("priceMin", { min: SUPER_COMMENT_MIN_PRICE_USD })}
                     </p>
                   </div>
 
@@ -272,7 +273,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
           </div>
           {/* Leyenda del cargo fijo de Stripe (aplica a todos los tiers). */}
           <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", fontFamily: FONT, marginBottom: 12, lineHeight: 1.5 }}>
-            Se suman ${FIXED_SERVICE_FEE_MXN} MXN por el cargo de procesamiento de Stripe.
+            Se suman ${FIXED_SERVICE_FEE_USD} MXN por el cargo de procesamiento de Stripe.
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: FONT, lineHeight: 1.5 }}>
             {tLive("scConfigSavedNote")}

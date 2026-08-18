@@ -123,18 +123,21 @@ describe("lib/tax/config", () => {
   });
 
   describe("moneda de cobro y 2% FX (derivado)", () => {
-    it("MX cobra en MXN, sin FX (moneda = liquidación)", () => {
+    // 🔄 INVERTIDO con el corte a USD (2026-08-18). Mientras Vibra liquidaba en pesos,
+    // México era el único país sin cargo de conversión. Ahora su moneda ya no es la de
+    // liquidación y sí lo lleva; el que quedó exento es Estados Unidos.
+    it("MX cobra en MXN y SÍ lleva FX (su moneda ya no es la de liquidación)", () => {
       expect(chargeCurrencyForCountry("MX")).toBe("MXN");
-      expect(shouldAddFxFee("MX")).toBe(false);
-      expect(fxFeeRateForCountry("MX")).toBe(0);
+      expect(shouldAddFxFee("MX")).toBe(true);
+      expect(fxFeeRateForCountry("MX")).toBeCloseTo(0.02, 8);
       expect(isChargeableCountry("MX")).toBe(true);
     });
 
-    it("país sin ficha: no cobrable, sin FX, cae a MXN de liquidación", () => {
+    it("país sin ficha: no cobrable, sin FX, cae a la moneda de liquidación", () => {
       expect(isChargeableCountry(UNCONFIGURED)).toBe(false);
       expect(shouldAddFxFee(UNCONFIGURED)).toBe(false);
       expect(fxFeeRateForCountry(UNCONFIGURED)).toBe(0);
-      expect(chargeCurrencyForCountry(UNCONFIGURED)).toBe("MXN");
+      expect(chargeCurrencyForCountry(UNCONFIGURED)).toBe("USD");
     });
   });
 });
@@ -811,10 +814,11 @@ describe("Estados Unidos", () => {
     expect(countryTaxConfig("GU")!.collectionMode).toBe("none");
   });
 
-  // El 2% de conversión sí aplica: se liquida en MXN, así que hay cambio de divisa real.
-  it("cobra el 2% de FX (la liquidación es en MXN)", () => {
-    expect(shouldAddFxFee("US")).toBe(true);
-    expect(fxFeeRateForCountry("US")).toBeGreaterThan(0);
+  // 🔄 INVERTIDO con el corte a USD (2026-08-18). Estados Unidos pasó de pagar el 2% a
+  // no pagarlo: su moneda ES la de liquidación, así que no hay cambio de divisa que cobrar.
+  it("NO cobra el 2% de FX (su moneda es la de liquidación)", () => {
+    expect(shouldAddFxFee("US")).toBe(false);
+    expect(fxFeeRateForCountry("US")).toBe(0);
   });
 });
 
@@ -976,8 +980,8 @@ describe("Asia y Golfo con alta obligatoria", () => {
     for (const iso of ["KR", "AE", "SA", "DE", "JP", "BR"]) {
       expect(fxFeeRateForCountry(iso), iso).toBeCloseTo(0.02, 8);
     }
-    // México no lleva conversión: se cobra en la moneda de liquidación.
-    expect(fxFeeRateForCountry("MX")).toBe(0);
+    // Estados Unidos no lleva conversión: su moneda ES la de liquidación.
+    expect(fxFeeRateForCountry("US")).toBe(0);
   });
 
   // El 7% NO es impuesto: la tabla fiscal de Vietnam sigue diciendo 10%, que es lo único

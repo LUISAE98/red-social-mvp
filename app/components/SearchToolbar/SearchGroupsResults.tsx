@@ -8,6 +8,7 @@ import {
   type CSSProperties,
 } from "react";
 import { useTranslations } from "next-intl";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import type { User } from "firebase/auth";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
@@ -20,7 +21,7 @@ import {
   type Community,
 } from "./GroupsSearchPanel";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 
 const GROUP_SKELETON_COUNT = 14;
 
@@ -344,7 +345,7 @@ export default function SearchGroupsResults({
                   const base = resolveSubscriptionBasePrice(group);
                   return base != null
                     ? tGroups("subscribeForPrice", {
-                        price: pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total,
+                        price: pf.formatWithTax(base + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total,
                       })
                     : tGroups("subscribeCta");
                 })()}

@@ -4,6 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import WheelPanel from "@/components/ui/WheelPanel";
 
+/**
+ * Por encima del modal desde el que se abre este selector (999999). El panel
+ * de la rueda es lo último que se pinta en esa pantalla, así que va arriba.
+ */
+const WHEEL_Z_BASE = 1000010;
+
 export type ScheduleParts = {
   day: string;
   month: string;
@@ -168,14 +174,28 @@ export default function ScheduleDateTimeSelector({
 
   // Los cinco campos que se ven fuera, cada uno con su r\u00f3tulo y su valor.
   const mesElegido = allMonthOptions.find((m) => m.value === value.month);
+  // `vacio` es el texto de marcador y se pinta atenuado, igual que en el alta de
+  // cuenta (RegisterPanel): un campo sin rellenar se ve gris y al tener valor pasa
+  // a blanco. Aquí el hueco vacío salía en blanco y sin texto, así que no se
+  // distinguía de uno ya elegido.
   const camposFecha = [
-    { key: "day", rotulo: tWallet("dayLabel"), texto: value.day },
-    { key: "month", rotulo: tWallet("monthLabel"), texto: mesElegido?.label ?? value.month },
-    { key: "year", rotulo: tWallet("yearLabel"), texto: value.year },
+    { key: "day", rotulo: tWallet("dayLabel"), texto: value.day, vacio: tWallet("dayLabel") },
+    {
+      key: "month",
+      rotulo: tWallet("monthLabel"),
+      texto: mesElegido?.label ?? value.month,
+      vacio: tWallet("monthLabel"),
+    },
+    { key: "year", rotulo: tWallet("yearLabel"), texto: value.year, vacio: tWallet("yearLabel") },
   ];
   const camposHora = [
-    { key: "hour", rotulo: tWallet("hourLabel"), texto: value.hour },
-    { key: "minute", rotulo: tWallet("minuteLabel"), texto: value.minute },
+    { key: "hour", rotulo: tWallet("hourLabel"), texto: value.hour, vacio: tWallet("hourLabel") },
+    {
+      key: "minute",
+      rotulo: tWallet("minuteLabel"),
+      texto: value.minute,
+      vacio: tWallet("minuteLabel"),
+    },
   ];
 
   const valueRef = useRef(value);
@@ -380,9 +400,10 @@ export default function ScheduleDateTimeSelector({
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
                   cursor: disabled ? "not-allowed" : "pointer",
+                  color: campo.texto ? "#fff" : "rgba(255,255,255,0.42)",
                 }}
               >
-                {campo.texto}
+                {campo.texto || campo.vacio}
               </button>
             </label>
           ))}
@@ -400,15 +421,21 @@ export default function ScheduleDateTimeSelector({
                 style={{
                   textAlign: "start",
                   cursor: disabled ? "not-allowed" : "pointer",
+                  color: campo.texto ? "#fff" : "rgba(255,255,255,0.42)",
                 }}
               >
-                {campo.texto}
+                {campo.texto || campo.vacio}
               </button>
             </label>
           ))}
         </div>
       </div>
       <WheelPanel
+        // Se abre DESDE el modal de agendar (SessionRequestOverlay, z-index
+        // 999999) y el valor por omisión del panel es 999990: quedaba justo
+        // debajo y parecía que el campo no respondía. Lo advierte el propio
+        // VibraResponsivePanel en su prop zIndexBase.
+        zIndexBase={WHEEL_Z_BASE}
         open={wheelOpen === "date"}
         onClose={() => setWheelOpen(null)}
         onConfirm={() => setWheelOpen(null)}
@@ -442,6 +469,11 @@ export default function ScheduleDateTimeSelector({
       />
 
       <WheelPanel
+        // Se abre DESDE el modal de agendar (SessionRequestOverlay, z-index
+        // 999999) y el valor por omisión del panel es 999990: quedaba justo
+        // debajo y parecía que el campo no respondía. Lo advierte el propio
+        // VibraResponsivePanel en su prop zIndexBase.
+        zIndexBase={WHEEL_Z_BASE}
         open={wheelOpen === "time"}
         onClose={() => setWheelOpen(null)}
         onConfirm={() => setWheelOpen(null)}

@@ -11,6 +11,7 @@
 // las palabras de entidad (perfil/comunidad) salen de "services" vía publishSuccess.entityKind.
 
 import { useEffect, useRef, useState } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useTranslations } from "next-intl";
 import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
@@ -575,7 +576,7 @@ export default function DonationConfigCard({
                   </div>
                   <div style={{ maxHeight: showEarnI ? 22 : 0, opacity: showEarnI ? 1 : 0, transform: showEarnI ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease" }}>
                     <div style={{ ...subtleStyle, fontSize: 11, marginTop: 2 }}>
-                      {`Ganas ${formatMoney(netI ?? 0, { baseCurrency: "MXN" })}`}
+                      {`Ganas ${formatMoney(netI ?? 0, { baseCurrency: SETTLEMENT_CURRENCY })}`}
                     </div>
                   </div>
                 </div>

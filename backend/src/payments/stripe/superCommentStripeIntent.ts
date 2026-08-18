@@ -35,12 +35,15 @@ function round2(n: number): number {
 // Fallback si el live no trae config (espejo de DEFAULT_SUPER_COMMENT_TIERS). El precio
 // SIEMPRE sale de aquí o de la config guardada, NUNCA del cliente.
 type Tier = { id: string; name: string; maxChars: number; price: number; color: string; displaySeconds: number };
+// 💵 USD desde el corte a Vibra On, LLC. ⚠️ ESPEJO de DEFAULT_SUPER_COMMENT_TIERS en
+// lib/liveChat/types.ts. Éste es el AUTORITATIVO (aquí se resuelve el precio del cobro);
+// el del frontend solo se muestra. Si se separan, el fan ve un precio y paga otro.
 const DEFAULT_TIERS: Tier[] = [
-  { id: "t1", name: "Chispa",    maxChars: 60,  price: 25,  color: "#a855f7", displaySeconds: 10 },
-  { id: "t2", name: "Llama",     maxChars: 140, price: 45,  color: "#f72fbe", displaySeconds: 15 },
-  { id: "t3", name: "Fuego",     maxChars: 220, price: 85,  color: "#3b82f6", displaySeconds: 20 },
-  { id: "t4", name: "Explosión", maxChars: 300, price: 215, color: "#facc15", displaySeconds: 25 },
-  { id: "t5", name: "Volcán",    maxChars: 380, price: 430, color: "#4ade80", displaySeconds: 30 },
+  { id: "t1", name: "Chispa",    maxChars: 60,  price: 1.5,  color: "#a855f7", displaySeconds: 10 },
+  { id: "t2", name: "Llama",     maxChars: 140, price: 2.5,  color: "#f72fbe", displaySeconds: 15 },
+  { id: "t3", name: "Fuego",     maxChars: 220, price: 5,    color: "#3b82f6", displaySeconds: 20 },
+  { id: "t4", name: "Explosión", maxChars: 300, price: 12.5, color: "#facc15", displaySeconds: 25 },
+  { id: "t5", name: "Volcán",    maxChars: 380, price: 25,   color: "#4ade80", displaySeconds: 30 },
 ];
 
 function resolveTier(post: Record<string, unknown>, tierId: string): Tier | null {

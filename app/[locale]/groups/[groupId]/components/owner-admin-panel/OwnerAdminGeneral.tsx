@@ -13,6 +13,13 @@ import OptionWheelPanel from "@/components/ui/OptionWheelPanel";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
+/**
+ * Este panel de administración es un modal a z-index 999999, y la rueda que se
+ * abre desde dentro trae 999990 por omisión: quedaba justo debajo y parecía que
+ * el campo no respondía. Lo advierte VibraResponsivePanel en su prop zIndexBase.
+ */
+const WHEEL_Z_BASE = 1000010;
+
 type GroupVisibility = "public" | "private" | "hidden";
 type EditField = "name" | "description" | "visibility" | "category" | "tags";
 
@@ -603,6 +610,7 @@ await updateDoc(groupRef, {
               </div>
             ) : (
               <OptionWheelPanel
+                zIndexBase={WHEEL_Z_BASE}
                 value={draftValue}
                 onChange={setDraftValue}
                 title="Visibilidad"
@@ -630,6 +638,7 @@ await updateDoc(groupRef, {
              * traduce a su equivalente actual.
              */
             <OptionWheelPanel
+              zIndexBase={WHEEL_Z_BASE}
               value={normalizeGroupCategory(draftValue) ?? draftValue}
               onChange={setDraftValue}
               title="Categoría"

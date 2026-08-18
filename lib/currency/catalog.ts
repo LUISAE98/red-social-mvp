@@ -131,21 +131,31 @@ export const ANCHOR_CURRENCY: DisplayCurrency = "USD";
 
 /**
  * Moneda de LIQUIDACIÓN de Vibra: en la que se guarda el ledger y se cobra en Stripe.
- * Hoy MXN (billetera Stripe en MXN). ⚠️ ÚNICO punto para cambiar a "USD" en el frontend
- * (mantener en sync con SETTLEMENT_CURRENCY del backend en backend/src/wallet/ledger.ts).
- * Por ahora SOLO MÉXICO: se cobra en MXN. El cobro en moneda local del comprador
- * extranjero (+2%) es "el sistema completo" que se implementará después (ver
- * docs/stripe-integracion.md §13). Es el default de `baseCurrency` para montos del wallet.
+ * USD desde el corte a Vibra On, LLC (2026-08-18). ⚠️ Mantener en sync con
+ * SETTLEMENT_CURRENCY del backend en backend/src/wallet/ledger.ts.
+ *
+ * Es el default de `baseCurrency` para los montos del wallet, y coincide con
+ * ANCHOR_CURRENCY: con liquidación en dólares el ancla de conversión y la moneda de
+ * liquidación son la misma, así que `resolvePresentment` ya no pivota — convierte
+ * directo de USD a la moneda del comprador.
+ *
+ * ⚠️ Cambiar esta constante SIN migrar antes los precios guardados multiplica todo
+ * por el tipo de cambio: un servicio de "200" pasaría de 200 pesos a 200 dólares.
  */
-export const SETTLEMENT_CURRENCY: DisplayCurrency = "MXN";
+export const SETTLEMENT_CURRENCY: DisplayCurrency = "USD";
 
 /**
  * Cargo fijo por transacción que ABSORBE EL COMPRADOR (debe coincidir con
- * FIXED_SERVICE_FEE_MXN del backend en backend/src/wallet/ledger.ts). El precio
+ * FIXED_SERVICE_FEE_USD del backend en backend/src/wallet/ledger.ts). El precio
  * PUBLICADO al comprador = precio base del creador + este cargo; sobre ese total va
- * el IVA. El creador recibe 75% de su base (el $3 y la comisión son de Vibra).
+ * el impuesto. El creador recibe 75% de su base (este cargo y la comisión son de Vibra).
+ *
+ * 💵 $0.40 cubre el fijo de Stripe en EE. UU.: $0.30 de procesamiento + $0.05 de Radar.
+ * No basta con 0.35 porque Stripe cobra su PORCENTAJE también sobre el fijo que le
+ * sumas al cobro, así que el mínimo real es 0.35÷(1−tasa) = 0.361 nacional y 0.370
+ * internacional. Con 0.40 quedan cubiertos los dos y sigue siendo un número limpio.
  */
-export const FIXED_SERVICE_FEE_MXN = 3;
+export const FIXED_SERVICE_FEE_USD = 0.4;
 
 /**
  * Cargo por CONVERSIÓN DE MONEDA que absorbe el comprador extranjero. 2%.
@@ -156,7 +166,18 @@ export const FIXED_SERVICE_FEE_MXN = 3;
  * cobraba otro. Unificado en 2% el 2026-08-07 (es el modelo documentado en impuestos.md §1).
  *
  * NO es impuesto: es costo/comisión, y nunca se declara como impuesto.
- * Se aplica solo cuando la moneda de cobro ≠ la de liquidación (MXN).
+ * Se aplica solo cuando la moneda de cobro ≠ la de liquidación (USD).
+ *
+ * 🚨 SU COMPOSICIÓN CAMBIÓ CON EL CORTE A STRIPE USA (2026-08-18). NO LO BAJES A 1%.
+ * Con Stripe México el 2% era exactamente el spread de conversión que cobraba Stripe.
+ * Stripe USA cobra 1%, así que hoy el 2% son DOS cosas:
+ *     1% → spread de conversión de Stripe
+ *     1% → COLCHÓN de deriva entre nuestra tasa cacheada (open.er-api.com, refrescada
+ *          a diario) y la que Stripe aplica al liquidar. Cuando la matriz de precios
+ *          quede congelada (refresco mensual + banda ±3%), esa deriva crece y este
+ *          colchón es lo único que la absorbe.
+ * "Corregirlo" a 1% porque «Stripe solo cobra 1%» deja la deriva saliendo del margen.
+ * Decisión de Luis, 2026-08-18.
  *
  * ⚠️ El backend tiene su propia copia en backend/src/tax/config.ts (no puede importar
  * de lib/). Deben tener el MISMO valor.
@@ -199,24 +220,27 @@ export function fxConversionFeeForCurrency(currency: string | null | undefined):
 }
 
 /**
- * Precio MÍNIMO (base, MXN) que el creador puede fijar por servicio. Si pone menos,
+ * Precio MÍNIMO (base, USD) que el creador puede fijar por servicio. Si pone menos,
  * se muestra aviso rojo y no se puede publicar. Donación: mínimo por cada monto sugerido.
+ *
+ * 💵 Números redondos en dólares, NO la conversión mecánica de los mínimos viejos en
+ * pesos: un mínimo de "$2.94" no es un mínimo que alguien escribiría.
  */
-export const SERVICE_MIN_PRICE_MXN: Record<string, number> = {
-  saludo: 50,
-  consejo: 50,
-  clase_personalizada: 150, // sesión exclusiva
-  meet_greet_digital: 150, // tiempo contigo
+export const SERVICE_MIN_PRICE_USD: Record<string, number> = {
+  saludo: 3,
+  consejo: 3,
+  clase_personalizada: 9, // sesión exclusiva
+  meet_greet_digital: 9, // tiempo contigo
 };
-export const DONATION_MIN_AMOUNT_MXN = 50;
-/** Precio MÍNIMO (base, MXN) de un POST premium / VOD premium. Por debajo → aviso rojo. */
-export const PREMIUM_MIN_PRICE_MXN = 25;
-/** Precio MÍNIMO (base, MXN) del TICKET de acceso a un en vivo. Por debajo → aviso rojo. */
-export const LIVE_TICKET_MIN_PRICE_MXN = 25;
-/** Precio MÍNIMO (base, MXN) por tier de SÚPER COMENTARIO. Por debajo → aviso rojo. */
-export const SUPER_COMMENT_MIN_PRICE_MXN = 25;
-/** Precio MÍNIMO (base, MXN) de la SUSCRIPCIÓN mensual de comunidad. Por debajo → aviso rojo. */
-export const SUBSCRIPTION_MIN_PRICE_MXN = 25;
+export const DONATION_MIN_AMOUNT_USD = 3;
+/** Precio MÍNIMO (base, USD) de un POST premium / VOD premium. Por debajo → aviso rojo. */
+export const PREMIUM_MIN_PRICE_USD = 1.5;
+/** Precio MÍNIMO (base, USD) del TICKET de acceso a un en vivo. Por debajo → aviso rojo. */
+export const LIVE_TICKET_MIN_PRICE_USD = 1.5;
+/** Precio MÍNIMO (base, USD) por tier de SÚPER COMENTARIO. Por debajo → aviso rojo. */
+export const SUPER_COMMENT_MIN_PRICE_USD = 1.5;
+/** Precio MÍNIMO (base, USD) de la SUSCRIPCIÓN mensual de comunidad. Por debajo → aviso rojo. */
+export const SUBSCRIPTION_MIN_PRICE_USD = 1.5;
 
 const CHARGE_SET: ReadonlySet<string> = new Set(CHARGE_CURRENCIES);
 const DISPLAY_SET: ReadonlySet<string> = new Set(DISPLAY_CURRENCIES);

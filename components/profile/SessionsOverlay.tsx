@@ -207,6 +207,10 @@ export default function SessionsOverlay({
       body: tProfile("sessionRevokeAllConfirm"),
       confirmLabel: tProfile("sessionRevoke"),
       tone: "danger",
+      // La pregunta se abre DESDE este panel, que ya está en 999990. Sin subirla
+      // empatan y solo se ve por el orden en que caen en el body; con esto queda
+      // por encima por regla, no por casualidad.
+      zIndexBase: 1000010,
     });
     if (!ok) return;
 

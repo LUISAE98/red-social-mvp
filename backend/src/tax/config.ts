@@ -154,13 +154,22 @@ export function mxVatTreatmentForSale(
   return MX_EXPORT_TREATMENT_BY_SERVICE[serviceType] ?? MX_EXPORT_DEFAULT;
 }
 
-/** Moneda de LIQUIDACIÓN de Vibra (mantener en sync con SETTLEMENT_CURRENCY del wallet). */
-const SETTLEMENT_CURRENCY = "MXN";
+/**
+ * Moneda de LIQUIDACIÓN de Vibra (mantener en sync con SETTLEMENT_CURRENCY del wallet).
+ * ⚠️ Decide `shouldAddFxFee`: el 2% de conversión se cobra donde la moneda del país
+ * NO es ésta. Al pasar de MXN a USD la regla se invierte sola — México empieza a pagar
+ * el 2% y EE. UU. deja de pagarlo — sin tocar ninguna de las 147 filas.
+ */
+const SETTLEMENT_CURRENCY = "USD";
 /** Cargo por conversión de divisa que absorbe el comprador extranjero. */
 /**
  * ⚠️ Debe tener el MISMO valor que FX_CONVERSION_FEE de lib/currency/catalog.ts (el backend
  * no puede importar de lib/). Si se desalinean, el comprador extranjero ve un precio y se le
  * cobra otro — que es exactamente lo que pasaba cuando el display usaba 1.5% y esto 2%.
+ *
+ * 🚨 NO LO BAJES A 1% (corte a Stripe USA, 2026-08-18). Stripe USA cobra 1% de conversión,
+ * no 2% como Stripe México, pero el 2% ahora son 1% de Stripe + 1% de COLCHÓN de deriva
+ * entre nuestra tasa cacheada y la de Stripe. Explicación completa en catalog.ts.
  */
 export const FX_CONVERSION_FEE = 0.02;
 

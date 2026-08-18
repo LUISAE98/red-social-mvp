@@ -53,7 +53,7 @@ import {
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import PaymentSuccessCard from "@/components/payments/PaymentSuccessCard";
 import { createGreetingStripeIntent, createServiceStripeIntent, createGroupSubscription, cancelGroupSubscriptionStripe } from "@/lib/stripe/stripePayments";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast, type ToastType } from "@/lib/hooks/useVibraToast";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
@@ -725,7 +725,7 @@ const [autoConfirmPay, setAutoConfirmPay] = useState(false);
     const price = greetOffering?.memberPrice ?? greetOffering?.publicPrice ?? (greetOffering as { price?: number } | null)?.price ?? null;
     const currency = greetOffering?.currency ?? "MXN";
     // Total todo-incluido (base + cargo fijo $3 + IVA) para el botón "Continuar al pago".
-    return typeof price === "number" ? formatMoneyWithTax(price + FIXED_SERVICE_FEE_MXN, currency) : undefined;
+    return typeof price === "number" ? formatMoneyWithTax(price + FIXED_SERVICE_FEE_USD, currency) : undefined;
   }, [greetOffering]);
 
   const [serviceToast, setServiceToast] = useState<string | null>(null);
@@ -879,7 +879,7 @@ function redirectToLogin() {
     <>
       <StripePaymentModal
         open={subscriptionPayOpen}
-        amount={subscriptionPrice != null ? subscriptionPrice + FIXED_SERVICE_FEE_MXN : null}
+        amount={subscriptionPrice != null ? subscriptionPrice + FIXED_SERVICE_FEE_USD : null}
         amountCurrency="MXN"
         pricePeriodLabel="mes"
         allowCredit={false}
@@ -1952,7 +1952,7 @@ const avatarNode = (
       >
         {user
           ? subscriptionPrice != null
-            ? tGroups("subscribeForPrice", { price: formatMoneyWithTax(subscriptionPrice + FIXED_SERVICE_FEE_MXN, subscriptionCurrency) })
+            ? tGroups("subscribeForPrice", { price: formatMoneyWithTax(subscriptionPrice + FIXED_SERVICE_FEE_USD, subscriptionCurrency) })
             : tGroups("subscribeCta")
           : tGroups("loginToSubscribe")}
       </button>
@@ -3091,7 +3091,7 @@ const avatarNode = (
 
       <StripePaymentModal
         open={payGreetOpen}
-        amount={payGreetAmount != null ? payGreetAmount + FIXED_SERVICE_FEE_MXN : null}
+        amount={payGreetAmount != null ? payGreetAmount + FIXED_SERVICE_FEE_USD : null}
         amountCurrency="MXN"
         createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
         priceLabel={payGreetLabel}
@@ -3119,7 +3119,7 @@ const avatarNode = (
 
       <StripePaymentModal
         open={paySessionOpen}
-        amount={paySessionAmount != null ? paySessionAmount + FIXED_SERVICE_FEE_MXN : null}
+        amount={paySessionAmount != null ? paySessionAmount + FIXED_SERVICE_FEE_USD : null}
         amountCurrency="MXN"
         createIntent={(args) => createServiceStripeIntent({ externalReference: `exclusiveSessionRequest__${paySessionId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
         priceLabel={paySessionLabel}
@@ -3143,7 +3143,7 @@ const avatarNode = (
 
       <StripePaymentModal
         open={payMeetOpen}
-        amount={payMeetAmount != null ? payMeetAmount + FIXED_SERVICE_FEE_MXN : null}
+        amount={payMeetAmount != null ? payMeetAmount + FIXED_SERVICE_FEE_USD : null}
         amountCurrency="MXN"
         createIntent={(args) => createServiceStripeIntent({ externalReference: `meetGreetRequest__${payMeetId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
         priceLabel={payMeetLabel}
@@ -3228,7 +3228,7 @@ const avatarNode = (
         meetGreetError={meetGreetError}
         meetGreetPriceLabel={
           meetGreetPrice != null
-            ? formatMoneyWithTax(meetGreetPrice + FIXED_SERVICE_FEE_MXN, meetGreetCurrency)
+            ? formatMoneyWithTax(meetGreetPrice + FIXED_SERVICE_FEE_USD, meetGreetCurrency)
             : tCommon("toBeConfirmed")
         }
         meetGreetDurationLabel={
@@ -3245,7 +3245,7 @@ const avatarNode = (
         exclusiveSessionError={exclusiveSessionError}
         exclusiveSessionPriceLabel={
           exclusiveSessionPrice != null
-            ? formatMoneyWithTax(exclusiveSessionPrice + FIXED_SERVICE_FEE_MXN, exclusiveSessionCurrency)
+            ? formatMoneyWithTax(exclusiveSessionPrice + FIXED_SERVICE_FEE_USD, exclusiveSessionCurrency)
             : tCommon("toBeConfirmed")
         }
         exclusiveSessionDurationLabel={

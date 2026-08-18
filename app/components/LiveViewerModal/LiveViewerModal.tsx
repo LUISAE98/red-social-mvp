@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -35,7 +36,7 @@ import TaxNote from "@/components/payments/TaxNote";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import { createLiveAccessStripeIntent, createLiveDonationStripeIntent } from "@/lib/stripe/stripePayments";
 import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import {
   DonationPanel, CHAT_FLOAT_W, FONT, VOD_PLAYBACK_RATES,
   desktopHorizontalSize, desktopStorySize,
@@ -68,7 +69,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // Monto que MUESTRA una donación/súper comentario = total que pagó el fan (base + $3 +
   // IVA) en MXN. `baseCurrency:"MXN"` evita el bug ×FX (tratar el MXN como USD → 1095).
   const fanPaidTotal = (baseMxn: number) =>
-    pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN", code: true }).total;
+    pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total;
   const { user } = useAuth();
   const { relationship, follow } = useSocialRelationship(user?.uid ?? null, post.authorId ?? null);
   const showFollowBtn = !!user && !!post.authorId && user.uid !== post.authorId && !relationship.isFollowing;
@@ -1125,7 +1126,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
         <StripePaymentModal
           open={livePayOpen}
-          amount={ticketPrice > 0 ? ticketPrice + FIXED_SERVICE_FEE_MXN : null}
+          amount={ticketPrice > 0 ? ticketPrice + FIXED_SERVICE_FEE_USD : null}
           amountCurrency="MXN"
           createIntent={async (args) => {
             // Invitado (sin login): firma anónima antes de cobrar → el ticket

@@ -13,6 +13,7 @@
 // El timbrado real del CFDI (Facturapi) se conecta en el siguiente bloque.
 
 import { useTranslations } from "next-intl";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { TextButton, IconButton } from "@/components/ui";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -378,7 +379,7 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
                   </div>
                 </div>
                 <span style={{ flexShrink: 0, color: "#fff", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
-                  {formatMoney(c.base + c.tax, { baseCurrency: "MXN" })}
+                  {formatMoney(c.base + c.tax, { baseCurrency: SETTLEMENT_CURRENCY })}
                 </span>
               </div>
             ))}
@@ -388,12 +389,12 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
 
           {/* ── DESGLOSE FISCAL ── */}
           <div style={{ display: "grid", gap: 8, fontSize: 12.5 }}>
-            <Row k="Subtotal" v={formatMoney(totals.subtotal, { baseCurrency: "MXN" })} />
-            <Row k="IVA (16%)" v={formatMoney(totals.iva, { baseCurrency: "MXN" })} />
+            <Row k="Subtotal" v={formatMoney(totals.subtotal, { baseCurrency: SETTLEMENT_CURRENCY })} />
+            <Row k="IVA (16%)" v={formatMoney(totals.iva, { baseCurrency: SETTLEMENT_CURRENCY })} />
             <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 14, fontWeight: 700 }}>
               <span style={{ color: "rgba(255,255,255,0.85)" }}>Total a facturar</span>
-              <span style={{ color: "#fff" }}>{formatMoney(totals.total, { baseCurrency: "MXN" })}</span>
+              <span style={{ color: "#fff" }}>{formatMoney(totals.total, { baseCurrency: SETTLEMENT_CURRENCY })}</span>
             </div>
           </div>
 

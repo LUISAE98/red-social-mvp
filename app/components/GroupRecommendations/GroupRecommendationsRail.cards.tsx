@@ -3,10 +3,10 @@
 // GroupRecommendationsRail parts (2/2): tarjetas (ProfileCard, GroupCard, Live*, Skeleton).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
-import { isDisplayCurrency } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -65,7 +65,7 @@ import type {
 import {
   FollowButton, JoinButton, cardStyles, fontStack,
   RAIL_CARD_W, RAIL_GAP,
-  resolveSubscriptionCurrency, resolveSubscriptionEnabled, resolveSubscriptionPrice,
+  resolveSubscriptionEnabled, resolveSubscriptionPrice,
   type LiveRec, type LiveActionState,
 } from "./GroupRecommendationsRail.parts";
 
@@ -274,7 +274,6 @@ export function GroupCard({
 }) {
   const tGroups = useTranslations("groups");
   const pf = usePriceFormat();
-  const formatMoney = pf.format;
   const router = useRouter();
   const categoryLabel = group.category
     ? GROUP_CATEGORY_LABELS[group.category]
@@ -293,20 +292,10 @@ export function GroupCard({
   const subscriptionPrice = isPaidSubscriptionPrivate
     ? resolveSubscriptionPrice(group)
     : null;
-  const subscriptionCurrency = resolveSubscriptionCurrency(group);
-  const subscriptionPriceLabel =
-    subscriptionPrice != null
-      ? formatMoney(subscriptionPrice, {
-          baseCurrency: isDisplayCurrency(subscriptionCurrency)
-            ? subscriptionCurrency
-            : "MXN",
-          code: true,
-        })
-      : null;
   // Precio TODO-INCLUIDO para el botón: (base + $3) + IVA.
   const subscribeButtonPrice =
     subscriptionPrice != null
-      ? pf.formatWithTax(subscriptionPrice + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total
+      ? pf.formatWithTax(subscriptionPrice + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total
       : null;
 
   return (
@@ -454,22 +443,10 @@ export function GroupCard({
               {categoryLabel}
             </div>
 
-            {/* Price — always 1 line tall, empty when free */}
-            <div
-              style={{
-                marginTop: 4,
-                fontSize: 11,
-                lineHeight: "14px",
-                height: 14,
-                overflow: "hidden",
-                color: "rgba(255,255,255,0.88)",
-                fontFamily: fontStack,
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
-              {subscriptionPriceLabel ? `${subscriptionPriceLabel} ${tGroups("perMonth")}` : ""}
-            </div>
+            {/* El precio va SOLO en el botón de suscribirse. Aquí se repetía justo
+                debajo de la categoría, dos veces el mismo dato en una tarjeta de
+                ~200px. Quitarlo no descuadra nada: esta columna es `absolute`
+                dentro de la tarjeta, así que su alto no lo marca el contenido. */}
           </div>
         </Link>
 
@@ -527,7 +504,7 @@ export function LiveCTAButton({
       label =
         base != null
           ? tGroups("subscribeForPrice", {
-              price: pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total,
+              price: pf.formatWithTax(base + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total,
             })
           : tGroups("subscribeCta");
     } else if (rec.groupVisibility === "private") label = tGroups("requestAccess");

@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { SERVICE_MIN_PRICE_MXN } from "@/lib/currency/catalog";
+import { SERVICE_MIN_PRICE_USD } from "@/lib/currency/catalog";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
@@ -174,7 +174,7 @@ export default function CustomClass({
   }, [overlayDraft.customClass.price, calcNetAmount]);
 
   // Precio mínimo permitido (MXN) para este servicio.
-  const minPrice = SERVICE_MIN_PRICE_MXN.clase_personalizada;
+  const minPrice = SERVICE_MIN_PRICE_USD.clase_personalizada;
   const priceBelowMin =
     overlayDraft.customClass.price.trim() !== "" &&
     Number(overlayDraft.customClass.price) < minPrice;

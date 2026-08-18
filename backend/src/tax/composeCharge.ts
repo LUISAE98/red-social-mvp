@@ -1,7 +1,7 @@
 // Composición del precio final de un cobro. FUENTE ÚNICA.
 //
 // Antes cada uno de los 8 intents de Stripe repetía a mano:
-//     const published = round2(base + FIXED_SERVICE_FEE_MXN);
+//     const published = round2(base + FIXED_SERVICE_FEE_USD);
 //     const tax = applyConsumptionTax(published, country);
 //     const totalMxn = round2(published + tax.taxAmount);
 // …y ninguno aplicaba el 2% de FX (estaba definido en la config y no se invocaba en ningún lado).
@@ -16,7 +16,7 @@ import {
   type MxVatTreatment,
   type TaxCollectionMode,
 } from "./config";
-import { FIXED_SERVICE_FEE_MXN, SETTLEMENT_CURRENCY } from "../wallet/ledger";
+import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "../wallet/ledger";
 import type { LedgerServiceType } from "../wallet/ledger";
 
 function round2(n: number): number {
@@ -27,14 +27,14 @@ export type ChargeComposition = {
   /** País fiscal aplicado (ya resuelto por el servidor). */
   buyerCountry: string;
 
-  // ── Composición, toda en MXN canónico ──
+  // ── Composición, toda en la moneda de liquidación (USD) ──
   /** Precio del creador. Es la base del reparto 75/25. */
   baseAmount: number;
   /** Cargo fijo de Vibra por transacción. */
   fixedFee: number;
   /** base + cargo fijo. */
   publishedAmount: number;
-  /** Tasa del cargo por conversión (0.02 fuera de México, 0 en México). */
+  /** Tasa del cargo por conversión (0.02 donde la moneda del país no es la de liquidación). */
   fxFeeRate: number;
   /** Monto del cargo por conversión. NO es impuesto: es costo/comisión. */
   fxFeeAmount: number;
@@ -62,9 +62,9 @@ export type ChargeComposition = {
     accruedAmount: number;
   };
 
-  /** TOTAL a cobrar al comprador, en MXN. */
+  /** TOTAL a cobrar al comprador, en la moneda de liquidación. */
   chargedAmount: number;
-  /** Moneda canónica de liquidación (siempre MXN). */
+  /** Moneda canónica de liquidación (USD). */
   settlementCurrency: string;
   /** Moneda en la que se le MUESTRA el precio al comprador. */
   displayCurrency: string;
@@ -74,12 +74,12 @@ export type ChargeComposition = {
  * Compone el cobro completo para un país ya resuelto por el servidor.
  *
  * Orden (invariable, ver impuestos.md §2):
- *     base + $3  →  + 2% FX  →  + impuesto del país  =  total
+ *     base + cargo fijo  →  + 2% FX  →  + impuesto del país  =  total
  *
  * El 2% va ANTES del impuesto porque es parte de la contraprestación que cobra Vibra, así que
  * forma parte de la base gravable. No es impuesto y nunca se declara como tal.
  *
- * @param base   Precio del creador en MXN (sin cargo fijo, sin FX, sin impuesto).
+ * @param base   Precio del creador en USD (sin cargo fijo, sin FX, sin impuesto).
  * @param country País fiscal YA RESUELTO por `resolveTaxCountry`. Nunca uno propuesto por el cliente.
  */
 export function composeCharge(
@@ -88,7 +88,7 @@ export function composeCharge(
   opts?: { fixedFee?: number; serviceType?: LedgerServiceType | null }
 ): ChargeComposition {
   const baseAmount = round2(base);
-  const fixedFee = opts?.fixedFee ?? FIXED_SERVICE_FEE_MXN;
+  const fixedFee = opts?.fixedFee ?? FIXED_SERVICE_FEE_USD;
   const publishedAmount = round2(baseAmount + fixedFee);
 
   // 2% de conversión: solo cuando se cobra en una moneda distinta a la de liquidación.

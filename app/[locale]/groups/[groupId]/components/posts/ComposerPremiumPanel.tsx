@@ -1,10 +1,11 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
-import { FIXED_SERVICE_FEE_MXN, PREMIUM_MIN_PRICE_MXN } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, PREMIUM_MIN_PRICE_USD } from "@/lib/currency/catalog";
 import type {
   PostPremiumAccessMode,
   PostPremiumFreeFor,
@@ -276,11 +277,11 @@ export default function ComposerPremiumPanel({
 
   const creatorEarnings =
     anchorPrice != null
-      ? priceFmt.format(anchorPrice * WALLET_NET_RATE, { baseCurrency: "MXN", code: true })
+      ? priceFmt.format(anchorPrice * WALLET_NET_RATE, { baseCurrency: SETTLEMENT_CURRENCY, code: true })
       : null;
 
   // Por debajo del mínimo ($25 base) → aviso rojo, no se debe publicar.
-  const belowMin = anchorPrice != null && anchorPrice < PREMIUM_MIN_PRICE_MXN;
+  const belowMin = anchorPrice != null && anchorPrice < PREMIUM_MIN_PRICE_USD;
   // Las ganancias se muestran solo con precio válido y por encima del mínimo.
   const earningsVisible = !!creatorEarnings && !belowMin;
 
@@ -475,7 +476,7 @@ export default function ComposerPremiumPanel({
                   fontFamily: fontStack,
                 }}
               >
-                {`El mínimo es $${PREMIUM_MIN_PRICE_MXN}`}
+                {`El mínimo es $${PREMIUM_MIN_PRICE_USD}`}
               </span>
             </div>
 
@@ -515,7 +516,7 @@ export default function ComposerPremiumPanel({
                 marginTop: 3,
               }}
             >
-              Se suman ${FIXED_SERVICE_FEE_MXN} MXN por el cargo de procesamiento de Stripe.
+              Se suman ${FIXED_SERVICE_FEE_USD} MXN por el cargo de procesamiento de Stripe.
             </div>
           </div>
         </>
