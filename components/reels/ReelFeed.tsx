@@ -218,6 +218,15 @@ export default function ReelFeed({
           scroll-snap-type: y mandatory;
           /* El rebote no debe arrastrar a la página de debajo. */
           overscroll-behavior: contain;
+          /* Aquí solo se navega hacia arriba y hacia abajo.
+             ⚠️ Sin esto, el arrastre lateral no lo consume nadie —el reel no se
+             desplaza en horizontal— y el navegador lo toma como su gesto de
+             atrás/adelante: deslizar sacaba del reel y mandaba a home o a
+             mensajes. Con pan-y no hay gesto lateral que atender en esta zona.
+             Los controles que sí se arrastran de lado (la línea de tiempo)
+             declaran touch-action none y siguen funcionando. */
+          touch-action: pan-y;
+          overscroll-behavior-x: none;
           scrollbar-width: none;
           background: #000;
           -webkit-overflow-scrolling: touch;

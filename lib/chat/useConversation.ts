@@ -115,7 +115,14 @@ export function useConversation(conversationId: string | null, selfUid: string |
 
     setLoadingOlder(true);
     try {
-      const page = await fetchOlderMessages(conversationId, oldest.createdAt);
+      // El id va como desempate: dos mensajes con la misma marca de tiempo
+      // hacían que la página siguiente se saltara mensajes o los repitiera.
+      const page = await fetchOlderMessages(
+        conversationId,
+        oldest.createdAt,
+        undefined,
+        oldest.id
+      );
       if (page.length < CONVERSATION_PAGE_SIZE) setHasMore(false);
       if (page.length) setOlder((prev) => [...page, ...prev]);
     } catch (err) {

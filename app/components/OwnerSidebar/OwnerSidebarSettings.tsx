@@ -41,7 +41,7 @@ import MessagePolicySetting from "@/components/chat/MessagePolicySetting";
 import { usePrivateProfile } from "@/lib/auth/usePrivateProfile";
 import { updateMessagePolicy } from "@/lib/chat/messagePolicyService";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
-import { isMessagePolicy, type MessagePolicy } from "@/lib/chat/types";
+import { DEFAULT_MESSAGE_POLICY, isMessagePolicy, type MessagePolicy } from "@/lib/chat/types";
 import { usePushNotifications } from "@/lib/hooks/usePushNotifications";
 import type { ToastType } from "@/lib/hooks/useVibraToast";
 import { SidebarSettingsIcon } from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
@@ -135,7 +135,10 @@ export default function OwnerSidebarSettings({
   const [savingBio, setSavingBio] = useState(false);
   const [savingMessagePolicy, setSavingMessagePolicy] = useState(false);
   const [localMessagePolicy, setLocalMessagePolicy] =
-    useState<MessagePolicy>("everyone");
+    // ⚠️ B9-bajo. Era "everyone" mientras las reglas y los tipos usan
+    // DEFAULT_MESSAGE_POLICY ("following"). Mientras cargaba el ajuste real, la
+    // pantalla decía que cualquiera podía escribirte cuando no era verdad.
+    useState<MessagePolicy>(DEFAULT_MESSAGE_POLICY);
   const [sendingPassword, setSendingPassword] = useState(false);
   const [passwordSent, setPasswordSent] = useState(false);
   const [pwdCooldown, setPwdCooldown] = useState(0);

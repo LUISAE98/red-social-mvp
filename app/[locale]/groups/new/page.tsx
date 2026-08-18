@@ -658,8 +658,10 @@ const onCropComplete = useCallback(
     return (
       <div
         style={{
+          // El 60vh es del estado de carga a propósito: sostiene el alto
+          // mientras no hay formulario, para que al llegar no dé un salto.
           minHeight: "60vh",
-          padding: "20px 14px 120px",
+          padding: "20px 14px 0",
           background: "#000",
           color: "#fff",
           fontFamily: fontStack,
@@ -688,11 +690,16 @@ const onCropComplete = useCallback(
     <>
       <div
         style={{
-          minHeight: "100dvh",
+          // Sin min-height de pantalla completa: el fondo negro ya lo garantiza
+          // `body` en globals.css, así que estirar esto no pintaba nada — solo
+          // empujaba altura cuando el formulario era más corto que la pantalla.
           background: "#000",
           color: "#fff",
           fontFamily: fontStack,
-          padding: "20px 14px 120px",
+          // Y sin hueco abajo: el del nav inferior lo reserva entero `.mainCol`
+          // del layout de comunidades. Los 120px de aquí se le sumaban, y en
+          // laptop —donde no hay nav— eran vacío puro bajo el botón de crear.
+          padding: "20px 14px 0",
         }}
       >
         <style jsx>{`

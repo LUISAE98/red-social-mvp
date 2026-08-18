@@ -203,6 +203,14 @@ function createConversation(
   const batch = writeBatch(db);
   const messageRef = doc(collection(db, `conversations/${convId}/messages`));
 
+  // ⚠️ B9-alto: el primer mensaje pasa por la misma regla que los demás, así que
+  // el contador del freno tiene que ir en este mismo lote.
+  batch.set(doc(db, `rateLimits/${options.senderId ?? ALICE}_dm`), {
+    lastAt: serverTimestamp(),
+    windowStart: serverTimestamp(),
+    count: 1,
+  });
+
   batch.set(doc(db, `conversations/${convId}`), {
     participants,
     participantsKey,
@@ -370,13 +378,19 @@ describe("DM — un hilo nunca nace vacío (y la solicitud, con un solo mensaje)
     );
   });
 
-  it("🟢 el DESTINATARIO sí puede responder a una solicitud", async () => {
+  // ⚠️ B9-medio. Antes el destinatario podía responder DEJANDO el hilo en
+  // "solicitud", y las demás reglas deciden mirando ese estado: quedaba en un
+  // estado contradictorio, pendiente y con conversación dentro.
+  //
+  // La interfaz solo le ofrece Aceptar o Rechazar, nunca un cuadro de escritura,
+  // así que esto alinea la regla con lo que el producto ya hace.
+  it("🔴 el destinatario NO puede responder sin aceptar la solicitud", async () => {
     await seedAll([
       ...users("everyone"),
       ...conversation("request", null, ALICE),
       ...existingMessage(ALICE),
     ]);
-    await assertSucceeds(
+    await assertFails(
       enviarMensaje(as(BOB), BOB, {
         senderId: BOB,
         text: "hola",
@@ -384,6 +398,34 @@ describe("DM — un hilo nunca nace vacío (y la solicitud, con un solo mensaje)
         isDeleted: false,
       })
     );
+  });
+
+  it("🟢 aceptando y respondiendo en el mismo lote, sí", async () => {
+    await seedAll([
+      ...users("everyone"),
+      ...conversation("request", null, ALICE),
+      ...existingMessage(ALICE),
+    ]);
+
+    const ctx = as(BOB);
+    const lote = writeBatch(ctx);
+    lote.update(doc(ctx, `conversations/${CONV}`), {
+      status: "active",
+      updatedAt: serverTimestamp(),
+    });
+    lote.set(doc(collection(ctx, `conversations/${CONV}/messages`)), {
+      senderId: BOB,
+      text: "hola",
+      createdAt: serverTimestamp(),
+      isDeleted: false,
+    });
+    lote.set(doc(ctx, `rateLimits/${BOB}_dm`), {
+      lastAt: serverTimestamp(),
+      windowStart: serverTimestamp(),
+      count: 1,
+    });
+
+    await assertSucceeds(lote.commit());
   });
 
   // Sin este guard, el remitente pasaba su propia solicitud a "active" y el
@@ -1137,7 +1179,8 @@ describe("B9-C01 — el bloqueo corta también dentro de un hilo abierto", () =>
   }
 
   function escribir(uid: string, id: string) {
-    return setDoc(doc(as(uid), `conversations/${CONV}/messages/${id}`), {
+    void id;
+    return enviarMensaje(as(uid), uid, {
       senderId: uid,
       text: "sigo aquí",
       createdAt: serverTimestamp(),
@@ -1189,7 +1232,8 @@ describe("B9-C02 — la imagen tiene que ser tuya", () => {
   });
 
   function mensajeConImagen(uid: string, id: string, path: string) {
-    return setDoc(doc(as(uid), `conversations/${CONV}/messages/${id}`), {
+    void id;
+    return enviarMensaje(as(uid), uid, {
       senderId: uid,
       text: "",
       createdAt: serverTimestamp(),
@@ -1230,7 +1274,7 @@ describe("B9-C02 — la imagen tiene que ser tuya", () => {
 
   it("🔴 la miniatura también se comprueba, no solo la imagen", async () => {
     await assertFails(
-      setDoc(doc(as(ALICE), `conversations/${CONV}/messages/mMixta`), {
+      enviarMensaje(as(ALICE), ALICE, {
         senderId: ALICE,
         text: "",
         createdAt: serverTimestamp(),
@@ -1248,7 +1292,7 @@ describe("B9-C02 — la imagen tiene que ser tuya", () => {
     // aceptando sin validar dominio, y la interfaz los prioriza al pintar: una
     // imagen remota entrega la IP y la hora a la que el otro abre el chat.
     await assertFails(
-      setDoc(doc(as(ALICE), `conversations/${CONV}/messages/mBaliza`), {
+      enviarMensaje(as(ALICE), ALICE, {
         senderId: ALICE,
         text: "",
         createdAt: serverTimestamp(),
@@ -1267,7 +1311,7 @@ describe("B9-medio — una cita no se puede fabricar", () => {
   const CITA_BASE = () => [...users("everyone"), ...conversation("active")];
 
   function responder(replyTo: Record<string, unknown>) {
-    return setDoc(doc(as(ALICE), `conversations/${CONV}/messages/mResp`), {
+    return enviarMensaje(as(ALICE), ALICE, {
       senderId: ALICE,
       text: "te respondo",
       createdAt: serverTimestamp(),

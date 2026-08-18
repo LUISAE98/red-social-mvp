@@ -53,7 +53,9 @@ const pageWrap: CSSProperties = {
   // muerto al fondo para un nav de 70px).
   padding: "0 0 0",
   background: "transparent",
-  minHeight: "100dvh",
+  // Sin min-height de pantalla: este wrap es transparente, así que estirarlo no
+  // pintaba nada —el negro lo garantiza `body` en globals.css— y en cambio
+  // alargaba la página cuando el feed era corto.
   color: "#fff",
   fontFamily: fontStack,
   width: "100%",

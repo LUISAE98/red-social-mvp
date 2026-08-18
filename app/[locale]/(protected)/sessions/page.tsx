@@ -581,10 +581,12 @@ const fontStack =
 const pageWrapper: CSSProperties = {
   maxWidth: 640,
   margin: "0 auto",
-  padding: "28px 16px max(24px, var(--vb-safe-bottom, 0px))",
+  // Sin hueco abajo ni min-height de pantalla: el clearance del nav lo reserva
+  // `.mainCol` del layout protegido, y este wrap no tiene fondo propio que
+  // estirar. Los dos juntos dejaban vacío al final de la lista.
+  padding: "28px 16px 0",
   fontFamily: fontStack,
   color: "#fff",
-  minHeight: "100dvh",
   boxSizing: "border-box",
 };
 

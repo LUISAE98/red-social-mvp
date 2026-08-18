@@ -1026,9 +1026,12 @@ const previousMedia =
 
   const heroContainerStyle = getHeroContainerStyle();
   const controlsOpacity = (() => {
+    // El arrastre apaga los controles enseguida, haya hero o no. Antes sin hero
+    // se quedaban a plena opacidad y, ahora que el velo deja ver el feed, se
+    // verían flotando sobre él.
+    if (mobileDragOffsetY > 0) return Math.max(0, 1 - mobileDragOffsetY / 80);
     if (!heroActive) return 1;
     if (heroPhase !== "open") return 0;
-    if (mobileDragOffsetY > 0) return Math.max(0, 1 - mobileDragOffsetY / 80);
     return 1;
   })();
   const controlsTransition = heroPhase === "open" && mobileDragOffsetY === 0
@@ -1391,7 +1394,11 @@ const previewUrl = media.url;
               : `translate3d(${mobileDragOffsetX * dirX}px, 0, 0) scale(1)`,
             transition: mobileSurfaceTransition,
             opacity: mobileOverlayOpacity,
-            background: "#000",
+            // El fondo negro solo mientras NO se arrastra. Al deslizar estorba:
+            // son dos capas opacas y la de arriba tapa el aclarado del velo, así
+            // que el feed no llegaba a asomar. En reposo y durante la entrada sí
+            // se conserva, que es quien rellena las franjas del medio.
+            background: mobileVerticalActive ? "transparent" : "#000",
           }}
         >
           {videoSurface}
@@ -1410,7 +1417,8 @@ const previewUrl = media.url;
             : `translate3d(${mobileDragOffsetX * dirX}px, 0, 0) scale(1)`,
           transition: mobileSurfaceTransition,
           opacity: mobileOverlayOpacity,
-          background: "#000",
+          // Transparente solo al arrastrar; ver la superficie de video.
+          background: mobileVerticalActive ? "transparent" : "#000",
         }}
       >
         {useMobileLayout ? (
@@ -1454,7 +1462,14 @@ const previewUrl = media.url;
         WebkitUserSelect: "none",
         color: "#fff",
         overflow: "hidden",
-        ...(heroContainerStyle ?? { inset: 0, background: "#000" }),
+        // Este contenedor ES el velo, y es la ÚNICA capa que oscurece: se aclara
+        // con el arrastre para que el feed asome por detrás mientras bajas, en
+        // vez de aparecer de golpe al soltar. Sin hero también, que antes se
+        // quedaba en negro sólido hasta el cierre.
+        ...(heroContainerStyle ?? {
+          inset: 0,
+          background: `rgba(0,0,0,${mobileOverlayOpacity})`,
+        }),
       }}
     >
       {/* ── Media area ── */}

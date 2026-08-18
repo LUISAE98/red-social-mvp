@@ -150,7 +150,9 @@ export default function NotificationsPage() {
         .notifPage {
           max-width: 640px;
           margin: 0 auto;
-          padding: 8px 0 96px;
+          /* Sin hueco abajo: el del nav lo reserva .mainCol del layout protegido
+             y estos 96px se le sumaban. */
+          padding: 8px 0 0;
         }
         .notifPageHead {
           display: flex;

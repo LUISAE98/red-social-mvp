@@ -509,8 +509,10 @@ export default function ExperienciasPage() {
     />
   );
 
+  // Sin hueco abajo: el clearance del nav lo reserva `.mainCol` del layout
+  // protegido y los 48px que había aquí se le sumaban.
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 12px 48px", width: "100%", boxSizing: "border-box" }}>
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 12px 0", width: "100%", boxSizing: "border-box" }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "4px 2px 14px", letterSpacing: "-0.02em" }}>
         {tNav("tabExperiences")}
       </h1>

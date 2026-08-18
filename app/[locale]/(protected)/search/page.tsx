@@ -782,7 +782,9 @@ function SearchPageContent() {
   display: grid;
   justify-items: center;
   align-content: start;
-  padding: 0 0 96px;
+  /* Sin hueco abajo: el del nav lo reserva .mainCol del layout protegido y
+     estos 96px se le sumaban. */
+  padding: 0;
   box-sizing: border-box;
   margin-top: 0;
   /* Evita scroll horizontal en iOS (p. ej. por el desliz del cambio de pestaña). */

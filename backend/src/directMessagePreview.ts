@@ -19,10 +19,14 @@ const db = getFirestore();
 const REGION = "us-central1";
 
 /** Mismo tope que usa el trigger de creación al recortar el resumen. */
-const PREVIEW_MAX = 140;
+// ⚠️ B9-bajo. Era 140 mientras el resumen INICIAL se guardaba con 200
+// (`PREVIEW_MAX` en `directMessages.ts`), así que editar un mensaje le RECORTABA el
+// resumen del inbox sin que nadie hubiera cambiado el texto. El mismo valor en
+// los dos sitios; si cambia, cambia en los dos.
+const PREVIEW_MAX = 200;
 
 export const onDirectMessageChangedUpdatePreview = onDocumentUpdated(
-  { document: "conversations/{convId}/messages/{messageId}", region: REGION },
+  { document: "conversations/{convId}/messages/{messageId}", region: REGION, retry: true },
   async (event) => {
     const before = event.data?.before.data();
     const after = event.data?.after.data();
@@ -65,12 +69,16 @@ export const onDirectMessageChangedUpdatePreview = onDocumentUpdated(
         },
       });
     } catch (error) {
-      // Que falle refrescar el resumen no debe reintentar en bucle: el mensaje
-      // en sí ya quedó bien guardado, lo único desfasado es la vista previa.
+      // ⚠️ B9-bajo. Antes esto solo se registraba y ahí moría: si fallaba, el
+      // inbox se quedaba enseñando para siempre el texto viejo de un mensaje
+      // editado, o el contenido de uno RETIRADO. Con `retry: true` Firebase lo
+      // reintenta con espera creciente y acaba rindiéndose, que es mejor que no
+      // intentarlo nunca.
       logger.error("onDirectMessageChangedUpdatePreview: fallo al refrescar", {
         convId: event.params.convId,
         error,
       });
+      throw error;
     }
   }
 );

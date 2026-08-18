@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  documentId,
   limit as fsLimit,
   onSnapshot,
   orderBy,
@@ -606,14 +607,29 @@ export function subscribeToConversation(
 export async function fetchOlderMessages(
   conversationId: string,
   oldestCreatedAt: unknown,
-  pageSize = CONVERSATION_PAGE_SIZE
+  pageSize = CONVERSATION_PAGE_SIZE,
+  /**
+   * ⚠️ B9-bajo. El id del mensaje más antiguo que ya tienes, como desempate.
+   *
+   * Antes el cursor era SOLO la marca de tiempo, y dos mensajes con la misma
+   * —normal cuando llegan a la vez, o cuando `serverTimestamp()` resuelve al
+   * mismo milisegundo— hacían que la página siguiente se saltara mensajes o los
+   * repitiera. Ordenando además por id, el corte es exacto.
+   *
+   * Es opcional para no romper a quien llame sin él: sin id se comporta como
+   * antes.
+   */
+  oldestId?: string
 ): Promise<MessageWithId[]> {
   if (!oldestCreatedAt) return [];
 
   const q = query(
     messagesCol(conversationId),
     orderBy("createdAt", "desc"),
-    startAfter(oldestCreatedAt),
+    orderBy(documentId(), "desc"),
+    ...(oldestId
+      ? [startAfter(oldestCreatedAt, oldestId)]
+      : [startAfter(oldestCreatedAt)]),
     fsLimit(pageSize)
   );
 

@@ -97,8 +97,11 @@ const { user } = useAuth();
   };
 
   const pageWrap: React.CSSProperties = {
-    minHeight: "calc(100dvh - 70px)",
-    padding: "12px 0 calc(120px + var(--vb-safe-bottom, 0px))",
+    // Esta ruta va fuera de los shells de (protected) y groups: no tiene nav
+    // inferior ni `.mainCol`. Por eso no restaba nada un min-height de
+    // "100dvh - 70px" (los 70 eran el nav que aquí no existe) ni hacía falta
+    // reservar 120px abajo. Queda solo el respiro y la safe-area del aparato.
+    padding: "12px 0 calc(24px + var(--vb-safe-bottom, 0px))",
     background: "#000",
     color: "#fff",
     fontFamily: fontStack,

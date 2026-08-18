@@ -454,6 +454,26 @@ Cerrado y desplegado el 2026-08-15 **todo lo que no depende de Stripe USA**: 4 c
 ⚠️ **La suite de emulador corre en SECUENCIAL** (`fileParallelism: false`). Con 12 archivos en paralelo fallaban tests distintos en cada corrida, siempre clavados en el timeout; se subió el tope tres veces (20 → 45 → 90 s) creyendo que eran lentos y no lo eran. Secuencial tarda menos y es determinista.
 
 ---
+## Bloque 9 — Mensajes directos y privacidad (CERRADO)
+
+3 críticos, 5 altos, 5 medios y los bajos. Desplegado el 2026-08-16/17.
+
+- **C01** El bloqueo no cortaba dentro de un hilo ya abierto. SÍ se comprobaba al ABRIR una conversación nueva, pero al escribir dentro de una existente el único freno era `status: "blocked"` en el hilo, y ese estado lo escribe el CLIENTE después de bloquear, en una operación que no es atómica, se traga sus errores y no corre al desbloquear. Decisión de Luis: al bloquear, el hilo se cierra DEL TODO — ni escribir, ni reaccionar a mensajes viejos, ni volver a abrir las imágenes del historial (eso último en `dmImages.ts`). Esconderte un mensaje a ti mismo sigue permitido: no le manda ninguna señal al otro.
+- **C02** Un participante podía destruirle las imágenes al otro. La regla solo exigía que la ruta empezara por la conversación, y la ruta real lleva también el uid de quien subió. Se escribía un mensaje apuntando al archivo DEL OTRO, se retiraba, y la limpieza lo borraba con el Admin SDK. ⚠️ **Mismo patrón que B8-C01**, pero aquí la imagen es un mapa suelto y no una lista, así que sí se pudo cerrar en la regla; además lleva la misma red en el consumidor.
+- **C03** Cualquiera podía abrir a moderación una conversación ajena. El id es determinista (`uidA_uidB`), así que bastaba con conocer dos uids para denunciar un hilo ajeno y dejarlo `underReview`, que es lo que abre su lectura completa. Un moderador podía auto-denunciar cualquier hilo. Ahora solo denuncia quien está dentro.
+- **Altos:** subidas a `dmImages` sin comprobar participación (⚠️ la comprobación acepta también que el id te incluya, **y es obligatorio**: al abrir un hilo nuevo la imagen se sube ANTES de que exista el documento); freno de mensajes (1 s, 300/hora) con el mismo mecanismo de lote atómico de B8-H03; imágenes remotas de rastreo por los campos `url`/`thumbnailUrl` que las reglas seguían aceptando sin validar dominio; la marca de moderación que no caducaba nunca; y las carreras del inbox — el resumen se reemplazaba sin mirar el orden, y sin marca de idempotencia una reentrega (Firebase garantiza *al menos una*) doblaba el contador y repetía el aviso.
+- **Medios:** citas a mensajes inexistentes o atribuidas al otro; responder una solicitud sin activarla (⚠️ `convAfter()` es `getAfter`, así que basta con quitar la escapatoria del destinatario para obligar a que aceptar y responder ocurran juntos); avisos sin el texto del mensaje, decisión de Luis.
+- **Bajos:** el resumen se recortaba a 140 al editar y a 200 al crear, así que editar RECORTABA el inbox; los fallos al refrescar el resumen no se reintentaban, dejando a la vista el texto de un mensaje retirado; la pantalla de ajustes mostraba `everyone` por defecto mientras reglas y tipos usan `following`; y la paginación sin desempate se saltaba o repetía mensajes con la misma marca de tiempo.
+
+**No se cambió** (decisión de Luis, 2026-08-16): cambiar la política a "nadie" NO corta las conversaciones ya abiertas. El ajuste decide quién puede EMPEZAR.
+
+**Sigue abierto:** el TEXTO de una cita lo sigue poniendo el cliente. No se puede comparar con el original porque la cita se recorta a 200 y un mensaje llega a 2000, y las reglas no saben cortar cadenas. Cerrarlo pide que la interfaz resuelva el texto citado por id en vez de copiarlo.
+
+**Cobertura:** `directMessages.rules.test.ts`, suite de reglas **352 verdes**.
+
+⚠️ **Al añadir el freno hubo que convertir 25 pruebas.** Nueve eran negativas y habrían empezado a fallar por FALTA DE CONTADOR en vez de por lo que probaban: un negativo que pasa por el motivo equivocado no vale nada. Y una prueba codificaba que el destinatario puede responder sin aceptar, algo que la interfaz no ofrece y que la auditoría marcó como fallo; se invirtió.
+
+---
 ## Bloque 8 — Publicaciones, comentarios, historias, feeds y visibilidad (PARCIAL)
 
 Desplegado el 2026-08-16: los 4 críticos, 6 de los altos y 2 medios. Lo que falta está abajo con su motivo.

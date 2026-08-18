@@ -247,10 +247,26 @@ service firebase.storage {
      * en las reglas de LECTURA de esta misma familia, donde el propio dueño va
      * delante con `||` para que un fallo de la consulta no le cierre su archivo.
      */
+    /**
+     * ⚠️ El id de una conversación es determinista: los dos uids ordenados y
+     * unidos por `_`. Esa segunda vía NO es un atajo, es obligatoria: al abrir
+     * una conversación NUEVA la imagen se sube ANTES de que exista el documento
+     * del hilo (`createConversationWithFirstMessage` recibe la imagen ya subida),
+     * así que exigir que el hilo exista rompería el primer mensaje con foto.
+     *
+     * Sigue cerrando lo que importa: el id tiene que ser uno del que formas
+     * parte. No se puede subir a un hilo ajeno ni a uno inventado.
+     */
+    function elIdMeIncluye(conversationId) {
+      return conversationId.matches('^' + request.auth.uid + '_.*')
+        || conversationId.matches('.*_' + request.auth.uid + '$');
+    }
+
     function participaEnLaConversacion(conversationId) {
       return firestore.exists(/databases/(default)/documents/conversations/$(conversationId))
-        && request.auth.uid in
-             firestore.get(/databases/(default)/documents/conversations/$(conversationId)).data.participants;
+        ? request.auth.uid in
+            firestore.get(/databases/(default)/documents/conversations/$(conversationId)).data.participants
+        : elIdMeIncluye(conversationId);
     }
 
     match /dmImages/{conversationId}/{uid}/{folder}/{fileName} {
