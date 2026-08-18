@@ -29,6 +29,7 @@ import { buildStoryUrl } from "@/lib/reels/reelStories";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import VibraShareIcon from "@/app/components/VibraServiceIcons/VibraShareIcon";
+import FollowCreatorButton from "@/components/social/FollowCreatorButton";
 import ScrubBar from "./ScrubBar";
 
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
@@ -422,6 +423,15 @@ export default function ReelStorySlide({
     zIndex: 10,
     display: "flex",
     alignItems: "center",
+  };
+  // El enlace al perfil envuelve SOLO avatar y nombre.
+  //
+  // ⚠️ El botón de seguir queda fuera a propósito: un <button> dentro de un <a>
+  // es anidamiento inválido, y el navegador reacomoda el árbol por su cuenta,
+  // que es de las formas más desagradables de romper la hidratación.
+  const headerLinkStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
     gap: compact ? 6 : 8,
     textDecoration: "none",
     WebkitTapHighlightColor: "transparent",
@@ -569,11 +579,19 @@ export default function ReelStorySlide({
         )}
 
         {profileHref ? (
-          <Link href={profileHref} onClick={(e) => e.stopPropagation()} style={headerStyle}>
-            {headerInner}
-          </Link>
+          <div style={headerStyle}>
+            <Link href={profileHref} onClick={(e) => e.stopPropagation()} style={headerLinkStyle}>
+              {headerInner}
+            </Link>
+            {/* Se sigue a quien GRABÓ el video. Cuando el comprador republica el
+                saludo que le hicieron, esto apunta al creador, no al comprador. */}
+            <FollowCreatorButton targetUserId={greetingAuthorUid} compact={compact} />
+          </div>
         ) : (
-          <div style={headerStyle}>{headerInner}</div>
+          <div style={headerStyle}>
+            <div style={headerLinkStyle}>{headerInner}</div>
+            <FollowCreatorButton targetUserId={greetingAuthorUid} compact={compact} />
+          </div>
         )}
 
         {/* Silencio + lo que aporte el anfitrión (cerrar) */}

@@ -20,6 +20,7 @@ import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { ReelLivePost } from "@/lib/reels/reelItems";
+import FollowCreatorButton from "@/components/social/FollowCreatorButton";
 
 const LiveInlinePlayer = dynamic(
   () => import("@/app/components/LiveInlinePlayer/LiveInlinePlayer"),
@@ -180,6 +181,7 @@ export default function ReelLiveSlide({
             {ld?.title?.trim() || tLive("statusLive")}
           </span>
         </div>
+        <FollowCreatorButton targetUserId={post.authorId ?? null} compact={compact} />
       </div>
 
       {/* Entrar al live. En el mismo sitio que los botones de una historia, para
