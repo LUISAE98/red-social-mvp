@@ -42,6 +42,15 @@ export type Props = {
   onManage?: () => void;
   initialPortrait?: boolean;
   initialStream?: MediaStream | null;
+  /**
+   * Como se sale del visor.
+   *
+   * "close" es una equis y significa que el live se termina de ver. "back" es
+   * una flecha y significa que hay algo detras a lo que se vuelve, que es el
+   * caso del feed de reels: el reel sigue montado debajo y al salir se cae
+   * justo donde se iba. La flecha lo anuncia; la equis prometeria otra cosa.
+   */
+  exitAs?: "close" | "back";
 };
 
 // Igual que StoryViewer.desktopPanelSize()

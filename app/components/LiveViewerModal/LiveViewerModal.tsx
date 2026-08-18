@@ -6,6 +6,7 @@ import { intlLocale } from "@/i18n/locales";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
+import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 import { createPortal } from "react-dom";
 import Hls from "hls.js";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -41,7 +42,23 @@ import {
   type Props,
 } from "./LiveViewerModal.parts";
 
-export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false, initialStream }: Props) {
+export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false, initialStream, exitAs = "close" }: Props) {
+  // En arabe y hebreo "volver" apunta a la derecha, asi que la flecha se
+  // voltea con el sentido de escritura.
+  const exitDir = useDirectionFactor();
+  const isBack = exitAs === "back";
+  const exitLabelKey = isBack ? "backAriaLabel" : "closeAriaLabel";
+  const exitIcon = (size: number) =>
+    isBack ? (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: `scaleX(${exitDir})` }}>
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+    ) : (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    );
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
   const locale = useLocale();
@@ -1016,11 +1033,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         alignItems: "center", justifyContent: "center",
         padding: "32px 24px", fontFamily: FONT,
       }}>
-        {/* Botón cerrar */}
-        <IconButton label={tCommon("closeAriaLabel")} size="md" tone="solid" style={{ position: "absolute", top: "max(20px, env(safe-area-inset-top))", insetInlineEnd: "max(20px, env(safe-area-inset-right))" }} onClick={onClose}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+        {/* Salir: flecha si hay algo detras, equis si no */}
+        <IconButton label={tCommon(exitLabelKey)} size="md" tone="solid" style={{ position: "absolute", top: "max(20px, env(safe-area-inset-top))", insetInlineStart: isBack ? "max(20px, env(safe-area-inset-left))" : undefined, insetInlineEnd: isBack ? undefined : "max(20px, env(safe-area-inset-right))" }} onClick={onClose}>
+          {exitIcon(16)}
         </IconButton>
 
         {/* Portada */}
@@ -1568,12 +1583,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             </IconButton>
           )}
 
-          {/* Cerrar — igual que historias */}
-          <IconButton label={tCommon("closeAriaLabel")} size="sm" tone="bare" shape="square" onClick={onClose}>
-            <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+          {/* Salir — igual que historias */}
+          <IconButton label={tCommon(exitLabelKey)} size="sm" tone="bare" shape="square" onClick={onClose}>
+            {exitIcon(iconSz)}
           </IconButton>
         </div>
       </div>

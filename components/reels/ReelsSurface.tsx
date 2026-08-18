@@ -241,7 +241,14 @@ export default function ReelsSurface({
           onOpenLive={setOpenLive}
         />
         {openLive && (
-          <LiveViewerModal open onClose={() => setOpenLive(null)} post={openLive} />
+          <LiveViewerModal
+            open
+            onClose={() => setOpenLive(null)}
+            post={openLive}
+            // Se sale con flecha, no con equis: el reel sigue montado debajo y
+            // al salir se cae justo donde se iba.
+            exitAs="back"
+          />
         )}
       </>
     );
@@ -258,7 +265,14 @@ export default function ReelsSurface({
         navClearance={NAV_CLEARANCE}
       />
       {openLive && (
-        <LiveViewerModal open onClose={() => setOpenLive(null)} post={openLive} />
+        <LiveViewerModal
+            open
+            onClose={() => setOpenLive(null)}
+            post={openLive}
+            // Se sale con flecha, no con equis: el reel sigue montado debajo y
+            // al salir se cae justo donde se iba.
+            exitAs="back"
+          />
       )}
     </>
   );
