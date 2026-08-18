@@ -36,7 +36,7 @@ import {
   splitLanes,
 } from "./reelRanking";
 import { dedupeItems, storiesOf, storyItem, type ReelItem } from "./reelItems";
-import { subscribeReelLives } from "./reelLives";
+import { fetchReelLivesOnce, subscribeReelLives } from "./reelLives";
 import {
   getReelFeedGeneration,
   getReelFeedGenerationServer,
@@ -196,12 +196,16 @@ export function useReelFeed(uid: string | null | undefined) {
     }
 
     (async () => {
-      const [taste, viewed, interest, followed, pool] = await Promise.all([
+      const [taste, viewed, interest, followed, pool, lives] = await Promise.all([
         getUserTasteVector(uid).catch(() => new Map<CanonicalGroupCategory, number>()),
         fetchViewedMap(uid),
         sameUser ? Promise.resolve(interestRef.current) : loadTermVector(uid),
         fetchFollowedReelStories(uid),
         fetchDiscoveryReelPage(null, POOL_SIZE),
+        // Los lives entran en la PRIMERA tanda o no entran hasta que el
+        // usuario scrolle una pagina entera. Por eso se piden aqui y no se
+        // deja al primer aviso de la suscripcion, que llegaba cuando queria.
+        fetchReelLivesOnce({ uid }),
       ]);
       if (cancelled) return;
 
@@ -217,6 +221,7 @@ export function useReelFeed(uid: string | null | undefined) {
       // También aquí se deduplica por video: si sigues al creador Y al comprador
       // del mismo saludo, te llegan las dos copias y solo debe circular una.
       followingIdsRef.current = followed.followingIds;
+      livesRef.current = lives;
 
       const head: ReelItem[] = [];
       for (const s of rankStories(preferCreatorCopy(followed.stories), taste, viewed, Date.now())) {

@@ -16,7 +16,7 @@
 // Consecuencia de producto: al reel solo entran lives ABIERTOS A TODOS. Los de
 // boleto o de solo-con-cuenta necesitarían otro camino.
 
-import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
+import { collection, getDocs, limit, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   isLiveOngoing,
@@ -35,6 +35,28 @@ import {
  */
 const LIVES_LIMIT = 40;
 
+function livesQuery() {
+  return query(
+    collection(db, "posts"),
+    where("liveData.status", "==", "live"),
+    where("liveData.allowLoggedOutViewers", "==", true),
+    limit(LIVES_LIMIT),
+  );
+}
+
+function toItems(docs: Array<{ id: string; data: () => unknown }>, uid?: string | null): ReelItem[] {
+  return docs
+    .map((d) => ({ id: d.id, ...(d.data() as object) }) as ReelLivePost)
+    // El estado por si solo miente: se queda pegado en "live" cuando una
+    // transmision se corta mal.
+    .filter((post) => isLiveOngoing(post))
+    .filter((post) => !uid || post.authorId !== uid)
+    // El mas reciente primero. El orden definitivo lo decide la mezcla por
+    // cuota; este solo hace que la lista sea estable entre avisos.
+    .sort((a, b) => liveStartedAtMs(b) - liveStartedAtMs(a))
+    .map(liveItem);
+}
+
 type Options = {
   /**
    * Quién mira. Su propio live no se le muestra: ya lo está transmitiendo, y
@@ -42,6 +64,25 @@ type Options = {
    */
   uid?: string | null;
 };
+
+/**
+ * Los lives que hay AHORA MISMO, de una sola lectura.
+ *
+ * Existe porque un live solo puede colocarse en el feed cuando se arma una
+ * tanda de historias, y la primera tanda se arma nada mas abrir. Dejar eso en
+ * manos de la suscripcion era una carrera: si su primer aviso llegaba tarde,
+ * el live no entraba hasta que el usuario scrolleaba una pagina entera. Pedirlo
+ * junto al resto de la carga inicial lo vuelve determinista.
+ */
+export async function fetchReelLivesOnce(options: Options): Promise<ReelItem[]> {
+  try {
+    const snap = await getDocs(livesQuery());
+    return toItems(snap.docs, options.uid);
+  } catch {
+    // Sin lives el feed sigue funcionando.
+    return [];
+  }
+}
 
 /**
  * Vigila los lives en curso y avisa cada vez que la lista cambia.
@@ -54,28 +95,10 @@ export function subscribeReelLives(
 ): () => void {
   const { uid } = options;
 
-  const q = query(
-    collection(db, "posts"),
-    where("liveData.status", "==", "live"),
-    where("liveData.allowLoggedOutViewers", "==", true),
-    limit(LIVES_LIMIT),
-  );
-
   return onSnapshot(
-    q,
+    livesQuery(),
     (snap) => {
-      const live = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }) as ReelLivePost)
-        // El estado por sí solo miente: se queda pegado en "live" cuando una
-        // transmisión se corta mal.
-        .filter((post) => isLiveOngoing(post))
-        .filter((post) => !uid || post.authorId !== uid)
-        // El más reciente primero. El orden definitivo lo decide la mezcla por
-        // cuota; este solo hace que la lista sea estable entre avisos.
-        .sort((a, b) => liveStartedAtMs(b) - liveStartedAtMs(a))
-        .map(liveItem);
-
-      onChange(live);
+      onChange(toItems(snap.docs, uid));
     },
     () => {
       // Sin lives el feed sigue funcionando: son un complemento, no el
