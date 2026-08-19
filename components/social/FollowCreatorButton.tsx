@@ -1,12 +1,11 @@
 "use client";
 
-// Botón de seguir para el feed de reels.
+// Botón de seguir para el feed de reels, al estilo de Instagram.
 //
-// Mismo comportamiento que el de los perfiles sugeridos del home: solo aparece
-// si NO sigues a esa persona, y al pulsarlo se queda como texto en vez de
-// ofrecer dejar de seguir. El reel no es sitio para dejar de seguir a nadie: se
-// pasa el dedo por encima y un botón que alterna acabaría desactivando follows
-// por accidente.
+// Alterna: si no sigues dice "Seguir", y en cuanto sigues pasa a "Siguiendo",
+// desde donde se puede dejar de seguir con otro toque. Por eso sigue visible
+// cuando ya sigues, al revés que el de los perfiles sugeridos del home, que
+// desaparece una vez cumplida su función.
 //
 // A QUIÉN se sigue lo decide quien lo monta, y no es negociable en un caso: en
 // un saludo o consejo republicado por el comprador, se sigue a quien lo GRABÓ.
@@ -18,7 +17,7 @@ import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
-import { followUser } from "@/lib/social/social-service";
+import { followUser, unfollowUser } from "@/lib/social/social-service";
 
 type Props = {
   /** A quién se sigue. En una historia, quien grabó el video. */
@@ -32,9 +31,9 @@ export default function FollowCreatorButton({ targetUserId, compact = false }: P
   const { user } = useAuth();
   const currentUserId = user?.uid ?? null;
 
-  const [state, setState] = useState<"idle" | "loading" | "done">("idle");
   // null = todavía no se sabe.
   const [following, setFollowing] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
 
   // Una cuenta anónima no puede seguir a nadie: sus escrituras no pasarían las
   // reglas, así que ni se ofrece.
@@ -49,9 +48,9 @@ export default function FollowCreatorButton({ targetUserId, compact = false }: P
         if (!cancelled) setFollowing(snap.exists());
       })
       .catch(() => {
-        // Sin saberlo, no se enseña: prometer "Seguir" a quien ya sigues es peor
-        // que no ofrecer nada.
-        if (!cancelled) setFollowing(true);
+        // Sin saberlo no se pinta nada: ofrecer "Seguir" a quien ya sigues, o
+        // "Siguiendo" a quien no, es peor que no ofrecer nada.
+        if (!cancelled) setFollowing(null);
       });
     return () => {
       cancelled = true;
@@ -59,67 +58,66 @@ export default function FollowCreatorButton({ targetUserId, compact = false }: P
   }, [invalid, targetUserId, currentUserId]);
 
   if (invalid) return null;
-  // Mientras no se sabe no se pinta nada, para que no parpadee un "Seguir" en
-  // alguien a quien ya sigues.
-  if (following === null && state === "idle") return null;
-  if (following === true) return null;
+  // Mientras no se sabe no se pinta, para que el botón no parpadee de un estado
+  // al otro nada más aparecer la historia.
+  if (following === null) return null;
 
-  async function handleFollow(e: React.MouseEvent) {
+  async function handleToggle(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (state !== "idle" || !targetUserId || !currentUserId) return;
-    setState("loading");
+    if (busy || !targetUserId || !currentUserId) return;
+
+    // Se cambia ANTES de escribir y se revierte si falla. En un reel el dedo ya
+    // va camino de la siguiente historia: esperar a la red para mover el botón
+    // se siente como que el toque no registró.
+    const antes = following;
+    setFollowing(!antes);
+    setBusy(true);
     try {
-      await followUser({ currentUserId, targetUserId });
-      setState("done");
+      if (antes) await unfollowUser({ currentUserId, targetUserId });
+      else await followUser({ currentUserId, targetUserId });
     } catch {
-      setState("idle");
+      setFollowing(antes);
+    } finally {
+      setBusy(false);
     }
-  }
-
-  const base: React.CSSProperties = {
-    flexShrink: 0,
-    boxSizing: "border-box",
-    padding: compact ? "3px 9px" : "4px 12px",
-    borderRadius: 6,
-    border: "none",
-    fontSize: compact ? 10 : 12,
-    fontWeight: 700,
-    lineHeight: 1.4,
-    letterSpacing: "-0.01em",
-    whiteSpace: "nowrap",
-    fontFamily: "inherit",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginInlineStart: compact ? 6 : 8,
-  };
-
-  if (state === "done") {
-    return (
-      <span style={{ ...base, background: "transparent", color: "#a855f7", cursor: "default" }}>
-        {tFeed("followingCta")}
-      </span>
-    );
   }
 
   return (
     <button
       type="button"
-      onClick={handleFollow}
-      disabled={state !== "idle"}
+      onClick={handleToggle}
+      disabled={busy}
       style={{
-        ...base,
-        background: "#a855f7",
-        color: "#fff",
-        cursor: state === "idle" ? "pointer" : "default",
-        opacity: state === "loading" ? 0.7 : 1,
-        // El botón vive dentro del enlace al perfil, así que necesita recibir
-        // sus propios clics aunque la cabecera los tenga apagados.
+        flexShrink: 0,
+        boxSizing: "border-box",
+        padding: compact ? "3px 10px" : "5px 14px",
+        borderRadius: 8,
+        // Transparente con perímetro blanco. Sobre el video, un botón sólido
+        // pesa demasiado para lo que es: un secundario.
+        background: "transparent",
+        border: `1px solid rgba(255,255,255,${following ? 0.55 : 0.9})`,
+        color: following ? "rgba(255,255,255,0.8)" : "#fff",
+        fontSize: compact ? 11 : 13,
+        fontWeight: 600,
+        lineHeight: 1.4,
+        letterSpacing: "-0.01em",
+        whiteSpace: "nowrap",
+        fontFamily: "inherit",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        marginInlineStart: compact ? 6 : 8,
+        cursor: busy ? "default" : "pointer",
+        opacity: busy ? 0.6 : 1,
+        transition: "border-color 160ms ease, color 160ms ease, opacity 160ms ease",
+        WebkitTapHighlightColor: "transparent",
+        // El botón vive junto al enlace al perfil, dentro de una cabecera que en
+        // el live tiene los clics apagados.
         pointerEvents: "auto",
       }}
     >
-      {state === "loading" ? "…" : tFeed("followCta")}
+      {following ? tFeed("followingCta") : tFeed("followCta")}
     </button>
   );
 }
