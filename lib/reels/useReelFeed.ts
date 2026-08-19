@@ -196,6 +196,7 @@ export function useReelFeed(uid: string | null | undefined) {
     }
 
     (async () => {
+      try {
       const [taste, viewed, interest, followed, pool, lives] = await Promise.all([
         getUserTasteVector(uid).catch(() => new Map<CanonicalGroupCategory, number>()),
         fetchViewedMap(uid),
@@ -235,6 +236,18 @@ export function useReelFeed(uid: string | null | undefined) {
       const tail = arrange(pool.stories);
 
       setState({ uid, items: dedupeItems([...head, ...tail]), ready: true });
+      } catch (err) {
+        // ⚠️ Sin esto, cualquier fallo de aqui dentro dejaba el feed en el
+        // spinner PARA SIEMPRE: `setState` no llegaba a ejecutarse y `ready` se
+        // quedaba en false. Ademas salia como promesa rechazada sin capturar,
+        // que es lo que el reporte de errores recoge y reintenta, y de ahi los
+        // miles de errores en cadena en desarrollo.
+        //
+        // Un feed vacio es un mal resultado; un feed que carga eternamente es
+        // peor, porque no se distingue de la aplicacion rota.
+        console.error("[useReelFeed] no se pudo armar el feed:", err);
+        if (!cancelled) setState({ uid, items: [], ready: true });
+      }
     })();
 
     return () => {
@@ -297,6 +310,8 @@ export function useReelFeed(uid: string | null | undefined) {
           }
           if (page.exhausted) return;
         }
+      } catch (err) {
+        console.error("[useReelFeed] no se pudo pedir mas:", err);
       } finally {
         loadingRef.current = false;
       }
