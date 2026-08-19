@@ -64,22 +64,37 @@ import { getFxQuote, type FxQuote } from "./fxQuotes";
 async function tasaDestino(
   target: string
 ): Promise<{ porUnidadLiquidacion: number; quote: FxQuote | null } | null> {
+  // 🚨 MANDA LA TABLA CONGELADA, no la cotización viva. Y es el corazón del diseño.
+  //
+  // El precio que el comprador VE se calcula en el frontend con esta misma tabla. Si aquí
+  // se usara la tasa del momento, el importe cobrado saldría de una cotización distinta a
+  // la del precio mostrado y los dos números se separarían — que es exactamente el bug que
+  // el congelamiento viene a cerrar.
+  //
+  // La cotización de Stripe se sigue pidiendo, pero para OTRA cosa: adjuntarla al
+  // PaymentIntent y garantizar a qué tasa liquida. La diferencia entre la tasa congelada y
+  // la de liquidación es la ganancia o pérdida del día, y la cubre el colchón del 2%.
   const quote = await getFxQuote(target, SETTLEMENT_CURRENCY);
-  if (quote) {
-    // `baseRate` = cuántos USD vale 1 unidad de `target`. Se invierte para ir al revés.
-    return { porUnidadLiquidacion: 1 / quote.baseRate, quote };
-  }
 
   const snap = await db.doc("config/exchangeRates").get();
   const rates = (snap.data()?.rates ?? {}) as Record<string, number>;
   const actualizadaMs =
     typeof snap.get("updatedAt")?.toMillis === "function" ? snap.get("updatedAt").toMillis() : 0;
-  if (!actualizadaMs || Date.now() - actualizadaMs > MAX_ANTIGUEDAD_TASAS_MS) return null;
+  const tablaFresca = actualizadaMs > 0 && Date.now() - actualizadaMs <= MAX_ANTIGUEDAD_TASAS_MS;
 
   const porUsd = rates[SETTLEMENT_CURRENCY];
   const porDestino = rates[target];
-  if (!porUsd || !porDestino || porUsd <= 0 || porDestino <= 0) return null;
-  return { porUnidadLiquidacion: porDestino / porUsd, quote: null };
+  if (tablaFresca && porUsd > 0 && porDestino > 0) {
+    return { porUnidadLiquidacion: porDestino / porUsd, quote };
+  }
+
+  // 🛟 Sin tabla utilizable se cae a la cotización viva. El precio mostrado y el cobrado
+  // pueden separarse unos céntimos, pero es preferible a no poder cobrar.
+  if (quote) {
+    logger.warn("tasaDestino: tabla congelada inservible, se usa la cotización viva", { target });
+    return { porUnidadLiquidacion: 1 / quote.baseRate, quote };
+  }
+  return null;
 }
 
 export async function applyCharmRounding(

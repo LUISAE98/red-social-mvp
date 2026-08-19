@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { SETTLEMENT_CURRENCY } from "./wallet/ledger";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { createMuxClient, muxTokenId, muxTokenSecret } from "./mux";
@@ -321,7 +322,7 @@ const profileUserId =
       requestSource: "profile",
       status: "pending" as GreetingStatus,
       priceSnapshot,
-      currency: "MXN",
+      currency: SETTLEMENT_CURRENCY,
       paymentMode: "stripe",
       allowCreatorStory,
     };
@@ -388,7 +389,7 @@ const profileUserId =
       requestSource: "group",
       status: "pending" as GreetingStatus,
       priceSnapshot,
-      currency: "MXN",
+      currency: SETTLEMENT_CURRENCY,
       paymentMode: "stripe",
       allowCreatorStory,
     };
@@ -410,7 +411,7 @@ const profileUserId =
     buyerId,
     creatorId,
     grossAmount: priceSnapshot,
-    currency: "MXN",
+    currency: SETTLEMENT_CURRENCY,
     status: "awaiting_payment",
     // Datos del saludo a materializar cuando el pago apruebe.
     pendingGreeting: greetingBase,
@@ -596,11 +597,27 @@ export const respondGreetingRequest = onCall(
     // comisión. Si ya estaba capturado (respaldo del día 5), no hay hold que liberar y el
     // dinero queda en la plataforma para que el comprador pueda pedir devolución (B5).
     if (action === "reject" && pre.paymentStatus === "authorized") {
-      await cancelPaymentIntentForRef(externalReference); // best-effort, no bloquea el rechazo
+      // ⚠️ SE COMPRUEBA el resultado, no es best-effort. `cancelPaymentIntentForRef`
+      // devuelve `alreadyCaptured` justo para esto: entre la lectura previa y esta línea
+      // el hold pudo capturarse (el respaldo del día 6, o el webhook de Mux al entregar),
+      // y `paymentStatus` todavía decir "authorized" por el retraso del webhook.
+      //
+      // Si se devolvía el saldo sin comprobar, el comprador se quedaba con el crédito Y
+      // con el cobro capturado, y encima veía "Devuelto a tu tarjeta" por un dinero que
+      // nunca volvió. Cuando el cobro ya se capturó, la vía correcta es la devolución
+      // (`refund_requested` → crédito), no revertir la reserva.
+      const { canceled, alreadyCaptured } = await cancelPaymentIntentForRef(externalReference);
+      if (!canceled) {
+        logger.warn("greeting_reject_hold_no_cancelado", {
+          requestId,
+          alreadyCaptured,
+          nota: "no se devuelve el saldo ni se marca como devuelto; va por la vía de devolución",
+        });
+      }
       // Si el comprador pagó parte con SALDO A FAVOR, se le devuelve (el hold no se cobró).
-      if (pre.buyerId) await revertBuyerCreditSpend(pre.buyerId, { sourceType: "greetingRequest", sourceId: requestId });
+      if (canceled && pre.buyerId) await revertBuyerCreditSpend(pre.buyerId, { sourceType: "greetingRequest", sourceId: requestId });
       // Se refleja en Entregados → "Todo" como "Devuelto a tu tarjeta" (nunca se cobró).
-      if (pre.buyerId) {
+      if (canceled && pre.buyerId) {
         await mirrorCardReturnPurchase({
           buyerId: pre.buyerId,
           creatorId: actorId,

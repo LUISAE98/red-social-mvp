@@ -98,6 +98,12 @@ export const createGreetingSampleUpload = onCall(
         ? assertString(request.data?.groupId, "groupId", 200)
         : null;
 
+    const rawToName = request.data?.toName;
+    const toName =
+      typeof rawToName === "string" && rawToName.trim()
+        ? assertString(rawToName, "toName", 120)
+        : null;
+
     // El contexto es opcional al crear: el creador puede escribirlo después,
     // desde "Agregar contexto".
     const rawContext = request.data?.context;
@@ -174,6 +180,7 @@ export const createGreetingSampleUpload = onCall(
       source,
       groupId,
       scopeKey,
+      toName,
       context,
       provider: "mux",
       muxUploadId: upload.id,

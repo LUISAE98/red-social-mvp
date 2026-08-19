@@ -21,6 +21,7 @@
   "nav": {
     "home": "Avaleht",
     "saved": "Salvestatud",
+    "myExperiences": "Minu elamused",
     "groups": "Minu kogukonnad",
     "notifications": "Teavitused",
     "wallet": "Rahakott",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Grupi seaded",
     "profileCommunitiesTitle": "Selle profiili kogukonnad",
     "profileSeeCommunities": "Vaata tema kogukondi",
+    "groupSeeMembers": "Vaata liikmeid",
     "profileBackToPosts": "Tagasi postituste juurde",
     "profileServicesTitle": "Profiili kogemused",
     "servicesLabel": "Kogemused",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Saatsid tänaseks kõik!",
     "releasedAmount": "Vabastasid {amount}!",
     "confirmRejectTitle": "Kas soovid selle tellimuse tagasi lükata?",
-    "confirmRejectBody": "Ostja makse tühistatakse ja tellimus kaob su nimekirjast. Seda ei saa tagasi võtta."
+    "confirmRejectBody": "Ostja makse tühistatakse ja tellimus kaob su nimekirjast. Seda ei saa tagasi võtta.",
+    "sampleRequestTitle": "Kirjuta tellimus, nagu oleksid ostja",
+    "sampleRequestHint": "Kasuta selle inimese sõnu, kes seda tellib, mitte enda omi. «Tervitan Annat» asemel kirjuta «tahan tervitust Annale, ta saab 30». Seda näed salvestamise ajal ekraanil."
   },
   "live": {
     "accessTicket": "Ligipääsupilet",

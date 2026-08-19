@@ -21,6 +21,7 @@
   "nav": {
     "home": "Home",
     "saved": "Naka-save",
+    "myExperiences": "Mga karanasan ko",
     "groups": "Mga komunidad ko",
     "notifications": "Mga notification",
     "wallet": "Pitaka",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Mga setting ng grupo",
     "profileCommunitiesTitle": "Mga komunidad sa profile na ito",
     "profileSeeCommunities": "Tingnan ang kanilang mga komunidad",
+    "groupSeeMembers": "Tingnan ang mga miyembro",
     "profileBackToPosts": "Bumalik sa mga post",
     "profileServicesTitle": "Mga karanasan sa profile",
     "servicesLabel": "Mga karanasan",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Naipadala mo lahat para ngayon!",
     "releasedAmount": "Nakakuha ka ng {amount}!",
     "confirmRejectTitle": "Sigurado kang tatanggihan ang order na ito?",
-    "confirmRejectBody": "Kakanselahin ang bayad ng bumili at mawawala ang order sa listahan mo. Hindi na ito maibabalik."
+    "confirmRejectBody": "Kakanselahin ang bayad ng bumili at mawawala ang order sa listahan mo. Hindi na ito maibabalik.",
+    "sampleRequestTitle": "Isulat ang hiling na parang ikaw ang bumibili",
+    "sampleRequestHint": "Gamitin ang salita ng hihiling sa iyo, hindi ang sarili mo. Sa halip na «babatiin ko si Ana», isulat «gusto ko ng bati para kay Ana, mag-30 na siya». Ito ang makikita mo sa screen habang nagre-record."
   },
   "live": {
     "accessTicket": "Access ticket",

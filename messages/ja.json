@@ -21,6 +21,7 @@
   "nav": {
     "home": "ホーム",
     "saved": "保存済み",
+    "myExperiences": "マイ体験",
     "groups": "マイコミュニティ",
     "notifications": "通知",
     "wallet": "ウォレット",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "グループの設定",
     "profileCommunitiesTitle": "このプロフィールのコミュニティ",
     "profileSeeCommunities": "コミュニティを見る",
+    "groupSeeMembers": "メンバーを見る",
     "profileBackToPosts": "投稿に戻る",
     "profileServicesTitle": "プロフィールの体験",
     "servicesLabel": "体験",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "今日の分はすべて送信しました!",
     "releasedAmount": "{amount} を獲得しました!",
     "confirmRejectTitle": "この依頼を辞退しますか?",
-    "confirmRejectBody": "購入者の支払いは取り消され、依頼は一覧から消えます。元には戻せません。"
+    "confirmRejectBody": "購入者の支払いは取り消され、依頼は一覧から消えます。元には戻せません。",
+    "sampleRequestTitle": "購入者になったつもりで依頼を書く",
+    "sampleRequestHint": "自分の言葉ではなく、頼む人の言葉で書いてください。「アナに挨拶する」ではなく「アナに挨拶がほしい、30歳になります」と書きます。録画中に画面に表示されます。"
   },
   "live": {
     "accessTicket": "アクセスチケット",

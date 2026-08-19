@@ -4,11 +4,12 @@
 // el monto exacto acreditado y que la UI muestre el panel verde con la cifra.
 //
 // Solo acredita si el dinero se COBRÓ (había cargo capturado). El monto = lo que pagó el
-// comprador (base + $3 + IVA), leído del paymentIntent. Todo idempotente por (sourceType,
+// comprador (base + cargo fijo + impuesto), leído del paymentIntent. Todo idempotente por (sourceType,
 // sourceId): el trigger y esta llamada no duplican.
 
 import * as admin from "firebase-admin";
-import { reverseEarning } from "./ledger";
+import { SETTLEMENT_CURRENCY } from "./ledger";
+import { reverseEarning, FIXED_SERVICE_FEE_USD } from "./ledger";
 import { issueBuyerCredit } from "./buyerCredit";
 
 if (admin.apps.length === 0) {
@@ -47,8 +48,9 @@ export async function mirrorCardReturnPurchase(params: {
   const pi = piSnap.data() ?? {};
   const grossAmount = num(pi.grossAmount) || num(pi.baseAmount);
   const taxAmount = num(pi.taxAmount);
-  const total = num(pi.chargedAmount) || round2(grossAmount + 3 + taxAmount);
-  const currency = typeof pi.settlementCurrency === "string" ? pi.settlementCurrency : "MXN";
+  const total = num(pi.chargedAmount) || round2(grossAmount + FIXED_SERVICE_FEE_USD + taxAmount);
+  const currency =
+    typeof pi.settlementCurrency === "string" ? pi.settlementCurrency : SETTLEMENT_CURRENCY;
   const now = admin.firestore.FieldValue.serverTimestamp();
   await db.doc(`users/${buyerId}/purchases/${sourceType}__${sourceId}`).set(
     {
@@ -90,7 +92,7 @@ export async function refundExperienceToCredit(params: {
   // Para el creador cuenta como DEVOLUCIÓN (no como "perdido"). Idempotente.
   await reverseEarning(creatorId, sourceType, sourceId, { asRefund: true });
 
-  // Total que pagó el comprador, del paymentIntent (base + $3 + IVA).
+  // Total que pagó el comprador, del paymentIntent (base + cargo fijo + impuesto).
   const piSnap = await db.collection("paymentIntents").doc(`${sourceType}__${sourceId}`).get();
   const total = num(piSnap.get("chargedAmount"));
   if (total <= 0) return 0;

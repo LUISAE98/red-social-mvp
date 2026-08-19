@@ -21,6 +21,7 @@
   "nav": {
     "home": "Domov",
     "saved": "Shranjeno",
+    "myExperiences": "Moje izkušnje",
     "groups": "Moje skupnosti",
     "notifications": "Obvestila",
     "wallet": "Denarnica",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Nastavitve skupine",
     "profileCommunitiesTitle": "Skupnosti tega profila",
     "profileSeeCommunities": "Poglej njegove skupnosti",
+    "groupSeeMembers": "Poglej člane",
     "profileBackToPosts": "Nazaj na objave",
     "profileServicesTitle": "Doživetja profila",
     "servicesLabel": "Doživetja",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Danes si poslal vse!",
     "releasedAmount": "Sprostil si {amount}!",
     "confirmRejectTitle": "Si prepričan, da želiš zavrniti to naročilo?",
-    "confirmRejectBody": "Plačilo kupca bo preklicano in naročilo bo izginilo s tvojega seznama. Tega ni mogoče razveljaviti."
+    "confirmRejectBody": "Plačilo kupca bo preklicano in naročilo bo izginilo s tvojega seznama. Tega ni mogoče razveljaviti.",
+    "sampleRequestTitle": "Napiši naročilo, kot da si kupec",
+    "sampleRequestHint": "Uporabi besede tistega, ki bi ga naročil, ne svojih. Namesto «pozdravil bom Ano» napiši «želim pozdrav za Ano, dopolnjuje 30». To boš videl na zaslonu med snemanjem."
   },
   "live": {
     "accessTicket": "Vstopnica",

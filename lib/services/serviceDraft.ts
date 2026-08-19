@@ -38,12 +38,12 @@ import type {
 import { WALLET_NET_RATE } from "@/lib/wallet/walletRates";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
-/** Los cuatro montos sugeridos de donación por omisión. */
+/** Los cuatro montos sugeridos de donación por omisión. 💵 En USD desde el corte a Vibra On, LLC. */
 export const DEFAULT_DONATION_SUGGESTED_AMOUNTS: string[] = [
-  "50",
-  "120",
-  "250",
-  "490",
+  "3",
+  "7",
+  "15",
+  "30",
 ];
 
 /**

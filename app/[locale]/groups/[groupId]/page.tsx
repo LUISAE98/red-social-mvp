@@ -107,7 +107,7 @@ import RefreshableArea from "@/components/refresh/RefreshableArea";
 // Mismo skeleton de encabezado que el perfil: el componente ya se escribió para
 // ambos (portada + avatar + nombre + datos + botón + historias + cards).
 import ProfileHeaderSkeleton from "@/components/profile/ProfileHeaderSkeleton";
-import { Button, Modal } from "@/components/ui";
+import { Button, Modal, TextButton } from "@/components/ui";
 import {
   groupPageFontStack,
   groupPageUi,
@@ -265,11 +265,20 @@ const [groupPageRefreshKey, setGroupPageRefreshKey] = useState(0);
 useScreenReady();
   const [memberCount, setMemberCount] = useState<number | null>(null);
 
+  // Igual que las publicaciones: el numero guardado manda. Enumerar la
+  // subcoleccion de miembros respeta `membersListVisibility`, asi que con la
+  // lista cerrada —el valor por omision— la cuenta fallaba y el card enseñaba un
+  // guion. Lo mantiene el servidor (backend/src/entityCounters.ts).
+  const memberCountFromDoc =
+    typeof group?.membersCount === "number" && group.membersCount >= 0
+      ? group.membersCount
+      : null;
+
 useEffect(() => {
   let cancelled = false;
 
   async function loadMemberCount() {
-    if (!groupId) return;
+    if (!groupId || memberCountFromDoc !== null) return;
 
     try {
       const membersRef = collection(db, "groups", groupId, "members");
@@ -292,7 +301,7 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [groupId, groupPageRefreshKey]);
+}, [groupId, groupPageRefreshKey, memberCountFromDoc]);
 
 useEffect(() => {
   const mediaQuery = window.matchMedia("(max-width: 768px)");
@@ -315,11 +324,13 @@ const handleGroupPullRefresh = useCallback(async () => {
   router.refresh();
 }, [router]);
 
-const formattedMemberCount = useMemo(() => {
-  if (memberCount == null) return null;
+const memberCountShown = memberCountFromDoc ?? memberCount;
 
-  return new Intl.NumberFormat(locale).format(memberCount);
-}, [memberCount, locale]);
+const formattedMemberCount = useMemo(() => {
+  if (memberCountShown == null) return null;
+
+  return new Intl.NumberFormat(locale).format(memberCountShown);
+}, [memberCountShown, locale]);
 
   const error = actionError ?? realtimeError;
 
@@ -362,8 +373,18 @@ const effectiveIsMember = isOwner || hasJoinedMembership;
 // card enseña un guion en vez de un cero, que se leería como "no hay nada".
 const [groupPostsCount, setGroupPostsCount] = useState<number | null>(null);
 
+// El numero guardado en el documento de la comunidad manda: es lo que hace que
+// el dato se vea desde fuera. Contar los posts reales exige poder LEERLOS, y a
+// un no-miembro de una privada u oculta las reglas se lo niegan. Lo mantiene el
+// servidor (backend/src/entityCounters.ts).
+const groupPostsCountFromDoc =
+  typeof group?.postsCount === "number" && group.postsCount >= 0
+    ? group.postsCount
+    : null;
+
 const canCountGroupPosts =
   !!groupId &&
+  groupPostsCountFromDoc === null &&
   (effectiveIsMember || group?.visibility === "public");
 
 useEffect(() => {
@@ -387,10 +408,11 @@ useEffect(() => {
   };
 }, [canCountGroupPosts, groupId, groupPageRefreshKey]);
 
+const groupPostsCountShown = groupPostsCountFromDoc ?? groupPostsCount;
 const formattedGroupPostsCount =
-  groupPostsCount === null
+  groupPostsCountShown === null
     ? "—"
-    : new Intl.NumberFormat(locale).format(groupPostsCount);
+    : new Intl.NumberFormat(locale).format(groupPostsCountShown);
 
 // Ventas hechas dentro de esta comunidad. Lo lleva el ledger en el backend; el
 // cliente solo lo lee del documento de la comunidad.
@@ -408,23 +430,37 @@ const groupExperiencesCount = (() => {
  * decía nada que no dijera ya la pantalla entera.
  */
 const groupStatsItems: StatItem[] = [
-  {
-    key: "visibility",
-    top:
-      group?.visibility === "public"
-        ? tGroups("publicLabel")
-        : group?.visibility === "private"
-          ? tGroups("privateLabel")
-          : group?.visibility === "hidden"
-            ? tGroups("hiddenLabel")
-            : "",
-    paired: true,
-  },
+  // La fila SIEMPRE lleva tres datos. El primer hueco es el que cambia: hasta la
+  // primera venta muestra si la comunidad es pública o privada, y a partir de ahí
+  // lo cede a las experiencias, que dicen más de lo que ocurre dentro.
+  groupExperiencesCount > 0
+    ? {
+        key: "experiences",
+        top: new Intl.NumberFormat(locale).format(groupExperiencesCount),
+        bottom: capitalizeFirst(
+          groupExperiencesCount === 1
+            ? tCommon("experience")
+            : tCommon("experiences"),
+          locale
+        ),
+      }
+    : {
+        key: "visibility",
+        top:
+          group?.visibility === "public"
+            ? tGroups("publicLabel")
+            : group?.visibility === "private"
+              ? tGroups("privateLabel")
+              : group?.visibility === "hidden"
+                ? tGroups("hiddenLabel")
+                : "",
+        paired: true,
+      },
   {
     key: "members",
     top: formattedMemberCount ?? "—",
     bottom: capitalizeFirst(
-      memberCount === 1 ? tCommon("member") : tCommon("members"),
+      memberCountShown === 1 ? tCommon("member") : tCommon("members"),
       locale
     ),
   },
@@ -432,27 +468,10 @@ const groupStatsItems: StatItem[] = [
     key: "posts",
     top: formattedGroupPostsCount,
     bottom: capitalizeFirst(
-      groupPostsCount === 1 ? tCommon("publication") : tCommon("publications"),
+      groupPostsCountShown === 1 ? tCommon("publication") : tCommon("publications"),
       locale
     ),
   },
-  // Solo a partir de la primera venta hecha dentro de esta comunidad. Un "0
-  // Experiencias" en cada comunidad nueva diría lo contrario de lo que el dato
-  // busca decir.
-  ...(groupExperiencesCount > 0
-    ? [
-        {
-          key: "experiences",
-          top: new Intl.NumberFormat(locale).format(groupExperiencesCount),
-          bottom: capitalizeFirst(
-            groupExperiencesCount === 1
-              ? tCommon("experience")
-              : tCommon("experiences"),
-            locale
-          ),
-        },
-      ]
-    : []),
 ];
 
 // When a group switches from public to private mid-session, force a refresh
@@ -802,6 +821,15 @@ const [autoConfirmPay, setAutoConfirmPay] = useState(false);
   const canMembersViewList =
     (group?.settings?.membersListVisibility ?? "owner_only") === "members";
 
+  // Quien NO administra salta a los integrantes con un texto morado, y vuelve
+  // con su pareja. Las dos direcciones dependen de lo mismo: que la seccion
+  // exista para esa persona (ser miembro) y que la comunidad tenga la lista
+  // abierta a sus miembros, salvo que sea moderador, que la ve igualmente.
+  const visitorCanJumpToMembers =
+    !isOwner &&
+    (effectiveIsMember || isEmbed) &&
+    (canMembersViewList || isModerator);
+
 function redirectToLogin() {
   const nextPath = buildCurrentPathWithSearch(
     pathname || `/groups/${groupId}`,
@@ -880,7 +908,7 @@ function redirectToLogin() {
       <StripePaymentModal
         open={subscriptionPayOpen}
         amount={subscriptionPrice != null ? subscriptionPrice + FIXED_SERVICE_FEE_USD : null}
-        amountCurrency="MXN"
+        amountCurrency={SETTLEMENT_CURRENCY}
         pricePeriodLabel="mes"
         allowCredit={false}
         createIntent={(args) => createGroupSubscription({
@@ -2344,6 +2372,12 @@ const avatarNode = (
   const isPublicGroup = group.visibility === "public";
   const canViewPublicFeed = isPublicGroup || effectiveIsMember || isOwner || isEmbed;
 
+  // ⚠️ Espeja `canReadGroupContent` de firestore.rules, y por eso NO incluye `isEmbed`:
+  // ir dentro de un iframe no otorga ningún permiso de lectura. Con `canViewPublicFeed`
+  // aquí, un no-miembro embebido se suscribía a las historias y Firestore le respondía
+  // permiso denegado. Un `onSnapshot` que falla queda MUERTO, no reintenta.
+  const canReadGroupStories = isPublicGroup || effectiveIsMember || isOwner;
+
   const canCreatePosts =
     !groupIsPaused &&
     (isOwner ||
@@ -2882,12 +2916,15 @@ const avatarNode = (
 
           <GroupStoryCircles
             groupId={groupId}
-            canView={canViewPublicFeed}
+            canView={canReadGroupStories}
             currentUserId={user?.uid ?? null}
             isOwner={isOwner}
           />
 
-          {(effectiveIsMember || isEmbed) && (
+          {/* El subnav de secciones es SOLO de quien administra: es quien tiene
+              donde elegir. Para el resto, los integrantes se abren con el texto
+              morado que se pinta bajo el subnav de medios. */}
+          {(isOwner || isEmbed) && (
             <div className="group-subnav-wrap" style={{ marginTop: 12 }}>
               <GroupSubnav
                 activeTab={activeTab}
@@ -2934,6 +2971,20 @@ const avatarNode = (
   readOnly={isEmbed}
   searchQuery={postSearchQuery}
   onMediaTabChange={setFeedMediaTab}
+  belowMediaTabs={
+    visitorCanJumpToMembers ? (
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -6, padding: "0 4px 10px" }}>
+        <TextButton
+          tone="brand"
+          size="sm"
+          onClick={() => handleTabChange("members")}
+          style={{ fontSize: 13 }}
+        >
+          {tGroups("groupSeeMembers")}
+        </TextButton>
+      </div>
+    ) : null
+  }
   feedLeadingContent={
     <>
       {normalizedCurrentDonation?.mode === "general" && normalizedCurrentDonation?.enabled === true && normalizedCurrentDonation?.visible !== false && (
@@ -2990,6 +3041,20 @@ const avatarNode = (
             {(effectiveIsMember || isEmbed) && activeTab === "members" && (
               <div className="group-tab-panel" style={{ marginTop: 12 }}>
                 <GroupMembersTab
+                  titleAction={
+                    visitorCanJumpToMembers ? (
+                      // Sin subnav de secciones, esta es la unica vuelta a
+                      // publicaciones. Va en el renglon del titulo, como en el perfil.
+                      <TextButton
+                        tone="brand"
+                        size="sm"
+                        onClick={() => handleTabChange("feed")}
+                        style={{ fontSize: 13, flexShrink: 0 }}
+                      >
+                        {tGroups("profileBackToPosts")}
+                      </TextButton>
+                    ) : null
+                  }
                   groupId={groupId}
                   isOwner={isOwner}
                   isModerator={isModerator}
@@ -3096,7 +3161,7 @@ const avatarNode = (
       <StripePaymentModal
         open={payGreetOpen}
         amount={payGreetAmount != null ? payGreetAmount + FIXED_SERVICE_FEE_USD : null}
-        amountCurrency="MXN"
+        amountCurrency={SETTLEMENT_CURRENCY}
         createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
         priceLabel={payGreetLabel}
         productType={greetType === "consejo" ? "Consejo" : "Saludo"}
@@ -3124,7 +3189,7 @@ const avatarNode = (
       <StripePaymentModal
         open={paySessionOpen}
         amount={paySessionAmount != null ? paySessionAmount + FIXED_SERVICE_FEE_USD : null}
-        amountCurrency="MXN"
+        amountCurrency={SETTLEMENT_CURRENCY}
         createIntent={(args) => createServiceStripeIntent({ externalReference: `exclusiveSessionRequest__${paySessionId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
         priceLabel={paySessionLabel}
         productType="Sesión exclusiva"
@@ -3148,7 +3213,7 @@ const avatarNode = (
       <StripePaymentModal
         open={payMeetOpen}
         amount={payMeetAmount != null ? payMeetAmount + FIXED_SERVICE_FEE_USD : null}
-        amountCurrency="MXN"
+        amountCurrency={SETTLEMENT_CURRENCY}
         createIntent={(args) => createServiceStripeIntent({ externalReference: `meetGreetRequest__${payMeetId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
         priceLabel={payMeetLabel}
         productType="Tiempo contigo"

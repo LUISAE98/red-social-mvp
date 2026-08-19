@@ -21,6 +21,7 @@
   "nav": {
     "home": "Inicio",
     "saved": "Guardados",
+    "myExperiences": "Mis experiencias",
     "groups": "Mis comunidades",
     "notifications": "Notificaciones",
     "wallet": "Wallet",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Configuración del grupo",
     "profileCommunitiesTitle": "Las comunidades de este perfil",
     "profileSeeCommunities": "Ver sus comunidades",
+    "groupSeeMembers": "Ver sus integrantes",
     "profileBackToPosts": "Volver a publicaciones",
     "profileServicesTitle": "Experiencias del perfil",
     "servicesLabel": "Experiencias",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "¡Enviaste todos por hoy!",
     "releasedAmount": "¡Liberaste {amount}!",
     "confirmRejectTitle": "¿Seguro que quieres rechazar este encargo?",
-    "confirmRejectBody": "Se cancelará el cobro al comprador y el encargo desaparecerá de tu lista. No se puede deshacer."
+    "confirmRejectBody": "Se cancelará el cobro al comprador y el encargo desaparecerá de tu lista. No se puede deshacer.",
+    "sampleRequestTitle": "Escribe la solicitud como si fueras el comprador",
+    "sampleRequestHint": "Usa las palabras de quien te la pediría, no las tuyas. En vez de «voy a saludar a Ana», escribe «quiero un saludo para Ana, cumple 30». Es lo que verás en pantalla mientras grabas."
   },
   "live": {
     "accessTicket": "Ticket de acceso",

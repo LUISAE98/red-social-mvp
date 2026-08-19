@@ -87,6 +87,12 @@ export type GroupPostsFeedProps = {
    *  y dentro del slide (ej. banner de donaciones y de sesiones). Se oculta en
    *  las pestañas de galería. */
   feedLeadingContent?: ReactNode;
+  /**
+   * Se pinta justo DEBAJO del subnav de medios y encima de las publicaciones.
+   * Lo usa la comunidad ajena para el texto "Ver sus integrantes", que necesita
+   * ese sitio exacto y no puede ir fuera porque el subnav vive aqui dentro.
+   */
+  belowMediaTabs?: ReactNode;
 };
 
 // Búsqueda dentro de la comunidad: normaliza y matchea por texto del post.

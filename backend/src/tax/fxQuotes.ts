@@ -24,10 +24,10 @@
 // falla, NO se rompe el cobro: el llamador cae a `config/exchangeRates`.
 
 import { logger } from "firebase-functions";
-import { stripeFetch } from "../payments/stripe/stripeClient";
+import { stripeFetch, STRIPE_PREVIEW_VERSION } from "../payments/stripe/stripeClient";
 
 /** Versión preview que expone `/v1/fx_quotes`. */
-const FX_API_VERSION = "2025-03-31.preview";
+const FX_API_VERSION = STRIPE_PREVIEW_VERSION;
 
 /**
  * Duración del candado. Una hora cubre de sobra un checkout (minutos) y cuesta 0.15% para
@@ -106,7 +106,7 @@ export async function getFxQuote(
   const res = await stripeFetch<FxQuoteResponse>("/fx_quotes", {
     method: "POST",
     apiVersion: FX_API_VERSION,
-    form: { to_currency: to, "from_currencies[]": from, lock_duration: LOCK_DURATION },
+    form: { to_currency: to, from_currencies: [from], lock_duration: LOCK_DURATION },
   });
 
   if (!res.ok) {
@@ -157,4 +157,59 @@ export async function getFxQuote(
 /** Vacía el caché. Solo para pruebas. */
 export function __limpiarCacheFxQuotes(): void {
   cache.clear();
+}
+
+/**
+ * Tamaño de lote al pedir muchas monedas. La documentación no publica un tope de
+ * `from_currencies`, así que se parte de forma conservadora: un lote rechazado por
+ * tamaño se llevaría por delante todas las monedas que traía.
+ */
+const LOTE = 20;
+
+/**
+ * Tasas SPOT de Stripe para varias monedas, sin candado.
+ *
+ * `lock_duration: none` es GRATIS: solo informa. Se usa para la tabla que alimenta los
+ * precios mostrados, donde no hace falta congelar nada con Stripe — el congelamiento lo
+ * hace Vibra guardando la tasa (ver `frozenRates.ts`).
+ *
+ * Devuelve `{ MXN: 17.06, ... }` — unidades por 1 de la moneda de liquidación, que es el
+ * formato de `config/exchangeRates`. ⚠️ Stripe da lo INVERSO (`base_rate` = cuántos USD
+ * vale 1 peso), así que aquí se invierte.
+ */
+export async function getSpotRates(
+  currencies: string[],
+  settlementCurrency: string
+): Promise<Record<string, number>> {
+  const to = settlementCurrency.toLowerCase();
+  const pendientes = currencies.map((c) => c.toLowerCase()).filter((c) => c !== to);
+  const out: Record<string, number> = {};
+
+  // ⚠️ La clave va SIN el sufijo `[]`: `encodeForm` ya numera los arreglos
+  // (`from_currencies[0]=...`). Con `"from_currencies[]"` generaba `from_currencies[][0]`,
+  // que Stripe lee como OBJETO y rechaza con 400 — el congelamiento diario quedaba muerto
+  // en silencio (se conservaba la tabla vieja). Con UN solo string sí pasaba, por eso los
+  // cobros seguían funcionando y solo fallaba este lote.
+  for (let i = 0; i < pendientes.length; i += LOTE) {
+    const lote = pendientes.slice(i, i + LOTE);
+    const res = await stripeFetch<FxQuoteResponse>("/fx_quotes", {
+      method: "POST",
+      apiVersion: FX_API_VERSION,
+      form: { to_currency: to, from_currencies: lote, lock_duration: "none" },
+    });
+    if (!res.ok) {
+      logger.warn("getSpotRates: lote rechazado", {
+        desde: lote[0],
+        n: lote.length,
+        status: res.status,
+        error: res.error.slice(0, 200),
+      });
+      continue; // los demás lotes siguen: es mejor una tabla parcial que ninguna
+    }
+    for (const [codigo, fila] of Object.entries(res.data.rates ?? {})) {
+      const base = Number(fila?.rate_details?.base_rate);
+      if (Number.isFinite(base) && base > 0) out[codigo.toUpperCase()] = 1 / base;
+    }
+  }
+  return out;
 }

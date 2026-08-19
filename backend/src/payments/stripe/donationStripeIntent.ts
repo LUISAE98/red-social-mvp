@@ -7,6 +7,7 @@
 // el creador recibe 75% de la base.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
@@ -124,7 +125,7 @@ export const createDonationStripeIntent = onCall(
         creatorId,
         buyerId: uid,
         amount: base,
-        currency: "MXN",
+        currency: SETTLEMENT_CURRENCY,
         source: groupId ? "group" : "profile",
         groupId,
         groupName,

@@ -648,7 +648,7 @@ export default function SuperCommentModal({
         payButtonLabel={tLive("scPayButtonLabel")}
         autoCloseMs={4000}
         amount={selectedTier ? selectedTier.price + FIXED_SERVICE_FEE_USD : null}
-        amountCurrency="MXN"
+        amountCurrency={SETTLEMENT_CURRENCY}
         createIntent={async (args) => {
           // Invitado (sin login): firma anónima antes de cobrar → buyerId server-authoritative.
           if (isGuest) await ensureGuestAuth();

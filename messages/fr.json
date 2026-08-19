@@ -21,6 +21,7 @@
   "nav": {
     "home": "Accueil",
     "saved": "Enregistrés",
+    "myExperiences": "Mes expériences",
     "groups": "Mes communautés",
     "notifications": "Notifications",
     "wallet": "Portefeuille",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Paramètres du groupe",
     "profileCommunitiesTitle": "Communautés de ce profil",
     "profileSeeCommunities": "Voir ses communautés",
+    "groupSeeMembers": "Voir ses membres",
     "profileBackToPosts": "Retour aux publications",
     "profileServicesTitle": "Expériences du profil",
     "servicesLabel": "Expériences",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Tu les as tous envoyés pour aujourd'hui !",
     "releasedAmount": "Tu as débloqué {amount} !",
     "confirmRejectTitle": "Tu veux vraiment refuser cette commande ?",
-    "confirmRejectBody": "Le paiement de l'acheteur sera annulé et la commande disparaîtra de ta liste. C'est irréversible."
+    "confirmRejectBody": "Le paiement de l'acheteur sera annulé et la commande disparaîtra de ta liste. C'est irréversible.",
+    "sampleRequestTitle": "Écris la demande comme si tu étais l'acheteur",
+    "sampleRequestHint": "Utilise les mots de la personne qui te la ferait, pas les tiens. Au lieu de «je vais saluer Ana», écris «je veux un message pour Ana, elle a 30 ans». C'est ce que tu verras à l'écran pendant l'enregistrement."
   },
   "live": {
     "accessTicket": "Billet d'accès",

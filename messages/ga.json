@@ -21,6 +21,7 @@
   "nav": {
     "home": "Baile",
     "saved": "Sábháilte",
+    "myExperiences": "Mo chuid taithí",
     "groups": "Mo phobail",
     "notifications": "Fógraí",
     "wallet": "Sparán",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Socruithe an ghrúpa",
     "profileCommunitiesTitle": "Pobail na próifíle seo",
     "profileSeeCommunities": "Féach ar a phobail",
+    "groupSeeMembers": "Féach ar a baill",
     "profileBackToPosts": "Ar ais go dtí na postálacha",
     "profileServicesTitle": "Eispéiris na próifíle",
     "servicesLabel": "Eispéiris",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Sheol tú iad go léir inniu!",
     "releasedAmount": "Scaoil tú {amount}!",
     "confirmRejectTitle": "An bhfuil tú cinnte gur mian leat an t-ordú seo a dhiúltú?",
-    "confirmRejectBody": "Cuirfear íocaíocht an cheannaitheora ar ceal agus imeoidh an t-ordú de do liosta. Ní féidir é seo a chur ar ais."
+    "confirmRejectBody": "Cuirfear íocaíocht an cheannaitheora ar ceal agus imeoidh an t-ordú de do liosta. Ní féidir é seo a chur ar ais.",
+    "sampleRequestTitle": "Scríobh an t-iarratas amhail is gur tusa an ceannaitheoir",
+    "sampleRequestHint": "Bain úsáid as focail an duine a d'iarrfadh ort é, ní do chuid féin. In áit «beannóidh mé d'Ana», scríobh «teastaíonn beannacht uaim d'Ana, tá sí 30». Sin a fheicfidh tú ar an scáileán agus tú ag taifeadadh."
   },
   "live": {
     "accessTicket": "Ticéad rochtana",

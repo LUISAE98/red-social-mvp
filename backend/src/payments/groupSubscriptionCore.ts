@@ -7,6 +7,7 @@
 // el creador recibe 75% de la base. `base` = precio mensual que fija el creador.
 
 import { HttpsError } from "firebase-functions/v2/https";
+import { SETTLEMENT_CURRENCY } from "../wallet/ledger";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { applyConsumptionTax } from "../tax/config";
@@ -191,7 +192,7 @@ export function readGroupSub(group: Record<string, unknown>): { enabled: boolean
   const currency =
     (typeof m.subscriptionCurrency === "string" && m.subscriptionCurrency) ||
     (typeof m.currency === "string" && m.currency) ||
-    "MXN";
+    SETTLEMENT_CURRENCY;
   return { enabled, price, currency };
 }
 

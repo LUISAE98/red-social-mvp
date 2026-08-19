@@ -21,6 +21,7 @@
   "nav": {
     "home": "Início",
     "saved": "Salvos",
+    "myExperiences": "Minhas experiências",
     "groups": "Minhas comunidades",
     "notifications": "Notificações",
     "wallet": "Wallet",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Configurações do grupo",
     "profileCommunitiesTitle": "Comunidades deste perfil",
     "profileSeeCommunities": "Ver as comunidades dele",
+    "groupSeeMembers": "Ver os membros",
     "profileBackToPosts": "Voltar às publicações",
     "profileServicesTitle": "Experiências do perfil",
     "servicesLabel": "Experiências",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Você enviou todos por hoje!",
     "releasedAmount": "Você liberou {amount}!",
     "confirmRejectTitle": "Tem certeza de que quer recusar este pedido?",
-    "confirmRejectBody": "A cobrança do comprador será cancelada e o pedido sairá da sua lista. Não dá para desfazer."
+    "confirmRejectBody": "A cobrança do comprador será cancelada e o pedido sairá da sua lista. Não dá para desfazer.",
+    "sampleRequestTitle": "Escreva o pedido como se você fosse o comprador",
+    "sampleRequestHint": "Use as palavras de quem faria o pedido, não as suas. Em vez de «vou dar um alô para Ana», escreva «quero uma saudação para Ana, ela faz 30». É o que você verá na tela enquanto grava."
   },
   "live": {
     "accessTicket": "Ticket de acesso",

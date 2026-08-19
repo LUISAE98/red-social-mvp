@@ -48,6 +48,15 @@ export type LocalServiceMeta = CreatorServiceMeta | null;
 
 export type GroupDoc = {
   id: string;
+  /**
+   * Contadores que lleva el SERVIDOR (backend/src/entityCounters.ts). Existen
+   * porque contar los documentos reales pasa por las reglas de lectura, y a un
+   * no-miembro de una comunidad privada u oculta se lo niegan: el dato quedaba
+   * en blanco justo para quien hay que convencer de entrar. El documento de la
+   * comunidad si es de lectura publica.
+   */
+  postsCount?: number;
+  membersCount?: number;
   name?: string;
   description?: string;
   ownerId?: string;

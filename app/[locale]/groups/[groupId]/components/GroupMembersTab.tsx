@@ -54,6 +54,7 @@ export default function GroupMembersTab({
   isModerator = false,
   canMembersViewList,
   initialShowRequests = false,
+  titleAction,
   canReceiveJoinRequests = false,
   canInviteModerators = false,
   initialShowModeratorPanel = false,
@@ -976,7 +977,10 @@ export default function GroupMembersTab({
       <section style={cardStyle}>
         <div style={topRow}>
           <div style={titleBlock}>
-            <h2 style={titleStyle}>Integrantes de la comunidad</h2>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, minWidth: 0 }}>
+              <h2 style={{ ...titleStyle, minWidth: 0 }}>Integrantes de la comunidad</h2>
+              {titleAction}
+            </div>
             <p style={subtitleStyle}>
               Busca, filtra y administra los miembros del comunidad.
             </p>

@@ -103,6 +103,7 @@ export default function GroupPostsFeed({
   searchQuery = "",
   onMediaTabChange,
   feedLeadingContent = null,
+  belowMediaTabs,
 }: GroupPostsFeedProps) {
   const tCommon = useTranslations("common");
   const tProfile = useTranslations("profile");
@@ -1429,6 +1430,8 @@ const shellStyle: CSSProperties = {
       {showMediaTabs && (
         <PostsMediaSubnav active={mediaTab} onChange={setMediaTab} />
       )}
+
+      {belowMediaTabs}
 
       <div style={{ overflow: "hidden", width: "100%", minWidth: 0, minHeight: mediaSlideMinHeight }}>
       <motion.div

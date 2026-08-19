@@ -21,6 +21,7 @@
   "nav": {
     "home": "Etusivu",
     "saved": "Tallennetut",
+    "myExperiences": "Kokemukseni",
     "groups": "Omat yhteisöt",
     "notifications": "Ilmoitukset",
     "wallet": "Lompakko",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Ryhmän asetukset",
     "profileCommunitiesTitle": "Tämän profiilin yhteisöt",
     "profileSeeCommunities": "Katso yhteisöt",
+    "groupSeeMembers": "Katso jäsenet",
     "profileBackToPosts": "Takaisin julkaisuihin",
     "profileServicesTitle": "Profiilin elämykset",
     "servicesLabel": "Elämykset",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Lähetit kaikki tältä päivältä!",
     "releasedAmount": "Vapautit {amount}!",
     "confirmRejectTitle": "Haluatko varmasti hylätä tämän tilauksen?",
-    "confirmRejectBody": "Ostajan maksu perutaan ja tilaus poistuu listaltasi. Tätä ei voi peruuttaa."
+    "confirmRejectBody": "Ostajan maksu perutaan ja tilaus poistuu listaltasi. Tätä ei voi peruuttaa.",
+    "sampleRequestTitle": "Kirjoita tilaus kuin olisit ostaja",
+    "sampleRequestHint": "Käytä tilaajan sanoja, älä omiasi. Kirjoita «haluan tervehdyksen Annalle, hän täyttää 30» eikä «tervehdin Annaa». Tämän näet ruudulla kuvatessasi."
   },
   "live": {
     "accessTicket": "Pääsylippu",

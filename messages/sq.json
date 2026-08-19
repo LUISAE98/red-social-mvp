@@ -21,6 +21,7 @@
   "nav": {
     "home": "Kryefaqja",
     "saved": "Të ruajtura",
+    "myExperiences": "Përvojat e mia",
     "groups": "Komunitetet e mia",
     "notifications": "Njoftimet",
     "wallet": "Portofoli",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Cilësimet e grupit",
     "profileCommunitiesTitle": "Komunitetet në këtë profil",
     "profileSeeCommunities": "Shiko komunitetet e tij",
+    "groupSeeMembers": "Shiko anëtarët",
     "profileBackToPosts": "Kthehu te postimet",
     "profileServicesTitle": "Përvojat e profilit",
     "servicesLabel": "Përvoja",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "I dërgove të gjitha për sot!",
     "releasedAmount": "Çlirove {amount}!",
     "confirmRejectTitle": "Je i sigurt që do ta refuzosh këtë porosi?",
-    "confirmRejectBody": "Pagesa e blerësit do të anulohet dhe porosia do të zhduket nga lista jote. Nuk mund të zhbëhet."
+    "confirmRejectBody": "Pagesa e blerësit do të anulohet dhe porosia do të zhduket nga lista jote. Nuk mund të zhbëhet.",
+    "sampleRequestTitle": "Shkruaj kërkesën sikur të ishe blerësi",
+    "sampleRequestHint": "Përdor fjalët e atij që do ta kërkonte, jo të tuat. Në vend të «do ta përshëndes Anën», shkruaj «dua një përshëndetje për Anën, mbush 30». Kjo është ajo që do të shohësh në ekran ndërsa regjistron."
   },
   "live": {
     "accessTicket": "Biletë hyrjeje",

@@ -27,6 +27,13 @@ export type StripeResult<T> =
   | { ok: true; status: number; data: T }
   | { ok: false; status: number; error: string };
 
+/**
+ * Versión PREVIEW de la API de Stripe. La necesitan tanto `/fx_quotes` como CUALQUIER
+ * llamada que mande el parámetro `fx_quote` (crear/confirmar un PaymentIntent con la tasa
+ * fijada). Sin esta cabecera Stripe responde 400 `parameter_unknown: fx_quote`.
+ */
+export const STRIPE_PREVIEW_VERSION = "2025-03-31.preview";
+
 /** true si la llave es de PRUEBA (sk_test_...). */
 export function isStripeTestMode(): boolean {
   return stripeSecretKey.value().trim().startsWith("sk_test");
@@ -86,12 +93,27 @@ export async function stripeFetch<T = unknown>(
   };
   if (init.idempotencyKey) headers["Idempotency-Key"] = init.idempotencyKey;
   if (init.stripeAccount) headers["Stripe-Account"] = init.stripeAccount;
+  // ⚠️ RESTRICCIÓN DE STRIPE, no decisión de producto: «FX Quotes can only be used with
+  // PaymentIntents with automatic captures». La tasa fijada es INCOMPATIBLE con la
+  // retención (`capture_method: "manual"`), que es el modelo de saludo, consejo, sesión y
+  // tiempo contigo: se autoriza al solicitar y se cobra al entregar. El modelo manda, así
+  // que en esos cobros se cae a la conversión propia de Stripe al liquidar — lo absorbe el
+  // colchón del 2%. Mandarlo igual devolvía 400 y NINGÚN comprador fuera de USD podía pagar.
+  const form = init.form && init.form.fx_quote && init.form.capture_method === "manual"
+    ? Object.fromEntries(Object.entries(init.form).filter(([k]) => k !== "fx_quote"))
+    : init.form;
+
+  // ⚠️ El parámetro `fx_quote` SOLO existe en la versión preview. Se fija aquí, en el
+  // único punto por el que pasan todas las llamadas, porque son NUEVE los sitios que lo
+  // mandan (los 9 caminos de cobro) y basta olvidarlo en uno para que ese servicio deje
+  // de cobrar a todo comprador que no pague en la moneda de liquidación.
   if (init.apiVersion) headers["Stripe-Version"] = init.apiVersion;
+  else if (form && form.fx_quote) headers["Stripe-Version"] = STRIPE_PREVIEW_VERSION;
 
   let body: string | undefined;
-  if (init.form) {
+  if (form) {
     headers["Content-Type"] = "application/x-www-form-urlencoded";
-    body = encodeForm(init.form).join("&");
+    body = encodeForm(form).join("&");
   }
 
   try {

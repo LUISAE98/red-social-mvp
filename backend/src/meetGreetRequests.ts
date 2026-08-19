@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { SETTLEMENT_CURRENCY } from "./wallet/ledger";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { notifySessionEvent } from "./notifications";
@@ -665,7 +666,7 @@ if (source === "profile") {
     const offeringCurrency =
       normalizeCurrency(meetGreetOffering?.currency) ??
       normalizeCurrency(groupData?.data?.monetization?.currency) ??
-      "MXN";
+      SETTLEMENT_CURRENCY;
 
     const offeringPrice =
       typeof meetGreetOffering?.memberPrice === "number"
@@ -910,10 +911,23 @@ export const rejectMeetGreetRequest = onCall(
     // revierte por el cambio de status a "rejected" (onMeetGreetLedger) y la devolución
     // del dinero es vía refund → crédito (B5).
     if ((data as { paymentStatus?: string }).paymentStatus === "authorized") {
-      await cancelPaymentIntentForRef(`meetGreetRequest__${requestId}`);
+      // ⚠️ SE COMPRUEBA el resultado, no es best-effort. Entre la lectura previa y esta
+      // línea el hold pudo capturarse y paymentStatus seguir diciendo "authorized" por el
+      // retraso del webhook. Devolver el saldo sin comprobar dejaba al comprador con el
+      // crédito Y el cobro capturado, y con un "Devuelto a tu tarjeta" que era falso.
+      // Con el cobro ya capturado la vía correcta es la devolución, no revertir la reserva.
+      const { canceled, alreadyCaptured } = await cancelPaymentIntentForRef(`meetGreetRequest__${requestId}`);
+      if (!canceled) {
+        logger.warn("reject_hold_no_cancelado", {
+          requestId,
+          sourceType: "meetGreetRequest",
+          alreadyCaptured,
+          nota: "no se devuelve el saldo ni se marca como devuelto; va por devolución",
+        });
+      }
       // Saldo a favor usado en parte → se devuelve (el hold no se cobró).
       const buyerId = (data as { buyerId?: string }).buyerId;
-      if (buyerId) {
+      if (canceled && buyerId) {
         await revertBuyerCreditSpend(buyerId, { sourceType: "meetGreetRequest", sourceId: requestId });
         // Reflejar en Entregados → "Todo" como "Devuelto a tu tarjeta" (nunca se cobró).
         const gid = (data as { groupId?: string | null }).groupId ?? null;

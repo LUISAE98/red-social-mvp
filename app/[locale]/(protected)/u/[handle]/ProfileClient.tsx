@@ -167,6 +167,12 @@ type UserDoc = {
    * en el backend; el cliente solo lo lee.
    */
   experiencesCount?: number;
+  /**
+   * Publicaciones del perfil. Lo lleva el servidor (entityCounters.ts) porque
+   * contarlas desde el cliente exige poder LEERLAS, y un perfil restringido no
+   * lo permite: el dato quedaba en blanco justo para quien no ha entrado.
+   */
+  postsCount?: number;
 };
 
 // ─── Module-level profile cache ───────────────────────────────────────────────
@@ -596,10 +602,20 @@ useEffect(() => {
   // guion en vez de un cero, que se leería como "no ha publicado nada".
   const [profilePostsCount, setProfilePostsCount] = useState<number | null>(null);
 
+  // El numero guardado en el documento manda, y es el que hace que el dato se
+  // vea tambien desde fuera: un perfil restringido no deja CONTAR sus
+  // publicaciones —la consulta pasa por las reglas de lectura— pero su documento
+  // si es publico. Lo mantiene el servidor (backend/src/entityCounters.ts).
+  const postsCountFromDoc =
+    typeof userDoc?.postsCount === "number" && userDoc.postsCount >= 0
+      ? userDoc.postsCount
+      : null;
+
   useEffect(() => {
-    // Sin pestaña de publicaciones (perfil reservado, bloqueo, o el dueño la
-    // apagó) no hay nada que contar y la consulta ni se lanza.
-    if (!profileUid || !showPostsTab) {
+    // Con el numero del documento no hace falta preguntar. La consulta se queda
+    // de respaldo para los perfiles que aun no pasaron por el backfill, y solo
+    // donde las reglas la permiten.
+    if (!profileUid || postsCountFromDoc !== null || !showPostsTab) {
       setProfilePostsCount(null);
       return;
     }
@@ -629,12 +645,13 @@ useEffect(() => {
 
   // El guion mientras el conteo va en camino (o si falló): un cero se leería
   // como "no ha publicado nada", que es una afirmación y no una espera.
+  const postsCountShown = postsCountFromDoc ?? profilePostsCount;
   const postsCountText =
-    profilePostsCount === null
+    postsCountShown === null
       ? "—"
-      : profilePostsCount.toLocaleString(intlLocale(locale));
+      : postsCountShown.toLocaleString(intlLocale(locale));
   const postsWord =
-    profilePostsCount === 1 ? tCommon("publication") : tCommon("publications");
+    postsCountShown === 1 ? tCommon("publication") : tCommon("publications");
 
   // El dato de experiencias NO aparece hasta la primera venta. Un "0
   // Experiencias" en cada perfil nuevo diría lo contrario de lo que el dato
@@ -2464,14 +2481,29 @@ const res = (await createExclusiveSessionRequest({
 
                   <StatsRow
                     items={[
-                      // Una sola línea: la palabra "Perfil" encima no decía
-                      // nada que el estado no dijera ya, y el dato es el
-                      // estado.
-                      {
-                        key: "visibility",
-                        top: profileVisibilityWord,
-                        paired: true,
-                      },
+                      // La fila SIEMPRE lleva tres datos. El primer hueco es el
+                      // que cambia: hasta la primera venta muestra el estado del
+                      // perfil, y a partir de ahí lo cede a las experiencias, que
+                      // dicen más de un creador que si su perfil es público.
+                      //
+                      // Una sola línea en el estado: la palabra "Perfil" encima no
+                      // decía nada que el estado no dijera ya.
+                      experiencesCount > 0
+                        ? {
+                            key: "experiences",
+                            top: experiencesCount.toLocaleString(intlLocale(locale)),
+                            bottom: capitalizeFirst(
+                              experiencesCount === 1
+                                ? tCommon("experience")
+                                : tCommon("experiences"),
+                              locale
+                            ),
+                          }
+                        : {
+                            key: "visibility",
+                            top: profileVisibilityWord,
+                            paired: true,
+                          },
                       {
                         key: "followers",
                         top: followersCountText,
@@ -2486,20 +2518,6 @@ const res = (await createExclusiveSessionRequest({
                         top: postsCountText,
                         bottom: capitalizeFirst(postsWord, locale),
                       },
-                      ...(experiencesCount > 0
-                        ? [
-                            {
-                              key: "experiences",
-                              top: experiencesCount.toLocaleString(intlLocale(locale)),
-                              bottom: capitalizeFirst(
-                                experiencesCount === 1
-                                  ? tCommon("experience")
-                                  : tCommon("experiences"),
-                                locale
-                              ),
-                            },
-                          ]
-                        : []),
                     ]}
                   />
 
@@ -2901,7 +2919,7 @@ const res = (await createExclusiveSessionRequest({
 <StripePaymentModal
   open={payGreetOpen}
   amount={payGreetAmount != null ? payGreetAmount + FIXED_SERVICE_FEE_USD : null}
-  amountCurrency="MXN"
+  amountCurrency={SETTLEMENT_CURRENCY}
   createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
   priceLabel={payGreetLabel}
   productType={greetType === "consejo" ? "Consejo" : "Saludo"}
@@ -2925,7 +2943,7 @@ const res = (await createExclusiveSessionRequest({
 <StripePaymentModal
   open={paySessionOpen}
   amount={paySessionAmount != null ? paySessionAmount + FIXED_SERVICE_FEE_USD : null}
-  amountCurrency="MXN"
+  amountCurrency={SETTLEMENT_CURRENCY}
   createIntent={(args) => createServiceStripeIntent({ externalReference: `exclusiveSessionRequest__${paySessionId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
   priceLabel={paySessionLabel}
   productType="Sesión exclusiva"
@@ -2949,7 +2967,7 @@ const res = (await createExclusiveSessionRequest({
 <StripePaymentModal
   open={payMeetOpen}
   amount={payMeetAmount != null ? payMeetAmount + FIXED_SERVICE_FEE_USD : null}
-  amountCurrency="MXN"
+  amountCurrency={SETTLEMENT_CURRENCY}
   createIntent={(args) => createServiceStripeIntent({ externalReference: `meetGreetRequest__${payMeetId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
   priceLabel={payMeetLabel}
   productType="Tiempo contigo"

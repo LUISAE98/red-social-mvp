@@ -1,4 +1,5 @@
 "use client";
+import type { ReactNode } from "react";
 
 // Tipos, helpers, cache y sub-componente Chevron de GroupMembersTab.
 
@@ -40,6 +41,12 @@ export type GroupMembersTabProps = {
   isOwner: boolean;
   isModerator?: boolean;
   canMembersViewList: boolean;
+  /**
+   * Va en el MISMO renglon que el titulo, a su derecha. Lo usa la comunidad
+   * ajena para el enlace de volver a publicaciones, que es su unica salida
+   * cuando el subnav de secciones no se pinta.
+   */
+  titleAction?: ReactNode;
   /** Abre automáticamente la lista de solicitudes (deep-link `?requests=1`). */
   initialShowRequests?: boolean;
   /**

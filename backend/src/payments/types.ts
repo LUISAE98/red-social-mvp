@@ -38,7 +38,8 @@ export type PaymentIntent = {
    * se SUMA aparte al cobrar; no infla esta base.
    */
   grossAmount: number;
-  currency: "MXN";
+  /** Moneda de liquidación. `MXN` se conserva para leer intents anteriores al corte a USD. */
+  currency: "USD" | "MXN";
   // 🧾 IVA — Desglose fiscal estampado por chargeServiceIntent al cobrar (registro
   // para conciliación / futuro CFDI). Ausente hasta que se cobra. El creador NUNCA
   // recibe el IVA (es de Vibra hacia el SAT). Ver docs/legal/fiscal-iva-isr-plataforma.md.
@@ -94,9 +95,9 @@ export type WithdrawalRequestStatus =
 
 export type WithdrawalRequest = {
   creatorId: string;
-  /** Monto neto solicitado en MXN (contra el saldo disponible del ledger). */
+  /** Monto neto solicitado, en la moneda de liquidación (contra el saldo del ledger). */
   netAmount: number;
-  currency: "MXN";
+  currency: "USD" | "MXN";
   payoutAccountId: string;
   status: WithdrawalRequestStatus;
   /** Banderas capturadas al momento de la solicitud (para la revisión humana). */

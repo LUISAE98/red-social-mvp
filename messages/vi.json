@@ -21,6 +21,7 @@
   "nav": {
     "home": "Trang chủ",
     "saved": "Đã lưu",
+    "myExperiences": "Trải nghiệm của tôi",
     "groups": "Cộng đồng của tôi",
     "notifications": "Thông báo",
     "wallet": "Ví",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Cài đặt nhóm",
     "profileCommunitiesTitle": "Cộng đồng trên hồ sơ này",
     "profileSeeCommunities": "Xem cộng đồng của họ",
+    "groupSeeMembers": "Xem thành viên",
     "profileBackToPosts": "Quay lại bài viết",
     "profileServicesTitle": "Trải nghiệm trên hồ sơ",
     "servicesLabel": "Trải nghiệm",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Bạn đã gửi hết cho hôm nay!",
     "releasedAmount": "Bạn đã mở khóa {amount}!",
     "confirmRejectTitle": "Bạn chắc chắn muốn từ chối yêu cầu này?",
-    "confirmRejectBody": "Khoản thanh toán của người mua sẽ bị hủy và yêu cầu sẽ biến mất khỏi danh sách của bạn. Không thể hoàn tác."
+    "confirmRejectBody": "Khoản thanh toán của người mua sẽ bị hủy và yêu cầu sẽ biến mất khỏi danh sách của bạn. Không thể hoàn tác.",
+    "sampleRequestTitle": "Viết yêu cầu như thể bạn là người mua",
+    "sampleRequestHint": "Dùng lời của người sẽ đặt, không phải lời của bạn. Thay vì «tôi sẽ chào Ana», hãy viết «tôi muốn một lời chào cho Ana, cô ấy tròn 30». Đây là những gì bạn sẽ thấy trên màn hình khi quay."
   },
   "live": {
     "accessTicket": "Vé vào cửa",

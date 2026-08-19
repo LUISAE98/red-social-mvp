@@ -420,9 +420,9 @@ export default function ExperienciasPage() {
   // siempre. Marcamos contra el mayor de los dos para que siempre se apague.
   const starLatest = useBuyerExperienceActivity(user?.uid);
   const catLatest: Record<Tab, number> = {
-    requested: Math.max(pageLatest.requested, starLatest.requested),
-    rejected: Math.max(pageLatest.rejected, starLatest.rejected),
-    delivered: Math.max(pageLatest.delivered, starLatest.delivered),
+    requested: Math.max(pageLatest.requested, starLatest.latest.requested),
+    rejected: Math.max(pageLatest.rejected, starLatest.latest.rejected),
+    delivered: Math.max(pageLatest.delivered, starLatest.latest.delivered),
   };
   const isNew: Record<Tab, boolean> = {
     requested: isCategoryNew(catLatest.requested, expSeen.requested),

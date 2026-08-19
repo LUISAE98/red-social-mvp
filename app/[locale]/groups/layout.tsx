@@ -20,7 +20,7 @@ import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { useHasPurchasedExperiences } from "@/lib/experiences/useHasPurchasedExperiences";
 import { useBuyerExperienceActivity } from "@/lib/experiences/useBuyerExperienceActivity";
 import { useBuyerExperiencesSeen } from "@/lib/experiences/useBuyerExperiencesSeen";
-import { isCategoryNew } from "@/lib/experiences/experienceActivity";
+import { countNewExperiences, isCategoryNew } from "@/lib/experiences/experienceActivity";
 import { useMobileHeaderFade } from "@/app/hooks/useMobileHeaderFade";
 import { VibraNavigationIcon, VibraNavigationIconsStyles } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import NotificationBell from "@/app/components/Notifications/NotificationBell";
@@ -94,9 +94,15 @@ const expActivity = useBuyerExperienceActivity(user?.uid);
 const { seen: expSeen } = useBuyerExperiencesSeen(user?.uid);
 const experiencesBadge =
   hasPurchasedExperiences &&
-  (isCategoryNew(expActivity.requested, expSeen.requested) ||
-    isCategoryNew(expActivity.rejected, expSeen.rejected) ||
-    isCategoryNew(expActivity.delivered, expSeen.delivered));
+  (isCategoryNew(expActivity.latest.requested, expSeen.requested) ||
+    isCategoryNew(expActivity.latest.rejected, expSeen.rejected) ||
+    isCategoryNew(expActivity.latest.delivered, expSeen.delivered));
+// Cuantas experiencias tienen novedad, para el globo del menu lateral. El
+// booleano de arriba sigue mandando en la estrella del nav movil, que solo
+// necesita saber si hay algo.
+const experiencesBadgeCount = experiencesBadge
+  ? countNewExperiences(expActivity.timestamps, expSeen)
+  : 0;
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
 const mainInnerRef = useRef<HTMLDivElement>(null);
 const pendingAnimDirRef = useRef<"left" | "right" | null>(null);
@@ -996,22 +1002,9 @@ const contentAreaClassName = isEmbed
                     {/* Campanita: abre un panel flotante con las notificaciones
                         agregadas (mismo componente que el header de home). */}
                     <NotificationBell active={pathname.startsWith("/notifications")} />
-                    {/* Experiencias: estrella a la DERECHA de la campana. Solo para
-                        quien ya compró alguna experiencia. */}
-                    {hasPurchasedExperiences ? (
-                      <Link
-                        href="/experiencias"
-                        aria-label={tNav("tabExperiences")}
-                        style={{ position: "relative", display: "inline-grid", placeItems: "center", width: 36, height: 36, borderRadius: 10, color: "#fff" }}
-                      >
-                        <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
-                        </svg>
-                        {experiencesBadge ? (
-                          <span aria-hidden="true" style={{ position: "absolute", top: 5, insetInlineEnd: 5, width: 8, height: 8, borderRadius: 999, background: "#ff3b30", boxShadow: "0 0 0 2px rgba(0,0,0,0.55)" }} />
-                        ) : null}
-                      </Link>
-                    ) : null}
+                    {/* La estrella de experiencias se mudo al menu lateral
+                        derecho, bajo Guardados (ver WalletDesktopRail). Aqui
+                        competia por sitio con la campana. */}
                   </div>
                 ) : null}
 
@@ -1104,6 +1097,8 @@ const contentAreaClassName = isEmbed
               <WalletDesktopRail
                 activePath={pathname}
                 showWallet={hasMonetization}
+                showExperiences={hasPurchasedExperiences}
+                experiencesBadgeCount={experiencesBadgeCount}
               />
             </div>
           )}

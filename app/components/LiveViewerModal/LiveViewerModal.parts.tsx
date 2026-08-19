@@ -73,7 +73,9 @@ export const CHAT_FLOAT_W = 300;
 
 // ── DonationPanel ────────────────────────────────────────────────────────────
 export const DONATE_BLUE = "#3b82f6";
-export const DONATE_PRESETS = [50, 130, 250, 510];
+// 💵 USD desde el corte a Vibra On, LLC. ⚠️ Deben coincidir con los que pasa
+// LiveViewerModal a StripePaymentModal: si se separan, el fan ve unos y paga otros.
+export const DONATE_PRESETS = [3, 7, 15, 30];
 
 export type DonationPanelProps = {
   onClose: () => void;

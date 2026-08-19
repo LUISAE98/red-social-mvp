@@ -21,6 +21,7 @@
   "nav": {
     "home": "Heim",
     "saved": "Vistað",
+    "myExperiences": "Upplifanir mínar",
     "groups": "Samfélögin mín",
     "notifications": "Tilkynningar",
     "wallet": "Veski",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Stillingar hópsins",
     "profileCommunitiesTitle": "Samfélög á þessum prófíl",
     "profileSeeCommunities": "Sjá samfélögin þeirra",
+    "groupSeeMembers": "Sjá meðlimina",
     "profileBackToPosts": "Til baka í færslur",
     "profileServicesTitle": "Upplifanir prófílsins",
     "servicesLabel": "Upplifanir",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Þú sendir þau öll í dag!",
     "releasedAmount": "Þú losaðir {amount}!",
     "confirmRejectTitle": "Viltu örugglega hafna þessari pöntun?",
-    "confirmRejectBody": "Greiðsla kaupandans verður felld niður og pöntunin hverfur af listanum þínum. Þessu verður ekki snúið við."
+    "confirmRejectBody": "Greiðsla kaupandans verður felld niður og pöntunin hverfur af listanum þínum. Þessu verður ekki snúið við.",
+    "sampleRequestTitle": "Skrifaðu beiðnina eins og þú værir kaupandinn",
+    "sampleRequestHint": "Notaðu orð þess sem myndi biðja þig, ekki þín eigin. Í stað «ég ætla að heilsa Önnu» skrifaðu «mig langar í kveðju til Önnu, hún verður 30». Þetta sérðu á skjánum meðan þú tekur upp."
   },
   "live": {
     "accessTicket": "Aðgangsmiði",

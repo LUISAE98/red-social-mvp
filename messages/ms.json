@@ -21,6 +21,7 @@
   "nav": {
     "home": "Laman utama",
     "saved": "Disimpan",
+    "myExperiences": "Pengalaman saya",
     "groups": "Komuniti saya",
     "notifications": "Pemberitahuan",
     "wallet": "Dompet",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Tetapan kumpulan",
     "profileCommunitiesTitle": "Komuniti profil ini",
     "profileSeeCommunities": "Lihat komunitinya",
+    "groupSeeMembers": "Lihat ahlinya",
     "profileBackToPosts": "Kembali ke siaran",
     "profileServicesTitle": "Pengalaman profil",
     "servicesLabel": "Pengalaman",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Anda hantar semuanya untuk hari ini!",
     "releasedAmount": "Anda membuka {amount}!",
     "confirmRejectTitle": "Pasti mahu menolak tempahan ini?",
-    "confirmRejectBody": "Bayaran pembeli akan dibatalkan dan tempahan hilang dari senarai anda. Tidak boleh dibatalkan."
+    "confirmRejectBody": "Bayaran pembeli akan dibatalkan dan tempahan hilang dari senarai anda. Tidak boleh dibatalkan.",
+    "sampleRequestTitle": "Tulis permintaan seolah-olah anda pembeli",
+    "sampleRequestHint": "Guna perkataan orang yang akan meminta, bukan perkataan anda. Daripada «saya akan menyapa Ana», tulis «saya mahu ucapan untuk Ana, dia genap 30». Inilah yang akan anda lihat pada skrin semasa merakam."
   },
   "live": {
     "accessTicket": "Tiket akses",

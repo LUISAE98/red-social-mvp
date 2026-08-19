@@ -21,6 +21,7 @@
   "nav": {
     "home": "Home",
     "saved": "Saved",
+    "myExperiences": "My experiences",
     "groups": "My communities",
     "notifications": "Notifications",
     "wallet": "Wallet",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Group settings",
     "profileCommunitiesTitle": "Communities on this profile",
     "profileSeeCommunities": "See their communities",
+    "groupSeeMembers": "See its members",
     "profileBackToPosts": "Back to posts",
     "profileServicesTitle": "Profile experiences",
     "servicesLabel": "Experiences",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "You sent them all for today!",
     "releasedAmount": "You unlocked {amount}!",
     "confirmRejectTitle": "Are you sure you want to decline this request?",
-    "confirmRejectBody": "The buyer's payment will be cancelled and the request will leave your list. This cannot be undone."
+    "confirmRejectBody": "The buyer's payment will be cancelled and the request will leave your list. This cannot be undone.",
+    "sampleRequestTitle": "Write the request as if you were the buyer",
+    "sampleRequestHint": "Use the words of the person who would ask you, not your own. Instead of «I will greet Ana», write «I want a greeting for Ana, she is turning 30». This is what you will see on screen while recording."
   },
   "live": {
     "accessTicket": "Access ticket",

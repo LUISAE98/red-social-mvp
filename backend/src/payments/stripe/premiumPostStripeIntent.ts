@@ -8,6 +8,7 @@
 // el creador recibe 75% de la base. Cubre POST premium y VOD premium (mismo camino postAccess).
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
@@ -165,7 +166,7 @@ export const createPremiumPostStripeIntent = onCall(
           source: "stripe",
           purchaseType: "one_time",
           price: base,
-          currency: "MXN",
+          currency: SETTLEMENT_CURRENCY,
         },
         // Desglose completo del cobro: base, cargo fijo, FX, impuesto del país y régimen del
         // IVA mexicano. Se guarda aunque la pasarela muestre un precio único sin desglosar.

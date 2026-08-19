@@ -39,12 +39,19 @@ export default function GroupSubnav({
       label: tGroups("postsSection"),
       iconType: "posts",
     },
-    {
-      key: "members",
-      title: tGroups("membersTab"),
-      label: tGroups("membersTab"),
-      iconType: "members",
-    },
+    // Solo quien administra. Para el resto, los integrantes se abren desde el
+    // texto "Ver sus integrantes" que va bajo el subnav de medios, y se vuelve
+    // con "Volver a publicaciones" en el titulo de esa seccion.
+    ...(canManage
+      ? [
+          {
+            key: "members" as const,
+            title: tGroups("membersTab"),
+            label: tGroups("membersTab"),
+            iconType: "members" as const,
+          },
+        ]
+      : []),
     ...(canManage
       ? [
           {

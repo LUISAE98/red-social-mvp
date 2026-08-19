@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { SETTLEMENT_CURRENCY } from "./wallet/ledger";
 import { logger } from "firebase-functions";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import * as admin from "firebase-admin";
@@ -79,7 +80,7 @@ function readGroupSubscription(groupData: unknown): GroupSubscriptionConfig {
     (typeof monetization?.subscriptionCurrency === "string" &&
       monetization.subscriptionCurrency) ||
     (typeof monetization?.currency === "string" && monetization.currency) ||
-    "MXN";
+    SETTLEMENT_CURRENCY;
 
   return { requiresSubscription: true, price, currency };
 }
@@ -638,7 +639,7 @@ export const consumeInviteLink = onCall(async (request) => {
               requiresSubscription: true,
               subscriptionActive: true,
               subscriptionPriceMonthly: subscription.price,
-              subscriptionCurrency: subscription.currency ?? "MXN",
+              subscriptionCurrency: subscription.currency ?? SETTLEMENT_CURRENCY,
               subscribedAt: FieldValue.serverTimestamp(),
             }
           : {

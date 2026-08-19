@@ -21,6 +21,7 @@
   "nav": {
     "home": "Početna",
     "saved": "Sačuvano",
+    "myExperiences": "Моја искуства",
     "groups": "Moje zajednice",
     "notifications": "Obaveštenja",
     "wallet": "Novčanik",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Postavke grupe",
     "profileCommunitiesTitle": "Zajednice ovog profila",
     "profileSeeCommunities": "Погледај његове заједнице",
+    "groupSeeMembers": "Погледај чланове",
     "profileBackToPosts": "Назад на објаве",
     "profileServicesTitle": "Doživljaji profila",
     "servicesLabel": "Doživljaji",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Послао си све за данас!",
     "releasedAmount": "Ослободио си {amount}!",
     "confirmRejectTitle": "Сигурно желиш да одбијеш ову поруџбину?",
-    "confirmRejectBody": "Наплата купцу биће отказана и поруџбина ће нестати с твоје листе. Не може се поништити."
+    "confirmRejectBody": "Наплата купцу биће отказана и поруџбина ће нестати с твоје листе. Не може се поништити.",
+    "sampleRequestTitle": "Напиши поруџбину као да си купац",
+    "sampleRequestHint": "Користи речи оног ко би је наручио, не своје. Уместо «поздравићу Ану», напиши «желим поздрав за Ану, пуни 30». То ћеш видети на екрану док снимаш."
   },
   "live": {
     "accessTicket": "Ulaznica",

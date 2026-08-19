@@ -21,6 +21,7 @@
   "nav": {
     "home": "Dar",
     "saved": "Maħżuna",
+    "myExperiences": "L-esperjenzi tiegħi",
     "groups": "Il-komunitajiet tiegħi",
     "notifications": "Notifiki",
     "wallet": "Kartiera",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Issettjar tal-grupp",
     "profileCommunitiesTitle": "Il-komunitajiet ta' dan il-profil",
     "profileSeeCommunities": "Ara l-komunitajiet tiegħu",
+    "groupSeeMembers": "Ara l-membri tagħha",
     "profileBackToPosts": "Lura għall-posts",
     "profileServicesTitle": "Esperjenzi tal-profil",
     "servicesLabel": "Esperjenzi",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Bgħatthom kollha għal-lum!",
     "releasedAmount": "Ħlist {amount}!",
     "confirmRejectTitle": "Żgur li trid tirrifjuta din l-ordni?",
-    "confirmRejectBody": "Il-ħlas tax-xerrej jiġi kkanċellat u l-ordni tisparixxi mil-lista tiegħek. Ma tistax terġa' lura."
+    "confirmRejectBody": "Il-ħlas tax-xerrej jiġi kkanċellat u l-ordni tisparixxi mil-lista tiegħek. Ma tistax terġa' lura.",
+    "sampleRequestTitle": "Ikteb it-talba bħallikieku int ix-xerrej",
+    "sampleRequestHint": "Uża l-kliem ta' min jitolbok, mhux tiegħek. Minflok «se nsellem lil Ana», ikteb «irrid tislima għal Ana, qed tagħlaq 30». Dan hu li tara fuq l-iskrin waqt ir-reġistrazzjoni."
   },
   "live": {
     "accessTicket": "Biljett ta' aċċess",

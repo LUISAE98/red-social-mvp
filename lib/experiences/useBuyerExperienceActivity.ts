@@ -8,11 +8,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { computeCategoryLatest, type ActivityRow, type CategoryLatest } from "./experienceActivity";
+import {
+  computeCategoryLatest,
+  computeCategoryTimestamps,
+  type ActivityRow,
+  type CategoryLatest,
+} from "./experienceActivity";
 
 const EMPTY_ROWS: ActivityRow[] = [];
 
-export function useBuyerExperienceActivity(uid: string | null | undefined): CategoryLatest {
+/**
+ * Lo que devuelve: la ultima actividad por categoria (`latest`, para saber SI hay
+ * algo nuevo) y la marca de tiempo de cada experiencia (`timestamps`, para saber
+ * CUANTAS lo son). El globo del menu lateral lleva un numero, y con solo la mas
+ * reciente no se puede contar.
+ */
+export type BuyerExperienceActivity = {
+  latest: CategoryLatest;
+  timestamps: Record<keyof CategoryLatest, number[]>;
+};
+
+export function useBuyerExperienceActivity(
+  uid: string | null | undefined
+): BuyerExperienceActivity {
   const [greetings, setGreetings] = useState<ActivityRow[]>(EMPTY_ROWS);
   const [meet, setMeet] = useState<ActivityRow[]>(EMPTY_ROWS);
   const [exclusive, setExclusive] = useState<ActivityRow[]>(EMPTY_ROWS);
@@ -57,11 +75,16 @@ export function useBuyerExperienceActivity(uid: string | null | undefined): Cate
     const rejectedGreetings = greetings.filter(
       (r) => r.data.status === "rejected" || r.data.status === "refund_requested" || r.data.status === "refund_review"
     );
-    return computeCategoryLatest({
+    const input = {
       pendingGreetings,
       deliveredGreetings,
       rejectedGreetings,
       sessions: [...meet, ...exclusive],
-    });
+    };
+
+    return {
+      latest: computeCategoryLatest(input),
+      timestamps: computeCategoryTimestamps(input),
+    };
   }, [greetings, meet, exclusive]);
 }

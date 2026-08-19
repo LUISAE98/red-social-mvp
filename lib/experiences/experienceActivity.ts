@@ -60,3 +60,51 @@ export function computeCategoryLatest(input: {
 export function isCategoryNew(latest: number, seen: number): boolean {
   return latest > 0 && latest > seen;
 }
+
+/**
+ * Marca de tiempo de CADA experiencia, agrupada por categoría.
+ *
+ * `computeCategoryLatest` se queda solo con la más reciente, que basta para
+ * saber SI hay algo nuevo. Para decir CUÁNTAS hay nuevas hace falta la lista
+ * entera: el globo del menú lleva un número, no un punto.
+ */
+export function computeCategoryTimestamps(input: {
+  pendingGreetings: ActivityRow[];
+  deliveredGreetings: ActivityRow[];
+  rejectedGreetings: ActivityRow[];
+  sessions: ActivityRow[];
+}): Record<keyof CategoryLatest, number[]> {
+  const out: Record<keyof CategoryLatest, number[]> = {
+    requested: [],
+    rejected: [],
+    delivered: [],
+  };
+
+  input.pendingGreetings.forEach((r) => out.requested.push(rowMs(r.data)));
+  input.deliveredGreetings.forEach((r) => out.delivered.push(rowMs(r.data)));
+  input.rejectedGreetings.forEach((r) => out.rejected.push(rowMs(r.data)));
+
+  // Mismo reparto por estado que arriba: si las dos funciones dejaran de
+  // coincidir, el número del globo no cuadraría con lo que hay en la pantalla.
+  input.sessions.forEach((r) => {
+    const st = r.data.status ?? "";
+    const m = rowMs(r.data);
+    if (st === "completed") out.delivered.push(m);
+    else if (getSectionForMeetGreetStatus(st) === "rejected") out.rejected.push(m);
+    else if (getSectionForMeetGreetStatus(st) === "requested") out.requested.push(m);
+  });
+
+  return out;
+}
+
+/** Cuántas experiencias tienen actividad posterior a lo ya visto. */
+export function countNewExperiences(
+  timestamps: Record<keyof CategoryLatest, number[]>,
+  seen: CategoryLatest
+): number {
+  return (Object.keys(timestamps) as Array<keyof CategoryLatest>).reduce(
+    (total, cat) =>
+      total + timestamps[cat].filter((m) => m > 0 && m > (seen[cat] ?? 0)).length,
+    0
+  );
+}

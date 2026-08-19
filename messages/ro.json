@@ -21,6 +21,7 @@
   "nav": {
     "home": "Acasă",
     "saved": "Salvate",
+    "myExperiences": "Experiențele mele",
     "groups": "Comunitățile mele",
     "notifications": "Notificări",
     "wallet": "Portofel",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Setările grupului",
     "profileCommunitiesTitle": "Comunitățile de pe acest profil",
     "profileSeeCommunities": "Vezi comunitățile lui",
+    "groupSeeMembers": "Vezi membrii",
     "profileBackToPosts": "Înapoi la postări",
     "profileServicesTitle": "Experiențele profilului",
     "servicesLabel": "Experiențe",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Le-ai trimis pe toate pentru azi!",
     "releasedAmount": "Ai deblocat {amount}!",
     "confirmRejectTitle": "Sigur vrei să refuzi această comandă?",
-    "confirmRejectBody": "Plata cumpărătorului va fi anulată și comanda va dispărea din lista ta. Nu se poate anula."
+    "confirmRejectBody": "Plata cumpărătorului va fi anulată și comanda va dispărea din lista ta. Nu se poate anula.",
+    "sampleRequestTitle": "Scrie cererea ca și cum ai fi cumpărătorul",
+    "sampleRequestHint": "Folosește cuvintele celui care ți-ar cere-o, nu ale tale. În loc de «o voi saluta pe Ana», scrie «vreau un salut pentru Ana, împlinește 30». Asta vei vedea pe ecran cât înregistrezi."
   },
   "live": {
     "accessTicket": "Bilet de acces",

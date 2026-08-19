@@ -8,6 +8,7 @@ import { expireMeetGreetNoShowsHandler, autoExpirePendingMeetGreetRequestsHandle
 import { expireExclusiveSessionNoShowsHandler, autoExpirePendingExclusiveSessionRequestsHandler, autoRejectUndeliveredExclusiveSessionRequestsHandler } from "./exclusiveSessionRequests";
 import { autoExpirePendingGreetingRequestsHandler, autoRejectUndeliveredGreetingRequestsHandler } from "./greetingRequests";
 import { updateExchangeRatesHandler } from "./exchangeRates";
+import { refreshFrozenRatesHandler } from "./tax/frozenRates";
 import { updateVatRatesHandler } from "./vatRates";
 import { sessionRemindersHandler } from "./sessionLifecycle";
 import { expireGroupSubscriptionsHandler } from "./payments/groupSubscriptionCore";
@@ -114,20 +115,55 @@ export const sessionPreSessionReminders = onSchedule(
   }
 );
 
-// Tasas de cambio (dLocal/FX): una sola llamada DIARIA a la fuente (open.er-api.com,
-// base USD) que persiste en config/exchangeRates. TODO el frontend lee ese doc
-// cacheado vía un listener compartido — nunca se llama la API por carga de página.
-// El margen FX (buffer ~1.5%) se aplica al mostrar/cobrar, no aquí.
+// Tasas de cambio: CONGELAMIENTO DIARIO. Persiste en `config/exchangeRates`, que TODO el
+// frontend lee con un listener compartido — nunca se llama una API por carga de página.
+//
+// La tasa buena la da STRIPE (la misma con la que cobra), y open.er-api.com queda solo como
+// respaldo por si Stripe no responde: antes una tabla vieja bastaba, ahora la tabla ES el
+// precio del día y no puede quedarse en blanco.
 export const updateExchangeRates = onSchedule(
   {
     schedule: "every 24 hours",
     timeZone: "America/Mexico_City",
     region: "us-central1",
+    // ⚠️ Necesario desde que este cron pide la tasa a Stripe. Sin declararlo, `stripeFetch`
+    // responde "Falta el secreto" y el congelamiento diario no haría nada, en silencio —
+    // el mismo fallo que tuvieron `softDeleteGroup` y `cleanupAbandonedCreditReservations`.
+    secrets: [stripeSecretKey],
   },
   async () => {
     logger.info("updateExchangeRates started");
+    // Respaldo: mantiene viva la tabla si Stripe no responde. El refresco bueno lo hace
+    // el congelamiento de abajo con la tasa de Stripe, que es la que de verdad cobra.
     await updateExchangeRatesHandler();
+    // Congelamiento diario: reescribe TODAS las monedas con la tasa de Stripe. A partir de
+    // aquí el precio mostrado no se mueve hasta mañana, salvo que alguna moneda se salga
+    // de su banda y la agarre el cron de vigilancia.
+    await refreshFrozenRatesHandler(true);
     logger.info("updateExchangeRates finished");
+  }
+);
+
+/**
+ * Vigilancia del tipo de cambio: refresco FUERA DE HORARIO por moneda.
+ *
+ * Compara la tasa congelada contra la de Stripe y solo reescribe las que se salieron de su
+ * banda (0.5% estándar; más ancha en ARS, TRY, NGN, EGP y VND, que se mueven demasiado).
+ * Las estables no se tocan en todo el día.
+ *
+ * Consultar la tasa a Stripe con `lock_duration: none` es GRATIS, así que correr cada 15
+ * minutos no cuesta nada más que la invocación.
+ */
+export const watchFxDrift = onSchedule(
+  {
+    schedule: "every 15 minutes",
+    timeZone: "America/Mexico_City",
+    region: "us-central1",
+    secrets: [stripeSecretKey],
+  },
+  async () => {
+    const r = await refreshFrozenRatesHandler(false);
+    if (r.refrescadas.length > 0) logger.info("watchFxDrift refrescó monedas", r);
   }
 );
 
@@ -517,6 +553,18 @@ export {
   onReplyCountCreated,
   onReplyCountDeleted,
 } from "./commentCounters";
+
+// Publicaciones y miembros: contadores guardados en el documento del perfil o de
+// la comunidad. Existen para que el card de la portada se vea tambien desde
+// fuera —perfil restringido, comunidad privada, invitacion sin aceptar—, donde
+// las reglas niegan contar los documentos reales. Ver entityCounters.ts.
+export {
+  onPostsCountCreated,
+  onPostsCountUpdated,
+  onPostsCountDeleted,
+  onMembersCountCreated,
+  onMembersCountDeleted,
+} from "./entityCounters";
 
 // Posts: contador de vistas únicas por usuario (videos y VODs)
 export { onPostViewed } from "./postViews";

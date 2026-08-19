@@ -21,6 +21,7 @@
   "nav": {
     "home": "الرئيسية",
     "saved": "المحفوظات",
+    "myExperiences": "تجاربي",
     "groups": "مجتمعاتي",
     "notifications": "الإشعارات",
     "wallet": "المحفظة",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "إعدادات المجموعة",
     "profileCommunitiesTitle": "مجتمعات هذا الملف الشخصي",
     "profileSeeCommunities": "عرض مجتمعاته",
+    "groupSeeMembers": "عرض أعضائه",
     "profileBackToPosts": "العودة إلى المنشورات",
     "profileServicesTitle": "تجارب الملف الشخصي",
     "servicesLabel": "التجارب",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "أرسلت كل شيء اليوم!",
     "releasedAmount": "حرّرت {amount}!",
     "confirmRejectTitle": "هل تريد رفض هذا الطلب؟",
-    "confirmRejectBody": "سيُلغى الدفع المحجوز للمشتري ويختفي الطلب من قائمتك. لا يمكن التراجع."
+    "confirmRejectBody": "سيُلغى الدفع المحجوز للمشتري ويختفي الطلب من قائمتك. لا يمكن التراجع.",
+    "sampleRequestTitle": "اكتب الطلب كما لو كنت المشتري",
+    "sampleRequestHint": "استخدم كلمات من سيطلبه منك، لا كلماتك أنت. بدل «سأحيي آنا»، اكتب «أريد تحية لآنا، ستبلغ الثلاثين». هذا ما ستراه على الشاشة أثناء التسجيل."
   },
   "live": {
     "accessTicket": "تذكرة دخول",

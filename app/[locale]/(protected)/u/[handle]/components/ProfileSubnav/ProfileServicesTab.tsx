@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
+import SampleRequestPanel, { type SampleRequestDraft } from "@/components/services/config/SampleRequestPanel";
 import { BRAND_DOMAIN } from "@/lib/brand";
 import { AVISOS_SERVICIOS } from "@/lib/services/avisosServicios";
 
@@ -87,6 +88,9 @@ export default function ProfileServicesTab({
 
   // Grabador de muestras: guarda qué servicio se está ejemplificando.
   const [sampleType, setSampleType] = useState<"saludo" | "consejo" | null>(null);
+  // La solicitud inventada. Hasta que no está escrita no se abre el grabador:
+  // sin ella el panel no tendría qué enseñar en pantalla mientras grabas.
+  const [sampleDraft, setSampleDraft] = useState<SampleRequestDraft | null>(null);
 
   const lastHydratedProfileIdRef = useRef<string | null>(null);
   const skipHydrationWhileSavingRef = useRef(false);
@@ -755,9 +759,25 @@ export default function ProfileServicesTab({
           compraron. Se le pasa una solicitud SINTÉTICA: no existe en Firestore
           ni tiene comprador, solo lleva los ocho campos que el panel lee para
           pintarse. */}
+      {/* Muestra en dos pasos. Primero el creador escribe la solicitud como si
+          fuera quien se la pide; después se abre el MISMO grabador de siempre,
+          en modo muestra: sin dinero y sin nada que rechazar. */}
+      {/* El formulario va ENCIMA de la cámara, no antes: el grabador se monta
+          a la vez y arranca la cámara solo, así que el creador escribe la
+          solicitud viéndose ya en pantalla. */}
+      {sampleType && !sampleDraft ? (
+        <SampleRequestPanel
+          type={sampleType}
+          open
+          zIndexBase={1000020}
+          onCancel={() => { setSampleType(null); setSampleDraft(null); }}
+          onSubmit={(draft) => setSampleDraft(draft)}
+        />
+      ) : null}
+
       {sampleType ? (
         <GreetingReviewOverlay
-          viewMode
+          sampleMode
           // Se abre DESDE el panel de configurar, que está en 999999. Sin subirlo
           // el grabador quedaba detrás.
           zIndex={1000000}
@@ -768,7 +788,8 @@ export default function ProfileServicesTab({
                 buyerId: "",
                 creatorId: profileUserId,
                 groupId: null,
-                instructions: "",
+                toName: "",
+                instructions: sampleDraft?.instructions ?? "",
                 muxPlaybackId: null,
                 source: "profile",
                 type: sampleType,
@@ -778,11 +799,9 @@ export default function ProfileServicesTab({
           ] as never}
           buyers={{}}
           greetingBusyId={null}
-          onReject={() => setSampleType(null)}
-          onClose={() => setSampleType(null)}
+          onReject={() => { setSampleType(null); setSampleDraft(null); }}
+          onClose={() => { setSampleType(null); setSampleDraft(null); }}
           getInitials={(name) => (name ?? "").trim().charAt(0).toUpperCase() || "?"}
-          // El panel solo usa esta etiqueta para su encabezado; con la muestra
-          // ya sabemos de qué servicio se trata.
           typeLabel={(t) => t}
         />
       ) : null}

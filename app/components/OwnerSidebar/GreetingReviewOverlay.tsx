@@ -5,6 +5,7 @@ import { IconButton } from "@/components/ui";
 import { Switch } from "@/components/services/config/serviceConfigKit";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import ConfirmPanel from "@/components/ui/ConfirmPanel";
+import { createGreetingSampleUpload } from "@/lib/greetings/greetingSamples";
 import { useCfError } from "@/lib/i18n/cfError";
 import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -93,6 +94,12 @@ type Props = {
   buyerSourceAvatar?: string | null;
   readOnly?: boolean;
   /**
+   * Muestra del creador, no un encargo comprado. Cambia tres cosas: la subida
+   * va a `greetingSamples` en vez de a la solicitud, no hay dinero que enseñar
+   * y no hay nada que rechazar, porque no hay comprador al otro lado.
+   */
+  sampleMode?: boolean;
+  /**
    * Capa del overlay. Por omisión 10050, que basta cuando se abre desde el
    * sidebar o notificaciones. Al abrirlo DESDE otro panel —el de configurar
    * experiencias usa 999999— hay que subirlo o queda detrás.
@@ -117,6 +124,7 @@ export default function GreetingReviewOverlay({
   buyerSourceName,
   buyerSourceAvatar,
   readOnly = false,
+  sampleMode = false,
   zIndex = 10050,
 }: Props) {
   const tCommon = useTranslations("common");
@@ -202,8 +210,11 @@ export default function GreetingReviewOverlay({
   // El guion es una nota del CREADOR para sí mismo: no es parte del encargo ni
   // lo ve el comprador, así que no toca Firestore. Vive en localStorage, con lo
   // que sobrevive a cerrar el panel y a recargar, pero no sale del dispositivo.
-  // Se guardan todos los guiones en un objeto indexado por encargo para poder
-  // leerlo de una vez al montar, sin depender de cuál esté abierto.
+  //
+  // Se indexa por TIPO, no por encargo. Un guion de saludo sirve para todos los
+  // saludos, y lo que se ensaya grabando una muestra es exactamente lo que se
+  // quiere tener delante en el primer encargo real. La contrapartida es que
+  // editarlo en uno lo cambia en todos, que es lo que se pidió.
   const [prompterOpen, setPrompterOpen] = useState(false);
   // La hoja de datos de celular nace cerrada, al revés que el panel de laptop,
   // así que lleva su propio interruptor en vez de compartir `infoOpen`.
@@ -271,6 +282,18 @@ export default function GreetingReviewOverlay({
 
   useEffect(() => { setMounted(true); }, []);
 
+  // En una muestra no hay nada que revisar antes de grabar, así que la cámara
+  // se abre sola. El guardia con ref evita que se vuelva a pedir el permiso si
+  // React monta el efecto dos veces en desarrollo.
+  const sampleCameraStartedRef = useRef(false);
+  useEffect(() => {
+    if (!sampleMode || !mounted || sampleCameraStartedRef.current) return;
+    sampleCameraStartedRef.current = true;
+    void handleGrabar();
+    // handleGrabar se recrea en cada render y el guardia ya impide repetirlo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sampleMode, mounted]);
+
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -292,6 +315,23 @@ export default function GreetingReviewOverlay({
     setSourceInfo(null);
     const req = items[currentIndex]?.data;
     if (!req) return;
+
+    // Lo que se cobró EN ESTA venta. Manda sobre el catálogo: el precio de lista
+    // puede haber cambiado desde la compra, y lo que el creador va a ganar es lo
+    // que se cobró entonces, no lo que cuesta hoy. Además el catálogo del PERFIL
+    // guarda el precio en `publicPrice`, así que buscarlo solo por `memberPrice`
+    // dejaba la ganancia en blanco en todos los encargos de perfil.
+    const snapshot =
+      typeof req.priceSnapshot === "number" && req.priceSnapshot > 0
+        ? req.priceSnapshot
+        : null;
+    if (snapshot != null) {
+      const snapNet = snapshot * WALLET_NET_RATE;
+      const snapCur = (typeof req.currency === "string" && req.currency) || "MXN";
+      setEarningNet(snapNet);
+      setEarningFormatted(formatMoney(snapNet, { baseCurrency: snapCur as DisplayCurrency, code: true }));
+    }
+
     const source = req.source ?? "group";
     const id = source === "profile" ? req.profileUserId ?? req.creatorId : req.groupId;
     if (!id) return;
@@ -314,18 +354,21 @@ export default function GreetingReviewOverlay({
         setSourceInfo({ name: resolvedName, photoURL });
       }
 
+      // Sin instantánea (encargos antiguos) se cae al catálogo vigente.
+      if (snapshot != null) return;
+
       // Earnings
       const offerings = Array.isArray(data.offerings)
         ? (data.offerings as Array<Record<string, unknown>>)
         : [];
       const offering = offerings.find((o) => o.type === req.type);
       if (!offering) return;
-      const rawPrice =
-        typeof offering.memberPrice === "number"
-          ? offering.memberPrice
-          : typeof offering.price === "number"
-            ? offering.price
-            : null;
+      // Misma precedencia que pickOffering: en perfil manda publicPrice y en
+      // comunidad memberPrice. Antes se leía siempre memberPrice.
+      const priceCandidates = source === "profile"
+        ? [offering.publicPrice, offering.memberPrice, offering.price]
+        : [offering.memberPrice, offering.publicPrice, offering.price];
+      const rawPrice = priceCandidates.find((v): v is number => typeof v === "number" && v > 0) ?? null;
       if (rawPrice == null || rawPrice <= 0) return;
       const net = rawPrice * WALLET_NET_RATE;
       const cur = typeof offering.currency === "string" ? offering.currency : "MXN";
@@ -469,7 +512,16 @@ export default function GreetingReviewOverlay({
     setUploadProgress(0);
 
     try {
-      const { uploadUrl } = await createGreetingMuxUpload({ greetingRequestId: currentItem.id });
+      // La muestra no toca la solicitud ni el cobro: tiene su propio circuito.
+      const { uploadUrl } = sampleMode
+        ? await createGreetingSampleUpload({
+            type: req.type === "consejo" ? "consejo" : "saludo",
+            source: req.groupId ? "group" : "profile",
+            groupId: req.groupId ?? undefined,
+            toName: req.toName || undefined,
+            context: req.instructions || undefined,
+          })
+        : await createGreetingMuxUpload({ greetingRequestId: currentItem.id });
 
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -1472,7 +1524,7 @@ export default function GreetingReviewOverlay({
       : earningFormatted.length > 12 ? 20
       : 22;
 
-  const earningRow = earningFormatted ? (
+  const earningRow = (earningFormatted && !sampleMode) ? (
     <div style={{ display: "grid", gap: 5, justifyItems: "start", minWidth: 0 }}>
       <span style={{ color: "#86efac", fontWeight: 500, fontSize: 11, letterSpacing: "0.01em", lineHeight: 1 }}>
         {tWallet("yourEarning")}
@@ -1970,10 +2022,15 @@ export default function GreetingReviewOverlay({
     const SHEET_H = "min(62dvh, 520px)";
     const PROMPTER_H = "min(52dvh, 430px)";
     const BTN_W = "min(78vw, 320px)";
+    // La pareja de subir y rechazar necesita algo más de sitio que un botón
+    // suelto, porque se reparte el ancho entre dos.
+    const PAIR_W = "min(90vw, 380px)";
     const TOP_TAB_H = 110;
     // Los botones no se van nunca: la hoja crece por encima de ellos. Solo
     // desaparecen cuando el encargo ya se envió y manda el aviso de enviado.
     const stackHidden = uploadSucceeded;
+    // La línea de tiempo solo existe repasando lo grabado, y ocupa el pie.
+    const chromeRaised = recordPhase === "done" && !uploadSucceeded && vpChromeVisible;
 
     return createPortal(
       <>
@@ -2089,10 +2146,10 @@ export default function GreetingReviewOverlay({
           </span>
           <textarea
             className="grv-prompter"
-            value={prompterScripts[currentItem.id] ?? ""}
+            value={prompterScripts[req.type] ?? ""}
             onChange={(e) => {
               const value = e.target.value;
-              setPrompterScripts((prev) => ({ ...prev, [currentItem.id]: value }));
+              setPrompterScripts((prev) => ({ ...prev, [req.type]: value }));
             }}
             placeholder={tServices("prompterPlaceholder")}
             spellCheck={false}
@@ -2108,7 +2165,7 @@ export default function GreetingReviewOverlay({
 
         {/* Flecha del prompter, fija arriba a la derecha en los dos estados. */}
         <div style={{
-          position: "absolute", zIndex: 5,
+          position: "absolute", zIndex: 7,
           top: "max(14px, env(safe-area-inset-top))", insetInlineEnd: 8,
           display: "flex", alignItems: "center", gap: 4,
         }}>
@@ -2138,7 +2195,7 @@ export default function GreetingReviewOverlay({
 
         {/* Cerrar, arriba a la izquierda. */}
         <div style={{
-          position: "absolute", zIndex: 7,
+          position: "absolute", zIndex: 8,
           top: "max(14px, env(safe-area-inset-top))", insetInlineStart: 8,
         }}>
           <IconButton
@@ -2160,17 +2217,27 @@ export default function GreetingReviewOverlay({
                cuánto mide la hoja. */}
         <div style={{
           position: "absolute", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0,
-          zIndex: 4,
+          zIndex: 6,
           display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
           paddingInline: 16, paddingTop: 72,
-          paddingBottom: "calc(18px + var(--vb-safe-bottom, 0px))",
+          // Cuando sale la línea de tiempo de la previsualización, el pie se
+          // levanta para dejarla libre, igual que en laptop.
+          paddingBottom: chromeRaised
+            ? "calc(18px + var(--vb-safe-bottom, 0px) + 52px)"
+            : "calc(18px + var(--vb-safe-bottom, 0px))",
           boxSizing: "border-box",
           background: "linear-gradient(to top, rgba(0,0,0,0.92) 42%, rgba(0,0,0,0))",
           opacity: stackHidden ? 0 : 1,
           visibility: stackHidden ? "hidden" : "visible",
           pointerEvents: stackHidden ? "none" : "auto",
-          transition: "opacity 220ms ease, visibility 320ms",
+          transition: [
+            "opacity 220ms ease",
+            "visibility 320ms",
+            "padding-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+          ].join(", "),
         }}>
+          {!sampleMode && (
+          <>
           {/* La hoja de datos. La rejilla de 0fr a 1fr es lo que permite animar
               hasta el alto REAL del contenido: con una altura fija se abría
               siempre el mismo hueco aunque dentro hubiera dos líneas. El tope
@@ -2196,6 +2263,8 @@ export default function GreetingReviewOverlay({
               </div>
             </div>
           </div>
+          </>
+          )}
           {recordPhase === "done" ? (
             <>
               <button
@@ -2218,6 +2287,7 @@ export default function GreetingReviewOverlay({
           ) : (
             <>
               {/* La flecha que sube y baja la hoja, justo encima del rojo. */}
+              {!sampleMode && (
               <button
                 type="button"
                 onClick={() => setMobileInfoOpen((prev) => !prev)}
@@ -2238,6 +2308,7 @@ export default function GreetingReviewOverlay({
                   <path d="M6 15L12 8L18 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
+              )}
 
               <button
                 type="button"
@@ -2257,36 +2328,58 @@ export default function GreetingReviewOverlay({
                 )}
               </button>
 
-              {/* Subir y rechazar se van mientras se graba. Siguen montados para
-                  poder despedirse con una transición en vez de esfumarse. */}
+              {/* Subir y rechazar se PLIEGAN al grabar, no solo se desvanecen.
+                  Con visibility seguían ocupando su hueco en la columna y el
+                  botón rojo se quedaba clavado arriba; con la rejilla de 0fr a
+                  1fr el hueco se cierra y el rojo baja solo. */}
               <div style={{
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                width: "100%",
+                display: "grid",
+                gridTemplateRows: recordPhase === "recording" ? "0fr" : "1fr",
                 opacity: recordPhase === "recording" ? 0 : 1,
-                visibility: recordPhase === "recording" ? "hidden" : "visible",
                 pointerEvents: recordPhase === "recording" ? "none" : "auto",
-                transform: recordPhase === "recording" ? "translateY(10px) scale(0.96)" : "translateY(0) scale(1)",
-                transition: "opacity 200ms ease, transform 300ms cubic-bezier(0.4, 0, 0.2, 1), visibility 300ms",
+                transition: "grid-template-rows 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease",
               }}>
+                <div style={{ minHeight: 0, overflow: "hidden" }}>
+                {/* Uno al lado del otro para que la torre no se coma la pantalla.
+                    Aquí el texto SÍ puede partirse en dos renglones: a mitad de
+                    ancho, "Subir video pregrabado" no cabe en una línea, y en
+                    alemán o finés menos todavía. El estirado deja los
+                    dos con el mismo alto aunque uno ocupe dos líneas. */}
+                <div style={{
+                  display: "flex", alignItems: "stretch", gap: 10,
+                  width: PAIR_W, paddingTop: 12,
+                }}>
                 <button
                   type="button"
                   onClick={() => { setUploadError(null); fileInputRef.current?.click(); }}
-                  style={{ ...videoActionButton, background: "#3b82f6", width: BTN_W }}
+                  style={{
+                    ...videoActionButton, background: "#3b82f6",
+                    flex: 1, minWidth: 0, whiteSpace: "normal",
+                    textAlign: "center", lineHeight: 1.25, padding: "10px 12px",
+                  }}
                 >
                   {tServices("uploadPrerecordedVideo")}
                 </button>
+                {!sampleMode && (
                 <button
                   type="button"
                   onClick={() => setConfirmRejectOpen(true)}
                   disabled={rejecting}
                   style={{
                     ...videoActionButton,
-                    background: "rgba(255,255,255,0.16)",
-                    width: BTN_W, filter: "none",
+                    background: "rgba(75,85,99,0.62)",
+                    flex: 1, minWidth: 0, whiteSpace: "normal",
+                    textAlign: "center", lineHeight: 1.25, padding: "10px 12px",
+                    filter: "none",
                     cursor: rejecting ? "not-allowed" : "pointer",
                   }}
                 >
                   {tCommon("reject")}
                 </button>
+                )}
+                </div>
+                </div>
               </div>
             </>
           )}
@@ -2588,8 +2681,8 @@ export default function GreetingReviewOverlay({
     // El pie apila rechazar, subir video y el botón rojo. Cada piso mide lo que
     // ocupa un botón de acción (40) más el aire entre ellos, contado desde 28.
     const FOOTER_REJECT_BOTTOM = 28;
-    const FOOTER_UPLOAD_BOTTOM = FOOTER_REJECT_BOTTOM + 40 + 10;
-    const FOOTER_RECORD_BOTTOM = FOOTER_UPLOAD_BOTTOM + 40 + 12;
+    // Ahora los dos van en la misma fila, así que el rojo solo sube un piso.
+    const FOOTER_RECORD_BOTTOM = FOOTER_REJECT_BOTTOM + 40 + 14;
 
     // Los controles del video traen un cazador de clics a `inset: 0`, así que
     // tal cual se tragan las pestañas laterales y no dejan plegar ni desplegar
@@ -2719,6 +2812,8 @@ export default function GreetingReviewOverlay({
             boxShadow: "0 24px 80px rgba(0,0,0,0.64)",
           }}
         >
+        {!sampleMode && (
+        <>
         {/* El VELO, en su propia capa y sin nada dentro. Es lo único que cambia
             de ancho al plegar; como no envuelve contenido, no reacomoda nada.
             Degradado de DOS paradas: con más, cada cambio de pendiente se ve
@@ -2732,13 +2827,15 @@ export default function GreetingReviewOverlay({
             bottom: 0,
             zIndex: 6,
             pointerEvents: "none",
-            width: infoOpen ? infoWidth : infoTab,
+            width: (infoOpen && !sampleMode) ? infoWidth : infoTab,
             transition: "width 300ms cubic-bezier(0.4, 0, 0.2, 1)",
             background: infoOpen
               ? "linear-gradient(to right, rgba(0,0,0,0.90), rgba(0,0,0,0))"
               : "linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0))",
           }}
         />
+        </>
+        )}
 
         {/* La INFORMACIÓN, superpuesta sobre el lado izquierdo de la grabación.
             Al plegar se DESPLAZA fuera del panel conservando su ancho, en vez de
@@ -2751,12 +2848,12 @@ export default function GreetingReviewOverlay({
           bottom: 0,
           zIndex: 7,
           width: infoWidth,
-          transform: infoOpen
+          transform: (infoOpen && !sampleMode)
             ? "none"
             : "translateX(calc(var(--vb-dir, 1) * -100%))",
-          opacity: infoOpen ? 1 : 0,
-          visibility: infoOpen ? "visible" : "hidden",
-          pointerEvents: infoOpen ? "auto" : "none",
+          opacity: (infoOpen && !sampleMode) ? 1 : 0,
+          visibility: (infoOpen && !sampleMode) ? "visible" : "hidden",
+          pointerEvents: (infoOpen && !sampleMode) ? "auto" : "none",
           transition:
             "transform 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms ease, visibility 300ms",
           minWidth: 0,
@@ -2904,6 +3001,7 @@ export default function GreetingReviewOverlay({
 
             La caja del botón mide 32, así que arranca en 31 para que el icono
             quede centrado con el aro del avatar. */}
+        {!sampleMode && (
         <div
           style={{
             position: "absolute",
@@ -2943,6 +3041,7 @@ export default function GreetingReviewOverlay({
             </svg>
           </IconButton>
         </div>
+        )}
 
         {/* ── PROMPTER ────────────────────────────────────────────────────────
             Espejo del panel de datos, en el borde opuesto y con las mismas tres
@@ -3005,10 +3104,10 @@ export default function GreetingReviewOverlay({
                   se lee en el mismo sitio, que es lo que pide un prompter. */}
               <textarea
                 className="grv-prompter"
-                value={prompterScripts[currentItem.id] ?? ""}
+                value={prompterScripts[req.type] ?? ""}
                 onChange={(e) => {
                   const value = e.target.value;
-                  setPrompterScripts((prev) => ({ ...prev, [currentItem.id]: value }));
+                  setPrompterScripts((prev) => ({ ...prev, [req.type]: value }));
                 }}
                 placeholder={tServices("prompterPlaceholder")}
                 spellCheck={false}
@@ -3208,12 +3307,9 @@ export default function GreetingReviewOverlay({
                   {(() => {
                     const hidden = recordPhase !== "preview";
                     return (
-                    <button
-                      type="button"
-                      onClick={() => { setUploadError(null); fileInputRef.current?.click(); }}
-                      tabIndex={hidden ? -1 : 0}
+                    <div
                       style={{
-                        position: "absolute", bottom: FOOTER_UPLOAD_BOTTOM, left: "50%",
+                        position: "absolute", bottom: FOOTER_REJECT_BOTTOM, left: "50%",
                         transform: hidden
                           ? "translateX(-50%) translateY(12px) scale(0.94)"
                           : "translateX(-50%) translateY(0) scale(1)",
@@ -3222,53 +3318,46 @@ export default function GreetingReviewOverlay({
                         pointerEvents: hidden ? "none" : "auto",
                         transition:
                           "opacity 200ms ease, transform 300ms cubic-bezier(0.4, 0, 0.2, 1), visibility 300ms",
-                        padding: "11px 18px", borderRadius: 10, border: "none",
-                        background: "#3b82f6", color: "#fff",
-                        fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em",
-                        fontFamily: fontStack, cursor: "pointer", whiteSpace: "nowrap",
-                        WebkitTapHighlightColor: "transparent",
+                        // Uno al lado del otro. La rejilla de dos columnas 1fr
+                        // en un contenedor de ancho automático las iguala al
+                        // contenido más ancho, así que los dos miden lo mismo
+                        // sin fijar píxeles.
+                        width: "fit-content",
+                        display: "grid",
+                        gridAutoFlow: "column",
+                        gridAutoColumns: "1fr",
+                        alignItems: "stretch", gap: 10,
                       }}
                     >
-                      {tServices("uploadPrerecordedVideo")}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => { setUploadError(null); fileInputRef.current?.click(); }}
+                        tabIndex={hidden ? -1 : 0}
+                        style={{ ...videoActionButton, background: "#3b82f6", filter: "none" }}
+                      >
+                        {tServices("uploadPrerecordedVideo")}
+                      </button>
+                      {/* En una muestra no hay nada que rechazar. */}
+                      {!sampleMode && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setConfirmRejectOpen(true); }}
+                        disabled={rejecting}
+                        tabIndex={hidden ? -1 : 0}
+                        style={{
+                          ...videoActionButton,
+                          background: "rgba(75,85,99,0.62)",
+                          filter: "none",
+                          cursor: rejecting ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {tCommon("reject")}
+                      </button>
+                      )}
+                    </div>
                     );
                   })()}
 
-                  {/* Rechazar. Salta el encargo, pero no es solo saltar: cancela
-                      de verdad la solicitud y con ella el cobro retenido al
-                      comprador. Por eso pide un segundo toque. */}
-                  {(() => {
-                    const hidden = recordPhase !== "preview";
-                    return (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setConfirmRejectOpen(true); }}
-                      disabled={rejecting}
-                      tabIndex={hidden ? -1 : 0}
-                      style={{
-                        ...videoActionButton,
-                        position: "absolute", bottom: FOOTER_REJECT_BOTTOM, left: "50%",
-                        transform: hidden
-                          ? "translateX(-50%) translateY(12px) scale(0.94)"
-                          : "translateX(-50%) translateY(0) scale(1)",
-                        opacity: hidden ? 0 : 1,
-                        visibility: hidden ? "hidden" : "visible",
-                        pointerEvents: hidden ? "none" : "auto",
-                        background: "rgba(255,255,255,0.16)",
-                        cursor: rejecting ? "not-allowed" : "pointer",
-                        filter: "none",
-                        transition: [
-                          "opacity 200ms ease",
-                          "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
-                          "visibility 300ms",
-                          "background 200ms ease",
-                        ].join(", "),
-                      }}
-                    >
-                      {tCommon("reject")}
-                    </button>
-                    );
-                  })()}
 
                   {/* Repetir y enviar, al pie del video igual que el de subir.
                       Suben para dejar libre la línea de tiempo cuando aparece,
@@ -3435,6 +3524,8 @@ export default function GreetingReviewOverlay({
           {/* Scrollable content + actions inline */}
           <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "0 18px", paddingBottom: "calc(20px + var(--vb-safe-bottom, 0px))" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14, ...slideStyle }}>
+              {earningRow}
+              {earningRow ? divider : null}
               {infoSection}
               {readOnly ? (
                 <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 14, marginTop: 6 }}>

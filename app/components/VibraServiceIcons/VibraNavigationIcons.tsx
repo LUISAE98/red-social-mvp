@@ -7,6 +7,7 @@ export type VibraNavigationIconType =
   | "home"
   | "search"
   | "saved"
+  | "experiences"
   | "wallet"
   | "notifications"
   | "finance"
@@ -238,6 +239,20 @@ premiumUnlocked: {
         <path
           stroke={gradientStroke}
           d="M6.5 4.5h11v15L12 16.2l-5.5 3.3v-15Z"
+        />
+      </svg>
+    ),
+  },
+
+  // La misma estrella que estaba junto a la campana del header. Se mudo al menu
+  // derecho, y aqui hereda el morado del resto de la navegacion.
+  experiences: {
+    label: "Mis experiencias",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          stroke={gradientStroke}
+          d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z"
         />
       </svg>
     ),

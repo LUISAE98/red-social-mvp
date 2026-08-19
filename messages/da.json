@@ -21,6 +21,7 @@
   "nav": {
     "home": "Hjem",
     "saved": "Gemte",
+    "myExperiences": "Mine oplevelser",
     "groups": "Mine communities",
     "notifications": "Notifikationer",
     "wallet": "Tegnebog",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Gruppeindstillinger",
     "profileCommunitiesTitle": "Communities på denne profil",
     "profileSeeCommunities": "Se deres fællesskaber",
+    "groupSeeMembers": "Se medlemmerne",
     "profileBackToPosts": "Tilbage til opslag",
     "profileServicesTitle": "Profilens oplevelser",
     "servicesLabel": "Oplevelser",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Du sendte alle for i dag!",
     "releasedAmount": "Du frigav {amount}!",
     "confirmRejectTitle": "Er du sikker på, at du vil afvise denne bestilling?",
-    "confirmRejectBody": "Købers betaling annulleres, og bestillingen forsvinder fra din liste. Det kan ikke fortrydes."
+    "confirmRejectBody": "Købers betaling annulleres, og bestillingen forsvinder fra din liste. Det kan ikke fortrydes.",
+    "sampleRequestTitle": "Skriv bestillingen som var du køberen",
+    "sampleRequestHint": "Brug ordene fra den, der ville bestille den, ikke dine egne. I stedet for «jeg hilser på Anna», skriv «jeg vil have en hilsen til Anna, hun fylder 30». Det er det du ser på skærmen mens du optager."
   },
   "live": {
     "accessTicket": "Adgangsbillet",

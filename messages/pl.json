@@ -21,6 +21,7 @@
   "nav": {
     "home": "Główna",
     "saved": "Zapisane",
+    "myExperiences": "Moje doświadczenia",
     "groups": "Moje społeczności",
     "notifications": "Powiadomienia",
     "wallet": "Portfel",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Ustawienia grupy",
     "profileCommunitiesTitle": "Społeczności w tym profilu",
     "profileSeeCommunities": "Zobacz jego społeczności",
+    "groupSeeMembers": "Zobacz członków",
     "profileBackToPosts": "Wróć do postów",
     "profileServicesTitle": "Doświadczenia profilu",
     "servicesLabel": "Doświadczenia",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Wysłałeś dziś wszystkie!",
     "releasedAmount": "Odblokowałeś {amount}!",
     "confirmRejectTitle": "Na pewno chcesz odrzucić to zlecenie?",
-    "confirmRejectBody": "Płatność kupującego zostanie anulowana, a zlecenie zniknie z twojej listy. Nie da się tego cofnąć."
+    "confirmRejectBody": "Płatność kupującego zostanie anulowana, a zlecenie zniknie z twojej listy. Nie da się tego cofnąć.",
+    "sampleRequestTitle": "Napisz zlecenie tak, jakbyś był kupującym",
+    "sampleRequestHint": "Użyj słów osoby, która by je zamówiła, nie swoich. Zamiast «pozdrowię Anię» napisz «chcę pozdrowienia dla Ani, kończy 30 lat». To zobaczysz na ekranie podczas nagrywania."
   },
   "live": {
     "accessTicket": "Bilet wstępu",

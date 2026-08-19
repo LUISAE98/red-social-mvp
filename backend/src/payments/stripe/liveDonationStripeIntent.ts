@@ -7,6 +7,7 @@
 // el creador recibe 75% de la base. Cada llamada = una donación nueva.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
@@ -177,7 +178,7 @@ export const createLiveDonationStripeIntent = onCall(
         color: DONATION_COLOR,
         displaySeconds: DONATION_DISPLAY_SECS,
         amount: base,
-        currency: "MXN",
+        currency: SETTLEMENT_CURRENCY,
         status: "paid",
         hidden: false,
         isDeleted: false,

@@ -45,6 +45,7 @@ type StripePaymentIntent = {
   id: string;
   status: string;
   amount: number;
+  capture_method?: string;
 };
 
 /** Estados en los que Stripe todavía permite cambiar el monto del intent. */
@@ -166,7 +167,11 @@ export const repriceStripeIntentForCard = onCall(
           amount: presentment.amountForStripe,
           currency: presentment.currency.toLowerCase(),
           // Liquida a la tasa congelada que se usó para calcular este importe.
-          ...(fxQuote ? { fx_quote: fxQuote.id } : {}),
+          // ⚠️ Salvo en una RETENCIÓN: Stripe no admite tasa fijada con captura manual.
+          // Aquí se comprueba a mano porque esta llamada ACTUALIZA un intent ya creado y no
+          // manda `capture_method`, así que el guardia central de `stripeFetch` no la ve.
+          // El dato sale del propio intent, que se acaba de leer arriba.
+          ...(fxQuote && piRes.data.capture_method !== "manual" ? { fx_quote: fxQuote.id } : {}),
         },
       });
       if (!updateRes.ok) {

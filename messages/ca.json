@@ -21,6 +21,7 @@
   "nav": {
     "home": "Inici",
     "saved": "Desats",
+    "myExperiences": "Les meves experiències",
     "groups": "Les meves comunitats",
     "notifications": "Notificacions",
     "wallet": "Cartera",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Configuració del grup",
     "profileCommunitiesTitle": "Comunitats d'aquest perfil",
     "profileSeeCommunities": "Veure les seves comunitats",
+    "groupSeeMembers": "Veure els seus membres",
     "profileBackToPosts": "Tornar a les publicacions",
     "profileServicesTitle": "Experiències del perfil",
     "servicesLabel": "Experiències",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Els has enviat tots per avui!",
     "releasedAmount": "Has alliberat {amount}!",
     "confirmRejectTitle": "Segur que vols rebutjar aquesta comanda?",
-    "confirmRejectBody": "Es cancel·larà el cobrament al comprador i la comanda desapareixerà de la teva llista. No es pot desfer."
+    "confirmRejectBody": "Es cancel·larà el cobrament al comprador i la comanda desapareixerà de la teva llista. No es pot desfer.",
+    "sampleRequestTitle": "Escriu la sol·licitud com si fossis el comprador",
+    "sampleRequestHint": "Fes servir les paraules de qui te la demanaria, no les teves. En comptes de «saludaré l'Anna», escriu «vull una salutació per a l'Anna, fa 30 anys». És el que veuràs a la pantalla mentre graves."
   },
   "live": {
     "accessTicket": "Entrada d'accés",

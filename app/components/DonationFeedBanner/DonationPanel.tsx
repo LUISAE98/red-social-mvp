@@ -18,7 +18,8 @@ type Props = {
   onContribute?: (amount: number) => void;
 };
 
-const DEFAULT_AMOUNTS = [50, 120, 250, 490];
+// 💵 USD desde el corte a Vibra On, LLC.
+const DEFAULT_AMOUNTS = [3, 7, 15, 30];
 const MIN_DONATION = 50; // no se puede donar menos de $50
 const CLOSE_THRESHOLD = 130;
 

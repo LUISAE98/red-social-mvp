@@ -15,6 +15,8 @@
 // e idempotencia por origen (los reembolsos ya hechos no se duplican en reintentos).
 
 import { logger } from "firebase-functions";
+import { SETTLEMENT_CURRENCY } from "./ledger";
+import { FIXED_SERVICE_FEE_USD } from "./ledger";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "../payments/stripe/stripeClient";
@@ -109,7 +111,8 @@ async function buildOrigins(uid: string): Promise<CashoutOrigin[]> {
       str(exp.rejectionReason) ||
       (str(exp.status) === "rejected" ? "Rechazada por el creador" : "Devolución solicitada");
     const chargedAmount =
-      num(pi.chargedAmount) || round2(num(pi.grossAmount || pi.baseAmount) + 3 + num(pi.taxAmount));
+      num(pi.chargedAmount) ||
+      round2(num(pi.grossAmount || pi.baseAmount) + FIXED_SERVICE_FEE_USD + num(pi.taxAmount));
 
     origins.push({
       sourceType: r.sourceType,
@@ -207,7 +210,7 @@ export const requestCashout = onCall(
         buyerName: str(buyer.displayName) || str(buyer.name) || str(buyer.username),
         buyerUsername: str(buyer.username),
         amount: reserved,
-        currency: "MXN",
+        currency: SETTLEMENT_CURRENCY,
         status: "pending",
         origins,
         refunds: [],

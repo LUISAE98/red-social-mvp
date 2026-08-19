@@ -21,6 +21,7 @@
   "nav": {
     "home": "홈",
     "saved": "저장됨",
+    "myExperiences": "내 경험",
     "groups": "내 커뮤니티",
     "notifications": "알림",
     "wallet": "지갑",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "그룹 설정",
     "profileCommunitiesTitle": "이 프로필의 커뮤니티",
     "profileSeeCommunities": "커뮤니티 보기",
+    "groupSeeMembers": "멤버 보기",
     "profileBackToPosts": "게시물로 돌아가기",
     "profileServicesTitle": "프로필 경험",
     "servicesLabel": "경험",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "오늘 것을 모두 보냈어요!",
     "releasedAmount": "{amount}을 확보했어요!",
     "confirmRejectTitle": "이 요청을 거절할까요?",
-    "confirmRejectBody": "구매자의 결제가 취소되고 요청이 목록에서 사라져요. 되돌릴 수 없어요."
+    "confirmRejectBody": "구매자의 결제가 취소되고 요청이 목록에서 사라져요. 되돌릴 수 없어요.",
+    "sampleRequestTitle": "구매자가 된 것처럼 요청을 적어요",
+    "sampleRequestHint": "당신의 말이 아니라 부탁하는 사람의 말로 적어 주세요. 「아나에게 인사할게요」가 아니라 「아나에게 보낼 인사가 필요해요, 서른이 돼요」처럼요. 녹화 중 화면에 표시돼요."
   },
   "live": {
     "accessTicket": "입장 티켓",

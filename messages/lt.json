@@ -21,6 +21,7 @@
   "nav": {
     "home": "Pradžia",
     "saved": "Išsaugota",
+    "myExperiences": "Mano potyriai",
     "groups": "Mano bendruomenės",
     "notifications": "Pranešimai",
     "wallet": "Piniginė",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Grupės nustatymai",
     "profileCommunitiesTitle": "Šio profilio bendruomenės",
     "profileSeeCommunities": "Peržiūrėti jo bendruomenes",
+    "groupSeeMembers": "Peržiūrėti narius",
     "profileBackToPosts": "Grįžti į įrašus",
     "profileServicesTitle": "Profilio potyriai",
     "servicesLabel": "Potyriai",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Šiandien išsiuntei visus!",
     "releasedAmount": "Atrakinai {amount}!",
     "confirmRejectTitle": "Ar tikrai nori atmesti šį užsakymą?",
-    "confirmRejectBody": "Pirkėjo mokėjimas bus atšauktas, o užsakymas dings iš tavo sąrašo. To nebus galima atšaukti."
+    "confirmRejectBody": "Pirkėjo mokėjimas bus atšauktas, o užsakymas dings iš tavo sąrašo. To nebus galima atšaukti.",
+    "sampleRequestTitle": "Parašyk užsakymą taip, tarsi būtum pirkėjas",
+    "sampleRequestHint": "Naudok to, kas tavęs prašytų, žodžius, ne savo. Vietoj «pasveikinsiu Aną» rašyk «noriu sveikinimo Anai, jai sukanka 30». Tai matysi ekrane filmuodamas."
   },
   "live": {
     "accessTicket": "Prieigos bilietas",

@@ -406,6 +406,65 @@ ahora reproduce el backend paso a paso, con `roundCharm` espejado en `lib/curren
 
 ⏳ Falta la **matriz de precios congelada**: hoy la conversión sigue siendo en vivo.
 
+### Auditoría del flujo de SALUDO y CONSEJO (2026-08-19)
+
+📄 **Para los documentos legales**, el flujo completo es:
+
+```
+1. El creador activa el servicio y fija su precio      (en USD)
+2. El comprador solicita                                createGreetingRequest
+   → NO se crea el saludo todavía: se crea un paymentIntent con los datos dentro
+3. Se AUTORIZA el cobro (auth-hold), no se cobra        createGreetingStripeIntent
+4. El creador acepta o rechaza                          respondGreetingRequest
+5. Graba y envía                                        createGreetingMuxUpload
+   → al materializarse el video se CAPTURA el cobro     (muxWebhooks)
+6. El comprador lo recibe
+```
+
+**Nadie paga por algo que no recibió.** El dinero se retiene al solicitar y solo se cobra
+cuando el saludo se entrega. Si el creador rechaza, la retención se cancela y **no hay
+comisión ni cargo**.
+
+Plazos automáticos:
+
+| | |
+|---|---|
+| **6 días** | Respaldo de captura del hold, antes de que la retención de la tarjeta expire (~7 días) |
+| **60 días** | Si el creador cobró y nunca entregó, se marca rechazada → el comprador puede pedir devolución |
+
+#### 🐛 Bug encontrado y corregido — el rechazo devolvía saldo que no correspondía
+
+Al rechazar, los tres flujos (saludo/consejo, sesión exclusiva, tiempo contigo) cancelaban
+la retención y **descartaban el resultado**, aunque `cancelPaymentIntentForRef` devuelve
+`{ canceled, alreadyCaptured }` justo para comprobarse.
+
+Si entre la lectura previa y la cancelación el cobro ya se había capturado —por el respaldo
+del día 6 o por el webhook de entrega, con `paymentStatus` aún diciendo "authorized"— el
+código igual:
+
+1. Devolvía el saldo a favor al comprador
+2. Le mostraba **"Devuelto a tu tarjeta"** por un dinero que nunca volvió
+
+Resultado: el comprador se quedaba con el crédito **y** con el cobro capturado, y con un
+mensaje falso. Ahora la devolución del saldo va condicionada a que la cancelación funcione;
+si el cobro ya estaba capturado, la vía correcta es la devolución (`refund_requested` →
+crédito), que es lo que los propios comentarios del código ya describían.
+
+#### 🐛 33 importes en pesos en el backend
+
+El barrido de la migración a USD se hizo sobre el frontend y **el backend quedó fuera**. Los
+documentos de dominio se guardaban con `currency: "MXN"` mientras el importe ya era USD:
+saludos, sesiones, tiempo contigo, donaciones, tickets de live, súper comentarios,
+suscripciones, invitaciones, cash-out y devoluciones.
+
+Corregidos todos. Se dejaron a propósito: la fila de México en la tabla fiscal (es la moneda
+del comprador mexicano), el catálogo de monedas, las guardas de tipo y **el CFDI, que se
+emite siempre en MXN**.
+
+⚠️ **Consecuencia para facturación (ticket aparte):** `generateBuyerInvoice` busca
+`settlementCurrency === "MXN"` para tomar el importe del CFDI. Con liquidación en USD esa
+condición ya nunca se cumple. Hay que convertir con el tipo de cambio del DOF.
+
 ### Pendientes
 
 | Punto | Qué |
@@ -417,6 +476,79 @@ ahora reproduce el backend paso a paso, con `roundCharm` espejado en `lib/curren
 | 6 | Fiscal: CFDI del creador, retenciones, tipo de cambio del DOF |
 
 ---
+
+### 2026-08-19 — Pasarela en moneda local y congelamiento de tasas
+
+**La pasarela mostraba dólares con etiqueta de pesos.** La tarjeta del servicio convertía
+bien ($815.99 MXN) pero la pasarela mostraba $46.99 con la etiqueta MXN: eran los dólares
+sin convertir. El valor por omisión del modal ya era USD, pero **las 14 pantallas que lo
+abren pasaban la moneda explícita y seguían diciendo `"MXN"`**, así que el modal no
+convertía y solo pegaba la etiqueta. Corregidas las 14 a `SETTLEMENT_CURRENCY`.
+
+De paso quedaron en USD el mínimo de donación ($3) y los montos sugeridos, que seguían
+siendo los de pesos (50/120/250/490 → 3/7/15/30).
+
+**El congelamiento diario de tasas nunca funcionó.** `getSpotRates` mandaba el lote de
+monedas como `"from_currencies[]"` con un arreglo; el serializador ya numera los arreglos,
+así que producía `from_currencies[][0]=...` y Stripe lo leía como OBJETO → 400 en todos los
+lotes. Resultado: `refreshFrozenRates` terminaba con «Stripe no devolvió ninguna tasa, se
+conserva la tabla» en CADA corrida, cada 15 minutos, desde que se desplegó la función.
+
+El cobro individual no se vio afectado porque ahí se manda UNA sola moneda (string), y con
+un string el formato `[]` sí es válido para Stripe. Por eso el fallo pasó desapercibido: los
+cobros funcionaban y solo el congelamiento estaba muerto, en silencio.
+
+⚠️ **Implicación para el contrato**: entre el despliegue de la función y el 2026-08-19 las
+conversiones NO usaron una tasa congelada del día — usaron la cotización al vuelo de Stripe
+como respaldo. El colchón documentado en §5 sigue siendo válido, pero la estabilidad diaria
+que describe ese apartado no estuvo vigente en ese periodo.
+
+Verificado en vivo: la corrida de las 22:23 UTC ya refresca monedas sin un solo 400.
+
+**Índices de Firestore faltantes.** `expireScheduledServiceNoShows` fallaba en cada corrida
+por falta de `(status, noShowRejectAt)` y `(status, scheduledAt)` en `meetGreetRequests` y
+`exclusiveSessionRequests`. Los cuatro índices desplegados. Mientras faltaron, **las
+sesiones y meet & greet a las que nadie se presentó no se expiraban solas**.
+
+### 2026-08-19 — El parámetro `fx_quote` tumbaba TODOS los cobros no-USD
+
+Al crear el PaymentIntent se manda `fx_quote` para fijar la tasa cotizada, pero ese
+parámetro **solo existe en la versión preview de la API** y la cabecera `Stripe-Version`
+únicamente se estaba mandando en la llamada a `/fx_quotes`. Stripe respondía 400
+`parameter_unknown: fx_quote` y el callable moría con 500.
+
+Alcance: los NUEVE caminos de cobro. Todo comprador que no pagara directamente en la moneda
+de liquidación no podía pagar nada. Un comprador en USD sí, porque ahí no hay cotización que
+fijar y no se manda el parámetro — por eso la prueba de la Fase 0 pasó.
+
+La cabecera ahora se fija en `stripeFetch`, en el único punto por el que pasan todas las
+llamadas, con solo detectar `fx_quote` en el cuerpo. Se centralizó a propósito: eran nueve
+sitios y bastaba olvidarlo en uno para dejar un servicio sin cobrar.
+
+### 2026-08-19 — ⚠️ La tasa fijada NO aplica a las retenciones
+
+Stripe: «FX Quotes can only be used with PaymentIntents with automatic captures».
+
+La cotización con tasa fijada es **incompatible con `capture_method: "manual"`**, que es el
+modelo de saludo, consejo, sesión exclusiva y tiempo contigo: se autoriza al solicitar y se
+cobra al entregar. **El modelo manda**, así que se deja de fijar la tasa en esos cobros. La
+alternativa habría sido cobrar por adelantado, y eso es justo lo que el producto no hace.
+
+**Qué NO cambia para el comprador.** Nada. El importe y la moneda del cargo se fijan igual
+al autorizar y es exactamente lo que ve. La diferencia es interna, entre Stripe y Vibra.
+
+**Qué cambia para Vibra.** En esos cuatro servicios la conversión a USD la hace Stripe a su
+tasa al liquidar, no a la tasa fijada. Entre autorizar y capturar pueden pasar hasta 6 días
+(`HOLD_CAPTURE_DAYS`), así que el riesgo de tipo de cambio de esa ventana lo absorbe el
+colchón del 2%. A cambio no se paga el 0.15% del congelamiento en esos cobros.
+
+Los cobros inmediatos (donación, ticket de live, súper comentario, post premium,
+suscripción) **sí** conservan la tasa fijada, porque son de captura automática.
+
+⚠️ **Pendiente de precisión para legales**: en los cobros con retención el `paymentIntent`
+sigue guardando `fxQuoteId` como evidencia, pero esa cotización YA NO se usó para liquidar.
+Hay que dejar de estamparla ahí o marcarla como no aplicada antes de citar ese campo en
+ningún documento.
 
 ## 9. Dependencias para operar en vivo
 

@@ -1127,7 +1127,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         <StripePaymentModal
           open={livePayOpen}
           amount={ticketPrice > 0 ? ticketPrice + FIXED_SERVICE_FEE_USD : null}
-          amountCurrency="MXN"
+          amountCurrency={SETTLEMENT_CURRENCY}
           createIntent={async (args) => {
             // Invitado (sin login): firma anónima antes de cobrar → el ticket
             // (liveAccess) se liga a ese uid y se verifica server-side; una cuenta
@@ -2215,9 +2215,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       payButtonLabel={tLive("makeDonation")}
       autoCloseMs={4000}
       amount={null}
-      amountCurrency="MXN"
+      amountCurrency={SETTLEMENT_CURRENCY}
       amountEditable
-      donationPresets={[50, 130, 250, 510]}
+      donationPresets={[3, 7, 15, 30]}
       donationCustomInclusive
       createIntent={async (args) => {
         liveDonatePaidAmountRef.current = args.amount ?? null;

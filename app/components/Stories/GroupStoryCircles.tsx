@@ -59,11 +59,15 @@ export default function GroupStoryCircles({
     scope: { kind: "group", groupId },
     enabled: isOwner,
   });
-
+  // `currentUserId` va en las dependencias a propósito: la suscripción se evalúa contra
+  // las reglas con la sesión que haya EN ESE INSTANTE. Si arranca antes de que Firebase
+  // restaure la sesión, la lectura se deniega y el `onSnapshot` queda MUERTO para siempre
+  // (un error de listener es terminal, no reintenta). Al resolverse la sesión cambia esta
+  // dependencia y se vuelve a suscribir.
   useEffect(() => {
     if (!groupId || !canView) return;
     return subscribeToGroupStories(groupId, setStories);
-  }, [groupId, canView]);
+  }, [groupId, canView, currentUserId]);
 
   useEffect(() => {
     if (!groupId) return;

@@ -21,6 +21,7 @@
   "nav": {
     "home": "Ana sayfa",
     "saved": "Kaydedilenler",
+    "myExperiences": "Deneyimlerim",
     "groups": "Topluluklarım",
     "notifications": "Bildirimler",
     "wallet": "Cüzdan",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Grup ayarları",
     "profileCommunitiesTitle": "Bu profildeki topluluklar",
     "profileSeeCommunities": "Topluluklarını gör",
+    "groupSeeMembers": "Üyelerini gör",
     "profileBackToPosts": "Gönderilere dön",
     "profileServicesTitle": "Profil deneyimleri",
     "servicesLabel": "Deneyimler",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Bugünlük hepsini gönderdin!",
     "releasedAmount": "{amount} kazandın!",
     "confirmRejectTitle": "Bu siparişi reddetmek istediğine emin misin?",
-    "confirmRejectBody": "Alıcının ödemesi iptal edilecek ve sipariş listenden kaybolacak. Geri alınamaz."
+    "confirmRejectBody": "Alıcının ödemesi iptal edilecek ve sipariş listenden kaybolacak. Geri alınamaz.",
+    "sampleRequestTitle": "İsteği alıcıymışsın gibi yaz",
+    "sampleRequestHint": "Kendi sözlerini değil, senden isteyecek kişinin sözlerini kullan. «Anaya selam vereceğim» yerine «Ana için bir selam istiyorum, 30 yaşına giriyor» yaz. Kayıt sırasında ekranda bunu göreceksin."
   },
   "live": {
     "accessTicket": "Giriş bileti",

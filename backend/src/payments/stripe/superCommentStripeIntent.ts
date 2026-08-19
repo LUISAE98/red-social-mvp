@@ -8,6 +8,7 @@
 // (base + $3) + IVA; el creador recibe 75% de la base. Cada llamada = un súper comentario.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
@@ -220,7 +221,7 @@ export const createSuperCommentStripeIntent = onCall(
         color: tier.color,
         displaySeconds: tier.displaySeconds,
         amount: base,
-        currency: "MXN",
+        currency: SETTLEMENT_CURRENCY,
         status: "paid",
         hidden: false,
         isDeleted: false,

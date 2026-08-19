@@ -21,6 +21,7 @@
   "nav": {
     "home": "首頁",
     "saved": "已收藏",
+    "myExperiences": "我的體驗",
     "groups": "我的社群",
     "notifications": "通知",
     "wallet": "錢包",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "群組設定",
     "profileCommunitiesTitle": "這個個人檔案的社群",
     "profileSeeCommunities": "查看他的社群",
+    "groupSeeMembers": "查看成員",
     "profileBackToPosts": "返回貼文",
     "profileServicesTitle": "個人檔案的體驗",
     "servicesLabel": "體驗",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "今天的都寄出去了!",
     "releasedAmount": "你解鎖了 {amount}!",
     "confirmRejectTitle": "確定要拒絕這筆委託嗎?",
-    "confirmRejectBody": "買家的付款會被取消,委託也會從你的清單中消失,而且無法復原。"
+    "confirmRejectBody": "買家的付款會被取消,委託也會從你的清單中消失,而且無法復原。",
+    "sampleRequestTitle": "用買家的身分寫下委託",
+    "sampleRequestHint": "用委託人的說法,不要用你自己的。不要寫「我要跟安娜打招呼」,要寫「我想要一段給安娜的問候,她要滿三十歲了」。錄影時畫面上看到的就是這些。"
   },
   "live": {
     "accessTicket": "觀看門票",

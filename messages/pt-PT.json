@@ -21,6 +21,7 @@
   "nav": {
     "home": "Início",
     "saved": "Guardados",
+    "myExperiences": "As minhas experiências",
     "groups": "As minhas comunidades",
     "notifications": "Notificações",
     "wallet": "Carteira",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Definições do grupo",
     "profileCommunitiesTitle": "Comunidades deste perfil",
     "profileSeeCommunities": "Ver as comunidades dele",
+    "groupSeeMembers": "Ver os membros",
     "profileBackToPosts": "Voltar às publicações",
     "profileServicesTitle": "Experiências do perfil",
     "servicesLabel": "Experiências",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Enviaste todos por hoje!",
     "releasedAmount": "Libertaste {amount}!",
     "confirmRejectTitle": "Tens a certeza de que queres recusar esta encomenda?",
-    "confirmRejectBody": "A cobrança ao comprador será cancelada e a encomenda sairá da tua lista. Não é possível desfazer."
+    "confirmRejectBody": "A cobrança ao comprador será cancelada e a encomenda sairá da tua lista. Não é possível desfazer.",
+    "sampleRequestTitle": "Escreve o pedido como se fosses o comprador",
+    "sampleRequestHint": "Usa as palavras de quem to faria, não as tuas. Em vez de «vou cumprimentar a Ana», escreve «quero uma saudação para a Ana, faz 30 anos». É o que vais ver no ecrã enquanto gravas."
   },
   "live": {
     "accessTicket": "Bilhete de acesso",

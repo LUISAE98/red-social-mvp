@@ -22,7 +22,7 @@ type WalletRailTab =
   | "calendar"
   | "pending"
   | "history";
-type MainRailTab = "home" | "saved";
+type MainRailTab = "home" | "saved" | "experiences";
 
 function resolveWalletRailTab(pathname: string): WalletRailTab | null {
   if (pathname.startsWith("/wallet/finanzas")) return "finances";
@@ -36,6 +36,7 @@ function resolveWalletRailTab(pathname: string): WalletRailTab | null {
 function resolveMainRailTab(pathname: string): MainRailTab | null {
   if (pathname === "/" || pathname.startsWith("/home")) return "home";
   if (pathname.startsWith("/saved")) return "saved";
+  if (pathname.startsWith("/experiencias")) return "experiences";
   return null;
 }
 
@@ -106,9 +107,19 @@ function usePersistentSidebarScroll(key: string, restoreSignal?: unknown) {
 export default function WalletDesktopRail({
   activePath,
   showWallet,
+  showExperiences = false,
+  experiencesBadgeCount = 0,
 }: {
   activePath: string;
   showWallet: boolean;
+  /**
+   * "Mis experiencias" solo existe para quien ya compro alguna. Lo decide el
+   * layout, que ya carga ese dato para la estrella del nav movil: pasarlo por
+   * prop evita una segunda suscripcion a Firestore para lo mismo.
+   */
+  showExperiences?: boolean;
+  /** Cuantas experiencias tienen novedad sin ver. 0 = sin globo. */
+  experiencesBadgeCount?: number;
 }) {
   const t = useTranslations("nav");
   const { user } = useAuth();
@@ -137,6 +148,9 @@ export default function WalletDesktopRail({
   }> = [
     { key: "home", href: "/", icon: "home" },
     { key: "saved", href: "/saved", icon: "saved" },
+    ...(showExperiences
+      ? [{ key: "experiences" as const, href: "/experiencias", icon: "experiences" as const }]
+      : []),
   ];
 
   const [walletOpen, setWalletOpen] = useState(true);
@@ -661,11 +675,46 @@ export default function WalletDesktopRail({
                     key={item.key}
                     href={item.href}
                     className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
+                    // Flex para que el globo de novedades se vaya al final con su
+                    // margin auto. Va inline y no en el <style jsx>: el className de
+                    // este enlace es un template literal, asi que styled-jsx no le
+                    // pone su hash y una regla .walletLink no le llegaria — por eso
+                    // las de walletLinkActive estan escritas con :global().
+                    style={{ display: "flex", alignItems: "center", minWidth: 0 }}
                   >
                     <span className="walletIcon" aria-hidden="true">
                       <VibraNavigationIcon type={item.icon} size={21} />
                     </span>
-                    <span className="walletLabel">{t(item.key)}</span>
+                    <span className="walletLabel">
+                      {item.key === "experiences" ? t("myExperiences") : t(item.key)}
+                    </span>
+
+                    {/* Globo de novedades al final del renglon. Mismo estilo que el
+                        del OwnerSidebar para publicaciones nuevas: circulo morado
+                        con el numero dentro, no un punto suelto. */}
+                    {item.key === "experiences" && experiencesBadgeCount > 0 ? (
+                      <span
+                        style={{
+                          flexShrink: 0,
+                          marginInlineStart: "auto",
+                          minWidth: 18,
+                          height: 18,
+                          padding: "0 5px",
+                          borderRadius: 999,
+                          background: "#a855f7",
+                          color: "#fff",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          lineHeight: 1,
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        {experiencesBadgeCount > 99 ? "99+" : experiencesBadgeCount}
+                      </span>
+                    ) : null}
                   </Link>
                 );
               })}

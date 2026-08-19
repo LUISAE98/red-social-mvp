@@ -21,6 +21,7 @@
   "nav": {
     "home": "Sākums",
     "saved": "Saglabātie",
+    "myExperiences": "Manas pieredzes",
     "groups": "Manas kopienas",
     "notifications": "Paziņojumi",
     "wallet": "Maks",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Grupas iestatījumi",
     "profileCommunitiesTitle": "Šī profila kopienas",
     "profileSeeCommunities": "Skatīt viņa kopienas",
+    "groupSeeMembers": "Skatīt dalībniekus",
     "profileBackToPosts": "Atpakaļ uz ierakstiem",
     "profileServicesTitle": "Profila pieredzes",
     "servicesLabel": "Pieredzes",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Šodien nosūtīji visus!",
     "releasedAmount": "Atbrīvoji {amount}!",
     "confirmRejectTitle": "Vai tiešām vēlies noraidīt šo pasūtījumu?",
-    "confirmRejectBody": "Pircēja maksājums tiks atcelts un pasūtījums pazudīs no tava saraksta. To nevar atsaukt."
+    "confirmRejectBody": "Pircēja maksājums tiks atcelts un pasūtījums pazudīs no tava saraksta. To nevar atsaukt.",
+    "sampleRequestTitle": "Uzraksti pieprasījumu tā, it kā būtu pircējs",
+    "sampleRequestHint": "Lieto tā vārdus, kas to lūgtu, nevis savus. «Sveikšu Annu» vietā raksti «gribu sveicienu Annai, viņai paliek 30». To redzēsi ekrānā, kamēr ieraksti."
   },
   "live": {
     "accessTicket": "Piekļuves biļete",

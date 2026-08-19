@@ -21,6 +21,7 @@
   "nav": {
     "home": "Home",
     "saved": "Salvati",
+    "myExperiences": "Le mie esperienze",
     "groups": "Le mie community",
     "notifications": "Notifiche",
     "wallet": "Portafoglio",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Impostazioni del gruppo",
     "profileCommunitiesTitle": "Community di questo profilo",
     "profileSeeCommunities": "Vedi le sue community",
+    "groupSeeMembers": "Vedi i suoi membri",
     "profileBackToPosts": "Torna ai post",
     "profileServicesTitle": "Esperienze del profilo",
     "servicesLabel": "Esperienze",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Li hai inviati tutti per oggi!",
     "releasedAmount": "Hai sbloccato {amount}!",
     "confirmRejectTitle": "Vuoi davvero rifiutare questa richiesta?",
-    "confirmRejectBody": "Il pagamento dell'acquirente verrà annullato e la richiesta sparirà dalla tua lista. Non si può annullare."
+    "confirmRejectBody": "Il pagamento dell'acquirente verrà annullato e la richiesta sparirà dalla tua lista. Non si può annullare.",
+    "sampleRequestTitle": "Scrivi la richiesta come se fossi l'acquirente",
+    "sampleRequestHint": "Usa le parole di chi te la farebbe, non le tue. Invece di «saluterò Ana», scrivi «voglio un saluto per Ana, compie 30 anni». È quello che vedrai sullo schermo mentre registri."
   },
   "live": {
     "accessTicket": "Biglietto d'accesso",

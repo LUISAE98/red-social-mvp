@@ -21,6 +21,7 @@
   "nav": {
     "home": "Home",
     "saved": "Opgeslagen",
+    "myExperiences": "Mijn ervaringen",
     "groups": "Mijn community's",
     "notifications": "Meldingen",
     "wallet": "Portemonnee",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Groepsinstellingen",
     "profileCommunitiesTitle": "Community's op dit profiel",
     "profileSeeCommunities": "Bekijk hun communities",
+    "groupSeeMembers": "Bekijk de leden",
     "profileBackToPosts": "Terug naar berichten",
     "profileServicesTitle": "Profielervaringen",
     "servicesLabel": "Ervaringen",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Je hebt ze vandaag allemaal verstuurd!",
     "releasedAmount": "Je hebt {amount} vrijgespeeld!",
     "confirmRejectTitle": "Weet je zeker dat je deze opdracht wilt weigeren?",
-    "confirmRejectBody": "De betaling van de koper wordt geannuleerd en de opdracht verdwijnt uit je lijst. Dit kan niet ongedaan worden gemaakt."
+    "confirmRejectBody": "De betaling van de koper wordt geannuleerd en de opdracht verdwijnt uit je lijst. Dit kan niet ongedaan worden gemaakt.",
+    "sampleRequestTitle": "Schrijf het verzoek alsof jij de koper bent",
+    "sampleRequestHint": "Gebruik de woorden van degene die het zou vragen, niet die van jou. In plaats van «ik ga Ana groeten», schrijf «ik wil een groet voor Ana, ze wordt 30». Dit zie je op het scherm tijdens de opname."
   },
   "live": {
     "accessTicket": "Toegangsticket",

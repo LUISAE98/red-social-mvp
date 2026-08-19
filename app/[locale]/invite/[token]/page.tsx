@@ -627,7 +627,7 @@ const { user } = useAuth();
       <StripePaymentModal
         open={payOpen}
         amount={group.subscriptionPrice != null ? group.subscriptionPrice + FIXED_SERVICE_FEE_USD : null}
-        amountCurrency="MXN"
+        amountCurrency={SETTLEMENT_CURRENCY}
         pricePeriodLabel="mes"
         allowCredit={false}
         createIntent={(args) => createGroupSubscription({

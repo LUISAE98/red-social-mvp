@@ -21,6 +21,7 @@
   "nav": {
     "home": "Ana səhifə",
     "saved": "Yadda saxlanılanlar",
+    "myExperiences": "Təcrübələrim",
     "groups": "İcmalarım",
     "notifications": "Bildirişlər",
     "wallet": "Cüzdan",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Qrup parametrləri",
     "profileCommunitiesTitle": "Bu profildəki icmalar",
     "profileSeeCommunities": "İcmalarına bax",
+    "groupSeeMembers": "Üzvlərinə bax",
     "profileBackToPosts": "Paylaşımlara qayıt",
     "profileServicesTitle": "Profil təcrübələri",
     "servicesLabel": "Təcrübələr",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Bu gün hamısını göndərdin!",
     "releasedAmount": "{amount} qazandın!",
     "confirmRejectTitle": "Bu sifarişi rədd etmək istəyirsən?",
-    "confirmRejectBody": "Alıcının ödənişi ləğv olunacaq və sifariş siyahından silinəcək. Geri qaytarmaq olmaz."
+    "confirmRejectBody": "Alıcının ödənişi ləğv olunacaq və sifariş siyahından silinəcək. Geri qaytarmaq olmaz.",
+    "sampleRequestTitle": "Sifarişi alıcı kimi yaz",
+    "sampleRequestHint": "Səndən istəyəcək şəxsin sözlərini işlət, öz sözlərini yox. «Anaya salam deyəcəyəm» əvəzinə «Ana üçün salam istəyirəm, 30 yaşı olur» yaz. Çəkiliş zamanı ekranda bunu görəcəksən."
   },
   "live": {
     "accessTicket": "Giriş bileti",

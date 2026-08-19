@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY, DONATION_MIN_AMOUNT_USD } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -515,11 +516,11 @@ export default function DonationFeedBanner({
         open={payOpen}
         amount={null}
         amountEditable
-        amountCurrency="MXN"
+        amountCurrency={SETTLEMENT_CURRENCY}
         payButtonLabel={tLive("makeDonation")}
         donationPresets={suggestedAmounts ?? undefined}
         donationCustomInclusive
-        minBaseAmount={50}
+        minBaseAmount={DONATION_MIN_AMOUNT_USD}
         collectNickname={!buyerId}
         createIntent={async (args) => {
           paidAmountRef.current = args.amount ?? null;

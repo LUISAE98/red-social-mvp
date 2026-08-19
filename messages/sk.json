@@ -21,6 +21,7 @@
   "nav": {
     "home": "Domov",
     "saved": "Uložené",
+    "myExperiences": "Moje zážitky",
     "groups": "Moje komunity",
     "notifications": "Upozornenia",
     "wallet": "Peňaženka",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Nastavenia skupiny",
     "profileCommunitiesTitle": "Komunity tohto profilu",
     "profileSeeCommunities": "Zobraziť jeho komunity",
+    "groupSeeMembers": "Zobraziť členov",
     "profileBackToPosts": "Späť na príspevky",
     "profileServicesTitle": "Zážitky profilu",
     "servicesLabel": "Zážitky",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Dnes si odoslal všetky!",
     "releasedAmount": "Uvoľnil si {amount}!",
     "confirmRejectTitle": "Naozaj chceš odmietnuť túto objednávku?",
-    "confirmRejectBody": "Platba kupujúceho sa zruší a objednávka zmizne z tvojho zoznamu. Nedá sa to vrátiť."
+    "confirmRejectBody": "Platba kupujúceho sa zruší a objednávka zmizne z tvojho zoznamu. Nedá sa to vrátiť.",
+    "sampleRequestTitle": "Napíš objednávku, akoby si bol kupujúci",
+    "sampleRequestHint": "Použi slová toho, kto by ti ju zadal, nie svoje. Namiesto «pozdravím Anu» napíš «chcem pozdrav pre Anu, má 30». Uvidíš to na obrazovke pri nakrúcaní."
   },
   "live": {
     "accessTicket": "Vstupenka",

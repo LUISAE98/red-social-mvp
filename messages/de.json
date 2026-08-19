@@ -21,6 +21,7 @@
   "nav": {
     "home": "Startseite",
     "saved": "Gespeichert",
+    "myExperiences": "Meine Erlebnisse",
     "groups": "Meine Communitys",
     "notifications": "Benachrichtigungen",
     "wallet": "Geldbörse",
@@ -435,6 +436,7 @@
     "groupSettingsTab": "Gruppeneinstellungen",
     "profileCommunitiesTitle": "Communitys in diesem Profil",
     "profileSeeCommunities": "Communitys ansehen",
+    "groupSeeMembers": "Mitglieder ansehen",
     "profileBackToPosts": "Zurück zu den Beiträgen",
     "profileServicesTitle": "Profil-Erlebnisse",
     "servicesLabel": "Erlebnisse",
@@ -2024,7 +2026,9 @@
     "sentAllToday": "Du hast heute alle verschickt!",
     "releasedAmount": "Du hast {amount} freigeschaltet!",
     "confirmRejectTitle": "Willst du diese Bestellung wirklich ablehnen?",
-    "confirmRejectBody": "Die Zahlung des Käufers wird storniert und die Bestellung verschwindet aus deiner Liste. Das lässt sich nicht rückgängig machen."
+    "confirmRejectBody": "Die Zahlung des Käufers wird storniert und die Bestellung verschwindet aus deiner Liste. Das lässt sich nicht rückgängig machen.",
+    "sampleRequestTitle": "Schreib die Anfrage, als wärst du der Käufer",
+    "sampleRequestHint": "Nimm die Worte der Person, die sie stellen würde, nicht deine. Statt «ich grüße Anna» schreib «ich möchte einen Gruß für Anna, sie wird 30». Genau das siehst du beim Aufnehmen auf dem Bildschirm."
   },
   "live": {
     "accessTicket": "Zugangsticket",

@@ -10,6 +10,7 @@
 // son SIEMPRE los de la metadata server-authoritative, NUNCA del cliente.
 
 import { logger } from "firebase-functions";
+import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 import * as admin from "firebase-admin";
 import { stripeFetch } from "./stripeClient";
 import { recordEarning } from "../../wallet/ledger";
@@ -81,7 +82,7 @@ function metaFromMap(m: Record<string, string> | undefined | null): SubMeta | nu
     taxRate: numOr0(m.taxRate),
     taxMonthly: numOr0(m.taxMonthly),
     chargedMonthly: numOr0(m.chargedMonthly),
-    currency: strOr(m.currency) || "MXN",
+    currency: strOr(m.currency) || SETTLEMENT_CURRENCY,
     groupName: strOr(m.groupName),
     inviteToken: strOr(m.inviteToken) || null,
   };

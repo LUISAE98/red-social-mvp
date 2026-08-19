@@ -4457,7 +4457,7 @@ padding: "0 0 2px 0",
 <StripePaymentModal
   open={paymentPanelOpen}
   amount={(post.premium?.price ?? post.oneTimePrice) != null ? Number(post.premium?.price ?? post.oneTimePrice) + FIXED_SERVICE_FEE_USD : null}
-  amountCurrency="MXN"
+  amountCurrency={SETTLEMENT_CURRENCY}
   createIntent={async (args) => {
     // Invitado (sin login): firma anónima antes de cobrar → el acceso (postAccess) se
     // liga a ese uid y se verifica server-side; una cuenta real (otro uid) no lo hereda.
@@ -4483,7 +4483,7 @@ padding: "0 0 2px 0",
 <StripePaymentModal
   open={livePayOpen}
   amount={(post.oneTimePrice ?? activeLiveData?.ticketPrice) != null ? Number(post.oneTimePrice ?? activeLiveData?.ticketPrice) + FIXED_SERVICE_FEE_USD : null}
-  amountCurrency="MXN"
+  amountCurrency={SETTLEMENT_CURRENCY}
   createIntent={async (args) => {
     // Invitado (sin login): firma anónima antes de cobrar → el ticket (liveAccess) se
     // liga a ese uid y se verifica server-side; una cuenta real (otro uid) no lo hereda.
