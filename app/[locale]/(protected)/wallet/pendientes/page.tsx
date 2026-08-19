@@ -173,7 +173,7 @@ export default function WalletPendientesPage() {
 
   const viewItemEarning = useMemo(() => {
     if (!viewItem?.priceSnapshot || viewItem.priceSnapshot <= 0) return null;
-    return formatMoney(viewItem.priceSnapshot * WALLET_NET_RATE, { baseCurrency: viewItem.currency ?? "MXN" });
+    return formatMoney(viewItem.priceSnapshot * WALLET_NET_RATE, { baseCurrency: viewItem.currency ?? SETTLEMENT_CURRENCY });
   }, [viewItem, formatMoney]);
 
   function closeViewItem() {

@@ -2015,7 +2015,12 @@
     "configAllSaved": "Tilaus, katalogi ja lahjoitus tallennettu.",
     "prompterTitle": "Teleprompteri",
     "prompterPlaceholder": "Kirjoita tähän, mitä haluat sanoa",
-    "uploadPrerecordedVideo": "Lataa valmiiksi kuvattu video"
+    "uploadPrerecordedVideo": "Lataa valmiiksi kuvattu video",
+    "reviewNext": "Tarkista seuraava",
+    "shareGreeting": "Jaa tervehdys",
+    "shareAdvice": "Jaa neuvo",
+    "sentAllToday": "Lähetit kaikki tältä päivältä!",
+    "releasedAmount": "Vapautit {amount}!"
   },
   "live": {
     "accessTicket": "Pääsylippu",

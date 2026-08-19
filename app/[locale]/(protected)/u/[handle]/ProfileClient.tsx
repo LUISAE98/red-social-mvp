@@ -98,7 +98,7 @@ import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
-import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import {
   type FirestoreDateLike,
   type CropMode,
@@ -856,13 +856,13 @@ const ui = {
 }
 
 const formatMoney = (value: number, currency?: string) =>
-  priceFmt.format(value, { baseCurrency: (currency ?? "MXN") as DisplayCurrency, code: true });
+  priceFmt.format(value, { baseCurrency: (currency ?? SETTLEMENT_CURRENCY) as DisplayCurrency, code: true });
 
 // Igual que formatMoney pero con IVA INCLUIDO (total según país del comprador). Para
 // los labels de los botones "Continuar al pago" de los paneles de solicitud, que deben
 // mostrar el total todo-incluido (la pasarela sigue recibiendo el monto base aparte).
 const formatMoneyWithTax = (value: number, currency?: string) =>
-  priceFmt.formatWithTax(value, { baseCurrency: (currency ?? "MXN") as DisplayCurrency, code: true }).total;
+  priceFmt.formatWithTax(value, { baseCurrency: (currency ?? SETTLEMENT_CURRENCY) as DisplayCurrency, code: true }).total;
 
 function getProfileService(type: CreatorServiceType) {
   return getServiceByType(userDoc?.offerings ?? null, type, "profile");
@@ -871,7 +871,7 @@ function getProfileService(type: CreatorServiceType) {
 function getServicePriceLabel(type: CreatorServiceType) {
   const service = getProfileService(type);
   const price = service?.publicPrice ?? service?.memberPrice ?? null;
-  const currency = service?.currency ?? "MXN";
+  const currency = service?.currency ?? SETTLEMENT_CURRENCY;
 
   if (typeof price !== "number") return tServices("priceToConfirm");
   // Total todo-incluido (base del creador + cargo fijo $3 + IVA): es lo que el botón
@@ -1633,7 +1633,7 @@ const res = await createGreetingRequest({
     const svc = getProfileService(greetType);
     const amount =
       res.priceSnapshot ?? svc?.publicPrice ?? svc?.memberPrice ?? null;
-    const currency = svc?.currency ?? "MXN";
+    const currency = svc?.currency ?? SETTLEMENT_CURRENCY;
 
     setGreetOpen(false);
     setToName("");
@@ -1672,7 +1672,7 @@ const res = (await createMeetGreetRequest({
 
     // Solicitud en awaiting_payment → abrir el segundo modal (Brick) para cobrar.
     const amount = res.priceSnapshot ?? service?.publicPrice ?? service?.memberPrice ?? null;
-    const currency = service?.currency ?? "MXN";
+    const currency = service?.currency ?? SETTLEMENT_CURRENCY;
 
     setMeetGreetOpen(false);
     setMeetGreetMessage("");
@@ -1713,7 +1713,7 @@ const res = (await createExclusiveSessionRequest({
 
     // Sesión en awaiting_payment → abrir el segundo modal (Brick) para cobrar.
     const amount = res.priceSnapshot ?? service?.publicPrice ?? service?.memberPrice ?? null;
-    const currency = service?.currency ?? "MXN";
+    const currency = service?.currency ?? SETTLEMENT_CURRENCY;
 
     setExclusiveSessionOpen(false);
     setExclusiveSessionMessage("");
@@ -2941,7 +2941,7 @@ const res = (await createExclusiveSessionRequest({
   greetPriceLabel={(() => {
     const s = getProfileService(greetType);
     const price = s?.publicPrice ?? s?.memberPrice ?? null;
-    const currency = s?.currency ?? "MXN";
+    const currency = s?.currency ?? SETTLEMENT_CURRENCY;
     // Total todo-incluido (base + cargo fijo $3 + IVA) para el botón "Continuar al pago".
     return typeof price === "number" ? formatMoneyWithTax(price + FIXED_SERVICE_FEE_USD, currency) : undefined;
   })()}

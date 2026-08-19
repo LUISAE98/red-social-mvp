@@ -24,6 +24,7 @@ import {
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { auth, db, functions } from "@/lib/firebase";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
 import { updatePostServer } from "./updatePostServer";
 import {
@@ -652,7 +653,7 @@ export async function updateLivePost(params: {
     requiresPayment: isPaidLive,
     accessModel: isPaidLive ? "paid" : "free",
     oneTimePrice: isPaidLive ? (params.ticketPrice ?? null) : null,
-    currency: isPaidLive ? (params.currency ?? "MXN") : null,
+    currency: isPaidLive ? (params.currency ?? SETTLEMENT_CURRENCY) : null,
     purchaseType: isPaidLive ? "one_time" : null,
     "liveData.title": cleanTitle,
     "liveData.description": params.description?.trim() || null,
@@ -663,7 +664,7 @@ export async function updateLivePost(params: {
     "liveData.allowLoggedOutViewers": effectiveMode === "everyone" && !isHiddenGroupLive,
     "liveData.accessType": effectiveAccessType,
     "liveData.ticketPrice": isPaidLive ? (params.ticketPrice ?? null) : null,
-    "liveData.currency": isPaidLive ? (params.currency ?? "MXN") : null,
+    "liveData.currency": isPaidLive ? (params.currency ?? SETTLEMENT_CURRENCY) : null,
     "liveData.paidAccessMode": isPaidLive ? (params.paidAccessMode ?? "everyone_pays") : null,
     "liveData.broadcastGroupIds": params.broadcastGroupIds?.length
       ? params.broadcastGroupIds.filter((id) => typeof id === "string" && id.trim().length > 0)

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
@@ -183,6 +184,20 @@ function SessionCard({ session }: { session: BuyerSession }) {
   const { toast, showToast } = useVibraToast();
   useEffect(() => { if (joinError) showToast(joinError, "error"); }, [joinError]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (downloadError) showToast(downloadError, "error"); }, [downloadError]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* Al desplegar la tarjeta se avisa por qué terminó así. Va atado a `open`
+     para que no salten tantos avisos como sesiones tenga la lista. */
+  useEffect(() => {
+    if (!open) return;
+    if (session.rejectionReason) {
+      showToast(`${tSessions("rejectionReason")} ${session.rejectionReason}`, "error");
+      return;
+    }
+    if (session.refundReason) {
+      showToast(`${tSessions("refundReason")} ${session.refundReason}`, "warning");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, session.rejectionReason, session.refundReason]);
 
   const joinable = canJoin(session);
   const isCompleted = session.status === "completed";
@@ -370,7 +385,7 @@ function SessionCard({ session }: { session: BuyerSession }) {
             <div style={detailRow}>
               <span style={detailLabel}>{tSessions("priceLabel")}</span>
               <span style={detailValue}>
-                {formatMoney(session.priceSnapshot, { baseCurrency: session.currency ?? "MXN" })}
+                {formatMoney(session.priceSnapshot, { baseCurrency: session.currency ?? SETTLEMENT_CURRENCY })}
               </span>
             </div>
           ) : null}
@@ -385,13 +400,7 @@ function SessionCard({ session }: { session: BuyerSession }) {
             </div>
           ) : null}
 
-          {session.rejectionReason ? (
-            <div style={errorBox}>{tSessions("rejectionReason")} {session.rejectionReason}</div>
-          ) : null}
 
-          {session.refundReason ? (
-            <div style={warningBox}>{tSessions("refundReason")} {session.refundReason}</div>
-          ) : null}
         </div>
       ) : null}
 
@@ -805,26 +814,6 @@ const infoBox: CSSProperties = {
   lineHeight: 1.45,
   color: "rgba(255,255,255,0.90)",
   whiteSpace: "pre-wrap",
-};
-
-const errorBox: CSSProperties = {
-  borderRadius: 10,
-  border: "1px solid rgba(252,165,165,0.18)",
-  background: "rgba(252,165,165,0.07)",
-  padding: "9px 10px",
-  fontSize: 12,
-  lineHeight: 1.45,
-  color: "#fca5a5",
-};
-
-const warningBox: CSSProperties = {
-  borderRadius: 10,
-  border: "1px solid rgba(253,230,138,0.18)",
-  background: "rgba(253,230,138,0.07)",
-  padding: "9px 10px",
-  fontSize: 12,
-  lineHeight: 1.45,
-  color: "#fde68a",
 };
 
 const emptyMsg: CSSProperties = {

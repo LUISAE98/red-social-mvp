@@ -109,7 +109,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
             maxChars: maxCharsMap[t.id] ?? t.maxChars,
             price:
               t.price > 0
-                ? Math.round(toDisplayForInput(t.price, cfg.currency ?? "MXN") * 100) / 100
+                ? Math.round(toDisplayForInput(t.price, cfg.currency ?? SETTLEMENT_CURRENCY) * 100) / 100
                 : t.price,
           })),
         });
@@ -145,7 +145,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
       // a USD). Es la base — el fan paga base + $3 + IVA y el creador recibe 75% de la base.
       const configToSave: SuperCommentConfig = {
         ...scConfig,
-        currency: "MXN",
+        currency: SETTLEMENT_CURRENCY,
         tiers: scConfig.tiers.map((t) => ({ ...t, price: t.price })),
       };
       await saveSuperCommentConfig(uid, configToSave);

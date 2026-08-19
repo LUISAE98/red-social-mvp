@@ -6,6 +6,7 @@
 // del servicio, por eso viven aparte de forma autocontenida.
 
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
 import type { PostPremium } from "./types";
@@ -131,7 +132,7 @@ export async function finalizeVodSettings(
       accessMode: membersOnlyScope ? "members_only" : "public",
       freeFor: membersWatchedFree && !membersOnlyScope ? "members_and_subscribers" : "none",
       price: opts.vodPrice,
-      currency: "MXN",
+      currency: SETTLEMENT_CURRENCY,
       purchaseType: "one_time",
     };
     update.premium = premium;
@@ -139,7 +140,7 @@ export async function finalizeVodSettings(
     update.accessModel = "one_time_purchase";
     update.requiresPayment = true;
     update.oneTimePrice = opts.vodPrice;
-    update.currency = "MXN";
+    update.currency = SETTLEMENT_CURRENCY;
     update.purchaseType = "video";
   } else {
     // Free or hidden VOD: clear any existing premium config

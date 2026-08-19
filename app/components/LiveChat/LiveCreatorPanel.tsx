@@ -970,7 +970,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const superRevenue = actualSCs.reduce((sum, sc) => sum + sc.amount, 0);
     const totalRevenue = donationRevenue + superRevenue + ticketRevenue + vodRevenue;
     const net = (n: number) => n * CREATOR_SHARE;
-    const currency = liveData?.currency ?? "MXN";
+    const currency = liveData?.currency ?? SETTLEMENT_CURRENCY;
     const fmtMoney = (n: number) => formatMoney(n, { baseCurrency: currency, code: true });
     const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue);
     const isPaidLive = liveData?.accessType === "paid";
@@ -1047,7 +1047,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const superRevenue = actualSCs.reduce((sum, sc) => sum + sc.amount, 0);
     const isPaidLive = liveData?.accessType === "paid";
     const hasVod = post.requiresPayment === true;
-    const currency = liveData?.currency ?? "MXN";
+    const currency = liveData?.currency ?? SETTLEMENT_CURRENCY;
 
     const totalRevenue = donationRevenue + superRevenue + ticketRevenue + vodRevenue;
     const avgRevenuePerViewer = uniqueViewerCount > 0 ? totalRevenue / uniqueViewerCount : 0;

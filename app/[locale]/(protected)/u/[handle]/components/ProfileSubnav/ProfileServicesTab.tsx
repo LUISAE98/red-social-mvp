@@ -18,6 +18,7 @@ import CustomClass from "@/components/services/config/CustomClass";
 import ProfileDonation from "./ProfileDonation";
 
 import { updateProfileOfferings } from "@/lib/profile/updateProfileOfferings";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
 
@@ -58,7 +59,7 @@ export default function ProfileServicesTab({
 
   const priceFmt = usePriceFormat();
   const formatMoney = (value: number, currency?: string) =>
-    priceFmt.format(value, { baseCurrency: (currency ?? "MXN") as DisplayCurrency, code: true });
+    priceFmt.format(value, { baseCurrency: (currency ?? SETTLEMENT_CURRENCY) as DisplayCurrency, code: true });
 
   // Link público del perfil (para el botón "Copiar link" de la vista de éxito).
   const routeParams = useParams<{ handle?: string }>();
@@ -99,19 +100,19 @@ export default function ProfileServicesTab({
       subscription: {
         enabled: false,
         price: "",
-        currency: "MXN",
+        currency: SETTLEMENT_CURRENCY,
       },
       saludo: buildServiceBlockDraft({
         enabled: saludo.enabled,
         price: saludo.price,
-        currency: saludo.currency ?? "MXN",
+        currency: saludo.currency ?? SETTLEMENT_CURRENCY,
         visible: saludo.enabled,
         visibility: "public",
       }),
       consejo: buildServiceBlockDraft({
         enabled: consejo.enabled,
         price: consejo.price,
-        currency: consejo.currency ?? "MXN",
+        currency: consejo.currency ?? SETTLEMENT_CURRENCY,
         visible: consejo.enabled,
         visibility: "public",
       }),
@@ -119,7 +120,7 @@ export default function ProfileServicesTab({
         ...buildServiceBlockDraft({
           enabled: meetGreet.enabled,
           price: meetGreet.price,
-          currency: meetGreet.currency ?? "MXN",
+          currency: meetGreet.currency ?? SETTLEMENT_CURRENCY,
           visible: meetGreet.enabled,
           visibility: "public",
         }),
@@ -129,7 +130,7 @@ export default function ProfileServicesTab({
         ...buildServiceBlockDraft({
           enabled: customClass.enabled,
           price: customClass.price,
-          currency: customClass.currency ?? "MXN",
+          currency: customClass.currency ?? SETTLEMENT_CURRENCY,
           visible: customClass.enabled,
           visibility: "public",
         }),
@@ -140,7 +141,7 @@ export default function ProfileServicesTab({
         availability: createEmptyWeeklyAvailability(),
       },
       donationMode: donation.mode,
-      donationCurrency: donation.currency ?? "MXN",
+      donationCurrency: donation.currency ?? SETTLEMENT_CURRENCY,
       donationSuggestedAmounts: donation.suggestedAmounts,
       donationGoalLabel: donation.goalLabel ?? "",
       donationMessage: donation.message,
@@ -508,7 +509,7 @@ export default function ProfileServicesTab({
         profileUserId,
         offerings: nextOfferings,
         donation: nextDonation,
-        currency: "MXN",
+        currency: SETTLEMENT_CURRENCY,
       });
 
       const nextSaved: ServiceDraft = {
@@ -516,7 +517,7 @@ export default function ProfileServicesTab({
         subscription: {
           enabled: false,
           price: "",
-          currency: "MXN",
+          currency: SETTLEMENT_CURRENCY,
         },
         saludo: {
           ...workingDraft.saludo,

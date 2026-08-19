@@ -37,7 +37,6 @@ export default function PostComposerDesktopOverlay({
   creating,
   isPreparingImages,
   hasContent,
-  localError,
   hasVideos,
   premiumComposer,
   selectedMediaItems,
@@ -808,23 +807,6 @@ borderRadius: 14,
               />
             </div>
             ) : null}
-
-            {localError && (
-              <div
-                style={{
-                  marginTop: 14,
-                  borderRadius: 13,
-                  border: "1px solid rgba(255,90,90,0.24)",
-                  background: "rgba(120,18,18,0.28)",
-                  color: "#ffdada",
-                  padding: "10px 12px",
-                  fontSize: 13,
-                  lineHeight: 1.4,
-                }}
-              >
-                {localError}
-              </div>
-            )}
 
           </div>
         </div>

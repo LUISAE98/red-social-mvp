@@ -235,9 +235,9 @@ export default function WalletFinanzasPage() {
                 {loadingAmounts ? (
                   <WalletFigureSkeleton width={170} height={32} />
                 ) : balanceHidden ? (
-                  <MaskedAmount formatted={formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? "MXN" })} />
+                  <MaskedAmount formatted={formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })} />
                 ) : (
-                  formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? "MXN" })
+                  formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })
                 )}
               </div>
               <IconButton label={balanceHidden ? tNav("showAmount") : tNav("hideAmount")} size="sm" tone="bare" shape="square" onClick={toggleBalanceHidden} aria-pressed={balanceHidden}>
@@ -319,9 +319,9 @@ export default function WalletFinanzasPage() {
                 {loadingAmounts ? (
                   <WalletFigureSkeleton width={66} height={17} />
                 ) : balanceHidden ? (
-                  <MaskedAmount formatted={formatMoney(view.pending, { baseCurrency: summary.currency ?? "MXN" })} />
+                  <MaskedAmount formatted={formatMoney(view.pending, { baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })} />
                 ) : (
-                  formatMoney(view.pending, { baseCurrency: summary.currency ?? "MXN" })
+                  formatMoney(view.pending, { baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })
                 )}
               </div>
             </div>
@@ -406,9 +406,9 @@ export default function WalletFinanzasPage() {
                 {loadingAmounts ? (
                   <WalletFigureSkeleton width={66} height={17} />
                 ) : balanceHidden ? (
-                  <MaskedAmount formatted={formatMoney(view.lifetime, { baseCurrency: summary.currency ?? "MXN" })} />
+                  <MaskedAmount formatted={formatMoney(view.lifetime, { baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })} />
                 ) : (
-                  formatMoney(view.lifetime, { baseCurrency: summary.currency ?? "MXN" })
+                  formatMoney(view.lifetime, { baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })
                 )}
               </div>
             </div>
@@ -444,7 +444,7 @@ export default function WalletFinanzasPage() {
               <span>
                 {tWallet("financesRefunded")}:{" "}
                 <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                  {formatMoney(view.refunded, { code: true, baseCurrency: summary.currency ?? "MXN" })}
+                  {formatMoney(view.refunded, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })}
                 </strong>
               </span>
             </div>
@@ -467,7 +467,7 @@ export default function WalletFinanzasPage() {
               <span>
                 {tWallet("financesTaxCollected")}:{" "}
                 <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                  {formatMoney(summary.taxCollected, { code: true, baseCurrency: summary.currency ?? "MXN" })}
+                  {formatMoney(summary.taxCollected, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })}
                 </strong>
               </span>
             </div>
@@ -483,11 +483,11 @@ export default function WalletFinanzasPage() {
         open={withdrawPanelOpen}
         onClose={() => setWithdrawPanelOpen(false)}
         uid={user?.uid}
-        availableLabel={formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? "MXN" })}
+        availableLabel={formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })}
         // IVA 16% (creador mexicano). Las retenciones se agregarán cuando se defina
         // el modelo fiscal con la API de pagos elegida.
-        ivaLabel={formatMoney(view.available * 0.16, { code: true, baseCurrency: summary.currency ?? "MXN" })}
-        totalLabel={formatMoney(view.available * 1.16, { code: true, baseCurrency: summary.currency ?? "MXN" })}
+        ivaLabel={formatMoney(view.available * 0.16, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })}
+        totalLabel={formatMoney(view.available * 1.16, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })}
       />
     </WalletSectionShell>
   );

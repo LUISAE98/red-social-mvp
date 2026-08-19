@@ -2015,7 +2015,12 @@
     "configAllSaved": "L-abbonament, il-katalgu u d-donazzjoni ġew salvati.",
     "prompterTitle": "Prompter",
     "prompterPlaceholder": "Ikteb hawn dak li trid tgħid",
-    "uploadPrerecordedVideo": "Tella vidjo rrekordjat minn qabel"
+    "uploadPrerecordedVideo": "Tella vidjo rrekordjat minn qabel",
+    "reviewNext": "Irrevedi li jmiss",
+    "shareGreeting": "Aqsam it-tislima",
+    "shareAdvice": "Aqsam il-parir",
+    "sentAllToday": "Bgħatthom kollha għal-lum!",
+    "releasedAmount": "Ħlist {amount}!"
   },
   "live": {
     "accessTicket": "Biljett ta' aċċess",

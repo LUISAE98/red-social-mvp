@@ -2015,7 +2015,12 @@
     "configAllSaved": "Assinatura, catálogo e doação salvos.",
     "prompterTitle": "Teleprompter",
     "prompterPlaceholder": "Escreva aqui o que você quer dizer",
-    "uploadPrerecordedVideo": "Enviar vídeo pré-gravado"
+    "uploadPrerecordedVideo": "Enviar vídeo pré-gravado",
+    "reviewNext": "Revisar o próximo",
+    "shareGreeting": "Compartilhar saudação",
+    "shareAdvice": "Compartilhar conselho",
+    "sentAllToday": "Você enviou todos por hoje!",
+    "releasedAmount": "Você liberou {amount}!"
   },
   "live": {
     "accessTicket": "Ticket de acesso",

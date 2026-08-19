@@ -666,7 +666,7 @@ export default function WalletTransactions({
                       textDecoration: negative ? "line-through" : "none",
                     }}
                   >
-                    {formatMoney(amount, { baseCurrency: entry.currency ?? "MXN" })}
+                    {formatMoney(amount, { baseCurrency: entry.currency ?? SETTLEMENT_CURRENCY })}
                   </span>
                   <span
                     style={{

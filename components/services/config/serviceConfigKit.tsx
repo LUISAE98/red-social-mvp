@@ -12,6 +12,8 @@ import { IconButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 export const useLockBodyScroll = useBodyScrollLock;
 
@@ -57,13 +59,35 @@ export const SERVICE_COLORS = {
   donation: "#b23a5b", // vino
 };
 
+/**
+ * Traduce el precio que el creador está tecleando —que se guarda en la moneda de
+ * LIQUIDACIÓN— a la moneda en la que él mira la plataforma.
+ *
+ * 🚨 Por qué existe. El input tenía al lado la moneda del QUE MIRA (`displayCurrency`),
+ * pero el número se guarda en la de liquidación. Un creador mexicano tecleaba 200, leía
+ * "MXN" junto al campo y publicaba un servicio de 200 DÓLARES. La etiqueta ahora dice la
+ * moneda real y esta línea da la referencia que el creador necesita para no perderse.
+ *
+ * No se muestra cuando el creador ya mira en la moneda de liquidación: ahí sobraría.
+ */
+export function LocalPriceHint({ value }: { value: number | null | undefined }) {
+  const pf = usePriceFormat();
+  const n = typeof value === "number" && Number.isFinite(value) ? value : Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  if (pf.currency === SETTLEMENT_CURRENCY) return null;
+  return (
+    <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 2 }}>
+      ≈ {pf.format(n, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}
+    </div>
+  );
+}
+
 // Rangos de duración permitidos (minutos) por tipo de servicio.
 export const MEET_GREET_MIN_MINUTES = 5; // Tiempo contigo
 export const MEET_GREET_MAX_MINUTES = 25;
 export const CUSTOM_CLASS_MIN_MINUTES = 5; // Sesión exclusiva
 export const CUSTOM_CLASS_MAX_MINUTES = 90;
 
-// Montos sugeridos de donación por defecto (MXN crudo). Cada uno debe ser >= 50.
 
 export function Switch({
   checked,

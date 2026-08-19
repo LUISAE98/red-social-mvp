@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -14,7 +15,7 @@ export type BuyerCreditState = {
   loading: boolean;
 };
 
-const INITIAL: BuyerCreditState = { balance: 0, currency: "MXN", loading: true };
+const INITIAL: BuyerCreditState = { balance: 0, currency: SETTLEMENT_CURRENCY, loading: true };
 
 export function useBuyerCredit(uid: string | null | undefined): BuyerCreditState {
   const [state, setState] = useState<BuyerCreditState>(INITIAL);
@@ -22,7 +23,7 @@ export function useBuyerCredit(uid: string | null | undefined): BuyerCreditState
   useEffect(() => {
     if (!uid) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setState({ balance: 0, currency: "MXN", loading: false });
+      setState({ balance: 0, currency: SETTLEMENT_CURRENCY, loading: false });
       return;
     }
     const ref = doc(db, "users", uid, "buyerCredit", "current");
@@ -32,10 +33,10 @@ export function useBuyerCredit(uid: string | null | undefined): BuyerCreditState
         const d = snap.data();
         const balance =
           typeof d?.balance === "number" && Number.isFinite(d.balance) ? d.balance : 0;
-        const currency = typeof d?.currency === "string" ? d.currency : "MXN";
+        const currency = typeof d?.currency === "string" ? d.currency : SETTLEMENT_CURRENCY;
         setState({ balance, currency, loading: false });
       },
-      () => setState({ balance: 0, currency: "MXN", loading: false })
+      () => setState({ balance: 0, currency: SETTLEMENT_CURRENCY, loading: false })
     );
     return () => unsub();
   }, [uid]);

@@ -11,7 +11,8 @@ vi.mock("firebase-admin", () => ({
   }),
 }));
 
-import { composeCharge } from "../../backend/src/tax/composeCharge";
+import { composeCharge, recomposeWithCharged } from "../../backend/src/tax/composeCharge";
+import { roundCharm } from "../../backend/src/tax/presentmentFormat";
 import { resolveTaxCountryFromIndicios } from "../../backend/src/tax/resolveCountry";
 import { COUNTRY_TAX_CONFIG } from "../../backend/src/tax/config";
 
@@ -141,5 +142,61 @@ describe("backend/tax/composeCharge", () => {
         );
       }
     });
+  });
+});
+
+// Despeje HACIA ATRÁS del desglose cuando el redondeo comercial cambia el total.
+// Es lo que hace que el `paymentIntent` cuadre con lo que de verdad se cobró; si no cuadra,
+// no sirve ni para declarar el impuesto ni para conciliar contra Stripe.
+describe("recomposeWithCharged — el desglose cuadra con el total redondeado", () => {
+  it("despeja el impuesto desde el total, sin tocar la base del creador", () => {
+    const c = composeCharge(100, "MX");
+    const r = recomposeWithCharged(c, 118.99); // 118.80 → 118.99
+
+    expect(r.chargedAmount).toBe(118.99);
+    // 🚨 Lo que el creador gana NO puede depender de cómo cayó un decimal del redondeo.
+    expect(r.baseAmount).toBe(c.baseAmount);
+    expect(r.fixedFee).toBe(c.fixedFee);
+    expect(r.fxFeeAmount).toBe(c.fxFeeAmount);
+    // gravable = total ÷ 1.16 ; impuesto = el resto
+    expect(r.taxableAmount).toBeCloseTo(118.99 / 1.16, 2);
+    expect(r.buyerTax.amount).toBeCloseTo(118.99 - 118.99 / 1.16, 2);
+  });
+
+  it("🚨 el total siempre es base + fijo + FX + sobrante + impuesto", () => {
+    for (const country of ["MX", "DE", "AR", "JP", "US"]) {
+      for (const base of [1.5, 10, 99.99, 1234.56]) {
+        const c = composeCharge(base, country);
+        const r = recomposeWithCharged(c, roundCharm(c.chargedAmount, "USD"));
+        const suma =
+          r.baseAmount + r.fixedFee + r.fxFeeAmount + r.roundingAdjustment + r.buyerTax.amount;
+        expect(r.chargedAmount, `${country} ${base}`).toBeCloseTo(suma, 2);
+      }
+    }
+  });
+
+  it("🚨 el sobrante del redondeo NUNCA es negativo (sería cobrar de menos)", () => {
+    for (const country of ["MX", "DE", "JP", "US"]) {
+      for (const base of [1.5, 10, 99.99, 1234.56]) {
+        const c = composeCharge(base, country);
+        const r = recomposeWithCharged(c, roundCharm(c.chargedAmount, "USD"));
+        expect(r.roundingAdjustment, `${country} ${base}`).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it("donde el impuesto lo cobra la EMISORA, el sobrante entero es base gravable", () => {
+    // AR: `collectionMode: "issuer"` → Vibra no cobra impuesto, `amount` queda en 0.
+    const c = composeCharge(100, "AR");
+    expect(c.buyerTax.collectedByPlatform).toBe(false);
+    const r = recomposeWithCharged(c, c.chargedAmount + 1);
+    expect(r.buyerTax.amount).toBe(0);
+    expect(r.taxableAmount).toBeCloseTo(c.taxableAmount + 1, 2);
+    expect(r.roundingAdjustment).toBeCloseTo(1, 2);
+  });
+
+  it("si el total no cambia, devuelve la composición intacta", () => {
+    const c = composeCharge(100, "MX");
+    expect(recomposeWithCharged(c, c.chargedAmount)).toBe(c);
   });
 });

@@ -298,14 +298,14 @@ export default function GroupPostsFeed({
     return () => unsub();
   }, [groupId]);
 
+  /* Va por VibraToast como los demás avisos de acción. La caja roja era el
+     estilo retirado del catálogo, y este error ya tenía su propio temporizador
+     de 4,5 s: justo lo que el toast hace solo. */
   useEffect(() => {
     if (!composerError) return;
-
-    const timer = window.setTimeout(() => {
-      setComposerError(null);
-    }, 4500);
-
-    return () => window.clearTimeout(timer);
+    showFeedToast(composerError, "error");
+    setComposerError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [composerError]);
 
   const loadPostsPage = useCallback(
@@ -1272,21 +1272,6 @@ const shellStyle: CSSProperties = {
     fontSize: 13,
   };
 
-  const composerErrorStyle: CSSProperties = {
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-    boxSizing: "border-box",
-    borderRadius: 12,
-    border: "1px solid rgba(255,90,90,0.24)",
-    background: "rgba(120,18,18,0.28)",
-    color: "#ffdada",
-    padding: "10px 12px",
-    fontSize: 12,
-    lineHeight: 1.4,
-    overflowWrap: "anywhere",
-  };
-
   const interactionHintStyle: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
@@ -1438,7 +1423,6 @@ const shellStyle: CSSProperties = {
         </div>
       ) : null}
 
-      {composerError && <div style={composerErrorStyle}>{composerError}</div>}
 
       <VibraToast toast={feedToast} />
 

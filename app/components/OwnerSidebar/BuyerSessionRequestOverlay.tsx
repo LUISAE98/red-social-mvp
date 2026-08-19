@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { IconButton } from "@/components/ui";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { formatDateLong, formatDateTimeLong, formatWeekdayTime } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -12,6 +14,7 @@ import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 type SessionRequest = MeetGreetRequestDoc | ExclusiveSessionRequestDoc;
 type ScheduledServiceKind = "meet_greet" | "exclusive_session";
@@ -170,11 +173,17 @@ type Props = {
   onPrepare?: () => void;
 };
 
+/**
+ * Los motivos de rechazo y las ausencias salen por VibraToast, como el resto de
+ * los avisos de la plataforma. Se disparan al abrir la solicitud, que es cuando
+ * la persona se entera, en vez de vivir como caja fija dentro de la tarjeta.
+ */
 export default function BuyerSessionRequestOverlay({
   item, creatorName, creatorAvatar,
   canRefund, canRetry, canReschedule, canPrepare,
   busy, onClose, onRefund, onRetry, onReschedule, onPrepare,
 }: Props) {
+  const { toast: reqToast, showToast: showReqToast } = useVibraToast();
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -208,6 +217,22 @@ export default function BuyerSessionRequestOverlay({
   const creatorInitial = creatorName.charAt(0).toUpperCase();
 
   useEffect(() => { setMounted(true); }, []);
+
+  /* Los motivos por los que la solicitud terminó mal se avisan al abrirla. */
+  useEffect(() => {
+    if (req.rejectionReason) {
+      showReqToast(`${tServices("rejectionLabel")} ${req.rejectionReason}`, "error");
+      return;
+    }
+    if (req.autoRejectReason === "creator_no_show_after_15_minutes") {
+      showReqToast(tServices("creatorNoShowMessage"), "error");
+      return;
+    }
+    if (req.autoRejectReason === "buyer_no_show_after_15_minutes") {
+      showReqToast(tServices("buyerNoShowMessage"), "error");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [req.rejectionReason, req.autoRejectReason]);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -334,7 +359,7 @@ export default function BuyerSessionRequestOverlay({
           {req.priceSnapshot != null && (
             <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
               <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>{tServices("paidLabel")}</span>
-              <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot, { baseCurrency: (req.currency ?? "MXN") as DisplayCurrency, code: true })}</span>
+              <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot, { baseCurrency: (req.currency ?? SETTLEMENT_CURRENCY) as DisplayCurrency, code: true })}</span>
             </div>
           )}
         </div>
@@ -436,32 +461,8 @@ export default function BuyerSessionRequestOverlay({
         </div>
       ) : null}
 
-      {req.rejectionReason ? (
-        <div style={{
-          display: "grid", gap: 4,
-          background: "rgba(120,18,18,0.28)", border: "1px solid rgba(255,90,90,0.24)",
-          borderRadius: 13, padding: "10px 12px",
-        }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("rejectionLabel")}</span>
-          <span style={{ color: "#ffdada", fontSize: 13, lineHeight: 1.4 }}>{req.rejectionReason}</span>
-        </div>
-      ) : null}
 
-      {req.autoRejectReason === "creator_no_show_after_15_minutes" ? (
-        <div style={{ background: "rgba(120,18,18,0.28)", border: "1px solid rgba(255,90,90,0.24)", borderRadius: 13, padding: "10px 12px" }}>
-          <span style={{ color: "#ffdada", fontSize: 13, lineHeight: 1.4 }}>
-            {tServices("creatorNoShowMessage")}
-          </span>
-        </div>
-      ) : null}
 
-      {req.autoRejectReason === "buyer_no_show_after_15_minutes" ? (
-        <div style={{ background: "rgba(120,18,18,0.28)", border: "1px solid rgba(255,90,90,0.24)", borderRadius: 13, padding: "10px 12px" }}>
-          <span style={{ color: "#ffdada", fontSize: 13, lineHeight: 1.4 }}>
-            {tServices("buyerNoShowMessage")}
-          </span>
-        </div>
-      ) : null}
 
       {(req.rescheduleRequestsUsed ?? 0) >= 2 && !["rejected", "refund_requested", "refund_review", "completed", "cancelled"].includes(req.status) ? (
         <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
@@ -750,6 +751,7 @@ export default function BuyerSessionRequestOverlay({
           )}
         </div>
       </section>
+      <VibraToast toast={reqToast} />
     </div>,
     document.body
   );

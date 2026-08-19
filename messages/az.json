@@ -2015,7 +2015,12 @@
     "configAllSaved": "Abunə, kataloq və ianə yadda saxlanıldı.",
     "prompterTitle": "Prompter",
     "prompterPlaceholder": "Demək istədiyinizi buraya yazın",
-    "uploadPrerecordedVideo": "Əvvəlcədən çəkilmiş video yüklə"
+    "uploadPrerecordedVideo": "Əvvəlcədən çəkilmiş video yüklə",
+    "reviewNext": "Növbətini nəzərdən keçir",
+    "shareGreeting": "Salamı paylaş",
+    "shareAdvice": "Məsləhəti paylaş",
+    "sentAllToday": "Bu gün hamısını göndərdin!",
+    "releasedAmount": "{amount} qazandın!"
   },
   "live": {
     "accessTicket": "Giriş bileti",

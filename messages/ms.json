@@ -2015,7 +2015,12 @@
     "configAllSaved": "Langganan, katalog dan derma disimpan.",
     "prompterTitle": "Prompter",
     "prompterPlaceholder": "Tulis di sini apa yang anda mahu katakan",
-    "uploadPrerecordedVideo": "Muat naik video yang telah dirakam"
+    "uploadPrerecordedVideo": "Muat naik video yang telah dirakam",
+    "reviewNext": "Semak yang seterusnya",
+    "shareGreeting": "Kongsi ucapan",
+    "shareAdvice": "Kongsi nasihat",
+    "sentAllToday": "Anda hantar semuanya untuk hari ini!",
+    "releasedAmount": "Anda membuka {amount}!"
   },
   "live": {
     "accessTicket": "Tiket akses",

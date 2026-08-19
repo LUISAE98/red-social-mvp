@@ -3,6 +3,7 @@
 // ownerWallet.ts, que re-exporta este módulo (barrel). Extraído para <1000 líneas.
 
 import { orderBy, type FirestoreError } from "firebase/firestore";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { formatCurrency } from "@/lib/currency/format";
 import { formatDateTime, formatTime } from "@/lib/i18n/dateTime";
 import {
@@ -522,7 +523,7 @@ export function normalizeScheduledRow(
     currency:
       data.currency === "MXN" || data.currency === "USD"
         ? data.currency
-        : "MXN",
+        : SETTLEMENT_CURRENCY,
     durationMinutes:
       typeof data.durationMinutes === "number" ? data.durationMinutes : null,
     source,
@@ -589,7 +590,7 @@ export function normalizeGreetingRow(
     rejectionReason: null,
     refundReason: null,
     priceSnapshot: typeof data.priceSnapshot === "number" ? data.priceSnapshot : null,
-    currency: data.currency === "USD" ? "USD" : "MXN",
+    currency: data.currency === "USD" ? "USD" : SETTLEMENT_CURRENCY,
     durationMinutes: null,
     source: "greeting",
     scheduledAt: null,

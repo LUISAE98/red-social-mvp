@@ -248,7 +248,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
                   }}
                 />
                 <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", fontFamily: FONT }}>+ $3</span>
-                <span style={{ color: "#a855f7", fontSize: 20, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap", fontFamily: FONT }}>{displayCurrency}</span>
+                <span style={{ color: "#a855f7", fontSize: 20, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap", fontFamily: FONT }}>{SETTLEMENT_CURRENCY}</span>
               </div>
 
               {/* 3 leyendas que COLAPSAN suave: mínimo rojo / cuánto ganas (75%) / cargo Stripe. */}

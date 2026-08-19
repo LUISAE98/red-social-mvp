@@ -2015,7 +2015,12 @@
     "configAllSaved": "បានរក្សាទុកការជាវ កាតាឡុក និងការបរិច្ចាគ។",
     "prompterTitle": "ឧបករណ៍អានអត្ថបទ",
     "prompterPlaceholder": "សរសេរនៅទីនេះនូវអ្វីដែលអ្នកចង់និយាយ",
-    "uploadPrerecordedVideo": "បញ្ចូលវីដេអូដែលបានថតទុកជាមុន"
+    "uploadPrerecordedVideo": "បញ្ចូលវីដេអូដែលបានថតទុកជាមុន",
+    "reviewNext": "ពិនិត្យបន្ទាប់",
+    "shareGreeting": "ចែករំលែកការស្វាគមន៍",
+    "shareAdvice": "ចែករំលែកដំបូន្មាន",
+    "sentAllToday": "អ្នកបានផ្ញើទាំងអស់សម្រាប់ថ្ងៃនេះ!",
+    "releasedAmount": "អ្នកបានដោះលែង {amount}!"
   },
   "live": {
     "accessTicket": "សំបុត្រចូល",

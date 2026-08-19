@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -251,7 +252,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
       {req.priceSnapshot != null && (
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
           <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>{tServices("paidLabel")}</span>
-          <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot, { baseCurrency: req.currency ?? "MXN", code: true })}</span>
+          <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot, { baseCurrency: req.currency ?? SETTLEMENT_CURRENCY, code: true })}</span>
         </div>
       )}
     </div>

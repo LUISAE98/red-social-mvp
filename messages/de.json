@@ -2015,7 +2015,12 @@
     "configAllSaved": "Abo, Katalog und Spende gespeichert.",
     "prompterTitle": "Teleprompter",
     "prompterPlaceholder": "Schreib hier, was du sagen möchtest",
-    "uploadPrerecordedVideo": "Vorab aufgenommenes Video hochladen"
+    "uploadPrerecordedVideo": "Vorab aufgenommenes Video hochladen",
+    "reviewNext": "Nächste ansehen",
+    "shareGreeting": "Gruß teilen",
+    "shareAdvice": "Rat teilen",
+    "sentAllToday": "Du hast heute alle verschickt!",
+    "releasedAmount": "Du hast {amount} freigeschaltet!"
   },
   "live": {
     "accessTicket": "Zugangsticket",

@@ -2015,7 +2015,12 @@
     "configAllSaved": "Subscripció, catàleg i donació desats.",
     "prompterTitle": "Prompter",
     "prompterPlaceholder": "Escriu aquí el que vols dir",
-    "uploadPrerecordedVideo": "Puja un vídeo pregravat"
+    "uploadPrerecordedVideo": "Puja un vídeo pregravat",
+    "reviewNext": "Revisa el següent",
+    "shareGreeting": "Comparteix la salutació",
+    "shareAdvice": "Comparteix el consell",
+    "sentAllToday": "Els has enviat tots per avui!",
+    "releasedAmount": "Has alliberat {amount}!"
   },
   "live": {
     "accessTicket": "Entrada d'accés",

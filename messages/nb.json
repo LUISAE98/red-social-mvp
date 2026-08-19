@@ -2015,7 +2015,12 @@
     "configAllSaved": "Abonnement, katalog og donasjon er lagret.",
     "prompterTitle": "Teleprompter",
     "prompterPlaceholder": "Skriv her hva du vil si",
-    "uploadPrerecordedVideo": "Last opp forhåndsinnspilt video"
+    "uploadPrerecordedVideo": "Last opp forhåndsinnspilt video",
+    "reviewNext": "Se gjennom neste",
+    "shareGreeting": "Del hilsenen",
+    "shareAdvice": "Del rådet",
+    "sentAllToday": "Du sendte alle for i dag!",
+    "releasedAmount": "Du frigjorde {amount}!"
   },
   "live": {
     "accessTicket": "Tilgangsbillet",

@@ -38,7 +38,7 @@ import GroupPostComposer, { type GroupPostComposerSubmitPayload } from "./GroupP
 import PostImageViewer from "./PostImageViewer";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import { createLiveAccessStripeIntent, createPremiumPostStripeIntent } from "@/lib/stripe/stripePayments";
-import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
 import PremiumVideoTeaser from "./PremiumVideoTeaser";
@@ -3340,7 +3340,7 @@ style={{
             <path d="M15 17v2" />
             <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z" />
           </svg>
-          {tPosts("liveTicketBuyForPrice", { price: (post.oneTimePrice ?? activeLiveData?.ticketPrice) ? priceFmt.formatWithTax((post.oneTimePrice ?? activeLiveData?.ticketPrice ?? 0) + FIXED_SERVICE_FEE_USD, { baseCurrency: post.currency ?? activeLiveData?.currency ?? "MXN" }).total : tPosts("liveTicketPriceUndefined") })}
+          {tPosts("liveTicketBuyForPrice", { price: (post.oneTimePrice ?? activeLiveData?.ticketPrice) ? priceFmt.formatWithTax((post.oneTimePrice ?? activeLiveData?.ticketPrice ?? 0) + FIXED_SERVICE_FEE_USD, { baseCurrency: post.currency ?? activeLiveData?.currency ?? SETTLEMENT_CURRENCY }).total : tPosts("liveTicketPriceUndefined") })}
         </button>
       )}
       {/* Title */}
@@ -4437,7 +4437,7 @@ padding: "0 0 2px 0",
   >
     <VibraNavigationIcon type="premiumCrown" size={17} />
     {/* Monto ya con todo incluido: (base + $3) + IVA. La pasarela desglosa solo el IVA. */}
-    {tFeed("unlockPremiumFor", { price: priceFmt.formatWithTax((post.oneTimePrice ?? 0) + FIXED_SERVICE_FEE_USD, { baseCurrency: post.currency ?? "MXN" }).total })}
+    {tFeed("unlockPremiumFor", { price: priceFmt.formatWithTax((post.oneTimePrice ?? 0) + FIXED_SERVICE_FEE_USD, { baseCurrency: post.currency ?? SETTLEMENT_CURRENCY }).total })}
   </button>
 )}
 {premiumState.isPremium && (

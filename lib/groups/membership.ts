@@ -6,6 +6,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 type MembershipAccessType =
   | "standard"
@@ -232,7 +233,7 @@ export async function joinGroupWithSubscription(
       subscriptionActive: true,
 
       subscriptionPriceMonthly: options?.priceMonthly ?? null,
-      subscriptionCurrency: options?.currency ?? "MXN",
+      subscriptionCurrency: options?.currency ?? SETTLEMENT_CURRENCY,
       subscribedAt: serverTimestamp(),
       joinedAt: serverTimestamp(),
 
@@ -257,7 +258,7 @@ export async function joinGroupWithSubscription(
       }),
 
       subscriptionPriceMonthly: options?.priceMonthly ?? null,
-      subscriptionCurrency: options?.currency ?? "MXN",
+      subscriptionCurrency: options?.currency ?? SETTLEMENT_CURRENCY,
       subscribedAt: serverTimestamp(),
       joinedAt: serverTimestamp(),
 

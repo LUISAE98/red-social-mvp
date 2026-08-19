@@ -2015,7 +2015,12 @@
     "configAllSaved": "Η συνδρομή, ο κατάλογος και η δωρεά αποθηκεύτηκαν.",
     "prompterTitle": "Υποβολέας",
     "prompterPlaceholder": "Γράψε εδώ τι θέλεις να πεις",
-    "uploadPrerecordedVideo": "Μεταφόρτωση προηχογραφημένου βίντεο"
+    "uploadPrerecordedVideo": "Μεταφόρτωση προηχογραφημένου βίντεο",
+    "reviewNext": "Έλεγχος του επόμενου",
+    "shareGreeting": "Κοινοποίηση χαιρετισμού",
+    "shareAdvice": "Κοινοποίηση συμβουλής",
+    "sentAllToday": "Τα έστειλες όλα για σήμερα!",
+    "releasedAmount": "Ξεκλείδωσες {amount}!"
   },
   "live": {
     "accessTicket": "Εισιτήριο πρόσβασης",

@@ -2015,7 +2015,12 @@
     "configAllSaved": "Naročnina, katalog in donacija shranjeni.",
     "prompterTitle": "Prompter",
     "prompterPlaceholder": "Napiši sem, kaj želiš povedati",
-    "uploadPrerecordedVideo": "Naloži vnaprej posnet videoposnetek"
+    "uploadPrerecordedVideo": "Naloži vnaprej posnet videoposnetek",
+    "reviewNext": "Preglej naslednjega",
+    "shareGreeting": "Deli pozdrav",
+    "shareAdvice": "Deli nasvet",
+    "sentAllToday": "Danes si poslal vse!",
+    "releasedAmount": "Sprostil si {amount}!"
   },
   "live": {
     "accessTicket": "Vstopnica",

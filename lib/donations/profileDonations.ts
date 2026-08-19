@@ -1,6 +1,7 @@
 "use client";
 
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { db } from "@/lib/firebase";
 
 /**
@@ -17,7 +18,7 @@ export async function createProfileDonation(params: {
     creatorId: params.creatorId,
     buyerId: params.buyerId,
     amount: params.amount,
-    currency: params.currency ?? "MXN",
+    currency: params.currency ?? SETTLEMENT_CURRENCY,
     source: "profile",
     paymentStatus: "simulated_paid",
     paymentMode: "simulated_no_real_payment",

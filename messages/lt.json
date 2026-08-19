@@ -2015,7 +2015,12 @@
     "configAllSaved": "Prenumerata, katalogas ir auka išsaugoti.",
     "prompterTitle": "Suflerius",
     "prompterPlaceholder": "Parašyk čia, ką nori pasakyti",
-    "uploadPrerecordedVideo": "Įkelti iš anksto įrašytą vaizdo įrašą"
+    "uploadPrerecordedVideo": "Įkelti iš anksto įrašytą vaizdo įrašą",
+    "reviewNext": "Peržiūrėti kitą",
+    "shareGreeting": "Bendrinti sveikinimą",
+    "shareAdvice": "Bendrinti patarimą",
+    "sentAllToday": "Šiandien išsiuntei visus!",
+    "releasedAmount": "Atrakinai {amount}!"
   },
   "live": {
     "accessTicket": "Prieigos bilietas",

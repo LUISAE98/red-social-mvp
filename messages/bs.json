@@ -2015,7 +2015,12 @@
     "configAllSaved": "Pretplata, katalog i donacija su sačuvani.",
     "prompterTitle": "Prompter",
     "prompterPlaceholder": "Napišite ovdje šta želite reći",
-    "uploadPrerecordedVideo": "Otpremi unaprijed snimljeni video"
+    "uploadPrerecordedVideo": "Otpremi unaprijed snimljeni video",
+    "reviewNext": "Pregledaj sljedeći",
+    "shareGreeting": "Podijeli pozdrav",
+    "shareAdvice": "Podijeli savjet",
+    "sentAllToday": "Poslao si sve za danas!",
+    "releasedAmount": "Oslobodio si {amount}!"
   },
   "live": {
     "accessTicket": "Ulaznica",

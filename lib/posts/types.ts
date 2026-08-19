@@ -122,7 +122,12 @@ export type PostPremiumFreeFor =
 
 export type PostPremiumPurchaseType = "one_time";
 
-export type PostPremiumCurrency = "MXN";
+/**
+ * Moneda del precio de un post de pago. `USD` desde el corte a Vibra On, LLC (2026-08-18);
+ * `MXN` sigue aquí porque los posts ANTERIORES la llevan y hay que poder leerlos. Estrecharlo
+ * a solo USD rompería la lectura del histórico.
+ */
+export type PostPremiumCurrency = "USD" | "MXN";
 
 export type PostPremium = {
   enabled: boolean;

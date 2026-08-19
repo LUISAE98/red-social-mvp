@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import {
   collection,
   limit,
@@ -122,7 +123,7 @@ function mapLedgerDoc(doc: {
     status: d.status as LedgerStatus,
     grossAmount: toNumber(d.grossAmount),
     netAmount: toNumber(d.netAmount),
-    currency: typeof d.currency === "string" ? d.currency : "MXN",
+    currency: typeof d.currency === "string" ? d.currency : SETTLEMENT_CURRENCY,
     createdAt: toDate(d.createdAt),
     occurredAt: toDate(d.occurredAt) ?? toDate(d.createdAt),
     buyerId: typeof d.buyerId === "string" ? d.buyerId : null,

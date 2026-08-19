@@ -12,7 +12,7 @@ import { useCallback } from "react";
 import { useLocale } from "next-intl";
 import { useCurrency } from "@/app/components/CurrencyProvider";
 import { useExchangeRates } from "./rates";
-import { buyerPrice, convertFromAnchor, convertToAnchor, formatCurrency } from "./format";
+import { buyerPrice, buyerPriceExact, roundCharm, convertFromAnchor, convertToAnchor, formatCurrency } from "./format";
 import {
   ANCHOR_CURRENCY,
   isDisplayCurrency,
@@ -122,6 +122,24 @@ export function usePriceFormat(): PriceFormatter {
     [currency, rates]
   );
 
+  // Igual que `resolveLocal` pero SIN el redondeo a paso de la moneda. Lo usa `formatWithTax`,
+  // porque el total que se cobra se compone sin ese redondeo intermedio: aplicarlo aquí
+  // separaba el precio mostrado del cobrado.
+  const resolveLocalExact = useCallback(
+    (amount: number, opts: PriceFormatOptions = {}): { value: number; currency: DisplayCurrency } => {
+      const base: DisplayCurrency = isDisplayCurrency(opts.baseCurrency)
+        ? opts.baseCurrency
+        : ANCHOR_CURRENCY;
+      if (base === currency) return { value: amount, currency };
+      const usd = base === ANCHOR_CURRENCY ? amount : convertToAnchor(amount, base, rates.rates);
+      if (usd == null) return { value: amount, currency: base };
+      const local = buyerPriceExact(usd, currency, rates.rates);
+      if (local == null) return { value: usd, currency: ANCHOR_CURRENCY };
+      return { value: local, currency };
+    },
+    [currency, rates]
+  );
+
   const format = useCallback(
     (amount: number, opts: PriceFormatOptions = {}): string => {
       const code = opts.code ?? false;
@@ -133,13 +151,30 @@ export function usePriceFormat(): PriceFormatter {
 
   const formatWithTax = useCallback(
     (amount: number, opts: PriceFormatOptions = {}): TaxedPrice => {
-      const { value: baseLocal, currency: cur } = resolveLocal(amount, opts);
+      // ⚠️ ESTE es el número que el comprador va a pagar, así que tiene que reproducir
+      // EXACTAMENTE lo que hace el backend (composeCharge → applyCharmRounding):
+      //   convertir sin redondeo intermedio → sumar impuesto → redondear el TOTAL → despejar.
+      //
+      // Antes usaba `resolveLocal`, que aplica `roundNice` a la base. Con base 10 USD y
+      // comprador mexicano el backend cobraba 209.99 y aquí se mostraba 208.80: la base se
+      // redondeaba al paso de 5 ANTES de sumar el impuesto, y el total nunca coincidía.
+      const { value: baseLocal, currency: cur } = resolveLocalExact(amount, opts);
       // El impuesto se calcula sobre la base YA en moneda local, así base+impuesto=total
       // exacto (sin drift). Ver docs/legal/fiscal-iva-isr-plataforma.md.
       // El override gana sobre la IP: cuando la pasarela ya leyó el país de la tarjeta,
       // ese es el país que va a mandar en el cobro real.
       const country = opts.taxCountryOverride ?? buyerCountry;
-      const bd = computeConsumptionTax(baseLocal, country);
+      const crudo = computeConsumptionTax(baseLocal, country);
+
+      // Redondeo comercial del TOTAL y despeje hacia atrás, espejo de recomposeWithCharged.
+      const total = roundCharm(crudo.total, cur);
+      const base = crudo.applies && crudo.rate > 0 ? total / (1 + crudo.rate) : total;
+      const bd = {
+        ...crudo,
+        base: Math.round(base * 100) / 100,
+        tax: Math.round((total - base) * 100) / 100,
+        total,
+      };
       const fmt = (n: number) => formatCurrency(n, cur, locale, { code: opts.code ?? false });
       return {
         applies: bd.applies,
@@ -155,7 +190,7 @@ export function usePriceFormat(): PriceFormatter {
         total: fmt(bd.total),
       };
     },
-    [locale, resolveLocal, buyerCountry]
+    [locale, resolveLocalExact, buyerCountry]
   );
 
   const toAnchor = useCallback(

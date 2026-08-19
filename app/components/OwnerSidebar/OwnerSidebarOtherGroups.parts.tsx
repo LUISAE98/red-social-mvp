@@ -10,6 +10,7 @@ import { leaveGroup } from "@/lib/groups/membership";
 import { useTranslations } from "next-intl";
 import { usePriceFormat, type PriceFormatter } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import type { Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
@@ -342,7 +343,7 @@ export function buildAccessNotice(
       const { previous, next, currency } = getPriceIncreaseMeta(group);
       const fmt = (v: number) =>
         formatMoney
-          ? formatMoney(v, { baseCurrency: (currency ?? "MXN") as DisplayCurrency, code: true })
+          ? formatMoney(v, { baseCurrency: (currency ?? SETTLEMENT_CURRENCY) as DisplayCurrency, code: true })
           : `${v}`;
 
       const text =

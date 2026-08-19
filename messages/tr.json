@@ -2015,7 +2015,12 @@
     "configAllSaved": "Abonelik, katalog ve bağış kaydedildi.",
     "prompterTitle": "Suflör",
     "prompterPlaceholder": "Söylemek istediklerini buraya yaz",
-    "uploadPrerecordedVideo": "Önceden kaydedilmiş video yükle"
+    "uploadPrerecordedVideo": "Önceden kaydedilmiş video yükle",
+    "reviewNext": "Sonrakini incele",
+    "shareGreeting": "Selamı paylaş",
+    "shareAdvice": "Tavsiyeyi paylaş",
+    "sentAllToday": "Bugünlük hepsini gönderdin!",
+    "releasedAmount": "{amount} kazandın!"
   },
   "live": {
     "accessTicket": "Giriş bileti",

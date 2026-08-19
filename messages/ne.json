@@ -2015,7 +2015,12 @@
     "configAllSaved": "सदस्यता, सूची र अनुदान सुरक्षित भए।",
     "prompterTitle": "प्रम्प्टर",
     "prompterPlaceholder": "तपाईंले भन्न चाहेको कुरा यहाँ लेख्नुहोस्",
-    "uploadPrerecordedVideo": "पहिले रेकर्ड गरिएको भिडियो अपलोड गर्नुहोस्"
+    "uploadPrerecordedVideo": "पहिले रेकर्ड गरिएको भिडियो अपलोड गर्नुहोस्",
+    "reviewNext": "अर्को हेर्नुहोस्",
+    "shareGreeting": "अभिवादन साझा गर्नुहोस्",
+    "shareAdvice": "सल्लाह साझा गर्नुहोस्",
+    "sentAllToday": "आजका सबै पठाउनुभयो!",
+    "releasedAmount": "तपाईंले {amount} खोल्नुभयो!"
   },
   "live": {
     "accessTicket": "पहुँच टिकट",

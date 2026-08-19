@@ -2015,7 +2015,12 @@
     "configAllSaved": "Na-save ang subscription, katalogo at donasyon.",
     "prompterTitle": "Prompter",
     "prompterPlaceholder": "Isulat dito ang gusto mong sabihin",
-    "uploadPrerecordedVideo": "Mag-upload ng naunang na-record na video"
+    "uploadPrerecordedVideo": "Mag-upload ng naunang na-record na video",
+    "reviewNext": "Tingnan ang susunod",
+    "shareGreeting": "Ibahagi ang pagbati",
+    "shareAdvice": "Ibahagi ang payo",
+    "sentAllToday": "Naipadala mo lahat para ngayon!",
+    "releasedAmount": "Nakakuha ka ng {amount}!"
   },
   "live": {
     "accessTicket": "Access ticket",

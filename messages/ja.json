@@ -2015,7 +2015,12 @@
     "configAllSaved": "サブスクリプション、カタログ、寄付を保存しました。",
     "prompterTitle": "プロンプター",
     "prompterPlaceholder": "話したい内容をここに書いてください",
-    "uploadPrerecordedVideo": "録画済みの動画をアップロード"
+    "uploadPrerecordedVideo": "録画済みの動画をアップロード",
+    "reviewNext": "次を確認する",
+    "shareGreeting": "あいさつをシェア",
+    "shareAdvice": "アドバイスをシェア",
+    "sentAllToday": "今日の分はすべて送信しました!",
+    "releasedAmount": "{amount} を獲得しました!"
   },
   "live": {
     "accessTicket": "アクセスチケット",

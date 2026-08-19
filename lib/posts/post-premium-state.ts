@@ -1,4 +1,5 @@
 import type { Post } from "./types";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { intlLocale } from "@/i18n/locales";
 import type { PostAccess } from "./post-access-types";
 
@@ -198,7 +199,7 @@ function buildPanelMessage(post: Post, fmt: PostPriceFormatter = formatPrice): s
 
   // public + members_and_subscribers: miembros gratis, otros pagan
   if (freeFor === "members_and_subscribers") {
-    const priceLabel = fmt(price, currency ?? "MXN");
+    const priceLabel = fmt(price, currency ?? SETTLEMENT_CURRENCY);
     if (priceLabel) {
       return `Los miembros lo ven gratis. Accede por ${priceLabel}`;
     }
@@ -206,7 +207,7 @@ function buildPanelMessage(post: Post, fmt: PostPriceFormatter = formatPrice): s
   }
 
   // public + none: cualquiera debe pagar
-  const priceLabel = fmt(price, currency ?? "MXN");
+  const priceLabel = fmt(price, currency ?? SETTLEMENT_CURRENCY);
   if (priceLabel) {
     return `Desbloquea esta publicación por ${priceLabel}`;
   }
@@ -224,7 +225,7 @@ function buildCtaText(post: Post, fmt: PostPriceFormatter = formatPrice): string
     return "Unirme a la comunidad";
   }
 
-  const priceLabel = fmt(price, currency ?? "MXN");
+  const priceLabel = fmt(price, currency ?? SETTLEMENT_CURRENCY);
   if (priceLabel) {
     return `Comprar por ${priceLabel}`;
   }

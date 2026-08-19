@@ -115,6 +115,7 @@ export default function SessionRequestOverlay({
 
   // El fallo al pedir la descarga de la grabación sale por el toast del panel.
   useEffect(() => { if (downloadError) showRescheduleToast(downloadError, "error"); }, [downloadError]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
@@ -236,6 +237,20 @@ export default function SessionRequestOverlay({
     // (caso no-show); en preparación activa no se ofrece reagenda.
     (status === "in_preparation" && noShowExpired);
   const canPrepare = ["scheduled", "ready_to_prepare", "in_preparation"].includes(status) && prepareWindowOpen && !noShowExpired;
+
+  /* Estado de la solicitud, avisado al abrirla en vez de como banner fijo. */
+  useEffect(() => {
+    if (req.rejectionReason) {
+      showRescheduleToast(`${tServices("rejectionLabel")}: ${req.rejectionReason}`, "error");
+      return;
+    }
+    if (req.refundReason) {
+      showRescheduleToast(`${tServices("refundReasonLabel")}: ${req.refundReason}`, "warning");
+      return;
+    }
+    if (canPrepare) showRescheduleToast(tServices("canPrepareMessage"), "success");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [req.rejectionReason, req.refundReason, canPrepare]);
 
   const _mg = req as MeetGreetRequestDoc;
   const _schedLen = (_mg.scheduleHistory ?? []).length;
@@ -394,26 +409,8 @@ export default function SessionRequestOverlay({
         );
       })()}
 
-      {/* Motivo de rechazo */}
-      {req.rejectionReason && (
-        <div style={{ borderRadius: 10, border: "1px solid rgba(248,113,113,0.18)", background: "rgba(248,113,113,0.08)", padding: "9px 11px", fontSize: 13, lineHeight: 1.4, color: "#fecaca" }}>
-          {tServices("rejectionLabel")}: {req.rejectionReason}
-        </div>
-      )}
 
-      {/* Motivo de devolución */}
-      {req.refundReason && (
-        <div style={{ borderRadius: 10, border: "1px solid rgba(250,204,21,0.18)", background: "rgba(250,204,21,0.08)", padding: "9px 11px", fontSize: 13, lineHeight: 1.4, color: "#fde68a" }}>
-          {tServices("refundReasonLabel")}: {req.refundReason}
-        </div>
-      )}
 
-      {/* Banner preparación */}
-      {canPrepare && (
-        <div style={{ borderRadius: 10, border: "1px solid rgba(96,165,250,0.18)", background: "rgba(96,165,250,0.08)", padding: "9px 11px", fontSize: 13, lineHeight: 1.4, color: "#bfdbfe" }}>
-          {tServices("canPrepareMessage")}
-        </div>
-      )}
 
       {/* Botones de acción */}
       {!readOnly && (canAccept || canReject) && (

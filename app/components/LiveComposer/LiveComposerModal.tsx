@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_LABEL } from "@/lib/currency/catalog";
 import { TextButton, IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react";
@@ -217,7 +217,7 @@ export default function LiveComposerModal({
     setAccessType(ld.accessType ?? "free");
     setTicketPrice(
       ld.ticketPrice != null
-        ? String(Math.round(toDisplayForInput(ld.ticketPrice, ld.currency ?? "MXN") * 100) / 100)
+        ? String(Math.round(toDisplayForInput(ld.ticketPrice, ld.currency ?? SETTLEMENT_CURRENCY) * 100) / 100)
         : ""
     );
     setPaidAccessMode(ld.paidAccessMode ?? "everyone_pays");
@@ -597,11 +597,11 @@ export default function LiveComposerModal({
             />
 
             <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
-              + $3
+              {FIXED_SERVICE_FEE_LABEL}
             </span>
 
             <span style={{ color: "#a855f7", fontSize: 20, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
-              {displayCurrency}
+              {SETTLEMENT_CURRENCY}
             </span>
           </div>
 

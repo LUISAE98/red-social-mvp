@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { createPortal } from "react-dom";
@@ -560,7 +561,7 @@ export function WalletServiceRow({
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
   const { format: formatMoney } = usePriceFormat();
-  const priceBase = row.currency ?? "MXN";
+  const priceBase = row.currency ?? SETTLEMENT_CURRENCY;
 
   useEffect(() => {
     setScheduleParts(getSchedulePartsFromDate(row.scheduledAt));
@@ -602,7 +603,7 @@ export function WalletServiceRow({
     refundLabel: row.refundReason ? tWallet("refundLabel", { reason: row.refundReason }) : "",
     priceLabel:
       row.priceSnapshot != null
-        ? formatMoney(row.priceSnapshot, { baseCurrency: row.currency ?? "MXN" })
+        ? formatMoney(row.priceSnapshot, { baseCurrency: row.currency ?? SETTLEMENT_CURRENCY })
         : null,
   });
   const meta = getWalletServiceRowMeta(row, locale);

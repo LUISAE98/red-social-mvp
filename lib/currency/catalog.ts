@@ -142,7 +142,11 @@ export const ANCHOR_CURRENCY: DisplayCurrency = "USD";
  * ⚠️ Cambiar esta constante SIN migrar antes los precios guardados multiplica todo
  * por el tipo de cambio: un servicio de "200" pasaría de 200 pesos a 200 dólares.
  */
-export const SETTLEMENT_CURRENCY: DisplayCurrency = "USD";
+// `satisfies` en vez de anotar el tipo: así conserva su tipo LITERAL ("USD") y sigue
+// validando que sea una moneda del catálogo. Anotarlo como DisplayCurrency lo ensanchaba a
+// las 78 monedas y dejaba de encajar donde el tipo local es `"MXN" | "USD"`. De paso, el
+// día que se cambie a una moneda que esos tipos no contemplen, el compilador lo dice.
+export const SETTLEMENT_CURRENCY = "USD" satisfies DisplayCurrency;
 
 /**
  * Cargo fijo por transacción que ABSORBE EL COMPRADOR (debe coincidir con
@@ -156,6 +160,22 @@ export const SETTLEMENT_CURRENCY: DisplayCurrency = "USD";
  * internacional. Con 0.40 quedan cubiertos los dos y sigue siendo un número limpio.
  */
 export const FIXED_SERVICE_FEE_USD = 0.4;
+
+/**
+ * Etiqueta corta del cargo fijo para la UI del creador: `+ 0.40 USD`.
+ *
+ * ⚠️ Existe porque el texto estaba ESCRITO A MANO como "+ 3 MXN" en seis paneles de
+ * configuración. Al pasar la denominación a dólares los seis quedaron mintiendo a la vez,
+ * y un creador que leyera "+ 3 MXN" mientras el sistema le sumaba 0.40 USD publicaba un
+ * precio que no era el que creía. Derivarlo de la constante hace imposible que se vuelvan
+ * a separar.
+ */
+export const FIXED_SERVICE_FEE_LABEL = `+ ${FIXED_SERVICE_FEE_USD.toFixed(2)} ${SETTLEMENT_CURRENCY}`;
+
+/** Nota al pie que explica el cargo fijo en los paneles de configuración de servicios. */
+export const FIXED_SERVICE_FEE_NOTE = `A todas las experiencias se les suman ${FIXED_SERVICE_FEE_USD.toFixed(
+  2
+)} ${SETTLEMENT_CURRENCY} por el cargo de procesamiento de Stripe.`;
 
 /**
  * Cargo por CONVERSIÓN DE MONEDA que absorbe el comprador extranjero. 2%.

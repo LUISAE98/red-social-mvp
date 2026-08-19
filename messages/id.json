@@ -2015,7 +2015,12 @@
     "configAllSaved": "Langganan, katalog dan donasi disimpan.",
     "prompterTitle": "Prompter",
     "prompterPlaceholder": "Tulis di sini apa yang ingin kamu katakan",
-    "uploadPrerecordedVideo": "Unggah video yang sudah direkam"
+    "uploadPrerecordedVideo": "Unggah video yang sudah direkam",
+    "reviewNext": "Tinjau berikutnya",
+    "shareGreeting": "Bagikan salam",
+    "shareAdvice": "Bagikan saran",
+    "sentAllToday": "Kamu mengirim semuanya hari ini!",
+    "releasedAmount": "Kamu membuka {amount}!"
   },
   "live": {
     "accessTicket": "Tiket akses",

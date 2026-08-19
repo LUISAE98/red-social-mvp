@@ -171,11 +171,70 @@ export const NICE_STEP: Record<DisplayCurrency, number> = {
   XOF: 100, //   1 USD ≈ 570 XOF   → 100 XOF ≈ 0.18 USD. Anclado al euro (655,957 = 1 EUR).
 };
 
-/** Redondea a un múltiplo "bonito" según la moneda. */
+/** Redondea a un múltiplo "bonito" según la moneda. Para etiquetas de precio, no para cobrar. */
 export function roundNice(amount: number, currency: DisplayCurrency): number {
   const step = NICE_STEP[currency] ?? 1;
   if (step <= 0) return amount;
   return Math.round(amount / step) * step;
+}
+
+/** Monedas sin decimales. ⚠️ Espejo de ZERO_DECIMAL en backend/src/tax/presentmentFormat.ts. */
+const SIN_DECIMALES = new Set([
+  "BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF",
+  "UGX", "VND", "VUV", "XAF", "XOF", "XPF",
+]);
+/** Dinares: tres decimales y Stripe exige último dígito 0. ⚠️ Espejo del backend. */
+const TRES_DECIMALES = new Set(["KWD", "JOD", "BHD", "OMR", "TND"]);
+
+/**
+ * Redondeo COMERCIAL del total: `.99` o `.00`, el que quede más cerca por arriba.
+ *
+ * ⚠️ ESPEJO EXACTO de `roundCharm` en backend/src/tax/presentmentFormat.ts. El backend no
+ * puede importar de `lib/`, así que está duplicado a mano y hay un test de paridad. Si los
+ * dos se separan, el comprador ve un precio y se le cobra otro — que es justo el bug que
+ * este redondeo vino a cerrar, no a abrir.
+ */
+export function roundCharm(amount: number, currency: string): number {
+  if (!Number.isFinite(amount) || amount <= 0) return amount;
+  const code = currency.toUpperCase();
+
+  if (SIN_DECIMALES.has(code)) {
+    const step = NICE_STEP[code as DisplayCurrency] ?? 1;
+    if (step <= 1) return Math.ceil(amount);
+    const arriba = Math.ceil(amount / step) * step;
+    const charm = arriba - 1;
+    return charm >= amount ? charm : arriba + step - 1;
+  }
+
+  if (TRES_DECIMALES.has(code)) {
+    const step = NICE_STEP[code as DisplayCurrency] ?? 1;
+    return Math.ceil(amount / step) * step;
+  }
+
+  let con99 = Math.floor(amount) + 0.99;
+  if (con99 < amount) con99 += 1;
+  const con00 = Math.ceil(amount);
+  return Math.round(Math.min(con99, con00) * 100) / 100;
+}
+
+/**
+ * Igual que `buyerPrice` pero SIN el redondeo a paso: convierte y aplica el cargo de FX,
+ * nada más.
+ *
+ * Existe porque el TOTAL que se le cobra al comprador se compone en el backend sin ese
+ * redondeo intermedio (`composeCharge` → `applyCharmRounding`), y solo se redondea al final.
+ * Usar `buyerPrice` para el total daba un número distinto al cobrado: con base 10 USD y
+ * comprador mexicano, el backend cobraba 209.99 y la UI mostraba 208.80.
+ */
+export function buyerPriceExact(
+  usdAmount: number,
+  currency: DisplayCurrency,
+  rates: RateMap
+): number | null {
+  if (currency === ANCHOR_CURRENCY) return usdAmount;
+  const raw = convertFromAnchor(usdAmount, currency, rates);
+  if (raw == null) return null;
+  return raw * (1 + fxConversionFeeForCurrency(currency));
 }
 
 /**

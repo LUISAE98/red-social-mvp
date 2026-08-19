@@ -2015,7 +2015,12 @@
     "configAllSaved": "Suscripción, catálogo y donación guardados.",
     "prompterTitle": "Prompter",
     "prompterPlaceholder": "Escribe aquí lo que quieres decir",
-    "uploadPrerecordedVideo": "Subir video pregrabado"
+    "uploadPrerecordedVideo": "Subir video pregrabado",
+    "reviewNext": "Revisar el siguiente",
+    "shareGreeting": "Compartir saludo",
+    "shareAdvice": "Compartir consejo",
+    "sentAllToday": "¡Enviaste todos por hoy!",
+    "releasedAmount": "¡Liberaste {amount}!"
   },
   "live": {
     "accessTicket": "Ticket de acceso",

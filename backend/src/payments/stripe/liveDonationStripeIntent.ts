@@ -15,6 +15,7 @@ import { isChargeableCountry } from "../../tax/config";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
 import { cardOriginForCharge } from "./cardCountry";
 import { composeCharge, chargeFields } from "../../tax/composeCharge";
+import { applyCharmRounding } from "../../tax/presentment";
 import { reserveCreditAndSplit, materializeCreditOnlyPurchase } from "./chargeWithCredit";
 import { revertBuyerCreditSpend } from "../../wallet/buyerCredit";
 import { assertIsLivePost } from "./livePostGuard";
@@ -138,7 +139,9 @@ export const createLiveDonationStripeIntent = onCall(
       throw new HttpsError("failed-precondition", "El cobro no está disponible en tu país por ahora.");
     }
     // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
-    const charge = composeCharge(base, country);
+    // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
+    // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
+    const charge = await applyCharmRounding(composeCharge(base, country));
     const totalMxn = charge.chargedAmount;
 
     // Id único por donación (es el id del super-comentario que se materializará).

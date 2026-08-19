@@ -2015,7 +2015,12 @@
     "configAllSaved": "Abonnement, catalogue et don enregistrés.",
     "prompterTitle": "Prompteur",
     "prompterPlaceholder": "Écris ici ce que tu veux dire",
-    "uploadPrerecordedVideo": "Importer une vidéo préenregistrée"
+    "uploadPrerecordedVideo": "Importer une vidéo préenregistrée",
+    "reviewNext": "Voir le suivant",
+    "shareGreeting": "Partager le message",
+    "shareAdvice": "Partager le conseil",
+    "sentAllToday": "Tu les as tous envoyés pour aujourd'hui !",
+    "releasedAmount": "Tu as débloqué {amount} !"
   },
   "live": {
     "accessTicket": "Billet d'accès",

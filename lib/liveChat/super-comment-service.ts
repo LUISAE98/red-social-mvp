@@ -11,6 +11,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import type { SuperComment, SuperCommentConfig, SuperCommentTier } from "./types";
 import { DEFAULT_SUPER_COMMENT_CONFIG } from "./types";
 import type { ActiveSuperComment } from "@/lib/posts/types";
@@ -27,7 +28,7 @@ export async function getSuperCommentConfig(
   const data = snap.data();
   return {
     enabled: data.enabled ?? true,
-    currency: "MXN",
+    currency: SETTLEMENT_CURRENCY,
     tiers: (data.tiers as SuperCommentTier[]) ?? DEFAULT_SUPER_COMMENT_CONFIG.tiers,
   };
 }
@@ -117,7 +118,7 @@ export async function submitSuperComment(params: {
       color: params.tier.color,
       displaySeconds: params.tier.displaySeconds,
       amount: params.tier.price,
-      currency: "MXN",
+      currency: SETTLEMENT_CURRENCY,
       status: "paid",
       hidden: false,
       isDeleted: false,

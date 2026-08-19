@@ -2015,7 +2015,12 @@
     "configAllSaved": "දායකත්වය, නාමාවලිය සහ පරිත්‍යාගය සුරකින ලදී.",
     "prompterTitle": "ප්‍රොම්ප්ටරය",
     "prompterPlaceholder": "ඔබට කියන්න අවශ්‍ය දේ මෙහි ලියන්න",
-    "uploadPrerecordedVideo": "පෙර පටිගත කළ වීඩියෝව උඩුගත කරන්න"
+    "uploadPrerecordedVideo": "පෙර පටිගත කළ වීඩියෝව උඩුගත කරන්න",
+    "reviewNext": "මීළඟ එක සමාලෝචනය කරන්න",
+    "shareGreeting": "සුබපැතුම බෙදාගන්න",
+    "shareAdvice": "උපදෙස බෙදාගන්න",
+    "sentAllToday": "අද සියල්ල එවා ඇත!",
+    "releasedAmount": "ඔබ {amount} නිදහස් කළා!"
   },
   "live": {
     "accessTicket": "ප්‍රවේශ ප්‍රවේශපත්‍රය",

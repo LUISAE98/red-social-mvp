@@ -11,7 +11,7 @@
 // las palabras de entidad (perfil/comunidad) salen de "services" vía publishSuccess.entityKind.
 
 import { useEffect, useRef, useState } from "react";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_LABEL, FIXED_SERVICE_FEE_NOTE } from "@/lib/currency/catalog";
 import { useTranslations } from "next-intl";
 import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
@@ -230,7 +230,7 @@ export default function DonationConfigCard({
     const toSave: AnyDraft = {
       ...overlayDraft,
       donationSuggestedAmounts: amountsNum.map((n) => String(n)),
-      donationCurrency: "MXN",
+      donationCurrency: SETTLEMENT_CURRENCY,
     };
 
     const ok = await onSaveDraft(toSave);
@@ -395,7 +395,7 @@ export default function DonationConfigCard({
               >
                 {amount}
               </span>
-              <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
+              <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>{FIXED_SERVICE_FEE_LABEL}</span>
             </div>
             <div style={{ ...subtleStyle, textAlign: "end", marginTop: 2 }}>
               Por cada donación cobrarás el 75% del monto configurado
@@ -526,7 +526,7 @@ export default function DonationConfigCard({
         {/* Montos sugeridos: 4 valores editables (MXN crudo, mínimo 50 c/u) */}
         <div style={{ marginTop: -6 }}>
           <div style={{ ...subtleStyle, marginBottom: 8 }}>
-            Define 4 montos sugeridos (en {displayCurrency}). Quienes te apoyen los verán como botones para donar con un toque, y también podrán escribir otra cantidad. El mínimo por monto es ${DONATION_MIN_PER_AMOUNT}.
+            Define 4 montos sugeridos (en {SETTLEMENT_CURRENCY}). Quienes te apoyen los verán como botones para donar con un toque, y también podrán escribir otra cantidad. El mínimo por monto es ${DONATION_MIN_PER_AMOUNT}.
           </div>
           <div
             style={{
@@ -564,7 +564,7 @@ export default function DonationConfigCard({
                     style={{ ...inputStyle, width: "100%", flex: "1 1 auto", minWidth: 0 }}
                   />
                   <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
-                    + $3
+                    {FIXED_SERVICE_FEE_LABEL}
                   </span>
                 </div>
                 {/* Aviso del mínimo + cuánto ganas, agrupados para que colapsen sin dejar hueco. */}
@@ -585,7 +585,7 @@ export default function DonationConfigCard({
             })}
           </div>
           <div style={{ ...subtleStyle, opacity: 0.7, fontSize: 11, marginTop: 8 }}>
-            A todas las experiencias se les suman $3 MXN por el cargo de procesamiento de Stripe.
+            {FIXED_SERVICE_FEE_NOTE}
           </div>
         </div>
 

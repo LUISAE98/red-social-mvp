@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { LocalPriceHint } from "./serviceConfigKit";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -8,7 +9,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
-import { SUBSCRIPTION_MIN_PRICE_USD } from "@/lib/currency/catalog";
+import { SUBSCRIPTION_MIN_PRICE_USD, FIXED_SERVICE_FEE_LABEL, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 // Color de acento del servicio de suscripción: azul celeste. Tiñe todos sus iconos
 // (info de la descripción, aviso de comunidad pública e items informativos).
@@ -430,7 +431,7 @@ export default function Subscription({
     if (overlayDraft.subscription.price !== "" && Number.isFinite(n) && n > 0) {
       toSave = {
         ...overlayDraft,
-        subscription: { ...overlayDraft.subscription, price: String(n), currency: "MXN" },
+        subscription: { ...overlayDraft.subscription, price: String(n), currency: SETTLEMENT_CURRENCY },
       };
     }
     await onSaveDraft(toSave);
@@ -572,7 +573,7 @@ function handleModify() {
           </button>
         </div>
 
-        {/* Esquina inferior derecha: precio grande (estilo del feed, +40%) + 3 MXN. */}
+        {/* Esquina inferior derecha: precio grande (estilo del feed, +40%) + cargo fijo. */}
         <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "end", flexShrink: 0 }}>
           <div style={subtleStyle}>{tServices("subscriptionSummaryPriceLabel")}</div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 6, whiteSpace: "nowrap" }}>
@@ -589,7 +590,7 @@ function handleModify() {
                 ? formatMoney(Number(draft.subscription.price), draft.subscription.currency)
                 : `0 ${draft.subscription.currency}`}
             </span>
-            <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
+            <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>{FIXED_SERVICE_FEE_LABEL}</span>
           </div>
           {subscriptionCalc ? (
             <div style={{ ...subtleStyle, textAlign: "end", whiteSpace: "nowrap", marginTop: 2 }}>
@@ -776,7 +777,7 @@ function handleModify() {
           />
 
           <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
-            + $3
+            {FIXED_SERVICE_FEE_LABEL}
           </span>
 
           <span
@@ -788,7 +789,7 @@ function handleModify() {
               whiteSpace: "nowrap",
             }}
           >
-            {displayCurrency}
+            {SETTLEMENT_CURRENCY}
           </span>
         </div>
         <div>
@@ -806,6 +807,8 @@ function handleModify() {
               {tCommon("priceMin", { min: minPrice })}
             </div>
           </div>
+          {/* Referencia en la moneda del creador: el número se guarda en la de liquidación. */}
+          <LocalPriceHint value={Number(overlayDraft.subscription.price)} />
           {/* Leyenda: cuánto ganas al mes (net), animada, solo si net > 0. */}
           <div
             style={{

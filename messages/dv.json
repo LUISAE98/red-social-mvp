@@ -2015,7 +2015,12 @@
     "configAllSaved": "ސަބްސްކްރިޕްޝަން، ކެޓަލޮގް އަދި ހަދިޔާ ރައްކާކުރެވިއްޖެ.",
     "prompterTitle": "ޕްރޮމްޕްޓަރ",
     "prompterPlaceholder": "ބުނަން ބޭނުންވާ އެއްޗެއް މިތާ ލިޔޭ",
-    "uploadPrerecordedVideo": "ކުރިން ރެކޯޑްކުރި ވީޑިއޯ އަޕްލޯޑްކުރޭ"
+    "uploadPrerecordedVideo": "ކުރިން ރެކޯޑްކުރި ވީޑިއޯ އަޕްލޯޑްކުރޭ",
+    "reviewNext": "ދެން އޮތް އެއްޗެއް ބަލާ",
+    "shareGreeting": "ސަލާމް ޚިއްޞާކުރޭ",
+    "shareAdvice": "ނަޞޭޙަތް ޚިއްޞާކުރޭ",
+    "sentAllToday": "މިއަދުގެ ހުރިހާ އެއްޗެއް ފޮނުވައިފި!",
+    "releasedAmount": "{amount} ލިބިއްޖެ!"
   },
   "live": {
     "accessTicket": "ވަނުމުގެ ޓިކެޓް",

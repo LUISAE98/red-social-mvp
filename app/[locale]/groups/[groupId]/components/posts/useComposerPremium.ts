@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 import {
   getPremiumCapabilities,
@@ -83,7 +84,7 @@ export function useComposerPremium({
     if (!Number.isFinite(n) || n <= 0) return;
     didHydratePremiumPrice.current = true;
     if (displayCurrency === "MXN") return;
-    const shown = toDisplayForInput(n, initialPremium.currency ?? "MXN");
+    const shown = toDisplayForInput(n, initialPremium.currency ?? SETTLEMENT_CURRENCY);
     setPriceInput(String(Math.round(shown * 100) / 100));
   }, [initialPremium?.price, initialPremium?.currency, displayCurrency, toDisplayForInput]);
 

@@ -2015,7 +2015,12 @@
     "configAllSaved": "Előfizetés, katalógus és adomány elmentve.",
     "prompterTitle": "Súgógép",
     "prompterPlaceholder": "Írd ide, mit szeretnél mondani",
-    "uploadPrerecordedVideo": "Előre felvett videó feltöltése"
+    "uploadPrerecordedVideo": "Előre felvett videó feltöltése",
+    "reviewNext": "Következő megtekintése",
+    "shareGreeting": "Üdvözlet megosztása",
+    "shareAdvice": "Tanács megosztása",
+    "sentAllToday": "Mára mindet elküldted!",
+    "releasedAmount": "Felszabadítottál {amount} összeget!"
   },
   "live": {
     "accessTicket": "Belépőjegy",

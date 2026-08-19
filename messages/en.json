@@ -2015,7 +2015,12 @@
     "configAllSaved": "Subscription, catalogue and donation saved.",
     "prompterTitle": "Prompter",
     "prompterPlaceholder": "Write here what you want to say",
-    "uploadPrerecordedVideo": "Upload pre-recorded video"
+    "uploadPrerecordedVideo": "Upload pre-recorded video",
+    "reviewNext": "Review the next one",
+    "shareGreeting": "Share greeting",
+    "shareAdvice": "Share advice",
+    "sentAllToday": "You sent them all for today!",
+    "releasedAmount": "You unlocked {amount}!"
   },
   "live": {
     "accessTicket": "Access ticket",

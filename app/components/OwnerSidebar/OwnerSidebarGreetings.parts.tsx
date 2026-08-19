@@ -3,6 +3,7 @@
 // Tipos, helpers y sub-componentes de OwnerSidebarGreetings (aislados).
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { formatDateLong, formatWeekdayTime } from "@/lib/i18n/dateTime";
@@ -511,7 +512,7 @@ export function getRequestCurrency(req: MeetGreetRequestDoc | ExclusiveSessionRe
     serviceSnapshot?: { currency?: string | null } | null;
   };
 
-  return reqWithExtras.currency ?? reqWithExtras.serviceSnapshot?.currency ?? "MXN";
+  return reqWithExtras.currency ?? reqWithExtras.serviceSnapshot?.currency ?? SETTLEMENT_CURRENCY;
 }
 
 export function getCreatorScheduleNote(

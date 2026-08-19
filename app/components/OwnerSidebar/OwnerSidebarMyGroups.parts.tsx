@@ -3,6 +3,7 @@
 // Tipos, helpers y sub-componente BuyerMessagePlayer de OwnerSidebarMyGroups.
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import Link from "next/link";
@@ -390,7 +391,7 @@ export function formatUnknownDate(value: unknown, locale: string): string | null
 export function getRequestCurrency(
   req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc
 ): string {
-  return req.currency ?? req.serviceSnapshot?.currency ?? "MXN";
+  return req.currency ?? req.serviceSnapshot?.currency ?? SETTLEMENT_CURRENCY;
 }
 
 export function getCreatorScheduleNote(

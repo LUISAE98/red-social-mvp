@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -249,7 +250,7 @@ export default function ExperienceRequestsInbox({
 
   const earningOf = (price?: number | null, currency?: string | null): string | null =>
     price != null && price > 0
-      ? formatMoney(price * WALLET_NET_RATE, { code: true, baseCurrency: (currency as "MXN" | "USD") ?? "MXN" })
+      ? formatMoney(price * WALLET_NET_RATE, { code: true, baseCurrency: (currency as "MXN" | "USD") ?? SETTLEMENT_CURRENCY })
       : null;
 
   // ── Handlers de saludo ─────────────────────────────────────────────────────

@@ -2,6 +2,8 @@
 
 import { useTranslations } from "next-intl";
 
+import { mensajeSeguro } from "@/lib/errors/mensajeSeguro";
+
 // Maps normalized (lowercased, trimmed) Spanish backend messages to cf namespace keys.
 // Backend functions stay unchanged; this utility provides progressive translation on the client.
 //
@@ -143,6 +145,8 @@ export function useCfError() {
       }
       return t(key as Parameters<typeof t>[0]);
     }
-    return raw || t("internalError");
+    /* Sin traducción conocida se devolvía el mensaje crudo, y por ahí se colaba
+       el volcado interno del SDK de Firestore hasta la pantalla. */
+    return mensajeSeguro(raw, t("internalError"));
   };
 }

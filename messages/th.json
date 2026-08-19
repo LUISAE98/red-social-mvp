@@ -2015,7 +2015,12 @@
     "configAllSaved": "บันทึกการสมัครสมาชิก แคตตาล็อก และการบริจาคแล้ว",
     "prompterTitle": "พรอมป์เตอร์",
     "prompterPlaceholder": "เขียนสิ่งที่คุณอยากพูดไว้ที่นี่",
-    "uploadPrerecordedVideo": "อัปโหลดวิดีโอที่บันทึกไว้ล่วงหน้า"
+    "uploadPrerecordedVideo": "อัปโหลดวิดีโอที่บันทึกไว้ล่วงหน้า",
+    "reviewNext": "ตรวจรายการถัดไป",
+    "shareGreeting": "แชร์คำทักทาย",
+    "shareAdvice": "แชร์คำแนะนำ",
+    "sentAllToday": "คุณส่งครบแล้ววันนี้!",
+    "releasedAmount": "คุณปลดล็อก {amount} แล้ว!"
   },
   "live": {
     "accessTicket": "ตั๋วเข้าชม",

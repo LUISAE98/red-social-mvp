@@ -2015,7 +2015,12 @@
     "configAllSaved": "Sábháladh an síntiús, an catalóg agus an síntiús deonach.",
     "prompterTitle": "Teileaphromptar",
     "prompterPlaceholder": "Scríobh anseo an rud is mian leat a rá",
-    "uploadPrerecordedVideo": "Uaslódáil físeán réamhthaifeadta"
+    "uploadPrerecordedVideo": "Uaslódáil físeán réamhthaifeadta",
+    "reviewNext": "Déan an chéad cheann eile a athbhreithniú",
+    "shareGreeting": "Comhroinn an beannacht",
+    "shareAdvice": "Comhroinn an chomhairle",
+    "sentAllToday": "Sheol tú iad go léir inniu!",
+    "releasedAmount": "Scaoil tú {amount}!"
   },
   "live": {
     "accessTicket": "Ticéad rochtana",

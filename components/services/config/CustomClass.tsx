@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { LocalPriceHint } from "./serviceConfigKit";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { SERVICE_MIN_PRICE_USD } from "@/lib/currency/catalog";
+import { SERVICE_MIN_PRICE_USD, FIXED_SERVICE_FEE_LABEL, FIXED_SERVICE_FEE_NOTE, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
@@ -243,7 +244,7 @@ export default function CustomClass({
       visibility: "members" as const,
     };
     if (overlayDraft.customClass.price !== "" && Number.isFinite(n) && n > 0) {
-      customClassToSave = { ...customClassToSave, price: String(n), currency: "MXN" };
+      customClassToSave = { ...customClassToSave, price: String(n), currency: SETTLEMENT_CURRENCY };
     }
     const ok = await onSaveDraft({
       ...overlayDraft,
@@ -284,7 +285,7 @@ export default function CustomClass({
           alignItems: "flex-end",
           justifyContent: "space-between",
           gap: 12,
-          // El precio va a 31px, con moneda y el "+ 3 MXN" al lado, y su bloque
+          // El precio va a 31px, con moneda y el cargo fijo al lado, y su bloque
           // tiene flexShrink: 0. En un teléfono angosto esa fila no cabe junto al
           // botón de la izquierda y se salía por la derecha. Con wrap, el precio
           // baja a su propia línea en vez de desbordar la tarjeta.
@@ -313,7 +314,7 @@ export default function CustomClass({
           </button>
         </div>
 
-        {/* Esquina inferior derecha: precio grande (estilo del feed, +40%) + 3 MXN. */}
+        {/* Esquina inferior derecha: precio grande (estilo del feed, +40%) + cargo fijo. */}
         <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "end", flexShrink: 0 }}>
           <div style={subtleStyle}>Configuración de sesión exclusiva</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
@@ -334,7 +335,7 @@ export default function CustomClass({
                     )
                   : `0 ${draft.customClass.currency}`}
               </span>
-              <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
+              <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>{FIXED_SERVICE_FEE_LABEL}</span>
             </span>
           </div>
           {customClassCalc ? (
@@ -470,7 +471,7 @@ export default function CustomClass({
           />
 
           <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
-            + $3
+            {FIXED_SERVICE_FEE_LABEL}
           </span>
 
           <span
@@ -482,7 +483,7 @@ export default function CustomClass({
               whiteSpace: "nowrap",
             }}
           >
-            {displayCurrency}
+            {SETTLEMENT_CURRENCY}
           </span>
         </div>
         <div>{/* una sola celda del grid: agrupa los textos bajo el input */}
@@ -499,6 +500,8 @@ export default function CustomClass({
             {tCommon("priceMin", { min: minPrice })}
           </div>
         </div>
+        {/* Referencia en la moneda del creador: el número se guarda en la de liquidación. */}
+        <LocalPriceHint value={Number(overlayDraft.customClass.price)} />
         <div
           style={{
             maxHeight: overlayCustomClassCalc && overlayCustomClassCalc.net > 0 ? 60 : 0,
@@ -525,7 +528,7 @@ export default function CustomClass({
           </div>
         </div>
         <div style={{ ...subtleStyle, opacity: 0.7, fontSize: 11, marginTop: 3 }}>
-          A todas las experiencias se les suman $3 MXN por el cargo de procesamiento de Stripe.
+          {FIXED_SERVICE_FEE_NOTE}
         </div>
         </div>
 

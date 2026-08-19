@@ -2015,7 +2015,12 @@
     "configAllSaved": "구독, 카탈로그, 후원을 저장했습니다.",
     "prompterTitle": "프롬프터",
     "prompterPlaceholder": "하고 싶은 말을 여기에 적어 주세요",
-    "uploadPrerecordedVideo": "미리 녹화한 영상 업로드"
+    "uploadPrerecordedVideo": "미리 녹화한 영상 업로드",
+    "reviewNext": "다음 항목 검토",
+    "shareGreeting": "인사 공유",
+    "shareAdvice": "조언 공유",
+    "sentAllToday": "오늘 것을 모두 보냈어요!",
+    "releasedAmount": "{amount}을 확보했어요!"
   },
   "live": {
     "accessTicket": "입장 티켓",

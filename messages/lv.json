@@ -2015,7 +2015,12 @@
     "configAllSaved": "Abonements, katalogs un ziedojums saglabāti.",
     "prompterTitle": "Sufliers",
     "prompterPlaceholder": "Ieraksti šeit, ko vēlies pateikt",
-    "uploadPrerecordedVideo": "Augšupielādēt iepriekš ierakstītu video"
+    "uploadPrerecordedVideo": "Augšupielādēt iepriekš ierakstītu video",
+    "reviewNext": "Pārskatīt nākamo",
+    "shareGreeting": "Kopīgot sveicienu",
+    "shareAdvice": "Kopīgot padomu",
+    "sentAllToday": "Šodien nosūtīji visus!",
+    "releasedAmount": "Atbrīvoji {amount}!"
   },
   "live": {
     "accessTicket": "Piekļuves biļete",

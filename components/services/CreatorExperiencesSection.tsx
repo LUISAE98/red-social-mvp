@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import type { CreatorService, CreatorServiceType } from "@/types/group";
 import { getVisibleServices } from "@/lib/services/normalizeServices";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import TaxNote from "@/components/payments/TaxNote";
 
 type ViewerMembershipStatus =
@@ -151,7 +151,7 @@ export default function CreatorExperiencesSection({
       service.memberPrice ??
       (service as CreatorService & { price?: number | null }).price ??
       null;
-    const currency = service.currency ?? "MXN";
+    const currency = service.currency ?? SETTLEMENT_CURRENCY;
     if (typeof price !== "number")
       return { hasPrice: false, numberPart: tServices("cardPriceToConfirm") };
     return {

@@ -2015,7 +2015,12 @@
     "configAllSaved": "Tellimus, kataloog ja annetus salvestatud.",
     "prompterTitle": "Teleprompter",
     "prompterPlaceholder": "Kirjuta siia, mida tahad öelda",
-    "uploadPrerecordedVideo": "Laadi üles eelsalvestatud video"
+    "uploadPrerecordedVideo": "Laadi üles eelsalvestatud video",
+    "reviewNext": "Vaata järgmine üle",
+    "shareGreeting": "Jaga tervitust",
+    "shareAdvice": "Jaga nõuannet",
+    "sentAllToday": "Saatsid tänaseks kõik!",
+    "releasedAmount": "Vabastasid {amount}!"
   },
   "live": {
     "accessTicket": "Ligipääsupilet",

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { AVISOS_SERVICIOS } from "@/lib/services/avisosServicios";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
@@ -81,7 +82,7 @@ export default function OwnerAdminServices({
   };
   const priceFmt = usePriceFormat();
   const formatMoney = (value: number, currency?: string) =>
-    priceFmt.format(value, { baseCurrency: currency ?? "MXN", code: true });
+    priceFmt.format(value, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true });
 
   const isOwner = useMemo(
     () => ownerId === currentUserId,
@@ -129,19 +130,19 @@ export default function OwnerAdminServices({
       subscription: buildSubscriptionDraft({
         enabled: isPublic ? false : sub.enabled,
         price: isPublic ? null : sub.price,
-        currency: sub.currency ?? "MXN",
+        currency: sub.currency ?? SETTLEMENT_CURRENCY,
       }),
       saludo: buildServiceBlockDraft({
         enabled: saludo.enabled,
         price: saludo.price,
-        currency: saludo.currency ?? "MXN",
+        currency: saludo.currency ?? SETTLEMENT_CURRENCY,
         visible: saludo.enabled,
         visibility: "members",
       }),
       consejo: buildServiceBlockDraft({
         enabled: consejo.enabled,
         price: consejo.price,
-        currency: consejo.currency ?? "MXN",
+        currency: consejo.currency ?? SETTLEMENT_CURRENCY,
         visible: consejo.enabled,
         visibility: "members",
       }),
@@ -149,7 +150,7 @@ export default function OwnerAdminServices({
         ...buildServiceBlockDraft({
           enabled: meetGreet.enabled,
           price: meetGreet.price,
-          currency: meetGreet.currency ?? "MXN",
+          currency: meetGreet.currency ?? SETTLEMENT_CURRENCY,
           visible: meetGreet.enabled,
           visibility: "members",
         }),
@@ -159,7 +160,7 @@ export default function OwnerAdminServices({
         ...buildServiceBlockDraft({
           enabled: customClass.enabled,
           price: customClass.price,
-          currency: customClass.currency ?? "MXN",
+          currency: customClass.currency ?? SETTLEMENT_CURRENCY,
           visible: customClass.enabled,
           visibility: "members",
         }),
@@ -170,7 +171,7 @@ export default function OwnerAdminServices({
         availability: normalizeWeeklyAvailabilityFromMeta(customClass.meta),
       },
       donationMode: donation.mode,
-      donationCurrency: donation.currency ?? "MXN",
+      donationCurrency: donation.currency ?? SETTLEMENT_CURRENCY,
       donationSuggestedAmounts: donation.suggestedAmounts,
       donationGoalLabel: donation.goalLabel ?? "",
       donationMessage: donation.message ?? "",
@@ -737,7 +738,7 @@ export default function OwnerAdminServices({
         currency:
           (!isPublic && workingDraft.subscription.enabled
             ? workingDraft.subscription.currency
-            : workingDraft.saludo.currency) ?? "MXN",
+            : workingDraft.saludo.currency) ?? SETTLEMENT_CURRENCY,
       });
 
       skipHydrationWhileSavingRef.current = true;

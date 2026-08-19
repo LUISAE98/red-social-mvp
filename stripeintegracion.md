@@ -125,6 +125,49 @@ cargo fijo **y** el FX; lo que absorbe es solo la diferencia contra lo que se ll
 > La versión anterior daba 3.83% / 6.66% y un neto de 18.34% para extranjero. La diferencia
 > son ~2.3 puntos, que a 100M MXN/mes son **~2.3M MXN al mes**.
 
+### Reparto de 100 puntos (retiro de $5,000 MXN, todo incluido)
+
+100 puntos = base del creador. **El creador siempre se lleva 75.**
+
+| Compra | Creador | Ticket $100 | | Ticket $800 | |
+|---|---|---|---|---|---|
+| | | Stripe | Vibra | Stripe | Vibra |
+| 🇺🇸 EE. UU. | 🇺🇸 EE. UU. | 3.01 | **21.99** | 3.58 | **21.42** |
+| 🇺🇸 EE. UU. | 🇲🇽 México | 3.20 | **21.80** | 3.77 | **21.23** |
+| 🌎 Extranjero | 🇺🇸 EE. UU. | 3.66 | **21.34** | 4.19 | **20.81** |
+| 🌎 Extranjero | 🇲🇽 México | 3.85 | **21.15** | 4.38 | **20.62** |
+
+Son DOS ejes independientes: el **payin** depende del país del COMPRADOR (el recargo de 1.5%
+por tarjeta extranjera), el **payout** del país del CREADOR (+0.25% transfronterizo).
+
+Lo que más pesa, en orden: **de dónde es el comprador** (0.65 pp) · **tamaño del ticket**
+(0.53–0.57 pp) · **de dónde es el creador** (0.19 pp).
+
+### Por qué el comprador cubre el cargo fijo y el 2%
+
+Mismo caso (compra extranjera + creador mexicano), variando quién absorbe qué:
+
+| Escenario | Ticket $100 | | Ticket $800 | |
+|---|---|---|---|---|
+| | Stripe | Vibra | Stripe | Vibra |
+| El comprador no cubre nada | 12.31 | 12.69 | 7.09 | 17.91 |
+| Cubre solo el 2% | 10.42 | 14.58 | 5.20 | 19.80 |
+| **Cubre 2% + fijo (real)** | **3.85** | **21.15** | **4.38** | **20.62** |
+
+🚨 **El cargo fijo vale 3.5 veces más que el 2%**: pasarlo al comprador da +6.57 puntos, el 2%
+solo +1.89. Y **sin él el ticket chico no es negocio** — Stripe se llevaría 12.31 de cada 100.
+
+⚠️ **Con el modelo real el ticket chico pasa a ser el MEJOR caso** (21.15 contra 20.62), porque
+los $6.81 del cargo fijo pesan más en una venta pequeña. Sin cobrarlo era al revés. Ése es el
+argumento para no bajar el cargo fijo aunque en pesos se vea que se duplicó respecto a los $3.
+
+### El sobrante del cargo fijo
+
+$6.81 cubre $5.96 del fijo de Stripe **más** el 2.9% que Stripe cobra sobre el propio cargo
+($0.20). Sobrante neto **$0.65** (comprador de EE. UU.) o **$0.48** (extranjero, porque ahí la
+mordida es del 5.4%). El equilibrio exacto sería $0.3605 / $0.3700 USD; se redondeó a $0.40 para
+cubrir las dos rutas con un número limpio.
+
 ---
 
 ## 5. El cargo de conversión del 2%
@@ -199,19 +242,91 @@ $6.81, y es inevitable — el de $3 estaba calibrado contra el fijo mexicano.
 - Tests: 305/305. De 10 fallos, 9 codificaban el supuesto viejo; el décimo era **coma flotante**
   (`118.80000000000001` vs `118.8`), no un invariante roto. Se pasó a `toBeCloseTo`.
 
+### Punto 1 — La UI del creador decía pesos y guardaba dólares (✅ sin desplegar)
+
+La Fase 1 dejó un bug abierto: el input de precio tenía al lado la moneda **del que mira**
+(`displayCurrency`) mientras el número se guardaba en la de liquidación. Un creador mexicano
+tecleaba 200, leía "MXN" y publicaba un servicio de **200 dólares**.
+
+- `currency: "MXN"` al guardar → `SETTLEMENT_CURRENCY` (15 archivos)
+- `"+ 3 MXN"` y la nota de Stripe, escritos a mano en 6 paneles → `FIXED_SERVICE_FEE_LABEL` /
+  `FIXED_SERVICE_FEE_NOTE`, **derivados de la constante** para que no se puedan volver a separar
+- **70** fallbacks `?? "MXN"` de display en 29 archivos
+- `PostPremiumCurrency` y la moneda del súper comentario: de literal `"MXN"` a `"USD" | "MXN"`
+  (los registros anteriores al corte la llevan y hay que poder leerlos)
+
+⚠️ Dos sustos: el barrido casi cambia la fila de **México** en la tabla fiscal (ahí `currency`
+es la moneda del COMPRADOR, no la de liquidación — habría separado el precio mostrado del
+cobrado), y `buildOffering` tenía `currency: draft.enabled ? "MXN" : null`, un ternario que la
+búsqueda literal no vio. **Lo cazó el test** que guarda contra el bug de `resolveStoredPrice`.
+
+### Punto 2 — El creador ve su moneda (✅ núcleo, sin desplegar)
+
+La etiqueta del input ahora dice la moneda **real** y debajo aparece el equivalente local
+mientras teclea (`LocalPriceHint`, oculto si el creador ya mira en dólares).
+
+⏳ Falta el rastro del precio (`input`, `inputCurrency`, `rate`, `ratedAt`) para poder
+explicarle después por qué su precio local cambió.
+
+### Punto 3 — Precio comercial (✅ cobro, sin desplegar)
+
+`roundCharm`: el total queda en `.99` o `.00`, el que quede más cerca **por arriba**.
+
+```
+composeCharge        base + fijo → +2% FX → +impuesto  = 118.80 USD
+applyCharmRounding   → moneda del comprador → 2,023.30 → roundCharm → 2,023.99 → 118.84 USD
+recomposeWithCharged gravable = 118.84 ÷ 1.16 · impuesto = el resto · sobrante → base gravable
+resolvePresentment   convierte EXACTO, ya no redondea
+```
+
+El sobrante del redondeo es de Vibra y va **dentro** de la base gravable: es contraprestación
+como el cargo fijo, así que paga impuesto. `baseAmount` NO se toca — lo que gana el creador no
+puede depender de cómo cayó un decimal.
+
+⚠️ **Dos conflictos que aparecieron al cablearlo:**
+1. `roundNice` en `resolvePresentment` **destruía** el precio comercial (108.99 MXN, paso 5 → 110).
+2. Redondear ahí **sobrecobraba** al aplicar saldo a favor: lo que llega es el RESTANTE
+   (total − crédito), no un precio. Con total 108.99 y crédito 50.34 el comprador acababa
+   pagando 109.33.
+
+Los dos se cierran igual: **la presentación ya no redondea**, solo convierte con la precisión
+de la moneda.
+
+⚠️ El frontend calculaba el total distinto (aplicaba `roundNice` a la base ANTES del impuesto):
+con base 10 USD el backend cobraba **209.99 MXN** y la UI mostraba **208.80**. `formatWithTax`
+ahora reproduce el backend paso a paso, con `roundCharm` espejado en `lib/currency/format.ts` y
+**test de paridad** sobre las 78 monedas.
+
+⏳ Falta la **matriz de precios congelada**: hoy la conversión sigue siendo en vivo.
+
 ### Pendientes
 
-| Fase | Qué |
+| Punto | Qué |
 |---|---|
-| 2 | Precio con rastro: `{input, inputCurrency, usd, rate, ratedAt}` |
-| 3 | Redondeo comercial (.99/.00) resolviendo el impuesto hacia atrás |
-| 4 | Matriz de precios congelada: mensual + banda ±3% |
+| 2 | Rastro del precio: `{input, inputCurrency, usd, rate, ratedAt}` |
+| 3 | Matriz congelada: refresco mensual + banda ±3% |
+| 4 | Connect y payouts — **bloqueado** |
 | 5 | Ledger en USD + dimensión `entity` (área sensible) |
-| 6 | Connect y payouts — **bloqueado** |
+| 6 | Fiscal: CFDI del creador, retenciones, tipo de cambio del DOF |
 
 ---
 
-## 8. Frentes abiertos
+## 8. Dependencias para operar en vivo
+
+| Qué | Estado | Bloquea |
+|---|---|---|
+| **EIN** (IRS, vía Atlas) | ⏳ previsto 31 ago – 28 oct | Verificación de empresa |
+| **Mercury** (cuenta bancaria de la LLC) | 🔄 en alta (2026-08-18) | **Activación de Stripe live** |
+| **Verificación de empresa** en Stripe | ⬜ | `sk_live` / `pk_live` |
+| **Preaprobación** del vertical de creadores | ⬜ | Procesar dinero real + define la reserva |
+
+⚠️ **Stripe live está suspendido hasta que la cuenta bancaria esté dada de alta.** El modo de
+prueba funciona sin nada de esto, así que **toda la integración se puede terminar en test** y
+dejar el cutover a live como último paso.
+
+---
+
+## 9. Frentes abiertos
 
 🔴 **¿Puede una plataforma US pagar a creadores en México?** El soporte dijo que sí, self-serve,
 pero **contradice la documentación**, que limita los payouts transfronterizos a US·UK·EEE·CA·CH.

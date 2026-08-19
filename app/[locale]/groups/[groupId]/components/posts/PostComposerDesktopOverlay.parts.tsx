@@ -51,7 +51,6 @@ export type PostComposerDesktopOverlayProps = {
   creating: boolean;
   isPreparingImages: boolean;
   hasContent: boolean;
-  localError: string | null;
   hasVideos: boolean;
   premiumComposer: ReturnType<typeof useComposerPremium>;
 

@@ -24,7 +24,7 @@ import { getExistingStripeCustomerId } from "./stripeCustomer";
 import { isChargeableCountry } from "../../tax/config";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
 import { composeCharge, chargeFields } from "../../tax/composeCharge";
-import { resolvePresentment } from "../../tax/presentment";
+import { resolvePresentment, applyCharmRounding } from "../../tax/presentment";
 import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 
 if (admin.apps.length === 0) {
@@ -128,7 +128,9 @@ export const repriceStripeIntentForCard = onCall(
       );
     }
 
-    const charge = composeCharge(base, resolved.country);
+    // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
+    // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
+    const charge = await applyCharmRounding(composeCharge(base, resolved.country));
     // La moneda de cobro también puede cambiar: si la IP decía Alemania y la tarjeta resulta
     // mexicana, se pasa de cobrar en EUR a cobrar en MXN.
     const presentment = await resolvePresentment(charge.chargedAmount, charge.displayCurrency);

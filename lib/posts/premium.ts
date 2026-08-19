@@ -4,7 +4,7 @@ import type {
   PostContextType,
   PostPremium,
 } from "./types";
-import { PREMIUM_MIN_PRICE_USD } from "@/lib/currency/catalog";
+import { PREMIUM_MIN_PRICE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 export const MAX_VIDEO_DURATION_FREE_SECONDS = 30 * 60;       // 30 min
 export const MAX_VIDEO_DURATION_PREMIUM_SECONDS = 3 * 60 * 60; // 3 horas
@@ -313,7 +313,7 @@ const normalizedPremium: PostPremium = {
       ? "none"
       : premium.freeFor,
     price: requiresPayment ? price : price ?? null,
-    currency: "MXN",
+    currency: SETTLEMENT_CURRENCY,
     purchaseType: "one_time",
   };
 
@@ -324,7 +324,7 @@ const normalizedPremium: PostPremium = {
     requiresPayment,
     requiresSubscription: false,
     oneTimePrice: requiresPayment ? price : null,
-    currency: requiresPayment ? "MXN" : null,
+    currency: requiresPayment ? SETTLEMENT_CURRENCY : null,
     purchaseType: "video",
   };
 }

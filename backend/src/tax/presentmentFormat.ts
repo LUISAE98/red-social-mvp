@@ -101,6 +101,68 @@ export function roundNice(amount: number, currency: string): number {
   return Math.round(amount / step) * step;
 }
 
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Redondea a los decimales que la moneda admite de verdad: ninguno en las de unidad entera,
+ * tres en los dinares, dos en el resto. No es un redondeo "comercial" ni a un paso — solo
+ * quita los decimales que la moneda no puede representar.
+ */
+export function roundToCurrencyPrecision(amount: number, currency: string): number {
+  const code = currency.toUpperCase();
+  if (ZERO_DECIMAL.has(code) || WHOLE_UNIT_ONLY.has(code)) return Math.round(amount);
+  if (THREE_DECIMAL.has(code)) return Math.round(amount * 1000) / 1000;
+  return round2(amount);
+}
+
+/**
+ * Redondeo COMERCIAL del total que se le cobra al comprador: deja el precio en `.99` o
+ * `.00` en vez de en un importe crudo como 108.65.
+ *
+ * Regla: el MENOR de (siguiente `.99`, siguiente `.00`) que sea ≥ al monto.
+ *   108.65 → 108.99   ·   108.995 → 109.00   ·   109.00 → 109.00   ·   109.50 → 109.99
+ *
+ * 🚨 SIEMPRE HACIA ARRIBA, nunca hacia abajo. Redondear a la baja puede dejar el cobro por
+ * debajo del costo de la transacción, y en cobros chicos eso se come el margen entero. El
+ * sobrante del redondeo es de Vibra y va DENTRO de la base gravable (ver composeCharge).
+ *
+ * A diferencia de `roundNice` —que redondea al múltiplo más cercano del paso de la moneda y
+ * sirve para que el precio MOSTRADO no tenga decimales feos— este se aplica al TOTAL final,
+ * después del impuesto, y por eso el impuesto hay que despejarlo hacia atrás desde el
+ * resultado: si no, el desglose no cuadra con lo que se cobró.
+ */
+export function roundCharm(amount: number, currency: string): number {
+  if (!Number.isFinite(amount) || amount <= 0) return amount;
+  const code = currency.toUpperCase();
+
+  // Sin parte decimal: el ".99" no existe. Se sube al siguiente paso de la moneda y se le
+  // resta 1 para conservar la terminación en 9 (JPY 10.865 → 10.900 → 10.899).
+  if (ZERO_DECIMAL.has(code)) {
+    const step = NICE_STEP[code] ?? 1;
+    if (step <= 1) return Math.ceil(amount);
+    const arriba = Math.ceil(amount / step) * step;
+    // ⚠️ Restar 1 para dejar la terminación en 9 puede caer POR DEBAJO del monto cuando
+    // este ya es múltiplo exacto del paso: 50 JPY (paso 50) daba 49, que además queda bajo
+    // el mínimo de Stripe. En ese caso hay que irse al siguiente escalón.
+    const charm = arriba - 1;
+    return charm >= amount ? charm : arriba + step - 1;
+  }
+
+  // Stripe exige que el último dígito sea 0 en las monedas de tres decimales, así que la
+  // terminación comercial es imposible: se sube al paso de la moneda y se deja ahí.
+  if (THREE_DECIMAL.has(code)) {
+    const step = NICE_STEP[code] ?? 1;
+    return Math.ceil(amount / step) * step;
+  }
+
+  let con99 = Math.floor(amount) + 0.99;
+  if (con99 < amount) con99 += 1;
+  const con00 = Math.ceil(amount);
+  return round2(Math.min(con99, con00));
+}
+
 export type Presentment = {
   /** Moneda en la que se le cobra al comprador. */
   currency: string;

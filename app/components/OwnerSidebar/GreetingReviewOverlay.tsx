@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { IconButton } from "@/components/ui";
+import { Switch } from "@/components/services/config/serviceConfigKit";
+import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import { useCfError } from "@/lib/i18n/cfError";
 import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -176,6 +178,11 @@ export default function GreetingReviewOverlay({
   const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
   const speechTextRef = useRef<HTMLParagraphElement>(null);
   const speechCursorRef = useRef<HTMLSpanElement>(null);
+
+  // Rechazar cancela el cobro del comprador y no tiene vuelta atrás, así que
+  // pide un segundo toque en vez de disparar al primero.
+  const [rejectArmed, setRejectArmed] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
 
   // La cámara ya está dando imagen. Sirve para no enseñar el <video> mientras
   // el navegador abre el dispositivo, que es cuando se ve el rectángulo negro.
@@ -481,6 +488,28 @@ export default function GreetingReviewOverlay({
       setUploadProgress(0);
       setCompletedEarningsNet((prev) => [...prev, earningNet ?? 0]);
       setUploadSucceeded(true);
+
+      // Solo en laptop, donde el aviso de enviado vive sobre el video. La
+      // cámara se acaba de apagar arriba, así que se vuelve a abrir para que
+      // el creador se vea en vivo mientras decide, y el fundido la trae de
+      // vuelta en lugar de encenderla de golpe.
+      if (!isMobile) {
+        setCameraReady(false);
+        void navigator.mediaDevices.getUserMedia({
+          // 1080p@30 con tope — ver nota en handleGrabar.
+          video: { facingMode: "user", width: { ideal: 1920, max: 1920 }, height: { ideal: 1080, max: 1080 }, frameRate: { ideal: 30, max: 30 } },
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: { ideal: 48000 }, channelCount: { ideal: 2 } },
+        }).then((stream) => {
+          streamRef.current = stream;
+          if (videoRef.current) videoRef.current.srcObject = stream;
+        }).catch(() => { /* sin cámara el aviso se ve igual, solo sin imagen */ });
+
+        // El switch de historias nace encendido, así que lo que muestra tiene
+        // que ser verdad: se publica ya, y apagarlo la retira.
+        if ((req.type === "saludo" || req.type === "consejo") && req.allowCreatorStory !== false) {
+          void handleAddToStory();
+        }
+      }
     } catch (e: unknown) {
       setUploadError((e instanceof Error ? cfError(e) : null) ?? tCommon("generalError"));
       setIsUploading(false);
@@ -826,7 +855,26 @@ export default function GreetingReviewOverlay({
     }
   };
 
+  const handleReject = async () => {
+    if (rejecting) return;
+    if (!rejectArmed) { setRejectArmed(true); return; }
+    setRejectArmed(false);
+    setRejecting(true);
+    try {
+      await respondGreetingRequest({ requestId: currentItem.id, action: "reject" });
+      // Rechazado ya no hay nada que grabar aquí: o queda otro encargo o se
+      // acabó la lista y el panel se cierra.
+      if (currentIndex >= items.length - 1) handleAnimatedClose();
+      else handleNextGreeting();
+    } catch (e: unknown) {
+      setUploadError((e instanceof Error ? cfError(e) : null) ?? tServices("errorRejectRequest"));
+    } finally {
+      setRejecting(false);
+    }
+  };
+
   const handleNextGreeting = () => {
+    setRejectArmed(false);
     // Reset recording state and advance to next item — stay in camera panel
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
     uploadBlobRef.current = null;
@@ -1499,20 +1547,22 @@ export default function GreetingReviewOverlay({
     </>
   );
 
-  // Estado de la subida: barra de progreso y ficha del archivo. Se queda en el
-  // panel lateral en las dos ramas; solo los BOTONES salen fuera en laptop.
-  const recordStatus = recordPhase === "done" ? (
+  // Barra de progreso de la subida. Solo la usa celular: en laptop el porcentaje
+  // ya va dentro del propio botón de enviar y repetirlo abajo sobraba.
+  const uploadProgressBlock = recordPhase === "done" && isUploading ? (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${uploadProgress}%`, background: "linear-gradient(90deg, #22c55e, #86efac)", borderRadius: 2, transition: "width 200ms ease" }} />
+      </div>
+      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", textAlign: "center", fontFamily: fontStack }}>
+        {uploadProgress < 100 ? tServices("uploadingProgress", { progress: uploadProgress }) : tServices("processing")}
+      </span>
+    </div>
+  ) : null;
+
+  // Ficha del archivo elegido. Esta sí se queda en el panel en las dos ramas.
+  const recordFileChip = recordPhase === "done" ? (
     <>
-      {isUploading && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${uploadProgress}%`, background: "linear-gradient(90deg, #22c55e, #86efac)", borderRadius: 2, transition: "width 200ms ease" }} />
-          </div>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", textAlign: "center", fontFamily: fontStack }}>
-            {uploadProgress < 100 ? tServices("uploadingProgress", { progress: uploadProgress }) : tServices("processing")}
-          </span>
-        </div>
-      )}
       {wasUploadedRef.current && fileDuration != null && !isUploading && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 2px" }}>
           <span style={{
@@ -1528,12 +1578,22 @@ export default function GreetingReviewOverlay({
     </>
   ) : null;
 
+  const recordStatus = (
+    <>
+      {uploadProgressBlock}
+      {recordFileChip}
+    </>
+  );
+
   /** Etiqueta del botón de envío, con el progreso encima mientras sube. */
   const sendLabel = isUploading
     ? (uploadProgress < 100 ? tServices("uploadingProgress", { progress: uploadProgress }) : tServices("processing"))
     : req.type === "consejo" ? tServices("sendAdvice") : tServices("sendGreeting");
 
   const repeatLabel = wasUploadedRef.current ? tCommon("changeFile") : tServices("recordAgain");
+
+  /** "Compartir saludo" o "Compartir consejo", según el encargo. */
+  const shareLabel = req.type === "consejo" ? tServices("shareAdvice") : tServices("shareGreeting");
 
   /** Base de los botones que van sobre el video en laptop. Misma geometría que
    *  el de subir video pregrabado; solo cambia el fondo. */
@@ -2049,6 +2109,12 @@ export default function GreetingReviewOverlay({
     // Lo que queda a la vista al plegar: una pestaña con la flecha.
     const infoTab = 56;
 
+    // El pie apila rechazar, subir video y el botón rojo. Cada piso mide lo que
+    // ocupa un botón de acción (40) más el aire entre ellos, contado desde 28.
+    const FOOTER_REJECT_BOTTOM = 28;
+    const FOOTER_UPLOAD_BOTTOM = FOOTER_REJECT_BOTTOM + 40 + 10;
+    const FOOTER_RECORD_BOTTOM = FOOTER_UPLOAD_BOTTOM + 40 + 12;
+
     // Los controles del video traen un cazador de clics a `inset: 0`, así que
     // tal cual se tragan las pestañas laterales y no dejan plegar ni desplegar
     // nada durante la previsualización. Aquí se encierran en la franja central,
@@ -2090,6 +2156,17 @@ export default function GreetingReviewOverlay({
             from { opacity: 1; transform: none; }
             to   { opacity: 0; transform: none; }
           }
+        }
+        /* Paloma del aviso de enviado. */
+        @keyframes vibraSuccessPop {
+          0%   { transform: scale(0.3); opacity: 0; }
+          65%  { transform: scale(1.12); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes vibraCheckDraw {
+          0%   { stroke-dashoffset: 32; opacity: 0; }
+          30%  { opacity: 1; }
+          100% { stroke-dashoffset: 0; opacity: 1; }
         }
         /* El color del texto de ayuda no se puede dar en línea. */
         .grv-prompter::placeholder { color: rgba(255,255,255,0.28); }
@@ -2333,11 +2410,11 @@ export default function GreetingReviewOverlay({
                     {tCommon("close")}
                   </button>
                 </>
-              ) : uploadSucceeded ? successContent : (
-                // Aquí solo queda el estado de la subida. Subir video
-                // pregrabado, repetir y enviar viven al pie de la zona de
-                // grabación, sobre el video.
-                recordStatus
+              ) : uploadSucceeded ? null : (
+                // El aviso de enviado y el porcentaje ya no viven aquí: el
+                // primero va centrado sobre el video y el segundo dentro del
+                // propio botón de enviar. Aquí solo queda la ficha del archivo.
+                recordFileChip
               )}
             </div>
 
@@ -2586,7 +2663,7 @@ export default function GreetingReviewOverlay({
                       position: "absolute", inset: 0,
                       height: "100%", width: "100%",
                       objectFit: "cover", background: "#000",
-                      opacity: (recordPhase !== "done" && cameraReady) ? 1 : 0,
+                      opacity: ((recordPhase !== "done" || uploadSucceeded) && cameraReady) ? 1 : 0,
                       transition: `opacity ${VIDEO_FADE_MS}ms ease`,
                       border: "1px solid rgba(255,255,255,0.08)",
                     }}
@@ -2598,8 +2675,8 @@ export default function GreetingReviewOverlay({
                       display: "flex", alignItems: "center", justifyContent: "center",
                       // Se queda montada un instante tras pulsar repetir, ya
                       // invisible, para poder fundirse en vez de esfumarse.
-                      opacity: recordPhase === "done" ? 1 : 0,
-                      pointerEvents: recordPhase === "done" ? "auto" : "none",
+                      opacity: (recordPhase === "done" && !uploadSucceeded) ? 1 : 0,
+                      pointerEvents: (recordPhase === "done" && !uploadSucceeded) ? "auto" : "none",
                       transition: `opacity ${VIDEO_FADE_MS}ms ease`,
                     }}>
                     <video
@@ -2646,7 +2723,7 @@ export default function GreetingReviewOverlay({
                       {getRecordingMessage(recordingSeconds, req.type)}
                     </div>
                   )}
-                  {renderCameraRecordButton(recordPhase === "recording" ? 28 : 84)}
+                  {renderCameraRecordButton(recordPhase === "recording" ? 28 : FOOTER_RECORD_BOTTOM)}
 
                   {/* Subir un video pregrabado, justo debajo del botón rojo.
                       Se queda montado durante la grabación en vez de quitarse
@@ -2660,7 +2737,7 @@ export default function GreetingReviewOverlay({
                       onClick={() => { setUploadError(null); fileInputRef.current?.click(); }}
                       tabIndex={hidden ? -1 : 0}
                       style={{
-                        position: "absolute", bottom: 28, left: "50%",
+                        position: "absolute", bottom: FOOTER_UPLOAD_BOTTOM, left: "50%",
                         transform: hidden
                           ? "translateX(-50%) translateY(12px) scale(0.94)"
                           : "translateX(-50%) translateY(0) scale(1)",
@@ -2677,6 +2754,43 @@ export default function GreetingReviewOverlay({
                       }}
                     >
                       {tServices("uploadPrerecordedVideo")}
+                    </button>
+                    );
+                  })()}
+
+                  {/* Rechazar. Salta el encargo, pero no es solo saltar: cancela
+                      de verdad la solicitud y con ella el cobro retenido al
+                      comprador. Por eso pide un segundo toque. */}
+                  {(() => {
+                    const hidden = recordPhase !== "preview";
+                    return (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); void handleReject(); }}
+                      onBlur={() => setRejectArmed(false)}
+                      disabled={rejecting}
+                      tabIndex={hidden ? -1 : 0}
+                      style={{
+                        ...videoActionButton,
+                        position: "absolute", bottom: FOOTER_REJECT_BOTTOM, left: "50%",
+                        transform: hidden
+                          ? "translateX(-50%) translateY(12px) scale(0.94)"
+                          : "translateX(-50%) translateY(0) scale(1)",
+                        opacity: hidden ? 0 : 1,
+                        visibility: hidden ? "hidden" : "visible",
+                        pointerEvents: hidden ? "none" : "auto",
+                        background: rejectArmed ? "#b91c1c" : "rgba(255,255,255,0.16)",
+                        cursor: rejecting ? "not-allowed" : "pointer",
+                        filter: "none",
+                        transition: [
+                          "opacity 200ms ease",
+                          "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+                          "visibility 300ms",
+                          "background 200ms ease",
+                        ].join(", "),
+                      }}
+                    >
+                      {rejectArmed ? tServices("confirmReject") : tCommon("reject")}
                     </button>
                     );
                   })()}
@@ -2737,6 +2851,112 @@ export default function GreetingReviewOverlay({
                       >
                         {sendLabel}
                       </button>
+                    </div>
+                    );
+                  })()}
+
+                  {/* Enviado. Vive centrado sobre el video, no en el panel, y
+                      se queda montado para entrar y salir con el mismo fundido
+                      que el resto del pie. */}
+                  {(() => {
+                    const hidden = !uploadSucceeded;
+                    const canStory =
+                      (req.type === "saludo" || req.type === "consejo") &&
+                      req.allowCreatorStory !== false;
+                    const storyOn = storyAdded || existingStory !== null;
+                    return (
+                    <div style={{
+                      position: "absolute", inset: 0, zIndex: 6,
+                      display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center", gap: 16,
+                      opacity: hidden ? 0 : 1,
+                      visibility: hidden ? "hidden" : "visible",
+                      pointerEvents: hidden ? "none" : "auto",
+                      transform: hidden ? "scale(0.96)" : "scale(1)",
+                      transition: [
+                        "opacity 220ms ease",
+                        "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+                        "visibility 300ms",
+                      ].join(", "),
+                    }}>
+                      <div style={{
+                        width: 56, height: 56, borderRadius: "50%",
+                        background: "#22c55e", flexShrink: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        boxShadow: "0 8px 32px rgba(34,197,94,0.35)",
+                        animation: hidden ? "none" : "vibraSuccessPop 0.45s cubic-bezier(0.4,0,0.2,1) both",
+                      }}>
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                          <path
+                            d="M5 12L10 17L19 8"
+                            stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                            strokeDasharray="32" strokeDashoffset="0"
+                            style={{ animation: hidden ? "none" : "vibraCheckDraw 0.5s 0.25s ease both" }}
+                          />
+                        </svg>
+                      </div>
+
+                      <span style={{
+                        color: "#fff", fontWeight: 700, fontSize: 18,
+                        letterSpacing: "-0.02em", lineHeight: 1.2, textAlign: "center",
+                        textShadow: "0 2px 12px rgba(0,0,0,0.6)",
+                      }}>
+                        {successIsLast ? tServices("sentAllToday") : successLabel}
+                      </span>
+
+                      {/* Al terminar la lista no queda nada que decidir: fuera el
+                          switch y fuera el botón, y en su lugar lo ganado. */}
+                      {successIsLast ? (
+                        successTotalEarned > 0 && (
+                          <span style={{
+                            color: "#4ade80", fontWeight: 700, fontSize: 22,
+                            letterSpacing: "-0.02em", lineHeight: 1.2, textAlign: "center",
+                            textShadow: "0 2px 12px rgba(0,0,0,0.6)",
+                          }}>
+                            {tServices("releasedAmount", {
+                              amount: formatMoney(successTotalEarned, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
+                            })}
+                          </span>
+                        )
+                      ) : (
+                        <>
+                          {/* El switch solo existe si el comprador autorizó que
+                              el creador publique el encargo. Sin permiso no hay
+                              nada que ofrecer, así que ni se enseña apagado.
+                              Sin caja: el aire lo pone el propio texto. */}
+                          {canStory && (
+                            <div style={{
+                              display: "flex", alignItems: "center", gap: 10,
+                              margin: "-4px 0",
+                            }}>
+                              <span style={{
+                                color: "rgba(255,255,255,0.88)", fontSize: 14, fontWeight: 600,
+                                letterSpacing: "-0.01em",
+                                textShadow: "0 2px 10px rgba(0,0,0,0.7)",
+                              }}>
+                                {shareLabel}
+                              </span>
+                              <Switch
+                                checked={storyOn}
+                                disabled={addingStory || removingStory}
+                                label={shareLabel}
+                                onChange={(next) => {
+                                  if (next) void handleAddToStory();
+                                  else void handleRemoveFromStory();
+                                }}
+                              />
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleNextGreeting(); }}
+                            style={{ ...videoActionButton, background: "#3b82f6" }}
+                          >
+                            {tServices("reviewNext")}
+                          </button>
+                        </>
+                      )}
                     </div>
                     );
                   })()}

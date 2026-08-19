@@ -1951,7 +1951,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         serviceKind={incomingSessionOverlayData.serviceKind}
         earning={
           incomingSessionOverlayData.req.priceSnapshot != null && incomingSessionOverlayData.req.priceSnapshot > 0
-            ? formatMoney(incomingSessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { baseCurrency: incomingSessionOverlayData.req.currency ?? "MXN", code: true })
+            ? formatMoney(incomingSessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { baseCurrency: incomingSessionOverlayData.req.currency ?? SETTLEMENT_CURRENCY, code: true })
             : null
         }
         busy={!!busyMap[incomingSessionOverlayData.id]}

@@ -2015,7 +2015,12 @@
     "configAllSaved": "Abbonamento, catalogo e donazione salvati.",
     "prompterTitle": "Teleprompter",
     "prompterPlaceholder": "Scrivi qui quello che vuoi dire",
-    "uploadPrerecordedVideo": "Carica un video preregistrato"
+    "uploadPrerecordedVideo": "Carica un video preregistrato",
+    "reviewNext": "Rivedi il prossimo",
+    "shareGreeting": "Condividi il saluto",
+    "shareAdvice": "Condividi il consiglio",
+    "sentAllToday": "Li hai inviati tutti per oggi!",
+    "releasedAmount": "Hai sbloccato {amount}!"
   },
   "live": {
     "accessTicket": "Biglietto d'accesso",

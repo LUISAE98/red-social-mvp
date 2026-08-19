@@ -2015,7 +2015,12 @@
     "configAllSaved": "Áskrift, listi og framlag vistuð.",
     "prompterTitle": "Textavél",
     "prompterPlaceholder": "Skrifaðu hér það sem þú vilt segja",
-    "uploadPrerecordedVideo": "Hlaða upp fyrirfram teknu myndbandi"
+    "uploadPrerecordedVideo": "Hlaða upp fyrirfram teknu myndbandi",
+    "reviewNext": "Skoða næsta",
+    "shareGreeting": "Deila kveðju",
+    "shareAdvice": "Deila ráði",
+    "sentAllToday": "Þú sendir þau öll í dag!",
+    "releasedAmount": "Þú losaðir {amount}!"
   },
   "live": {
     "accessTicket": "Aðgangsmiði",

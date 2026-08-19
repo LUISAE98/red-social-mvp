@@ -18,7 +18,7 @@ import { useAuth } from "@/app/providers";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import { createGroupSubscription } from "@/lib/stripe/stripePayments";
-import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
@@ -343,7 +343,7 @@ const { user } = useAuth();
 
   const subscriptionPriceLabel = (() => {
     if (typeof group.subscriptionPrice !== "number") return null;
-    const currency = group.subscriptionCurrency ?? "MXN";
+    const currency = group.subscriptionCurrency ?? SETTLEMENT_CURRENCY;
     try {
       return new Intl.NumberFormat(intlLocale(locale), {
         style: "currency",

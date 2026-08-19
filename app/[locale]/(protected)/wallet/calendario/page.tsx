@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -507,7 +508,7 @@ function CalendarEventCard({
                 flexShrink: 0,
               }}
             >
-              +{formatMoney(Math.round(item.priceSnapshot * WALLET_NET_RATE * 100) / 100, { baseCurrency: item.currency ?? "MXN", code: true })}
+              +{formatMoney(Math.round(item.priceSnapshot * WALLET_NET_RATE * 100) / 100, { baseCurrency: item.currency ?? SETTLEMENT_CURRENCY, code: true })}
             </span>
           ) : null}
         </div>
@@ -1195,7 +1196,7 @@ export default function WalletCalendarioPage() {
 
   const viewItemEarning =
     viewItem?.priceSnapshot != null && viewItem.priceSnapshot > 0
-      ? formatMoney(viewItem.priceSnapshot * WALLET_NET_RATE, { baseCurrency: viewItem.currency ?? "MXN" })
+      ? formatMoney(viewItem.priceSnapshot * WALLET_NET_RATE, { baseCurrency: viewItem.currency ?? SETTLEMENT_CURRENCY })
       : null;
 
   function closeViewItem() {

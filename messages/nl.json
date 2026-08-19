@@ -2015,7 +2015,12 @@
     "configAllSaved": "Abonnement, catalogus en donatie opgeslagen.",
     "prompterTitle": "Teleprompter",
     "prompterPlaceholder": "Schrijf hier wat je wilt zeggen",
-    "uploadPrerecordedVideo": "Vooraf opgenomen video uploaden"
+    "uploadPrerecordedVideo": "Vooraf opgenomen video uploaden",
+    "reviewNext": "Volgende bekijken",
+    "shareGreeting": "Groet delen",
+    "shareAdvice": "Advies delen",
+    "sentAllToday": "Je hebt ze vandaag allemaal verstuurd!",
+    "releasedAmount": "Je hebt {amount} vrijgespeeld!"
   },
   "live": {
     "accessTicket": "Toegangsticket",

@@ -1024,7 +1024,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   if (isPaidLive && accessChecked && !hasAccess) {
     const ticketPrice = Number(post.oneTimePrice ?? liveData?.ticketPrice ?? 0);
-    const currency = liveData?.currency ?? "MXN";
+    const currency = liveData?.currency ?? SETTLEMENT_CURRENCY;
 
     return createPortal(
       <div style={{

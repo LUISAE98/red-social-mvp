@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 import {
   DEFAULT_DONATION_SUGGESTED_AMOUNTS,
@@ -52,11 +53,11 @@ describe("Borrador vacío · la visibilidad por omisión depende de la superfici
     expect(draft.customClass.visibility).toBe("members");
   });
 
-  it("nace todo apagado y sin precio, en MXN", () => {
+  it("nace todo apagado y sin precio, en la moneda de liquidación", () => {
     const draft = createEmptyDraft("profile");
     expect(draft.saludo.enabled).toBe(false);
     expect(draft.saludo.price).toBe("");
-    expect(draft.saludo.currency).toBe("MXN");
+    expect(draft.saludo.currency).toBe(SETTLEMENT_CURRENCY);
     expect(draft.donationMode).toBe("none");
   });
 
@@ -185,14 +186,18 @@ describe("Guardado de un servicio · las reglas que separan perfil de comunidad"
     expect(offering.currency).toBeNull();
   });
 
-  it("🚨 el precio se guarda SIEMPRE en MXN, nunca en el ancla USD legacy", () => {
+  // 🚨 El guardián del bug de `resolveStoredPrice`: el borrador puede traer CUALQUIER
+  // moneda y buildOffering tiene que forzar la de liquidación. Lo que cambió con el corte
+  // a USD (2026-08-18) es cuál es esa moneda, no la invariante. El caso adversario ahora
+  // es un borrador en MXN, que es la que quedó obsoleta.
+  it("🚨 el precio se guarda SIEMPRE en la moneda de liquidación, diga lo que diga el borrador", () => {
     const offering = buildOffering({
       surface: "profile",
       type: "saludo",
-      draft: block({ currency: "USD", price: "250" }),
+      draft: block({ currency: "MXN", price: "250" }),
       displayOrder: 0,
     });
-    expect(offering.currency).toBe("MXN");
+    expect(offering.currency).toBe(SETTLEMENT_CURRENCY);
     expect(offering.price).toBe(250);
   });
 
@@ -339,7 +344,7 @@ describe("Lectura de la donación", () => {
     expect(donation.message).toBe("");
     expect(donation.videoUrl).toBe("");
     expect(donation.playbackId).toBe("");
-    expect(donation.currency).toBe("MXN");
+    expect(donation.currency).toBe(SETTLEMENT_CURRENCY);
   });
 });
 

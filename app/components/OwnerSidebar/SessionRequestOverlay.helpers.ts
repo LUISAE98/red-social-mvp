@@ -1,6 +1,7 @@
 // Tipos, helpers puros y estilos (OVERLAY_CSS) de SessionRequestOverlay (hoja).
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { formatDateTime, formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -88,7 +89,7 @@ export function formatScheduledDate(value: unknown, locale: string): string | nu
 }
 
 export function getRequestCurrency(req: SessionRequest): string {
-  return (req as MeetGreetRequestDoc & { currency?: string }).currency ?? "MXN";
+  return (req as MeetGreetRequestDoc & { currency?: string }).currency ?? SETTLEMENT_CURRENCY;
 }
 
 export function getCreatorScheduleNote(req: SessionRequest): string | null {

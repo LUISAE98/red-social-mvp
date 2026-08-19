@@ -2015,7 +2015,12 @@
     "configAllSaved": "Đã lưu gói đăng ký, danh mục và quyên góp.",
     "prompterTitle": "Máy nhắc chữ",
     "prompterPlaceholder": "Viết ở đây điều bạn muốn nói",
-    "uploadPrerecordedVideo": "Tải lên video đã quay sẵn"
+    "uploadPrerecordedVideo": "Tải lên video đã quay sẵn",
+    "reviewNext": "Xem cái tiếp theo",
+    "shareGreeting": "Chia sẻ lời chào",
+    "shareAdvice": "Chia sẻ lời khuyên",
+    "sentAllToday": "Bạn đã gửi hết cho hôm nay!",
+    "releasedAmount": "Bạn đã mở khóa {amount}!"
   },
   "live": {
     "accessTicket": "Vé vào cửa",

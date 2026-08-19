@@ -73,8 +73,7 @@ describe("RTL / propiedades lógicas", () => {
   // este resto revisado uno a uno, y subirlo suele significar que alguien
   // escribió posicionamiento físico nuevo.
   //
-  // 76 desde "Varios Fix, avanzando" (2e5e1ca): dos overlays nuevos de
-  // GreetingReviewOverlay que se centran con `left: "50%"` +
+  // 77: los nueve overlays de GreetingReviewOverlay que se centran con `left: "50%"` +
   // `translateX(-50%)`. Ese par NO se convierte a lógicas: el centro no tiene
   // lado, y con `insetInlineStart` en árabe el ancla se iría al borde opuesto
   // mientras el `translateX` sigue empujando al mismo, descentrando la pieza.
@@ -84,7 +83,7 @@ describe("RTL / propiedades lógicas", () => {
     let n = 0;
     for (const { texto } of FUENTES) n += (texto.match(/\b(left|right)\s*:/g) || []).length;
     // Margen de 10 para no dar guerra por un refactor legítimo.
-    expect(n, "aparecieron left/right físicos nuevos: revisa si son CSS (usa inset-inline-*) o datos").toBeLessThanOrEqual(76);
+    expect(n, "aparecieron left/right físicos nuevos: revisa si son CSS (usa inset-inline-*) o datos").toBeLessThanOrEqual(77);
   });
 
   it("los locales RTL están en el catálogo y tienen su archivo de traducción", () => {

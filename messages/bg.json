@@ -2015,7 +2015,12 @@
     "configAllSaved": "Абонаментът, каталогът и дарението са запазени.",
     "prompterTitle": "Промптер",
     "prompterPlaceholder": "Напишете тук какво искате да кажете",
-    "uploadPrerecordedVideo": "Качване на предварително записано видео"
+    "uploadPrerecordedVideo": "Качване на предварително записано видео",
+    "reviewNext": "Преглед на следващото",
+    "shareGreeting": "Споделяне на поздрава",
+    "shareAdvice": "Споделяне на съвета",
+    "sentAllToday": "Изпрати всички за днес!",
+    "releasedAmount": "Освободи {amount}!"
   },
   "live": {
     "accessTicket": "Билет за достъп",

@@ -2015,7 +2015,12 @@
     "configAllSaved": "已儲存訂閱、型錄與贊助。",
     "prompterTitle": "提詞機",
     "prompterPlaceholder": "在這裡寫下你想說的話",
-    "uploadPrerecordedVideo": "上傳預先錄好的影片"
+    "uploadPrerecordedVideo": "上傳預先錄好的影片",
+    "reviewNext": "查看下一個",
+    "shareGreeting": "分享問候",
+    "shareAdvice": "分享建議",
+    "sentAllToday": "今天的都寄出去了!",
+    "releasedAmount": "你解鎖了 {amount}!"
   },
   "live": {
     "accessTicket": "觀看門票",

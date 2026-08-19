@@ -6,8 +6,9 @@ import {
   toStripeAmount,
   meetsStripeMinimum,
   NICE_STEP as BACKEND_NICE_STEP,
+  roundCharm,
 } from "../../backend/src/tax/presentmentFormat";
-import { NICE_STEP as FRONTEND_NICE_STEP } from "@/lib/currency/format";
+import { NICE_STEP as FRONTEND_NICE_STEP, roundCharm as frontendRoundCharm } from "@/lib/currency/format";
 import { DISPLAY_CURRENCIES } from "@/lib/currency/catalog";
 
 // La moneda de PRESENTACIÓN es en la que se le cobra de verdad al comprador. Dos cosas se
@@ -117,5 +118,73 @@ describe("meetsStripeMinimum", () => {
   it("una moneda sin mínimo publicado no bloquea el cobro", () => {
     expect(meetsStripeMinimum(0.01, "ISK")).toBe(true);
     expect(meetsStripeMinimum(0.01, "BAM")).toBe(true);
+  });
+});
+
+// Redondeo COMERCIAL del total. Es lo último que se aplica antes de cobrar, así que un
+// error aquí llega íntegro a la tarjeta del comprador. Lo que se protege: que NUNCA
+// redondee hacia abajo (dejaría el cobro por debajo del costo) y que no suba más de una
+// unidad (un salto grande es un sobrecargo silencioso, no un precio bonito).
+describe("roundCharm — precio con terminación comercial", () => {
+  it("deja el total en .99 o .00, el que quede más cerca por arriba", () => {
+    expect(roundCharm(108.65, "MXN")).toBe(108.99);
+    expect(roundCharm(108.995, "MXN")).toBe(109); // el .99 ya quedó abajo → sube al entero
+    expect(roundCharm(109, "MXN")).toBe(109); // ya es .00, no lo mueve
+    expect(roundCharm(109.5, "MXN")).toBe(109.99);
+    expect(roundCharm(12.246, "USD")).toBe(12.99);
+  });
+
+  it("🚨 NUNCA redondea hacia abajo", () => {
+    for (const c of ["USD", "MXN", "EUR", "BRL", "JPY", "CLP", "COP"]) {
+      // Incluye MÚLTIPLOS EXACTOS del paso de la moneda (50, 100, 1000): ahí estaba el
+      // bug — restar 1 para dejar la terminación en 9 caía por debajo del monto.
+      for (const base of [0.5, 1.01, 9.99, 12.246, 50, 100, 108.65, 1000, 1234.56, 98765]) {
+        expect(roundCharm(base, c), `${base} ${c}`).toBeGreaterThanOrEqual(base);
+      }
+    }
+  });
+
+  it("🚨 no sube más de una unidad de la moneda", () => {
+    for (const base of [0.5, 1.01, 9.99, 12.246, 108.65, 1234.56]) {
+      expect(roundCharm(base, "USD") - base, `${base}`).toBeLessThan(1);
+    }
+  });
+
+  it("en monedas sin decimales conserva la terminación en 9 (no inventa centavos)", () => {
+    const jpy = roundCharm(10865, "JPY");
+    expect(Number.isInteger(jpy)).toBe(true);
+    expect(jpy).toBeGreaterThanOrEqual(10865);
+    expect(String(jpy).endsWith("9")).toBe(true);
+  });
+
+  // Stripe exige último dígito 0 en las de tres decimales, así que ahí la terminación
+  // comercial es imposible y el resultado tiene que seguir pasando `toStripeAmount`.
+  it("las monedas de tres decimales siguen cumpliendo el formato de Stripe", () => {
+    for (const c of ["KWD", "JOD", "BHD", "OMR", "TND"]) {
+      const v = roundCharm(15.778, c);
+      expect(v).toBeGreaterThanOrEqual(15.778);
+      expect(toStripeAmount(v, c) % 10, `${c}`).toBe(0);
+    }
+  });
+
+  it("el resultado siempre supera el mínimo de Stripe si el original lo superaba", () => {
+    for (const c of ["USD", "MXN", "EUR", "JPY"]) {
+      const v = roundCharm(50, c);
+      expect(meetsStripeMinimum(v, c), c).toBe(true);
+    }
+  });
+});
+
+// 🚨 `roundCharm` está DUPLICADO a mano (el backend no puede importar de lib/). Es el
+// último paso antes de cobrar, así que si los dos se separan el comprador ve un precio y
+// se le cobra otro — exactamente el bug que este redondeo vino a cerrar.
+describe("roundCharm — paridad entre el backend y el frontend", () => {
+  it("🚨 dan el MISMO resultado en todas las monedas del catálogo", () => {
+    const montos = [0.5, 1.01, 9.99, 12.246, 50, 99.99, 100, 108.65, 1000, 1234.56, 98765];
+    for (const c of DISPLAY_CURRENCIES) {
+      for (const m of montos) {
+        expect(frontendRoundCharm(m, c), `${m} ${c}`).toBe(roundCharm(m, c));
+      }
+    }
   });
 });

@@ -3,6 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import {
   MAX_POST_IMAGES,
   type GroupVisibility,
@@ -82,6 +84,7 @@ export default function GroupPostComposer({
       }));
   });
   const [localError, setLocalError] = useState<string | null>(null);
+  const { toast: composerToast, showToast: showComposerToast } = useVibraToast();
   const processingImageSlots = 0;
   const [processingVideoSlots, setProcessingVideoSlots] = useState(0);
   const [draggingPreviewIndex, setDraggingPreviewIndex] = useState<
@@ -208,14 +211,12 @@ export default function GroupPostComposer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* El aviso sale por VibraToast. Antes se pintaba como caja roja aquí Y otra
+     vez dentro de cada overlay, con el estilo que el catálogo retiró. */
   useEffect(() => {
     if (!localError) return;
-
-    const timer = window.setTimeout(() => {
-      setLocalError(null);
-    }, 4500);
-
-    return () => window.clearTimeout(timer);
+    showComposerToast(localError, "error");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localError]);
 
   useEffect(() => {
@@ -861,17 +862,6 @@ const launcherButtonStyle: CSSProperties = {
     flexShrink: 0,
   };
 
-  const localErrorStyle: CSSProperties = {
-    marginTop: 10,
-    borderRadius: 10,
-    border: "1px solid rgba(255,90,90,0.24)",
-    background: "rgba(120,18,18,0.28)",
-    color: "#ffdada",
-    padding: "9px 10px",
-    fontSize: 12,
-    lineHeight: 1.4,
-  };
-
   return (
     <>
       <section style={cardStyle}>
@@ -1028,13 +1018,13 @@ const launcherButtonStyle: CSSProperties = {
               )}
             </div>
 
-            {localError && <div style={localErrorStyle}>{localError}</div>}
           </div>
         </div>
       </section>
 
       {isMobileComposer ? (
         <PostComposerMobileOverlay
+          localError={localError}
           open={isComposerOverlayOpen}
           isEditMode={isEditMode}
           onClose={() => {
@@ -1052,7 +1042,6 @@ const launcherButtonStyle: CSSProperties = {
           hasContent={hasContent}
           hasVideos={hasVideos}
           premiumComposer={composerPremium}
-          localError={localError}
           selectedMediaItems={selectedMediaItems}
           processingImageSlots={processingImageSlots}
           processingVideoSlots={processingVideoSlots}
@@ -1089,7 +1078,6 @@ const launcherButtonStyle: CSSProperties = {
           hasContent={hasContent}
           hasVideos={hasVideos}
           premiumComposer={composerPremium}
-          localError={localError}
           selectedMediaItems={selectedMediaItems}
           processingImageSlots={processingImageSlots}
           processingVideoSlots={processingVideoSlots}
@@ -1108,6 +1096,7 @@ const launcherButtonStyle: CSSProperties = {
           onPreviewPointerUp={handlePreviewPointerUp}
         />
       )}
+      <VibraToast toast={composerToast} />
     </>
   );
 }

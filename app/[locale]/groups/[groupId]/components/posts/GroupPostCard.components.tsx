@@ -18,7 +18,7 @@ import {
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
-import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import type { PostPremiumStateResult } from "@/lib/posts/post-premium-state";
 import { fontStack, getInitials, formatMediaDuration } from "./GroupPostCard.utils";
@@ -149,7 +149,7 @@ export function PremiumPostPanel({
               marginTop: 1,
             }}
           >
-            {priceFmt.format(netEarnings, { baseCurrency: currency ?? "MXN", code: true })}
+            {priceFmt.format(netEarnings, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true })}
           </div>
         </div>
       )}
@@ -180,7 +180,7 @@ export function PremiumPostPanel({
         >
           <VibraNavigationIcon type="premiumCrown" size={17} />
           {/* Monto ya con todo incluido: (base + $3) + IVA. La pasarela desglosa solo el IVA. */}
-          {tPosts("premiumUnlockForPrice", { price: priceFmt.formatWithTax((oneTimePrice ?? 0) + FIXED_SERVICE_FEE_USD, { baseCurrency: currency ?? "MXN" }).total })}
+          {tPosts("premiumUnlockForPrice", { price: priceFmt.formatWithTax((oneTimePrice ?? 0) + FIXED_SERVICE_FEE_USD, { baseCurrency: currency ?? SETTLEMENT_CURRENCY }).total })}
         </button>
       )}
     </div>
@@ -216,7 +216,7 @@ export function LiveTicketPanel({
   // El comprador ve el precio YA con todo incluido: (base + $3) + IVA.
   // La pasarela desglosa solo el IVA (recibe amount = base + $3).
   const priceLabel = ticketPrice
-    ? priceFmt.formatWithTax(ticketPrice + FIXED_SERVICE_FEE_USD, { baseCurrency: currency ?? "MXN" }).total
+    ? priceFmt.formatWithTax(ticketPrice + FIXED_SERVICE_FEE_USD, { baseCurrency: currency ?? SETTLEMENT_CURRENCY }).total
     : tPosts("liveTicketPriceUndefined");
 
   const isPaid = paid && !isAuthor;
@@ -303,7 +303,7 @@ export function LiveTicketPanel({
             {tPosts("premiumEarningsLabel")}
           </div>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80", fontFamily: fontStack, lineHeight: 1.3, marginTop: 1 }}>
-            {priceFmt.format(netEarnings, { baseCurrency: currency ?? "MXN", code: true })}
+            {priceFmt.format(netEarnings, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true })}
           </div>
         </div>
       )}

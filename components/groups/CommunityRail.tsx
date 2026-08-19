@@ -462,12 +462,15 @@ export default function CommunityRail({
     return null;
   }
 
+  // Mismo tratamiento que los enlaces del menú derecho de laptop
+  // (.walletLink en WalletDesktopRail), para que las dos columnas se lean como
+  // una sola familia. El tamaño de letra NO se declara: allí tampoco, así que
+  // los dos heredan el mismo y siguen igualados si algún día se cambia la base.
   const headerStyle: CSSProperties = {
     display: "flex",
     alignItems: "center",
     gap: 7,
     padding: "0 8px 6px",
-    fontSize: 13,
     fontWeight: 400,
     color: "rgba(255,255,255,0.74)",
   };
@@ -586,8 +589,25 @@ export default function CommunityRail({
       {(() => {
         const headerInner = (
           <>
+            {/* Caja y color calcados de .walletIcon (menu derecho de laptop):
+                22px de lado, gris al 68% y opacidad 0.82. Antes iba suelto al
+                90% y se veia mas marcado que los del otro menu. */}
             {icon ? (
-              <span style={{ display: "inline-flex", flexShrink: 0, opacity: 0.9 }}>{icon}</span>
+              <span
+                style={{
+                  width: 22,
+                  minWidth: 22,
+                  height: 22,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  color: "rgba(255,255,255,0.68)",
+                  opacity: 0.82,
+                }}
+              >
+                {icon}
+              </span>
             ) : null}
             <span
               style={{

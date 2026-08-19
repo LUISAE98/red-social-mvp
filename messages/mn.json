@@ -2015,7 +2015,12 @@
     "configAllSaved": "Захиалга, каталог, хандивыг хадгаллаа.",
     "prompterTitle": "Промптер",
     "prompterPlaceholder": "Хэлэхийг хүсэж буй зүйлээ энд бичнэ үү",
-    "uploadPrerecordedVideo": "Урьдчилан бичсэн видео байршуулах"
+    "uploadPrerecordedVideo": "Урьдчилан бичсэн видео байршуулах",
+    "reviewNext": "Дараагийнхыг харах",
+    "shareGreeting": "Мэндчилгээг хуваалцах",
+    "shareAdvice": "Зөвлөгөөг хуваалцах",
+    "sentAllToday": "Өнөөдрийнхөө бүгдийг илгээлээ!",
+    "releasedAmount": "Та {amount} чөлөөлөв!"
   },
   "live": {
     "accessTicket": "Хандах тасалбар",

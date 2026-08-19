@@ -2015,7 +2015,12 @@
     "configAllSaved": "Subskrypcja, katalog i wsparcie zapisane.",
     "prompterTitle": "Prompter",
     "prompterPlaceholder": "Napisz tutaj, co chcesz powiedzieć",
-    "uploadPrerecordedVideo": "Prześlij nagrane wcześniej wideo"
+    "uploadPrerecordedVideo": "Prześlij nagrane wcześniej wideo",
+    "reviewNext": "Sprawdź następny",
+    "shareGreeting": "Udostępnij pozdrowienie",
+    "shareAdvice": "Udostępnij poradę",
+    "sentAllToday": "Wysłałeś dziś wszystkie!",
+    "releasedAmount": "Odblokowałeś {amount}!"
   },
   "live": {
     "accessTicket": "Bilet wstępu",

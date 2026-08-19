@@ -19,6 +19,7 @@
  */
 
 import { useState, type ReactNode } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 import LogoutButton from "@/app/LogoutButton";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
@@ -581,7 +582,7 @@ export default function SimuladorBotones() {
               open
               donation={{
                 mode: "general",
-                currency: "MXN",
+                currency: SETTLEMENT_CURRENCY,
                 suggestedAmounts: [50, 100, 250],
                 goalLabel: "Para el próximo video",
               }}
@@ -686,7 +687,7 @@ export default function SimuladorBotones() {
                 mode: "general",
                 enabled: true,
                 visible: true,
-                currency: "MXN",
+                currency: SETTLEMENT_CURRENCY,
                 suggestedAmounts: [50, 100, 250],
               }}
               onClick={noop}
@@ -704,7 +705,7 @@ export default function SimuladorBotones() {
                 mode: "wedding",
                 enabled: true,
                 visible: true,
-                currency: "MXN",
+                currency: SETTLEMENT_CURRENCY,
                 suggestedAmounts: [500],
               }}
               onClick={noop}

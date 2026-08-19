@@ -2015,7 +2015,12 @@
     "configAllSaved": "Prenumeration, katalog och donation är sparade.",
     "prompterTitle": "Teleprompter",
     "prompterPlaceholder": "Skriv här vad du vill säga",
-    "uploadPrerecordedVideo": "Ladda upp förinspelad video"
+    "uploadPrerecordedVideo": "Ladda upp förinspelad video",
+    "reviewNext": "Granska nästa",
+    "shareGreeting": "Dela hälsningen",
+    "shareAdvice": "Dela rådet",
+    "sentAllToday": "Du skickade alla för idag!",
+    "releasedAmount": "Du frigjorde {amount}!"
   },
   "live": {
     "accessTicket": "Inträdesbiljett",

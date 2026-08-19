@@ -2015,7 +2015,12 @@
     "configAllSaved": "Abonamentul, catalogul și donația au fost salvate.",
     "prompterTitle": "Teleprompter",
     "prompterPlaceholder": "Scrie aici ce vrei să spui",
-    "uploadPrerecordedVideo": "Încarcă un videoclip preînregistrat"
+    "uploadPrerecordedVideo": "Încarcă un videoclip preînregistrat",
+    "reviewNext": "Verifică următorul",
+    "shareGreeting": "Distribuie salutul",
+    "shareAdvice": "Distribuie sfatul",
+    "sentAllToday": "Le-ai trimis pe toate pentru azi!",
+    "releasedAmount": "Ai deblocat {amount}!"
   },
   "live": {
     "accessTicket": "Bilet de acces",

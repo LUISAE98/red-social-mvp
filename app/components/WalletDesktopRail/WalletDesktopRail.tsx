@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -703,9 +704,9 @@ export default function WalletDesktopRail({
                       {walletLoading ? (
                         "···"
                       ) : balanceHidden && view.available > 0 ? (
-                        <MaskedAmount formatted={format(view.available, { baseCurrency: summary.currency ?? "MXN" })} />
+                        <MaskedAmount formatted={format(view.available, { baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })} />
                       ) : (
-                        format(view.available, { baseCurrency: summary.currency ?? "MXN" })
+                        format(view.available, { baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })
                       )}
                     </span>
                     {!walletLoading && view.available > 0 ? (

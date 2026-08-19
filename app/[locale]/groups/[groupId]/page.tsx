@@ -53,7 +53,7 @@ import {
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import PaymentSuccessCard from "@/components/payments/PaymentSuccessCard";
 import { createGreetingStripeIntent, createServiceStripeIntent, createGroupSubscription, cancelGroupSubscriptionStripe } from "@/lib/stripe/stripePayments";
-import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast, type ToastType } from "@/lib/hooks/useVibraToast";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
@@ -156,12 +156,12 @@ export default function GroupPage() {
 
   const priceFmt = usePriceFormat();
   const formatMoney = (value: number, currency?: string) =>
-    priceFmt.format(value, { baseCurrency: currency ?? "MXN", code: true });
+    priceFmt.format(value, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true });
   // Igual que formatMoney pero con IVA INCLUIDO (total según país del comprador). Para
   // los labels de "Continuar al pago" de los paneles de solicitud (la pasarela sigue
   // recibiendo el monto base aparte y calcula su propio desglose).
   const formatMoneyWithTax = (value: number, currency?: string) =>
-    priceFmt.formatWithTax(value, { baseCurrency: currency ?? "MXN", code: true }).total;
+    priceFmt.formatWithTax(value, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true }).total;
 
   const { user } = useAuth();
   const router = useRouter();
@@ -515,7 +515,7 @@ const canRequestMeetGreet =
     if (!group) return [];
     return mergeWithDefaultCatalog(
       toCatalogOfferings(group.offerings),
-      normalizeCurrency(group.monetization?.currency) ?? "MXN"
+      normalizeCurrency(group.monetization?.currency) ?? SETTLEMENT_CURRENCY
     );
   }, [group]);
 
@@ -588,7 +588,7 @@ const canRequestMeetGreet =
   }, [meetGreetOffering]);
 
   const meetGreetCurrency = useMemo<Currency>(() => {
-    return meetGreetOffering?.currency ?? subscriptionCurrency ?? "MXN";
+    return meetGreetOffering?.currency ?? subscriptionCurrency ?? SETTLEMENT_CURRENCY;
   }, [meetGreetOffering, subscriptionCurrency]);
 
   const meetGreetDurationMinutes = useMemo(() => {
@@ -633,7 +633,7 @@ const canRequestMeetGreet =
   }, [exclusiveSessionOffering]);
 
   const exclusiveSessionCurrency = useMemo<Currency>(() => {
-    return exclusiveSessionOffering?.currency ?? subscriptionCurrency ?? "MXN";
+    return exclusiveSessionOffering?.currency ?? subscriptionCurrency ?? SETTLEMENT_CURRENCY;
   }, [exclusiveSessionOffering, subscriptionCurrency]);
 
   const exclusiveSessionDurationMinutes = useMemo(() => {
@@ -723,7 +723,7 @@ const [autoConfirmPay, setAutoConfirmPay] = useState(false);
 
   const greetPriceLabel = useMemo(() => {
     const price = greetOffering?.memberPrice ?? greetOffering?.publicPrice ?? (greetOffering as { price?: number } | null)?.price ?? null;
-    const currency = greetOffering?.currency ?? "MXN";
+    const currency = greetOffering?.currency ?? SETTLEMENT_CURRENCY;
     // Total todo-incluido (base + cargo fijo $3 + IVA) para el botón "Continuar al pago".
     return typeof price === "number" ? formatMoneyWithTax(price + FIXED_SERVICE_FEE_USD, currency) : undefined;
   }, [greetOffering]);

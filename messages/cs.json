@@ -2015,7 +2015,12 @@
     "configAllSaved": "Předplatné, katalog a dar uloženy.",
     "prompterTitle": "Teleprompter",
     "prompterPlaceholder": "Napiš sem, co chceš říct",
-    "uploadPrerecordedVideo": "Nahrát předem natočené video"
+    "uploadPrerecordedVideo": "Nahrát předem natočené video",
+    "reviewNext": "Zkontrolovat další",
+    "shareGreeting": "Sdílet pozdrav",
+    "shareAdvice": "Sdílet radu",
+    "sentAllToday": "Dnes jsi odeslal všechny!",
+    "releasedAmount": "Uvolnil jsi {amount}!"
   },
   "live": {
     "accessTicket": "Vstupenka",

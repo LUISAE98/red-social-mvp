@@ -36,6 +36,7 @@ import type {
   GroupOffering,
 } from "@/types/group";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletRates";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 /** Los cuatro montos sugeridos de donación por omisión. */
 export const DEFAULT_DONATION_SUGGESTED_AMOUNTS: string[] = [
@@ -178,13 +179,13 @@ export function createEmptyDraft(surface: ServiceSurface): ServiceDraft {
   const emptyBlock = (): ServiceBlockDraft => ({
     enabled: false,
     price: "",
-    currency: "MXN",
+    currency: SETTLEMENT_CURRENCY,
     visible: false,
     visibility,
   });
 
   return {
-    subscription: { enabled: false, price: "", currency: "MXN" },
+    subscription: { enabled: false, price: "", currency: SETTLEMENT_CURRENCY },
     saludo: emptyBlock(),
     consejo: emptyBlock(),
     meetGreet: { ...emptyBlock(), durationMinutes: "" },
@@ -194,7 +195,7 @@ export function createEmptyDraft(surface: ServiceSurface): ServiceDraft {
       availability: createEmptyWeeklyAvailability(),
     },
     donationMode: "none",
-    donationCurrency: "MXN",
+    donationCurrency: SETTLEMENT_CURRENCY,
     donationSuggestedAmounts: [...DEFAULT_DONATION_SUGGESTED_AMOUNTS],
     donationGoalLabel: "",
     donationMessage: "",
@@ -224,7 +225,7 @@ export function pickOffering(
   return {
     enabled: found?.enabled === true,
     price: resolvedPrice,
-    currency: (found?.currency ?? "MXN") as Currency,
+    currency: (found?.currency ?? SETTLEMENT_CURRENCY) as Currency,
     visible:
       typeof found?.visible === "boolean"
         ? found.visible
@@ -245,7 +246,7 @@ export function pickDonation(donation: DonationInput) {
 
   return {
     mode,
-    currency: (donation?.currency ?? "MXN") as Currency,
+    currency: (donation?.currency ?? SETTLEMENT_CURRENCY) as Currency,
     suggestedAmounts: normalizeSuggestedAmounts(donation?.suggestedAmounts),
     goalLabel: typeof donation?.goalLabel === "string" ? donation.goalLabel : "",
     message: typeof donation?.message === "string" ? donation.message : "",
@@ -317,7 +318,7 @@ export function buildOffering(params: {
     // La moneda de liquidación es MXN (Mexico-first). Los precios se guardan
     // SIEMPRE en MXN — nunca en el ancla USD legacy (evita el bug del
     // ×tipo-de-cambio).
-    currency: draft.enabled ? "MXN" : null,
+    currency: draft.enabled ? SETTLEMENT_CURRENCY : null,
     requiresApproval: true,
     sourceScope: isProfile ? "profile" : "group",
     meta,

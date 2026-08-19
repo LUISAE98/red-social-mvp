@@ -2015,7 +2015,12 @@
     "configAllSaved": "Abonimi, katalogu dhe donacioni u ruajtën.",
     "prompterTitle": "Prompter",
     "prompterPlaceholder": "Shkruaj këtu çfarë do të thuash",
-    "uploadPrerecordedVideo": "Ngarko video të regjistruar më parë"
+    "uploadPrerecordedVideo": "Ngarko video të regjistruar më parë",
+    "reviewNext": "Shqyrto tjetrin",
+    "shareGreeting": "Ndaj përshëndetjen",
+    "shareAdvice": "Ndaj këshillën",
+    "sentAllToday": "I dërgove të gjitha për sot!",
+    "releasedAmount": "Çlirove {amount}!"
   },
   "live": {
     "accessTicket": "Biletë hyrjeje",

@@ -32,8 +32,7 @@ export type SavedCard = { id: string; brand?: string; brandName?: string; lastFo
 type Props = {
   open: boolean;
   amount: number | null; // monto base (sin IVA), en la moneda `amountCurrency`
-  /** Moneda del `amount`: "MXN" (precios de servicios) o "USD" (ancla legacy). Default MXN
-   *  (todo el dinero de Vibra es MXN; poner "USD" trataría el monto como dólares → ×FX). */
+  /** Moneda del `amount`. Default: la de liquidación (USD). "MXN" queda para leer datos previos al corte. */
   amountCurrency?: "USD" | "MXN";
   /** Crea el PaymentIntent y devuelve su client_secret. `taxCountry` = país fiscal del comprador (por IP).
    *  Si `savedPaymentMethodId` viene, el cobro es "un clic" off-session (sin CVV): se confirma

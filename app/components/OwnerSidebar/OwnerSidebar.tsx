@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useCfError } from "@/lib/i18n/cfError";
 import {
   useCallback,
@@ -1888,7 +1889,7 @@ const copyTitle = isProfileCard
               currency &&
               (currency === "MXN" || currency === "USD")
             ) {
-              return `${tCommon("activeSubscription")} · ${formatMoney(price, { baseCurrency: currency ?? "MXN", code: true })}`;
+              return `${tCommon("activeSubscription")} · ${formatMoney(price, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true })}`;
             }
 
             return tCommon("activeSubscription");
@@ -2169,7 +2170,9 @@ return (
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  /* Mismo aire entre secciones que .walletNav en el menu derecho de
+     laptop (8px). Con 6 las dos columnas no cuadraban al mirarlas juntas. */
+  gap: 8px;
   flex: 1 1 auto;
   min-height: 0;
   max-height: 100%;
@@ -2529,7 +2532,7 @@ newPostsCounts={newPostsCounts}
               historias y, a igualdad, lo que más frecuentas. */}
           <CommunityRail
             title={tNav("tabFollowing")}
-            icon={<SidebarFollowingIcon size={22} strokeWidth={1.6} />}
+            icon={<SidebarFollowingIcon size={21} strokeWidth={1.6} />}
             items={railFollowedProfiles}
             currentUserId={viewer?.uid ?? null}
             newPostsCounts={newPostsCounts}
@@ -2550,7 +2553,7 @@ newPostsCounts={newPostsCounts}
 
           <CommunityRail
             title={tNav("tabOwnedCommunities")}
-            icon={<SidebarMyCommunitiesIcon size={22} strokeWidth={1.6} />}
+            icon={<SidebarMyCommunitiesIcon size={21} strokeWidth={1.6} />}
             items={railOwnedGroups}
             currentUserId={viewer?.uid ?? null}
             newPostsCounts={newPostsCounts}
@@ -2568,7 +2571,7 @@ newPostsCounts={newPostsCounts}
 
           <CommunityRail
             title={tNav("tabJoinedCommunities")}
-            icon={<SidebarOtherCommunitiesIcon size={22} strokeWidth={1.6} />}
+            icon={<SidebarOtherCommunitiesIcon size={21} strokeWidth={1.6} />}
             items={railJoinedGroups}
             currentUserId={viewer?.uid ?? null}
             newPostsCounts={newPostsCounts}

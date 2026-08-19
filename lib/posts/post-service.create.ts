@@ -6,6 +6,7 @@ import {
   setDoc, serverTimestamp, writeBatch, Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import {
   pickString,
   assertValidId,
@@ -430,7 +431,7 @@ export async function createLivePost(params: {
     allowLoggedOutViewers: effectiveMode === "everyone" && !isHiddenGroupLive,
     accessType: effectiveAccessType,
     ticketPrice: isPaidLive ? (params.ticketPrice ?? null) : null,
-    currency: isPaidLive ? (params.currency ?? "MXN") : null,
+    currency: isPaidLive ? (params.currency ?? SETTLEMENT_CURRENCY) : null,
     paidAccessMode: isPaidLive ? (params.paidAccessMode ?? "everyone_pays") : null,
     broadcastGroupIds: cleanBroadcastIds.length > 0 ? cleanBroadcastIds : null,
   };
@@ -487,7 +488,7 @@ export async function createLivePost(params: {
     requiresPayment: isPaidLive,
     requiresSubscription: false,
     oneTimePrice: isPaidLive ? (params.ticketPrice ?? null) : null,
-    currency: isPaidLive ? (params.currency ?? "MXN") : null,
+    currency: isPaidLive ? (params.currency ?? SETTLEMENT_CURRENCY) : null,
     purchaseType: isPaidLive ? "one_time" : null,
     liveData,
     videoData: null,

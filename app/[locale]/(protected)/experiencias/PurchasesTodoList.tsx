@@ -6,6 +6,7 @@
 // comunidad + monto + fecha + estado).
 
 import Image from "next/image";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { TextButton } from "@/components/ui";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -288,12 +289,12 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
               {isReturn ? (
                 // Devuelto: cifra en verde con "+" (lo que volvió al saldo/tarjeta). No tachado.
                 <span style={{ color: "#4ade80", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
-                  +{formatMoney(returnAmount, { baseCurrency: d.currency ?? "MXN" })}
+                  +{formatMoney(returnAmount, { baseCurrency: d.currency ?? SETTLEMENT_CURRENCY })}
                 </span>
               ) : (
                 <>
                   <span style={{ color: "#fff", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: refunded ? "line-through" : "none", opacity: refunded ? 0.6 : 1 }}>
-                    {formatMoney(d.grossAmount, { baseCurrency: d.currency ?? "MXN" })}
+                    {formatMoney(d.grossAmount, { baseCurrency: d.currency ?? SETTLEMENT_CURRENCY })}
                   </span>
                   {refunded && (
                     <span style={{ fontSize: 10, fontWeight: 600, color: ledgerStatusColor(d.status as LedgerStatus) }}>

@@ -45,10 +45,12 @@ export default function SidebarMessages({
 }) {
   const tNav = useTranslations("nav");
 
+  // Mismo encabezado que los rails de comunidades y que los enlaces del menu
+  // derecho de laptop: gap 7 y sin tamano de letra propio.
   const headerStyle: CSSProperties = {
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: 7,
     padding: "7px 8px 7px 6px",
     minHeight: 39,
   };
@@ -80,16 +82,27 @@ export default function SidebarMessages({
     <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
       {/* Encabezado fijo. No es un botón: aquí no hay nada que plegar. */}
       <div style={headerStyle}>
-        <span style={{ display: "inline-flex" }}>
-          <SidebarMessagesIcon size={28} strokeWidth={1.6} />
+        <span
+          style={{
+            width: 22,
+            minWidth: 22,
+            height: 22,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            color: "rgba(255,255,255,0.68)",
+            opacity: 0.82,
+          }}
+        >
+          <SidebarMessagesIcon size={21} strokeWidth={1.6} />
         </span>
         <span
           style={{
             flex: 1,
             minWidth: 0,
-            fontSize: 13,
-            fontWeight: 700,
-            color: "#ffffff",
+            fontWeight: 400,
+            color: "rgba(255,255,255,0.74)",
             lineHeight: 1.15,
             whiteSpace: "nowrap",
             overflow: "hidden",

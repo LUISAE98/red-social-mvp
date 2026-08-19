@@ -38,8 +38,14 @@ export type ChargeComposition = {
   fxFeeRate: number;
   /** Monto del cargo por conversión. NO es impuesto: es costo/comisión. */
   fxFeeAmount: number;
-  /** Base gravable: publicado + FX. Sobre esto corre el impuesto. */
+  /** Base gravable: publicado + FX (+ el ajuste de redondeo). Sobre esto corre el impuesto. */
   taxableAmount: number;
+  /**
+   * Sobrante del redondeo comercial: lo que subió el total al dejarlo en `.99`/`.00`.
+   * Es INGRESO de Vibra y va DENTRO de la base gravable, porque es contraprestación como
+   * el cargo fijo. Cero mientras no se redondee. Nunca es negativo: `roundCharm` solo sube.
+   */
+  roundingAdjustment: number;
 
   // ── Impuesto del país del comprador ──
   buyerTax: {
@@ -109,6 +115,7 @@ export function composeCharge(
     fxFeeRate,
     fxFeeAmount,
     taxableAmount,
+    roundingAdjustment: 0,
 
     buyerTax: {
       name: taxNameForCountry(country),
@@ -130,6 +137,60 @@ export function composeCharge(
 }
 
 /**
+ * Recompone el desglose cuando el TOTAL cambió por el redondeo comercial.
+ *
+ * EL PROBLEMA. `composeCharge` va hacia adelante: base → +fijo → +FX → +impuesto = total.
+ * El redondeo comercial se aplica al FINAL, sobre el total ya convertido a la moneda del
+ * comprador, así que rompe esa cadena: el total cobrado deja de ser la suma de las partes
+ * y el desglose que se guarda en el `paymentIntent` ya no cuadra con lo que se cobró. Un
+ * desglose que no cuadra con el cargo no sirve para declarar el impuesto ni para conciliar.
+ *
+ * LA SOLUCIÓN es despejar hacia ATRÁS desde el total limpio:
+ *
+ *     gravable = total ÷ (1 + tasa)
+ *     impuesto = total − gravable
+ *     sobrante = gravable − gravable_original
+ *
+ * Lo que NO se toca, y es deliberado:
+ *   · `baseAmount` — es el precio del creador y de ahí sale su 75%. El redondeo es de
+ *     Vibra; que el creador gane más o menos según cómo cayó un decimal sería absurdo.
+ *   · `fixedFee` y `fxFeeAmount` — son importes fijos ya devengados.
+ *
+ * El sobrante entra a la base gravable, no fuera: es contraprestación de Vibra igual que el
+ * cargo fijo, así que **paga impuesto**. Meterlo fuera sería cobrar dinero no declarado.
+ */
+export function recomposeWithCharged(
+  c: ChargeComposition,
+  chargedAmount: number
+): ChargeComposition {
+  const total = round2(chargedAmount);
+  if (!Number.isFinite(total) || total <= 0 || total === c.chargedAmount) return c;
+
+  // Solo se despeja el impuesto que COBRA Vibra. Donde lo percibe la emisora, `amount` es 0
+  // y el total no lo incluye: ahí el sobrante entero es base gravable.
+  const rate = c.buyerTax.collectedByPlatform ? c.buyerTax.rate : 0;
+  const taxableAmount = round2(total / (1 + rate));
+  const taxAmount = round2(total - taxableAmount);
+  const roundingAdjustment = round2(taxableAmount - (c.publishedAmount + c.fxFeeAmount));
+
+  // El devengo de IVA mexicano (export_taxable) corre sobre la base gravable, así que si
+  // esta creció, la deuda con el SAT crece en la misma proporción.
+  const mxVatAccrued =
+    c.mxVat.accruedAmount > 0 && c.taxableAmount > 0
+      ? round2((c.mxVat.accruedAmount / c.taxableAmount) * taxableAmount)
+      : c.mxVat.accruedAmount;
+
+  return {
+    ...c,
+    taxableAmount,
+    roundingAdjustment,
+    buyerTax: { ...c.buyerTax, amount: taxAmount },
+    mxVat: { ...c.mxVat, accruedAmount: mxVatAccrued },
+    chargedAmount: total,
+  };
+}
+
+/**
  * Aplana la composición a los campos que ya escribe cada `paymentIntent`, para poder
  * hacer `...chargeFields(composition)` sin reescribir los 8 intents.
  */
@@ -142,6 +203,7 @@ export function chargeFields(c: ChargeComposition) {
     fxFeeRate: c.fxFeeRate,
     fxFeeAmount: c.fxFeeAmount,
     taxableAmount: c.taxableAmount,
+    roundingAdjustment: c.roundingAdjustment,
 
     // Compatibilidad con los campos históricos del paymentIntent.
     taxCountry: c.buyerCountry,
