@@ -2022,7 +2022,9 @@
     "shareGreeting": "Споделяне на поздрава",
     "shareAdvice": "Споделяне на съвета",
     "sentAllToday": "Изпрати всички за днес!",
-    "releasedAmount": "Освободи {amount}!"
+    "releasedAmount": "Освободи {amount}!",
+    "confirmRejectTitle": "Наистина ли искаш да откажеш тази поръчка?",
+    "confirmRejectBody": "Плащането на купувача ще бъде отменено и поръчката ще изчезне от списъка ти. Няма връщане назад."
   },
   "live": {
     "accessTicket": "Билет за достъп",

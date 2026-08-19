@@ -2022,7 +2022,9 @@
     "shareGreeting": "مشاركة التحية",
     "shareAdvice": "مشاركة النصيحة",
     "sentAllToday": "أرسلت كل شيء اليوم!",
-    "releasedAmount": "حرّرت {amount}!"
+    "releasedAmount": "حرّرت {amount}!",
+    "confirmRejectTitle": "هل تريد رفض هذا الطلب؟",
+    "confirmRejectBody": "سيُلغى الدفع المحجوز للمشتري ويختفي الطلب من قائمتك. لا يمكن التراجع."
   },
   "live": {
     "accessTicket": "تذكرة دخول",

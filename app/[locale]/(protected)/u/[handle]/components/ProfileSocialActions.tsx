@@ -154,7 +154,11 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     gap: 8,
-    marginTop: 12,
+    // Aire con la fila de datos de arriba. Mismo valor que .group-actions-wrap
+    // en la comunidad: las dos pantallas tienen la misma cabecera —datos y
+    // debajo el boton de accion— y separarlas distinto se nota al ir de una a
+    // otra. Con 12 el boton quedaba pegado a las cifras.
+    marginTop: 24,
   } as const,
 
   buttonsRow: {

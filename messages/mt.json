@@ -2022,7 +2022,9 @@
     "shareGreeting": "Aqsam it-tislima",
     "shareAdvice": "Aqsam il-parir",
     "sentAllToday": "Bgħatthom kollha għal-lum!",
-    "releasedAmount": "Ħlist {amount}!"
+    "releasedAmount": "Ħlist {amount}!",
+    "confirmRejectTitle": "Żgur li trid tirrifjuta din l-ordni?",
+    "confirmRejectBody": "Il-ħlas tax-xerrej jiġi kkanċellat u l-ordni tisparixxi mil-lista tiegħek. Ma tistax terġa' lura."
   },
   "live": {
     "accessTicket": "Biljett ta' aċċess",

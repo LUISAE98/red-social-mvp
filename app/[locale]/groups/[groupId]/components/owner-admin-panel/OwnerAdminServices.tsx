@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { formatCurrency } from "@/lib/currency/format";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { AVISOS_SERVICIOS } from "@/lib/services/avisosServicios";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -81,9 +82,12 @@ export default function OwnerAdminServices({
     return frase + " " + tServices(aviso.cola.clave as Parameters<typeof tServices>[0], aviso.cola.valores);
   };
   const priceFmt = usePriceFormat();
-  // 🚨 `formatPlain`, NO `format` — ver el mismo comentario en ProfileServicesTab.
+  // 🚨 NO CONVIERTE, y es deliberado. Todo lo que se formatea aquí es dinero del CREADOR,
+  // que se fija y se guarda en la moneda de LIQUIDACIÓN: su precio y su ganancia. Pasarlo
+  // por una conversión mostraba su ganancia de 75 USD como "1,279.55 MXN", que no es lo que
+  // gana ni lo que fijó. La referencia en su moneda va aparte, en `LocalPriceHint`.
   const formatMoney = (value: number, currency?: string) =>
-    priceFmt.formatPlain(value, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true });
+    formatCurrency(value, currency ?? SETTLEMENT_CURRENCY, priceFmt.locale, { code: true });
 
   const isOwner = useMemo(
     () => ownerId === currentUserId,

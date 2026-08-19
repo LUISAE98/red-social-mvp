@@ -2022,7 +2022,9 @@
     "shareGreeting": "あいさつをシェア",
     "shareAdvice": "アドバイスをシェア",
     "sentAllToday": "今日の分はすべて送信しました!",
-    "releasedAmount": "{amount} を獲得しました!"
+    "releasedAmount": "{amount} を獲得しました!",
+    "confirmRejectTitle": "この依頼を辞退しますか?",
+    "confirmRejectBody": "購入者の支払いは取り消され、依頼は一覧から消えます。元には戻せません。"
   },
   "live": {
     "accessTicket": "アクセスチケット",

@@ -2022,7 +2022,9 @@
     "shareGreeting": "Comhroinn an beannacht",
     "shareAdvice": "Comhroinn an chomhairle",
     "sentAllToday": "Sheol tú iad go léir inniu!",
-    "releasedAmount": "Scaoil tú {amount}!"
+    "releasedAmount": "Scaoil tú {amount}!",
+    "confirmRejectTitle": "An bhfuil tú cinnte gur mian leat an t-ordú seo a dhiúltú?",
+    "confirmRejectBody": "Cuirfear íocaíocht an cheannaitheora ar ceal agus imeoidh an t-ordú de do liosta. Ní féidir é seo a chur ar ais."
   },
   "live": {
     "accessTicket": "Ticéad rochtana",

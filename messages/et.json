@@ -2022,7 +2022,9 @@
     "shareGreeting": "Jaga tervitust",
     "shareAdvice": "Jaga nõuannet",
     "sentAllToday": "Saatsid tänaseks kõik!",
-    "releasedAmount": "Vabastasid {amount}!"
+    "releasedAmount": "Vabastasid {amount}!",
+    "confirmRejectTitle": "Kas soovid selle tellimuse tagasi lükata?",
+    "confirmRejectBody": "Ostja makse tühistatakse ja tellimus kaob su nimekirjast. Seda ei saa tagasi võtta."
   },
   "live": {
     "accessTicket": "Ligipääsupilet",

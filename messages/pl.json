@@ -2022,7 +2022,9 @@
     "shareGreeting": "Udostępnij pozdrowienie",
     "shareAdvice": "Udostępnij poradę",
     "sentAllToday": "Wysłałeś dziś wszystkie!",
-    "releasedAmount": "Odblokowałeś {amount}!"
+    "releasedAmount": "Odblokowałeś {amount}!",
+    "confirmRejectTitle": "Na pewno chcesz odrzucić to zlecenie?",
+    "confirmRejectBody": "Płatność kupującego zostanie anulowana, a zlecenie zniknie z twojej listy. Nie da się tego cofnąć."
   },
   "live": {
     "accessTicket": "Bilet wstępu",

@@ -2022,7 +2022,9 @@
     "shareGreeting": "Üdvözlet megosztása",
     "shareAdvice": "Tanács megosztása",
     "sentAllToday": "Mára mindet elküldted!",
-    "releasedAmount": "Felszabadítottál {amount} összeget!"
+    "releasedAmount": "Felszabadítottál {amount} összeget!",
+    "confirmRejectTitle": "Biztosan elutasítod ezt a megrendelést?",
+    "confirmRejectBody": "A vásárló fizetése törlődik, és a megrendelés eltűnik a listádról. Ez nem vonható vissza."
   },
   "live": {
     "accessTicket": "Belépőjegy",

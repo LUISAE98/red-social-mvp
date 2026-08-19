@@ -2034,8 +2034,10 @@ const avatarNode = (
               overflow-wrap: anywhere;
             }
 
+            /* Aire con la fila de datos. Mismo valor que el de ProfileSocialActions
+               en el perfil, que tiene la misma cabecera. */
             .group-actions-wrap {
-              margin-top: 18px;
+              margin-top: 24px;
               border-top: 0;
               padding-top: 0;
               display: grid;
@@ -2763,7 +2765,9 @@ const avatarNode = (
 <StatsRow items={groupStatsItems} />
 
                   <div style={{
-                    marginTop: 10,
+                    // Mismo aire que .group-actions-wrap y que el perfil: esta es la otra
+                    // rama del render de la cabecera y tenia la mitad.
+                    marginTop: 24,
                     width: "100%",
                     display: "flex",
                     flexDirection: "row",

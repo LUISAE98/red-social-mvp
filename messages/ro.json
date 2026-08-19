@@ -2022,7 +2022,9 @@
     "shareGreeting": "Distribuie salutul",
     "shareAdvice": "Distribuie sfatul",
     "sentAllToday": "Le-ai trimis pe toate pentru azi!",
-    "releasedAmount": "Ai deblocat {amount}!"
+    "releasedAmount": "Ai deblocat {amount}!",
+    "confirmRejectTitle": "Sigur vrei să refuzi această comandă?",
+    "confirmRejectBody": "Plata cumpărătorului va fi anulată și comanda va dispărea din lista ta. Nu se poate anula."
   },
   "live": {
     "accessTicket": "Bilet de acces",

@@ -2022,7 +2022,9 @@
     "shareGreeting": "Groet delen",
     "shareAdvice": "Advies delen",
     "sentAllToday": "Je hebt ze vandaag allemaal verstuurd!",
-    "releasedAmount": "Je hebt {amount} vrijgespeeld!"
+    "releasedAmount": "Je hebt {amount} vrijgespeeld!",
+    "confirmRejectTitle": "Weet je zeker dat je deze opdracht wilt weigeren?",
+    "confirmRejectBody": "De betaling van de koper wordt geannuleerd en de opdracht verdwijnt uit je lijst. Dit kan niet ongedaan worden gemaakt."
   },
   "live": {
     "accessTicket": "Toegangsticket",

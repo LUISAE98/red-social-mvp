@@ -38,8 +38,8 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
     const title = d.title || "Vibra";
     self.registration.showNotification(title, {
       body: d.body || "",
-      icon: d.icon || "/icon-192.png",
-      badge: d.badge || "/icon-192.png",
+      icon: d.icon || "/favicons/android-chrome-192x192.png",
+      badge: d.badge || "/favicons/android-chrome-192x192.png",
       // Imagen grande bajo el cuerpo (miniatura del post) — Android/desktop.
       image: d.image || undefined,
       tag: d.tag || undefined,

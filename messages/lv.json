@@ -2022,7 +2022,9 @@
     "shareGreeting": "Kopīgot sveicienu",
     "shareAdvice": "Kopīgot padomu",
     "sentAllToday": "Šodien nosūtīji visus!",
-    "releasedAmount": "Atbrīvoji {amount}!"
+    "releasedAmount": "Atbrīvoji {amount}!",
+    "confirmRejectTitle": "Vai tiešām vēlies noraidīt šo pasūtījumu?",
+    "confirmRejectBody": "Pircēja maksājums tiks atcelts un pasūtījums pazudīs no tava saraksta. To nevar atsaukt."
   },
   "live": {
     "accessTicket": "Piekļuves biļete",

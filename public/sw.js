@@ -12,12 +12,18 @@
 //
 // Al cambiar VERSION se limpian los caches viejos automáticamente.
 
-const VERSION = "v2";
+// v3: cambian las rutas de los iconos. Sin subir la version, el cache viejo
+// seguiria sirviendo el logotipo anterior a quien ya tenga el service worker.
+const VERSION = "v3";
 const STATIC_CACHE = `vibra-static-${VERSION}`;
 const RUNTIME_CACHE = `vibra-runtime-${VERSION}`;
 
 // Lo mínimo que siempre existe y conviene tener listo.
-const PRECACHE = ["/manifest.json", "/icon-192.png", "/icon-512.png"];
+const PRECACHE = [
+  "/manifest.json",
+  "/favicons/android-chrome-192x192.png",
+  "/favicons/android-chrome-512x512.png",
+];
 
 const ASSET_EXT = /\.(png|jpe?g|webp|svg|gif|ico|woff2?|ttf|otf)$/i;
 

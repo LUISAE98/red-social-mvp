@@ -2022,7 +2022,9 @@
     "shareGreeting": "සුබපැතුම බෙදාගන්න",
     "shareAdvice": "උපදෙස බෙදාගන්න",
     "sentAllToday": "අද සියල්ල එවා ඇත!",
-    "releasedAmount": "ඔබ {amount} නිදහස් කළා!"
+    "releasedAmount": "ඔබ {amount} නිදහස් කළා!",
+    "confirmRejectTitle": "මෙම ඇණවුම ප්‍රතික්ෂේප කිරීමට විශ්වාසද?",
+    "confirmRejectBody": "ගැනුම්කරුගේ ගෙවීම අවලංගු වන අතර ඇණවුම ඔබේ ලැයිස්තුවෙන් ඉවත් වේ. මෙය ආපසු හැරවිය නොහැක."
   },
   "live": {
     "accessTicket": "ප්‍රවේශ ප්‍රවේශපත්‍රය",

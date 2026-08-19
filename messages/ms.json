@@ -2022,7 +2022,9 @@
     "shareGreeting": "Kongsi ucapan",
     "shareAdvice": "Kongsi nasihat",
     "sentAllToday": "Anda hantar semuanya untuk hari ini!",
-    "releasedAmount": "Anda membuka {amount}!"
+    "releasedAmount": "Anda membuka {amount}!",
+    "confirmRejectTitle": "Pasti mahu menolak tempahan ini?",
+    "confirmRejectBody": "Bayaran pembeli akan dibatalkan dan tempahan hilang dari senarai anda. Tidak boleh dibatalkan."
   },
   "live": {
     "accessTicket": "Tiket akses",

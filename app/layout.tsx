@@ -29,6 +29,22 @@ export const metadata: Metadata = {
   title: "Vibra",
   description: "Plataforma social de creadores: comunidades, contenido, video en vivo, servicios y monetización directa.",
   manifest: "/manifest.json",
+  /**
+   * Los iconos salen del kit que vive en `public/favicons/`. Se declaran aqui en
+   * vez de duplicarlos como `app/icon.png` y `app/apple-icon.png`: asi hay UNA
+   * copia de cada tamano y el kit se puede reemplazar entero sin tocar codigo.
+   *
+   * `app/favicon.ico` si se queda como archivo, y es el unico derivado: lo pide
+   * el navegador por su cuenta en `/favicon.ico` y el kit no trae ese formato,
+   * asi que se genero empaquetando sus PNG de 16 y 32.
+   */
+  icons: {
+    icon: [
+      { url: "/favicons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [{ url: "/favicons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

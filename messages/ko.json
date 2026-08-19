@@ -2022,7 +2022,9 @@
     "shareGreeting": "인사 공유",
     "shareAdvice": "조언 공유",
     "sentAllToday": "오늘 것을 모두 보냈어요!",
-    "releasedAmount": "{amount}을 확보했어요!"
+    "releasedAmount": "{amount}을 확보했어요!",
+    "confirmRejectTitle": "이 요청을 거절할까요?",
+    "confirmRejectBody": "구매자의 결제가 취소되고 요청이 목록에서 사라져요. 되돌릴 수 없어요."
   },
   "live": {
     "accessTicket": "입장 티켓",

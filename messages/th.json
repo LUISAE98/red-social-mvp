@@ -2022,7 +2022,9 @@
     "shareGreeting": "แชร์คำทักทาย",
     "shareAdvice": "แชร์คำแนะนำ",
     "sentAllToday": "คุณส่งครบแล้ววันนี้!",
-    "releasedAmount": "คุณปลดล็อก {amount} แล้ว!"
+    "releasedAmount": "คุณปลดล็อก {amount} แล้ว!",
+    "confirmRejectTitle": "แน่ใจไหมว่าจะปฏิเสธคำสั่งนี้?",
+    "confirmRejectBody": "การชำระเงินของผู้ซื้อจะถูกยกเลิกและคำสั่งจะหายไปจากรายการของคุณ ย้อนกลับไม่ได้"
   },
   "live": {
     "accessTicket": "ตั๋วเข้าชม",

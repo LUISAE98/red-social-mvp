@@ -2022,7 +2022,9 @@
     "shareGreeting": "Подели поздрав",
     "shareAdvice": "Подели савет",
     "sentAllToday": "Послао си све за данас!",
-    "releasedAmount": "Ослободио си {amount}!"
+    "releasedAmount": "Ослободио си {amount}!",
+    "confirmRejectTitle": "Сигурно желиш да одбијеш ову поруџбину?",
+    "confirmRejectBody": "Наплата купцу биће отказана и поруџбина ће нестати с твоје листе. Не може се поништити."
   },
   "live": {
     "accessTicket": "Ulaznica",

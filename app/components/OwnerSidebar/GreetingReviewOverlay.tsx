@@ -4,6 +4,7 @@ import Image from "next/image";
 import { IconButton } from "@/components/ui";
 import { Switch } from "@/components/services/config/serviceConfigKit";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
+import ConfirmPanel from "@/components/ui/ConfirmPanel";
 import { useCfError } from "@/lib/i18n/cfError";
 import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -180,8 +181,8 @@ export default function GreetingReviewOverlay({
   const speechCursorRef = useRef<HTMLSpanElement>(null);
 
   // Rechazar cancela el cobro del comprador y no tiene vuelta atrás, así que
-  // pide un segundo toque en vez de disparar al primero.
-  const [rejectArmed, setRejectArmed] = useState(false);
+  // pasa por el panel de confirmación de la casa.
+  const [confirmRejectOpen, setConfirmRejectOpen] = useState(false);
   const [rejecting, setRejecting] = useState(false);
 
   // La cámara ya está dando imagen. Sirve para no enseñar el <video> mientras
@@ -204,6 +205,9 @@ export default function GreetingReviewOverlay({
   // Se guardan todos los guiones en un objeto indexado por encargo para poder
   // leerlo de una vez al montar, sin depender de cuál esté abierto.
   const [prompterOpen, setPrompterOpen] = useState(false);
+  // La hoja de datos de celular nace cerrada, al revés que el panel de laptop,
+  // así que lleva su propio interruptor en vez de compartir `infoOpen`.
+  const [mobileInfoOpen, setMobileInfoOpen] = useState(false);
   const [prompterScripts, setPrompterScripts] = useState<Record<string, string>>(() => {
     if (typeof window === "undefined") return {};
     try {
@@ -857,8 +861,6 @@ export default function GreetingReviewOverlay({
 
   const handleReject = async () => {
     if (rejecting) return;
-    if (!rejectArmed) { setRejectArmed(true); return; }
-    setRejectArmed(false);
     setRejecting(true);
     try {
       await respondGreetingRequest({ requestId: currentItem.id, action: "reject" });
@@ -870,11 +872,12 @@ export default function GreetingReviewOverlay({
       setUploadError((e instanceof Error ? cfError(e) : null) ?? tServices("errorRejectRequest"));
     } finally {
       setRejecting(false);
+      setConfirmRejectOpen(false);
     }
   };
 
   const handleNextGreeting = () => {
-    setRejectArmed(false);
+    setConfirmRejectOpen(false);
     // Reset recording state and advance to next item — stay in camera panel
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
     uploadBlobRef.current = null;
@@ -1119,6 +1122,15 @@ export default function GreetingReviewOverlay({
 
   const slideStyle: React.CSSProperties = {
     transform: slideState === "exit" ? "translateX(-20px)" : slideState === "enter" ? "translateX(20px)" : "translateX(0)",
+    opacity: slideState === "idle" ? 1 : 0,
+    transition: slideState === "exit" ? "transform 200ms ease, opacity 200ms ease" : slideState === "idle" ? "transform 260ms ease, opacity 260ms ease" : "none",
+  };
+
+  /** El mismo cambio de encargo, pero en vertical. En celular la hoja crece de
+   *  abajo hacia arriba, así que un deslizamiento lateral iba a contrapelo del
+   *  movimiento del panel: el encargo nuevo entra desde abajo y sube. */
+  const slideStyleVertical: React.CSSProperties = {
+    transform: slideState === "exit" ? "translateY(-20px)" : slideState === "enter" ? "translateY(20px)" : "translateY(0)",
     opacity: slideState === "idle" ? 1 : 0,
     transition: slideState === "exit" ? "transform 200ms ease, opacity 200ms ease" : slideState === "idle" ? "transform 260ms ease, opacity 260ms ease" : "none",
   };
@@ -1611,6 +1623,129 @@ export default function GreetingReviewOverlay({
     WebkitTapHighlightColor: "transparent",
   };
 
+  /** El aviso de enviado, centrado sobre el video. Lo comparten las dos ramas:
+   *  es el mismo bloque en laptop y en celular, así que vive fuera de ellas. */
+  const successOverlay = (() => {
+                    const hidden = !uploadSucceeded;
+                    const canStory =
+                      (req.type === "saludo" || req.type === "consejo") &&
+                      req.allowCreatorStory !== false;
+                    const storyOn = storyAdded || existingStory !== null;
+                    return (
+                    <div style={{
+                      position: "absolute", inset: 0, zIndex: 6,
+                      display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center", gap: 16,
+                      opacity: hidden ? 0 : 1,
+                      visibility: hidden ? "hidden" : "visible",
+                      pointerEvents: hidden ? "none" : "auto",
+                      transform: hidden ? "scale(0.96)" : "scale(1)",
+                      transition: [
+                        "opacity 220ms ease",
+                        "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+                        "visibility 300ms",
+                      ].join(", "),
+                    }}>
+                      <div style={{
+                        width: 56, height: 56, borderRadius: "50%",
+                        background: "#22c55e", flexShrink: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        boxShadow: "0 8px 32px rgba(34,197,94,0.35)",
+                        animation: hidden ? "none" : "vibraSuccessPop 0.45s cubic-bezier(0.4,0,0.2,1) both",
+                      }}>
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                          <path
+                            d="M5 12L10 17L19 8"
+                            stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                            strokeDasharray="32" strokeDashoffset="0"
+                            style={{ animation: hidden ? "none" : "vibraCheckDraw 0.5s 0.25s ease both" }}
+                          />
+                        </svg>
+                      </div>
+
+                      <span style={{
+                        color: "#fff", fontWeight: 700, fontSize: 18,
+                        letterSpacing: "-0.02em", lineHeight: 1.2, textAlign: "center",
+                        textShadow: "0 2px 12px rgba(0,0,0,0.6)",
+                      }}>
+                        {successIsLast ? tServices("sentAllToday") : successLabel}
+                      </span>
+
+                      {/* Al terminar la lista no queda nada que decidir: fuera el
+                          switch y fuera el botón, y en su lugar lo ganado. */}
+                      {successIsLast ? (
+                        successTotalEarned > 0 && (
+                          <span style={{
+                            color: "#4ade80", fontWeight: 700, fontSize: 22,
+                            letterSpacing: "-0.02em", lineHeight: 1.2, textAlign: "center",
+                            textShadow: "0 2px 12px rgba(0,0,0,0.6)",
+                          }}>
+                            {tServices("releasedAmount", {
+                              amount: formatMoney(successTotalEarned, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
+                            })}
+                          </span>
+                        )
+                      ) : (
+                        <>
+                          {/* El switch solo existe si el comprador autorizó que
+                              el creador publique el encargo. Sin permiso no hay
+                              nada que ofrecer, así que ni se enseña apagado.
+                              Sin caja: el aire lo pone el propio texto. */}
+                          {canStory && (
+                            <div style={{
+                              display: "flex", alignItems: "center", gap: 10,
+                              margin: "-4px 0",
+                            }}>
+                              <span style={{
+                                color: "rgba(255,255,255,0.88)", fontSize: 14, fontWeight: 600,
+                                letterSpacing: "-0.01em",
+                                textShadow: "0 2px 10px rgba(0,0,0,0.7)",
+                              }}>
+                                {shareLabel}
+                              </span>
+                              <Switch
+                                checked={storyOn}
+                                disabled={addingStory || removingStory}
+                                label={shareLabel}
+                                onChange={(next) => {
+                                  if (next) void handleAddToStory();
+                                  else void handleRemoveFromStory();
+                                }}
+                              />
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleNextGreeting(); }}
+                            style={{ ...videoActionButton, background: "#3b82f6" }}
+                          >
+                            {tServices("reviewNext")}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    );
+  })();
+
+  /** Rechazar cancela el cobro retenido al comprador, así que pasa por el panel
+   *  de confirmación de la casa en lugar de dispararse con un solo toque. */
+  const rejectConfirmPanel = (
+    <ConfirmPanel
+      open={confirmRejectOpen}
+      onClose={() => setConfirmRejectOpen(false)}
+      onConfirm={() => { void handleReject(); }}
+      title={tServices("confirmRejectTitle")}
+      body={tServices("confirmRejectBody")}
+      highlight={buyer?.displayName ?? undefined}
+      confirmLabel={tServices("confirmReject")}
+      cancelLabel={tCommon("cancel")}
+      tone="danger"
+      busy={rejecting}
+      zIndexBase={zIndex + 10}
+    />
+  );
+
   // Los botones apilados a lo ancho del panel lateral. Es lo que sigue usando
   // celular; en laptop se pintan aparte, sobre el video y en fila.
   const recordActions = recordPhase === "done" ? (
@@ -1824,6 +1959,347 @@ export default function GreetingReviewOverlay({
       </div>
     </div>
   );
+
+  // ─── MOBILE CAMERA VIEW — GRABACIÓN ──────────────────────────────────────────
+  //
+  // La cámara ocupa la pantalla entera. La hoja de datos, que antes se comía el
+  // tercio inferior siempre, ahora vive plegada bajo el borde y sube a media
+  // altura con la flecha, igual que las pestañas de laptop pero en vertical. El
+  // prompter hace lo mismo desde arriba.
+  if (viewState === "camera" && isMobile && !viewMode && !buyerViewMode) {
+    const SHEET_H = "min(62dvh, 520px)";
+    const PROMPTER_H = "min(52dvh, 430px)";
+    const BTN_W = "min(78vw, 320px)";
+    const TOP_TAB_H = 110;
+    // Los botones no se van nunca: la hoja crece por encima de ellos. Solo
+    // desaparecen cuando el encargo ya se envió y manda el aviso de enviado.
+    const stackHidden = uploadSucceeded;
+
+    return createPortal(
+      <>
+      <style>{`
+        @keyframes vibraSuccessPop {
+          0%   { transform: scale(0.3); opacity: 0; }
+          65%  { transform: scale(1.12); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes vibraCheckDraw {
+          0%   { stroke-dashoffset: 32; opacity: 0; }
+          30%  { opacity: 1; }
+          100% { stroke-dashoffset: 0; opacity: 1; }
+        }
+        .grv-prompter::placeholder { color: rgba(255,255,255,0.28); }
+        .grv-prompter { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.22) transparent; }
+        .grv-prompter::-webkit-scrollbar { width: 4px; }
+        .grv-prompter::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); border-radius: 2px; }
+      `}</style>
+
+      <div style={{
+        position: "fixed", inset: 0, zIndex,
+        background: "#000", overflow: "hidden", fontFamily: fontStack,
+      }}>
+        {/* ── Cámara a pantalla completa ─────────────────────────────────── */}
+        <video
+          ref={videoRef}
+          autoPlay muted playsInline
+          disablePictureInPicture
+          onContextMenu={(e) => e.preventDefault()}
+          onPlaying={() => setCameraReady(true)}
+          onLoadedData={() => setCameraReady(true)}
+          style={{
+            position: "absolute", inset: 0, width: "100%", height: "100%",
+            objectFit: "cover", background: "#000",
+            opacity: ((recordPhase !== "done" || uploadSucceeded) && cameraReady) ? 1 : 0,
+            transition: `opacity ${VIDEO_FADE_MS}ms ease`,
+          }}
+        />
+        {recordedBlobUrl && (
+          <div style={{
+            position: "absolute", inset: 0,
+            opacity: (recordPhase === "done" && !uploadSucceeded) ? 1 : 0,
+            pointerEvents: (recordPhase === "done" && !uploadSucceeded) ? "auto" : "none",
+            transition: `opacity ${VIDEO_FADE_MS}ms ease`,
+          }}>
+            <video
+              ref={playbackVideoRef}
+              src={recordedBlobUrl}
+              playsInline
+              disablePictureInPicture
+              onContextMenu={(e) => e.preventDefault()}
+              onLoadedMetadata={(e) => fixPreviewDuration(e.currentTarget)}
+              onLoadedData={() => setVpReady(true)}
+              onTimeUpdate={(e) => setVpCurrentTime(e.currentTarget.currentTime)}
+              onPlay={() => setVpPlaying(true)}
+              onPause={() => setVpPlaying(false)}
+              onEnded={() => setVpPlaying(false)}
+              style={{ width: "100%", height: "100%", objectFit: "cover", background: "#000", display: "block" }}
+            />
+            {vpControlsOverlay}
+          </div>
+        )}
+
+        {/* Cronómetro, origen y frase de ánimo */}
+        {recordPhase === "recording" && (
+          <div style={{
+            position: "absolute", top: "max(16px, env(safe-area-inset-top))",
+            left: "50%", transform: "translateX(-50%)", zIndex: 5,
+            background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "4px 14px",
+            display: "flex", alignItems: "center", gap: 7,
+            color: "#fff", fontWeight: 600, fontSize: 14,
+          }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block" }} />
+            {formatTime(recordingSeconds)}
+          </div>
+        )}
+        {recordPhase !== "done" && renderSourceChip(recordPhase === "recording" ? 54 : 16)}
+
+        {/* ── Velo superior y prompter ─────────────────────────────────── */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute", insetInlineStart: 0, insetInlineEnd: 0, top: 0,
+            zIndex: 2, pointerEvents: "none",
+            height: prompterOpen ? PROMPTER_H : TOP_TAB_H,
+            transition: "height 320ms cubic-bezier(0.4, 0, 0.2, 1)",
+            background: prompterOpen
+              ? "linear-gradient(to bottom, rgba(0,0,0,0.94), rgba(0,0,0,0))"
+              : "linear-gradient(to bottom, rgba(0,0,0,0.62), rgba(0,0,0,0))",
+          }}
+        />
+
+        <div style={{
+          position: "absolute", insetInlineStart: 0, insetInlineEnd: 0, top: 0,
+          zIndex: 3, height: PROMPTER_H,
+          transform: prompterOpen ? "translateY(0)" : "translateY(-100%)",
+          opacity: prompterOpen ? 1 : 0,
+          visibility: prompterOpen ? "visible" : "hidden",
+          pointerEvents: prompterOpen ? "auto" : "none",
+          transition: "transform 320ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms ease, visibility 320ms",
+          display: "flex", flexDirection: "column", gap: 10,
+          paddingInline: 16,
+          paddingBottom: 16,
+          // Por debajo de la fila del tache y de la flecha, que ocupa el alto
+          // del IconButton (40) más el margen de seguridad de arriba.
+          paddingTop: "calc(max(14px, env(safe-area-inset-top)) + 54px)",
+          boxSizing: "border-box",
+        }}>
+          {/* El hueco de la derecha es para la flecha, que va en otra capa. */}
+          <span style={{ paddingInlineEnd: 44, color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
+            {tServices("prompterTitle")}
+          </span>
+          <textarea
+            className="grv-prompter"
+            value={prompterScripts[currentItem.id] ?? ""}
+            onChange={(e) => {
+              const value = e.target.value;
+              setPrompterScripts((prev) => ({ ...prev, [currentItem.id]: value }));
+            }}
+            placeholder={tServices("prompterPlaceholder")}
+            spellCheck={false}
+            style={{
+              flex: 1, minHeight: 0, width: "100%",
+              resize: "none", border: "none", outline: "none",
+              background: "transparent", padding: 0,
+              color: "#fff", fontSize: 18, fontWeight: 500, lineHeight: 1.6,
+              fontFamily: fontStack, boxSizing: "border-box",
+            }}
+          />
+        </div>
+
+        {/* Flecha del prompter, fija arriba a la derecha en los dos estados. */}
+        <div style={{
+          position: "absolute", zIndex: 5,
+          top: "max(14px, env(safe-area-inset-top))", insetInlineEnd: 8,
+          display: "flex", alignItems: "center", gap: 4,
+        }}>
+          {!prompterOpen && (
+            <span aria-hidden="true" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>
+              {tServices("prompterTitle")}
+            </span>
+          )}
+          <IconButton
+            label={tServices("prompterTitle")}
+            size="md" tone="bare" shape="square"
+            style={{ boxShadow: "none" }}
+            aria-expanded={prompterOpen}
+            onClick={() => setPrompterOpen((prev) => !prev)}
+          >
+            <svg
+              width="24" height="24" viewBox="0 0 24 24" fill="none"
+              style={{
+                transform: `rotate(${prompterOpen ? 180 : 0}deg)`,
+                transition: "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)",
+              }}
+            >
+              <path d="M6 9L12 16L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </IconButton>
+        </div>
+
+        {/* Cerrar, arriba a la izquierda. */}
+        <div style={{
+          position: "absolute", zIndex: 7,
+          top: "max(14px, env(safe-area-inset-top))", insetInlineStart: 8,
+        }}>
+          <IconButton
+            label={tCommon("closeAriaLabel")}
+            size="md" tone="bare" shape="square"
+            style={{ boxShadow: "none" }}
+            onClick={handleClose}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </IconButton>
+        </div>
+
+        {/* ── Pie: hoja de datos y botonera, en la MISMA columna ───────────
+               Así la hoja crece hacia arriba empujando solo lo suyo y los
+               botones se quedan donde están. El difuminado es el fondo de esta
+               columna, de modo que se estira con ella sin tener que adivinar
+               cuánto mide la hoja. */}
+        <div style={{
+          position: "absolute", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0,
+          zIndex: 4,
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+          paddingInline: 16, paddingTop: 72,
+          paddingBottom: "calc(18px + var(--vb-safe-bottom, 0px))",
+          boxSizing: "border-box",
+          background: "linear-gradient(to top, rgba(0,0,0,0.92) 42%, rgba(0,0,0,0))",
+          opacity: stackHidden ? 0 : 1,
+          visibility: stackHidden ? "hidden" : "visible",
+          pointerEvents: stackHidden ? "none" : "auto",
+          transition: "opacity 220ms ease, visibility 320ms",
+        }}>
+          {/* La hoja de datos. La rejilla de 0fr a 1fr es lo que permite animar
+              hasta el alto REAL del contenido: con una altura fija se abría
+              siempre el mismo hueco aunque dentro hubiera dos líneas. El tope
+              lo pone maxHeight, y a partir de ahí rueda. */}
+          <div style={{
+            width: "100%",
+            display: "grid",
+            gridTemplateRows: mobileInfoOpen ? "1fr" : "0fr",
+            opacity: mobileInfoOpen ? 1 : 0,
+            transition: "grid-template-rows 320ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms ease",
+          }}>
+            <div style={{ minHeight: 0, overflow: "hidden" }}>
+              <div style={{
+                maxHeight: SHEET_H, overflowY: "auto",
+                display: "flex", flexDirection: "column", gap: 14,
+                paddingBottom: 4,
+                ...slideStyleVertical,
+              }}>
+                {buyerStoryCard}
+                {divider}
+                {earningRow}
+                {infoSection}
+              </div>
+            </div>
+          </div>
+          {recordPhase === "done" ? (
+            <>
+              <button
+                type="button"
+                onClick={handleRepeat}
+                disabled={busy || isUploading}
+                style={{ ...videoActionButton, background: "#3b82f6", width: BTN_W }}
+              >
+                {repeatLabel}
+              </button>
+              <button
+                type="button"
+                onClick={handleSendGreeting}
+                disabled={busy || isUploading}
+                style={{ ...videoActionButton, background: "linear-gradient(135deg, #ec4899, #9333ea)", width: BTN_W }}
+              >
+                {sendLabel}
+              </button>
+            </>
+          ) : (
+            <>
+              {/* La flecha que sube y baja la hoja, justo encima del rojo. */}
+              <button
+                type="button"
+                onClick={() => setMobileInfoOpen((prev) => !prev)}
+                aria-expanded={mobileInfoOpen}
+                aria-label={mobileInfoOpen ? tCommon("hide") : tCommon("show")}
+                style={{
+                  background: "transparent", border: "none", padding: "4px 16px",
+                  color: "rgba(255,255,255,0.78)", cursor: "pointer", lineHeight: 0,
+                }}
+              >
+                <svg
+                  width="24" height="24" viewBox="0 0 24 24" fill="none"
+                  style={{
+                    transform: `rotate(${mobileInfoOpen ? 180 : 0}deg)`,
+                    transition: "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                >
+                  <path d="M6 15L12 8L18 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                onClick={recordPhase === "preview" ? handleStartRecording : handleStopRecording}
+                style={{
+                  width: 68, height: 68, borderRadius: "50%",
+                  border: "3px solid rgba(255,255,255,0.88)",
+                  background: "transparent", padding: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", flexShrink: 0,
+                }}
+              >
+                {recordPhase === "recording" ? (
+                  <div style={{ width: 26, height: 26, borderRadius: 6, background: "#ef4444" }} />
+                ) : (
+                  <div style={{ width: 50, height: 50, borderRadius: "50%", background: "#ef4444" }} />
+                )}
+              </button>
+
+              {/* Subir y rechazar se van mientras se graba. Siguen montados para
+                  poder despedirse con una transición en vez de esfumarse. */}
+              <div style={{
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                opacity: recordPhase === "recording" ? 0 : 1,
+                visibility: recordPhase === "recording" ? "hidden" : "visible",
+                pointerEvents: recordPhase === "recording" ? "none" : "auto",
+                transform: recordPhase === "recording" ? "translateY(10px) scale(0.96)" : "translateY(0) scale(1)",
+                transition: "opacity 200ms ease, transform 300ms cubic-bezier(0.4, 0, 0.2, 1), visibility 300ms",
+              }}>
+                <button
+                  type="button"
+                  onClick={() => { setUploadError(null); fileInputRef.current?.click(); }}
+                  style={{ ...videoActionButton, background: "#3b82f6", width: BTN_W }}
+                >
+                  {tServices("uploadPrerecordedVideo")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmRejectOpen(true)}
+                  disabled={rejecting}
+                  style={{
+                    ...videoActionButton,
+                    background: "rgba(255,255,255,0.16)",
+                    width: BTN_W, filter: "none",
+                    cursor: rejecting ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {tCommon("reject")}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {successOverlay}
+        {fileInput}
+      </div>
+      {rejectConfirmPanel}
+      </>,
+      document.body
+    );
+  }
 
   // ─── MOBILE CAMERA VIEW ──────────────────────────────────────────────────────
   if (viewState === "camera" && isMobile) {
@@ -2766,8 +3242,7 @@ export default function GreetingReviewOverlay({
                     return (
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); void handleReject(); }}
-                      onBlur={() => setRejectArmed(false)}
+                      onClick={(e) => { e.stopPropagation(); setConfirmRejectOpen(true); }}
                       disabled={rejecting}
                       tabIndex={hidden ? -1 : 0}
                       style={{
@@ -2779,7 +3254,7 @@ export default function GreetingReviewOverlay({
                         opacity: hidden ? 0 : 1,
                         visibility: hidden ? "hidden" : "visible",
                         pointerEvents: hidden ? "none" : "auto",
-                        background: rejectArmed ? "#b91c1c" : "rgba(255,255,255,0.16)",
+                        background: "rgba(255,255,255,0.16)",
                         cursor: rejecting ? "not-allowed" : "pointer",
                         filter: "none",
                         transition: [
@@ -2790,7 +3265,7 @@ export default function GreetingReviewOverlay({
                         ].join(", "),
                       }}
                     >
-                      {rejectArmed ? tServices("confirmReject") : tCommon("reject")}
+                      {tCommon("reject")}
                     </button>
                     );
                   })()}
@@ -2855,111 +3330,7 @@ export default function GreetingReviewOverlay({
                     );
                   })()}
 
-                  {/* Enviado. Vive centrado sobre el video, no en el panel, y
-                      se queda montado para entrar y salir con el mismo fundido
-                      que el resto del pie. */}
-                  {(() => {
-                    const hidden = !uploadSucceeded;
-                    const canStory =
-                      (req.type === "saludo" || req.type === "consejo") &&
-                      req.allowCreatorStory !== false;
-                    const storyOn = storyAdded || existingStory !== null;
-                    return (
-                    <div style={{
-                      position: "absolute", inset: 0, zIndex: 6,
-                      display: "flex", flexDirection: "column",
-                      alignItems: "center", justifyContent: "center", gap: 16,
-                      opacity: hidden ? 0 : 1,
-                      visibility: hidden ? "hidden" : "visible",
-                      pointerEvents: hidden ? "none" : "auto",
-                      transform: hidden ? "scale(0.96)" : "scale(1)",
-                      transition: [
-                        "opacity 220ms ease",
-                        "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)",
-                        "visibility 300ms",
-                      ].join(", "),
-                    }}>
-                      <div style={{
-                        width: 56, height: 56, borderRadius: "50%",
-                        background: "#22c55e", flexShrink: 0,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        boxShadow: "0 8px 32px rgba(34,197,94,0.35)",
-                        animation: hidden ? "none" : "vibraSuccessPop 0.45s cubic-bezier(0.4,0,0.2,1) both",
-                      }}>
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                          <path
-                            d="M5 12L10 17L19 8"
-                            stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                            strokeDasharray="32" strokeDashoffset="0"
-                            style={{ animation: hidden ? "none" : "vibraCheckDraw 0.5s 0.25s ease both" }}
-                          />
-                        </svg>
-                      </div>
-
-                      <span style={{
-                        color: "#fff", fontWeight: 700, fontSize: 18,
-                        letterSpacing: "-0.02em", lineHeight: 1.2, textAlign: "center",
-                        textShadow: "0 2px 12px rgba(0,0,0,0.6)",
-                      }}>
-                        {successIsLast ? tServices("sentAllToday") : successLabel}
-                      </span>
-
-                      {/* Al terminar la lista no queda nada que decidir: fuera el
-                          switch y fuera el botón, y en su lugar lo ganado. */}
-                      {successIsLast ? (
-                        successTotalEarned > 0 && (
-                          <span style={{
-                            color: "#4ade80", fontWeight: 700, fontSize: 22,
-                            letterSpacing: "-0.02em", lineHeight: 1.2, textAlign: "center",
-                            textShadow: "0 2px 12px rgba(0,0,0,0.6)",
-                          }}>
-                            {tServices("releasedAmount", {
-                              amount: formatMoney(successTotalEarned, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
-                            })}
-                          </span>
-                        )
-                      ) : (
-                        <>
-                          {/* El switch solo existe si el comprador autorizó que
-                              el creador publique el encargo. Sin permiso no hay
-                              nada que ofrecer, así que ni se enseña apagado.
-                              Sin caja: el aire lo pone el propio texto. */}
-                          {canStory && (
-                            <div style={{
-                              display: "flex", alignItems: "center", gap: 10,
-                              margin: "-4px 0",
-                            }}>
-                              <span style={{
-                                color: "rgba(255,255,255,0.88)", fontSize: 14, fontWeight: 600,
-                                letterSpacing: "-0.01em",
-                                textShadow: "0 2px 10px rgba(0,0,0,0.7)",
-                              }}>
-                                {shareLabel}
-                              </span>
-                              <Switch
-                                checked={storyOn}
-                                disabled={addingStory || removingStory}
-                                label={shareLabel}
-                                onChange={(next) => {
-                                  if (next) void handleAddToStory();
-                                  else void handleRemoveFromStory();
-                                }}
-                              />
-                            </div>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleNextGreeting(); }}
-                            style={{ ...videoActionButton, background: "#3b82f6" }}
-                          >
-                            {tServices("reviewNext")}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                    );
-                  })()}
+                  {successOverlay}
                 </>
               )}
             </div>
@@ -2967,6 +3338,7 @@ export default function GreetingReviewOverlay({
         </div>
         </div>
       </div>
+      {rejectConfirmPanel}
       </>,
       document.body
     );

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { formatCurrency } from "@/lib/currency/format";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
@@ -58,13 +59,12 @@ export default function ProfileServicesTab({
   );
 
   const priceFmt = usePriceFormat();
-  // 🚨 `formatPlain`, NO `format`. Todo lo que se formatea aquí es dinero que ve el
-  // CREADOR: su precio y su ganancia. `format` calcula el precio de cara al COMPRADOR
-  // —le suma el 2% de conversión y lo redondea al paso de la moneda— y aplicado a esto
-  // daba números que no son ni una cosa ni la otra: con 1 USD de base, "ganarás 0.75"
-  // salía como 15 MXN.
+  // 🚨 NO CONVIERTE, y es deliberado. Todo lo que se formatea aquí es dinero del CREADOR,
+  // que se fija y se guarda en la moneda de LIQUIDACIÓN: su precio y su ganancia. Pasarlo
+  // por una conversión mostraba su ganancia de 75 USD como "1,279.55 MXN", que no es lo que
+  // gana ni lo que fijó. La referencia en su moneda va aparte, en `LocalPriceHint`.
   const formatMoney = (value: number, currency?: string) =>
-    priceFmt.formatPlain(value, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true });
+    formatCurrency(value, currency ?? SETTLEMENT_CURRENCY, priceFmt.locale, { code: true });
 
   // Link público del perfil (para el botón "Copiar link" de la vista de éxito).
   const routeParams = useParams<{ handle?: string }>();

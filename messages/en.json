@@ -2022,7 +2022,9 @@
     "shareGreeting": "Share greeting",
     "shareAdvice": "Share advice",
     "sentAllToday": "You sent them all for today!",
-    "releasedAmount": "You unlocked {amount}!"
+    "releasedAmount": "You unlocked {amount}!",
+    "confirmRejectTitle": "Are you sure you want to decline this request?",
+    "confirmRejectBody": "The buyer's payment will be cancelled and the request will leave your list. This cannot be undone."
   },
   "live": {
     "accessTicket": "Access ticket",

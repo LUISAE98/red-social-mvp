@@ -2022,7 +2022,9 @@
     "shareGreeting": "Compartir saludo",
     "shareAdvice": "Compartir consejo",
     "sentAllToday": "¡Enviaste todos por hoy!",
-    "releasedAmount": "¡Liberaste {amount}!"
+    "releasedAmount": "¡Liberaste {amount}!",
+    "confirmRejectTitle": "¿Seguro que quieres rechazar este encargo?",
+    "confirmRejectBody": "Se cancelará el cobro al comprador y el encargo desaparecerá de tu lista. No se puede deshacer."
   },
   "live": {
     "accessTicket": "Ticket de acceso",

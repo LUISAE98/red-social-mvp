@@ -2022,7 +2022,9 @@
     "shareGreeting": "Condividi il saluto",
     "shareAdvice": "Condividi il consiglio",
     "sentAllToday": "Li hai inviati tutti per oggi!",
-    "releasedAmount": "Hai sbloccato {amount}!"
+    "releasedAmount": "Hai sbloccato {amount}!",
+    "confirmRejectTitle": "Vuoi davvero rifiutare questa richiesta?",
+    "confirmRejectBody": "Il pagamento dell'acquirente verrà annullato e la richiesta sparirà dalla tua lista. Non si può annullare."
   },
   "live": {
     "accessTicket": "Biglietto d'accesso",

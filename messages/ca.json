@@ -2022,7 +2022,9 @@
     "shareGreeting": "Comparteix la salutació",
     "shareAdvice": "Comparteix el consell",
     "sentAllToday": "Els has enviat tots per avui!",
-    "releasedAmount": "Has alliberat {amount}!"
+    "releasedAmount": "Has alliberat {amount}!",
+    "confirmRejectTitle": "Segur que vols rebutjar aquesta comanda?",
+    "confirmRejectBody": "Es cancel·larà el cobrament al comprador i la comanda desapareixerà de la teva llista. No es pot desfer."
   },
   "live": {
     "accessTicket": "Entrada d'accés",

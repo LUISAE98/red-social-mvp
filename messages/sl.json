@@ -2022,7 +2022,9 @@
     "shareGreeting": "Deli pozdrav",
     "shareAdvice": "Deli nasvet",
     "sentAllToday": "Danes si poslal vse!",
-    "releasedAmount": "Sprostil si {amount}!"
+    "releasedAmount": "Sprostil si {amount}!",
+    "confirmRejectTitle": "Si prepričan, da želiš zavrniti to naročilo?",
+    "confirmRejectBody": "Plačilo kupca bo preklicano in naročilo bo izginilo s tvojega seznama. Tega ni mogoče razveljaviti."
   },
   "live": {
     "accessTicket": "Vstopnica",

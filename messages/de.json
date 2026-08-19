@@ -2022,7 +2022,9 @@
     "shareGreeting": "Gruß teilen",
     "shareAdvice": "Rat teilen",
     "sentAllToday": "Du hast heute alle verschickt!",
-    "releasedAmount": "Du hast {amount} freigeschaltet!"
+    "releasedAmount": "Du hast {amount} freigeschaltet!",
+    "confirmRejectTitle": "Willst du diese Bestellung wirklich ablehnen?",
+    "confirmRejectBody": "Die Zahlung des Käufers wird storniert und die Bestellung verschwindet aus deiner Liste. Das lässt sich nicht rückgängig machen."
   },
   "live": {
     "accessTicket": "Zugangsticket",

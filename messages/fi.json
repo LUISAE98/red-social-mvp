@@ -2022,7 +2022,9 @@
     "shareGreeting": "Jaa tervehdys",
     "shareAdvice": "Jaa neuvo",
     "sentAllToday": "Lähetit kaikki tältä päivältä!",
-    "releasedAmount": "Vapautit {amount}!"
+    "releasedAmount": "Vapautit {amount}!",
+    "confirmRejectTitle": "Haluatko varmasti hylätä tämän tilauksen?",
+    "confirmRejectBody": "Ostajan maksu perutaan ja tilaus poistuu listaltasi. Tätä ei voi peruuttaa."
   },
   "live": {
     "accessTicket": "Pääsylippu",

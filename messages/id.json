@@ -2022,7 +2022,9 @@
     "shareGreeting": "Bagikan salam",
     "shareAdvice": "Bagikan saran",
     "sentAllToday": "Kamu mengirim semuanya hari ini!",
-    "releasedAmount": "Kamu membuka {amount}!"
+    "releasedAmount": "Kamu membuka {amount}!",
+    "confirmRejectTitle": "Yakin ingin menolak pesanan ini?",
+    "confirmRejectBody": "Pembayaran pembeli akan dibatalkan dan pesanan hilang dari daftarmu. Tidak bisa dibatalkan."
   },
   "live": {
     "accessTicket": "Tiket akses",

@@ -2022,7 +2022,9 @@
     "shareGreeting": "Deila kveðju",
     "shareAdvice": "Deila ráði",
     "sentAllToday": "Þú sendir þau öll í dag!",
-    "releasedAmount": "Þú losaðir {amount}!"
+    "releasedAmount": "Þú losaðir {amount}!",
+    "confirmRejectTitle": "Viltu örugglega hafna þessari pöntun?",
+    "confirmRejectBody": "Greiðsla kaupandans verður felld niður og pöntunin hverfur af listanum þínum. Þessu verður ekki snúið við."
   },
   "live": {
     "accessTicket": "Aðgangsmiði",

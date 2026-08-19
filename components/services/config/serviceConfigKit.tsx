@@ -101,13 +101,21 @@ export function LocalPriceHint({
 
   const local = pf.fromAnchor(n);
   if (local == null) return null;
+  // `approx` quita los decimales del importe ya redondeado: "$1,700 MXN" en vez de
+  // "$1,700.00 MXN", que se leería preciso y contradiría el "aproximadamente".
   const fmt = (v: number) =>
-    formatCurrency(roundReference(v, pf.currency), pf.currency, pf.locale, { code: true });
+    formatCurrency(roundReference(v, pf.currency), pf.currency, pf.locale, {
+      code: true,
+      approx: true,
+    });
 
   return (
-    <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 2 }}>
-      ≈ {fmt(local)}
-      {netRate ? ` · ganarás ≈ ${fmt(local * netRate)}` : ""}
+    <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 2, lineHeight: 1.45 }}>
+      Estás fijando tu precio en aproximadamente <strong>{fmt(local)}</strong>
+      {netRate ? (
+        <> y ganarás aproximadamente <strong>{fmt(local * netRate)}</strong></>
+      ) : null}
+      .
     </div>
   );
 }

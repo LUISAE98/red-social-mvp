@@ -2022,7 +2022,9 @@
     "shareGreeting": "Ibahagi ang pagbati",
     "shareAdvice": "Ibahagi ang payo",
     "sentAllToday": "Naipadala mo lahat para ngayon!",
-    "releasedAmount": "Nakakuha ka ng {amount}!"
+    "releasedAmount": "Nakakuha ka ng {amount}!",
+    "confirmRejectTitle": "Sigurado kang tatanggihan ang order na ito?",
+    "confirmRejectBody": "Kakanselahin ang bayad ng bumili at mawawala ang order sa listahan mo. Hindi na ito maibabalik."
   },
   "live": {
     "accessTicket": "Access ticket",

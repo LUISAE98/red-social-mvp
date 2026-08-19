@@ -2022,7 +2022,9 @@
     "shareGreeting": "Partager le message",
     "shareAdvice": "Partager le conseil",
     "sentAllToday": "Tu les as tous envoyés pour aujourd'hui !",
-    "releasedAmount": "Tu as débloqué {amount} !"
+    "releasedAmount": "Tu as débloqué {amount} !",
+    "confirmRejectTitle": "Tu veux vraiment refuser cette commande ?",
+    "confirmRejectBody": "Le paiement de l'acheteur sera annulé et la commande disparaîtra de ta liste. C'est irréversible."
   },
   "live": {
     "accessTicket": "Billet d'accès",

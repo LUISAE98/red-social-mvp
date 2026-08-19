@@ -2022,7 +2022,9 @@
     "shareGreeting": "Ndaj përshëndetjen",
     "shareAdvice": "Ndaj këshillën",
     "sentAllToday": "I dërgove të gjitha për sot!",
-    "releasedAmount": "Çlirove {amount}!"
+    "releasedAmount": "Çlirove {amount}!",
+    "confirmRejectTitle": "Je i sigurt që do ta refuzosh këtë porosi?",
+    "confirmRejectBody": "Pagesa e blerësit do të anulohet dhe porosia do të zhduket nga lista jote. Nuk mund të zhbëhet."
   },
   "live": {
     "accessTicket": "Biletë hyrjeje",

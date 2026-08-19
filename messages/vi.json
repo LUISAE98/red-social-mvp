@@ -2022,7 +2022,9 @@
     "shareGreeting": "Chia sẻ lời chào",
     "shareAdvice": "Chia sẻ lời khuyên",
     "sentAllToday": "Bạn đã gửi hết cho hôm nay!",
-    "releasedAmount": "Bạn đã mở khóa {amount}!"
+    "releasedAmount": "Bạn đã mở khóa {amount}!",
+    "confirmRejectTitle": "Bạn chắc chắn muốn từ chối yêu cầu này?",
+    "confirmRejectBody": "Khoản thanh toán của người mua sẽ bị hủy và yêu cầu sẽ biến mất khỏi danh sách của bạn. Không thể hoàn tác."
   },
   "live": {
     "accessTicket": "Vé vào cửa",

@@ -2022,7 +2022,9 @@
     "shareGreeting": "Del hilsenen",
     "shareAdvice": "Del rådet",
     "sentAllToday": "Du sendte alle for i dag!",
-    "releasedAmount": "Du frigav {amount}!"
+    "releasedAmount": "Du frigav {amount}!",
+    "confirmRejectTitle": "Er du sikker på, at du vil afvise denne bestilling?",
+    "confirmRejectBody": "Købers betaling annulleres, og bestillingen forsvinder fra din liste. Det kan ikke fortrydes."
   },
   "live": {
     "accessTicket": "Adgangsbillet",

@@ -68,8 +68,11 @@ export async function sendPushToUser(
       body: payload.body,
       link: payload.link,
       tag: payload.tag,
-      icon: payload.icon ?? "/icon-192.png",
-      badge: "/icon-192.png",
+      // Mismo icono que sirve el service worker del navegador
+      // (public/firebase-messaging-sw.js). Si se cambia el kit de favicons hay
+      // que tocar los dos, o la notificacion pide un archivo que ya no existe.
+      icon: payload.icon ?? "/favicons/android-chrome-192x192.png",
+      badge: "/favicons/android-chrome-192x192.png",
       ...(payload.image ? { image: payload.image } : {}),
     },
   });

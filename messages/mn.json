@@ -2022,7 +2022,9 @@
     "shareGreeting": "Мэндчилгээг хуваалцах",
     "shareAdvice": "Зөвлөгөөг хуваалцах",
     "sentAllToday": "Өнөөдрийнхөө бүгдийг илгээлээ!",
-    "releasedAmount": "Та {amount} чөлөөлөв!"
+    "releasedAmount": "Та {amount} чөлөөлөв!",
+    "confirmRejectTitle": "Энэ захиалгыг татгалзах уу?",
+    "confirmRejectBody": "Худалдан авагчийн төлбөр цуцлагдаж, захиалга жагсаалтаас алга болно. Буцаах боломжгүй."
   },
   "live": {
     "accessTicket": "Хандах тасалбар",

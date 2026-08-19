@@ -2022,7 +2022,9 @@
     "shareGreeting": "Salamı paylaş",
     "shareAdvice": "Məsləhəti paylaş",
     "sentAllToday": "Bu gün hamısını göndərdin!",
-    "releasedAmount": "{amount} qazandın!"
+    "releasedAmount": "{amount} qazandın!",
+    "confirmRejectTitle": "Bu sifarişi rədd etmək istəyirsən?",
+    "confirmRejectBody": "Alıcının ödənişi ləğv olunacaq və sifariş siyahından silinəcək. Geri qaytarmaq olmaz."
   },
   "live": {
     "accessTicket": "Giriş bileti",

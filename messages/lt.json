@@ -2022,7 +2022,9 @@
     "shareGreeting": "Bendrinti sveikinimą",
     "shareAdvice": "Bendrinti patarimą",
     "sentAllToday": "Šiandien išsiuntei visus!",
-    "releasedAmount": "Atrakinai {amount}!"
+    "releasedAmount": "Atrakinai {amount}!",
+    "confirmRejectTitle": "Ar tikrai nori atmesti šį užsakymą?",
+    "confirmRejectBody": "Pirkėjo mokėjimas bus atšauktas, o užsakymas dings iš tavo sąrašo. To nebus galima atšaukti."
   },
   "live": {
     "accessTicket": "Prieigos bilietas",

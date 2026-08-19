@@ -337,13 +337,25 @@ export default function ProfileGroupsTab({
   return (
     <section style={wrapStyle}>
       <style jsx>{`
+        /* Tres columnas en laptop pase lo que pase con el ancho: las columnas se
+           encogen, no se reducen de numero. La separacion es minima —3px— y vale
+           tanto entre columnas como entre filas, asi que tambien es el margen
+           inferior de cada una.
+
+           La fila incompleta queda pegada al inicio sola: una o dos comunidades
+           caen en las primeras columnas y la tarjeta ya no se centra en su celda
+           (ver el margin de .profile-group-card).
+
+           OJO: aqui NO va justify-items: start. Con eso el item se mide por su
+           contenido, la tarjeta de dentro pide width 100% del item, y la
+           referencia circular se resuelve a cero: las comunidades desaparecen. */
         .profile-groups-grid {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 16px;
+          gap: 3px;
           align-items: start;
           width: 100%;
-          max-width: calc((320px * 3) + (16px * 2));
+          max-width: calc((320px * 3) + (3px * 2));
           margin: 0 auto;
         }
 
@@ -359,13 +371,19 @@ export default function ProfileGroupsTab({
           position: relative;
           width: 100%;
           max-width: 320px;
-          margin: 0 auto;
+          /* Sin auto: centraba la tarjeta dentro de su celda, y con la fila
+             incompleta eso la separaba del inicio. Es lo que alinea las filas
+             de una o dos comunidades. */
+          margin: 0;
           aspect-ratio: 1 / 1;
           border: none;
           background: #0d0d0f;
-          border-radius: 22px;
+          border-radius: 0;
           overflow: hidden;
-          box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+          /* Sin sombra: con 3px de separacion, un difuminado de 48px se derrama
+             sobre la tarjeta de al lado y ensucia la retícula. La sombra tenia
+             sentido cuando las tarjetas iban sueltas y redondeadas. */
+          box-shadow: none;
           min-width: 0;
         }
 

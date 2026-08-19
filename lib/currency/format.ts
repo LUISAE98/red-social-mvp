@@ -322,10 +322,15 @@ export function formatCurrency(
 ): string {
   const loc = intlLocale(locale);
   try {
+    // `approx` quita los decimales cuando el importe es entero. Una referencia redondeada
+    // como "$1,700.00 MXN" se lee precisa y contradice el "≈" que la acompaña; "$1,700 MXN"
+    // se lee como lo que es, una estimación.
+    const sinDecimales = opts.approx === true && Number.isInteger(amount);
     const nf = new Intl.NumberFormat(loc, {
       style: "currency",
       currency,
       currencyDisplay: "narrowSymbol",
+      ...(sinDecimales ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {}),
     });
     const text = nf.format(amount);
     if (!opts.code) return text;

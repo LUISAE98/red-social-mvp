@@ -2022,7 +2022,9 @@
     "shareGreeting": "Podijeli pozdrav",
     "shareAdvice": "Podijeli savjet",
     "sentAllToday": "Poslao si sve za danas!",
-    "releasedAmount": "Oslobodio si {amount}!"
+    "releasedAmount": "Oslobodio si {amount}!",
+    "confirmRejectTitle": "Želiš li odbiti ovu narudžbu?",
+    "confirmRejectBody": "Naplata kupcu bit će otkazana i narudžba će nestati s tvog popisa. Nema povratka."
   },
   "live": {
     "accessTicket": "Ulaznica",

@@ -2022,7 +2022,9 @@
     "shareGreeting": "Dela hälsningen",
     "shareAdvice": "Dela rådet",
     "sentAllToday": "Du skickade alla för idag!",
-    "releasedAmount": "Du frigjorde {amount}!"
+    "releasedAmount": "Du frigjorde {amount}!",
+    "confirmRejectTitle": "Är du säker på att du vill avböja den här beställningen?",
+    "confirmRejectBody": "Köparens betalning avbryts och beställningen försvinner från din lista. Det går inte att ångra."
   },
   "live": {
     "accessTicket": "Inträdesbiljett",

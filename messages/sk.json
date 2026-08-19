@@ -2022,7 +2022,9 @@
     "shareGreeting": "Zdieľať pozdrav",
     "shareAdvice": "Zdieľať radu",
     "sentAllToday": "Dnes si odoslal všetky!",
-    "releasedAmount": "Uvoľnil si {amount}!"
+    "releasedAmount": "Uvoľnil si {amount}!",
+    "confirmRejectTitle": "Naozaj chceš odmietnuť túto objednávku?",
+    "confirmRejectBody": "Platba kupujúceho sa zruší a objednávka zmizne z tvojho zoznamu. Nedá sa to vrátiť."
   },
   "live": {
     "accessTicket": "Vstupenka",

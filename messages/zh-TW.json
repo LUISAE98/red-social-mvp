@@ -2022,7 +2022,9 @@
     "shareGreeting": "分享問候",
     "shareAdvice": "分享建議",
     "sentAllToday": "今天的都寄出去了!",
-    "releasedAmount": "你解鎖了 {amount}!"
+    "releasedAmount": "你解鎖了 {amount}!",
+    "confirmRejectTitle": "確定要拒絕這筆委託嗎?",
+    "confirmRejectBody": "買家的付款會被取消,委託也會從你的清單中消失,而且無法復原。"
   },
   "live": {
     "accessTicket": "觀看門票",

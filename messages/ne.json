@@ -2022,7 +2022,9 @@
     "shareGreeting": "अभिवादन साझा गर्नुहोस्",
     "shareAdvice": "सल्लाह साझा गर्नुहोस्",
     "sentAllToday": "आजका सबै पठाउनुभयो!",
-    "releasedAmount": "तपाईंले {amount} खोल्नुभयो!"
+    "releasedAmount": "तपाईंले {amount} खोल्नुभयो!",
+    "confirmRejectTitle": "यो अर्डर अस्वीकार गर्न निश्चित हुनुहुन्छ?",
+    "confirmRejectBody": "खरिदकर्ताको भुक्तानी रद्द हुनेछ र अर्डर तपाईंको सूचीबाट हराउनेछ। यो फिर्ता गर्न सकिँदैन।"
   },
   "live": {
     "accessTicket": "पहुँच टिकट",
