@@ -314,6 +314,18 @@ export default function ReelStorySlide({
     video.play().catch(() => {});
   }, [paused, contextOpen, purchase.isOpen, sharing, scrubbing, loop]);
 
+  // El aviso de progreso va por ref y NO por dependencia.
+  //
+  // ⚠️ El anfitrion lo pasa como funcion escrita en el propio JSX, asi que cambia
+  // de identidad en cada render suyo. Teniendolo como dependencia, el efecto se
+  // desmontaba y volvia a montarse sin parar mientras el bucle de animacion
+  // repintaba a sesenta por segundo, y React acababa cortando con "Maximum update
+  // depth exceeded" y dejando la pantalla rota.
+  const onProgressRef = useRef(onProgress);
+  useEffect(() => {
+    onProgressRef.current = onProgress;
+  });
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !videoReady) return;
@@ -323,8 +335,10 @@ export default function ReelStorySlide({
       const dur = v.duration;
       if (dur > 0) {
         const ratio = v.currentTime / dur;
-        onProgress?.(ratio);
-        setOwnProgress(ratio);
+        onProgressRef.current?.(ratio);
+        // Devolver el MISMO valor evita el render. La barra no distingue
+        // milesimas, y sin esto esto repintaba el slide entero cada fotograma.
+        setOwnProgress((prev) => (Math.abs(prev - ratio) < 0.001 ? prev : ratio));
       }
       progressRafRef.current = requestAnimationFrame(tick);
     };
@@ -332,7 +346,7 @@ export default function ReelStorySlide({
     return () => {
       if (progressRafRef.current !== null) cancelAnimationFrame(progressRafRef.current);
     };
-  }, [videoReady, onProgress]);
+  }, [videoReady]);
 
   useEffect(
     () => () => {

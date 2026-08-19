@@ -2973,16 +2973,25 @@ function canListPublicPremiumGroupPost() {
 }
 
 function canListBroadcastPublicLivePost() {
-  return resource.data.isDeleted == false
-    && resource.data.groupVisibility != "hidden"
+  // `isDeleted` y `groupVisibility` van por `get` con valor por defecto, igual
+  // que en guestAllowedForLive y liveScopeAllowsViewer, y por el mismo motivo:
+  // en un `list` lo que la query no fija se comporta como ausente, y leerlo a
+  // pelo es un ERROR de evaluacion que tumba la consulta ENTERA.
+  //
+  // ⚠️ Esto tenia mordido al feed de reels: un live creado desde un PERFIL no
+  // tiene comunidad, asi que no trae `groupVisibility`, y la consulta de lives
+  // se denegaba entera. Los defaults no aflojan nada: un post borrado lleva
+  // `isDeleted` en true y uno de comunidad oculta lleva `groupVisibility` en
+  // "hidden", asi que esos siguen sin pasar.
+  return resource.data.get('isDeleted', false) == false
+    && resource.data.get('groupVisibility', 'public') != "hidden"
     // `liveData` puede no existir (posts normales). Sin este guard, evaluar
     // `liveData.status` en un doc sin el campo es un ERROR de reglas y tumba la
     // query COMPLETA, no solo ese documento.
     && "liveData" in resource.data
     && resource.data.liveData is map
-    && "status" in resource.data.liveData
-    && resource.data.liveData.status == "live"
-    && resource.data.liveData.allowLoggedOutViewers == true;
+    && resource.data.liveData.get('status', '') == "live"
+    && resource.data.liveData.get('allowLoggedOutViewers', false) == true;
 }
 
 // Post de PAGO compartible SIN mapa `premium` — es el caso del live con boleto y
