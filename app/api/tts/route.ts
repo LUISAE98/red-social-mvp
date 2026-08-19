@@ -99,6 +99,16 @@ async function withinRateLimit(request: NextRequest): Promise<boolean> {
   }
 }
 
+/**
+ * Cada petición abre su propia conexión a Microsoft.
+ *
+ * Se intentó reutilizarla por voz para ahorrar el saludo (~1 s), pero la
+ * librería no lo admite entre peticiones: el `end` de la síntesis anterior
+ * cerraba el stream de la siguiente y la respuesta salía VACÍA. Medido: una de
+ * cada dos llamadas devolvía 0 bytes. Si algún día se quiere ese ahorro, hay
+ * que serializar por conexión, no compartirla.
+ */
+
 export async function GET(request: NextRequest) {
   const text = (request.nextUrl.searchParams.get("text") ?? "").slice(0, MAX_CHARS);
   const requestedVoice = request.nextUrl.searchParams.get("voice") ?? DEFAULT_VOICE;
@@ -115,21 +125,31 @@ export async function GET(request: NextRequest) {
   try {
     const tts = new MsEdgeTTS();
     await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-
-    const chunks: Buffer[] = [];
     const { audioStream } = tts.toStream(text);
 
-    await new Promise<void>((resolve, reject) => {
-      audioStream.on("data", (chunk: Buffer) => chunks.push(chunk));
-      audioStream.on("end", resolve);
-      audioStream.on("error", reject);
+    /**
+     * Se transmite según llega, en vez de juntar el audio entero y mandarlo al
+     * final. Antes un texto de 600 caracteres tardaba 13 s en empezar a sonar
+     * porque el servidor esperaba a la última sílaba; ahora suena en cuanto
+     * Microsoft manda el primer trozo.
+     *
+     * El precio es que se va el `Content-Length` —no se sabe el tamaño hasta
+     * terminar—, así que la respuesta viaja troceada. La caché de una hora
+     * sigue funcionando: HTTP no necesita el tamaño para guardar la respuesta.
+     */
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        audioStream.on("data", (chunk: Buffer) => {
+          controller.enqueue(new Uint8Array(chunk));
+        });
+        audioStream.on("end", () => controller.close());
+        audioStream.on("error", (err: unknown) => controller.error(err));
+      },
     });
 
-    const buffer = Buffer.concat(chunks);
-    return new Response(buffer, {
+    return new Response(stream, {
       headers: {
         "Content-Type": "audio/mpeg",
-        "Content-Length": buffer.byteLength.toString(),
         // La salida es determinista para (texto, voz) y el texto ya viaja en la
         // URL, así que cachear no revela nada nuevo y evita regenerar el mismo
         // audio cuando varios espectadores oyen el mismo supercomentario.

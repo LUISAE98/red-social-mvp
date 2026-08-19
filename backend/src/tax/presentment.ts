@@ -37,6 +37,7 @@ const MAX_ANTIGUEDAD_TASAS_MS = 48 * 60 * 60 * 1000;
 import { NICE_STEP, roundNice, roundCharm, roundToCurrencyPrecision, toStripeAmount, meetsStripeMinimum, type Presentment } from "./presentmentFormat";
 export { NICE_STEP, roundNice, roundCharm, roundToCurrencyPrecision, toStripeAmount, meetsStripeMinimum, type Presentment };
 import { recomposeWithCharged, type ChargeComposition } from "./composeCharge";
+import { getFxQuote, type FxQuote } from "./fxQuotes";
 
 /**
  * Deja el TOTAL en un precio comercial (`.99` / `.00`) **en la moneda del comprador**, y
@@ -53,34 +54,57 @@ import { recomposeWithCharged, type ChargeComposition } from "./composeCharge";
  * Si falta la tasa de cambio NO se redondea y se devuelve la composición intacta: es
  * preferible un total con decimales que uno inventado con una cotización que no se tiene.
  */
-export async function applyCharmRounding(c: ChargeComposition): Promise<ChargeComposition> {
-  const target = c.displayCurrency.toUpperCase();
-
-  if (target === SETTLEMENT_CURRENCY) {
-    return recomposeWithCharged(c, roundCharm(c.chargedAmount, SETTLEMENT_CURRENCY));
+/**
+ * Cuántas unidades de `target` vale 1 de la moneda de liquidación, y con qué cotización.
+ *
+ * Prefiere la tasa de STRIPE (FX Quotes, congelada una hora). Si su API falla —está en
+ * preview— cae a la tabla cacheada de `config/exchangeRates`: es preferible cobrar con una
+ * tasa aproximada a no cobrar. Devuelve `null` si tampoco hay tabla utilizable.
+ */
+async function tasaDestino(
+  target: string
+): Promise<{ porUnidadLiquidacion: number; quote: FxQuote | null } | null> {
+  const quote = await getFxQuote(target, SETTLEMENT_CURRENCY);
+  if (quote) {
+    // `baseRate` = cuántos USD vale 1 unidad de `target`. Se invierte para ir al revés.
+    return { porUnidadLiquidacion: 1 / quote.baseRate, quote };
   }
 
   const snap = await db.doc("config/exchangeRates").get();
   const rates = (snap.data()?.rates ?? {}) as Record<string, number>;
   const actualizadaMs =
     typeof snap.get("updatedAt")?.toMillis === "function" ? snap.get("updatedAt").toMillis() : 0;
-  if (!actualizadaMs || Date.now() - actualizadaMs > MAX_ANTIGUEDAD_TASAS_MS) {
-    logger.warn("applyCharmRounding: sin tasas frescas, no se redondea", { target });
-    return c;
-  }
+  if (!actualizadaMs || Date.now() - actualizadaMs > MAX_ANTIGUEDAD_TASAS_MS) return null;
 
   const porUsd = rates[SETTLEMENT_CURRENCY];
   const porDestino = rates[target];
-  if (!porUsd || !porDestino || porUsd <= 0 || porDestino <= 0) return c;
+  if (!porUsd || !porDestino || porUsd <= 0 || porDestino <= 0) return null;
+  return { porUnidadLiquidacion: porDestino / porUsd, quote: null };
+}
 
-  const local = (c.chargedAmount / porUsd) * porDestino;
+export async function applyCharmRounding(
+  c: ChargeComposition
+): Promise<{ charge: ChargeComposition; quote: FxQuote | null }> {
+  const target = c.displayCurrency.toUpperCase();
+
+  if (target === SETTLEMENT_CURRENCY) {
+    return { charge: recomposeWithCharged(c, roundCharm(c.chargedAmount, SETTLEMENT_CURRENCY)), quote: null };
+  }
+
+  const t = await tasaDestino(target);
+  if (!t) {
+    logger.warn("applyCharmRounding: sin tasa, no se redondea", { target });
+    return { charge: c, quote: null };
+  }
+
+  const local = c.chargedAmount * t.porUnidadLiquidacion;
   const localCharm = roundCharm(local, target);
-  const deVuelta = Math.round(((localCharm / porDestino) * porUsd) * 100) / 100;
+  const deVuelta = Math.round((localCharm / t.porUnidadLiquidacion) * 100) / 100;
 
   // El viaje de ida y vuelta puede devolver un céntimo MENOS por el redondeo de la
   // conversión. Cobrar de menos por redondear sería justo lo contrario de lo que se busca.
-  if (deVuelta < c.chargedAmount) return c;
-  return recomposeWithCharged(c, deVuelta);
+  if (deVuelta < c.chargedAmount) return { charge: c, quote: t.quote };
+  return { charge: recomposeWithCharged(c, deVuelta), quote: t.quote };
 }
 
 /**
@@ -123,39 +147,13 @@ export async function resolvePresentment(
     };
   };
 
-  const snap = await db.doc("config/exchangeRates").get();
-  const rates = (snap.data()?.rates ?? {}) as Record<string, number>;
+  const t = await tasaDestino(target);
+  if (!t) return fallback("tasa ausente o inválida");
 
-  // ⚠️ Una tasa vieja es peor que ninguna tasa.
-  //
-  // Antes solo se comprobaba que la tasa EXISTIERA. La actualiza una tarea diaria;
-  // si esa tarea se rompe —el proveedor cae, cambia de formato, expira algo— el
-  // documento se queda congelado y Vibra sigue cobrando en moneda extranjera con
-  // la cotización de hace semanas, sin que nada avise. Cobrar de menos es pérdida
-  // directa; cobrar de más es una queja del comprador.
-  //
-  // Pasado el margen se cae a la de liquidación, que es el comportamiento que ya existía cuando
-  // falta la tasa: se cobra en la moneda de liquidación y no se inventa un cambio.
-  const actualizadaMs =
-    typeof snap.get("updatedAt")?.toMillis === "function" ? snap.get("updatedAt").toMillis() : 0;
-
-  if (!actualizadaMs || Date.now() - actualizadaMs > MAX_ANTIGUEDAD_TASAS_MS) {
-    return fallback(
-      actualizadaMs
-        ? `tasas caducadas (${Math.round((Date.now() - actualizadaMs) / 3_600_000)} h)`
-        : "tasas sin fecha de actualización"
-    );
-  }
-
-  const porUsdLiq = rates[SETTLEMENT_CURRENCY];
-  const targetPerUsd = rates[target];
-  if (!porUsdLiq || !targetPerUsd || porUsdLiq <= 0 || targetPerUsd <= 0) {
-    return fallback("tasa ausente o inválida");
-  }
-
-  // Liquidación → USD (el ancla) → moneda destino.
-  const usd = chargedSettlement / porUsdLiq;
-  const converted = usd * targetPerUsd;
+  // Se usa la MISMA tasa que `applyCharmRounding` (la cotización de Stripe, cacheada la
+  // misma hora). Si aquí se resolviera por otro camino, el total redondeado y el importe
+  // que se le cobra a la tarjeta saldrían de dos cotizaciones distintas.
+  const converted = chargedSettlement * t.porUnidadLiquidacion;
 
   // ⚠️ AQUÍ NO SE REDONDEA A UN PASO, y es deliberado.
   //
@@ -170,7 +168,7 @@ export async function resolvePresentment(
 
   // La precisión de la moneda mueve el monto unos céntimos; se recalcula el equivalente en la
   // de liquidación para que la conciliación cuadre con lo que de verdad se cobró.
-  const settlementEquivalent = Math.round(((amount / targetPerUsd) * porUsdLiq) * 100) / 100;
+  const settlementEquivalent = Math.round((amount / t.porUnidadLiquidacion) * 100) / 100;
 
   return {
     currency: target,

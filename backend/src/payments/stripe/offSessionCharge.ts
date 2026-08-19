@@ -57,8 +57,14 @@ export async function chargeSavedCardOffSession(opts: {
   // "manual" = AUTORIZAR (hold), no cobrar: para las experiencias con devolución
   // (auth-hold + captura al aceptar). Por defecto "automatic" (cobro inmediato).
   captureMethod?: "manual" | "automatic";
+  /**
+   * Cotización de tipo de cambio congelada (FX Quotes). Sin ella, el cobro un-clic
+   * liquidaría a la tasa del momento mientras el precio que se le mostró al comprador se
+   * calculó con la congelada: mismo importe en su moneda, distinto en la de liquidación.
+   */
+  fxQuoteId?: string | null;
 }): Promise<{ id: string; status: string; clientSecret: string }> {
-  const { uid, savedCardDocId, customerId, amountCents, currency, metadata, captureMethod } = opts;
+  const { uid, savedCardDocId, customerId, amountCents, currency, metadata, captureMethod, fxQuoteId } = opts;
 
   const pmSnap = await db.doc(`users/${uid}/paymentMethods/${savedCardDocId}`).get();
   const pm = pmSnap.data() ?? {};
@@ -92,6 +98,7 @@ export async function chargeSavedCardOffSession(opts: {
       confirm: true,
       off_session: true,
       ...(captureMethod === "manual" ? { capture_method: "manual" } : {}),
+      ...(fxQuoteId ? { fx_quote: fxQuoteId } : {}),
       metadata,
     },
   });

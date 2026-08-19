@@ -69,6 +69,12 @@ export async function stripeFetch<T = unknown>(
     form?: Record<string, unknown>;
     idempotencyKey?: string;
     stripeAccount?: string;
+    /**
+     * Fija la versión de la API para esta llamada (header `Stripe-Version`).
+     * Necesario para las APIs en PREVIEW, que no responden con la versión por defecto
+     * de la cuenta. Hoy solo lo usa la FX Quotes API.
+     */
+    apiVersion?: string;
   } = {}
 ): Promise<StripeResult<T>> {
   const key = stripeSecretKey.value().trim();
@@ -80,6 +86,7 @@ export async function stripeFetch<T = unknown>(
   };
   if (init.idempotencyKey) headers["Idempotency-Key"] = init.idempotencyKey;
   if (init.stripeAccount) headers["Stripe-Account"] = init.stripeAccount;
+  if (init.apiVersion) headers["Stripe-Version"] = init.apiVersion;
 
   let body: string | undefined;
   if (init.form) {

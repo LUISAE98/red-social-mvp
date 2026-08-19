@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 // Tipos, helpers puros, constantes y caches de ProfilePostsFeed (capa hoja).
 
 import type { CSSProperties } from "react";
@@ -59,6 +60,12 @@ export type ProfilePostsFeedProps = {
   showPosts?: boolean;
   profileRestricted?: boolean;
   commentsEnabled?: boolean;
+  /**
+   * Se pinta justo DEBAJO del subnav de medios y encima de las publicaciones.
+   * Lo usa el perfil ajeno para el texto "Ver sus comunidades", que necesita ese
+   * sitio exacto y no puede vivir fuera del feed porque el subnav va dentro.
+   */
+  belowMediaTabs?: ReactNode;
   /** Búsqueda dentro del perfil: filtra los posts por texto. */
   searchQuery?: string;
   donation?: DonationData;

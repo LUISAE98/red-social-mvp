@@ -51,7 +51,10 @@ export default function ProfileSubnav({
           },
         ]
       : []),
-    ...(showGroupsTab
+    // Solo el dueño. Para quien visita, las comunidades se abren desde el texto
+    // "Ver sus comunidades" que va bajo el subnav de medios, y se vuelve con su
+    // pareja "Volver a publicaciones" (ver ProfileClient).
+    ...(isOwner && showGroupsTab
       ? [
           {
             key: "groups" as const,

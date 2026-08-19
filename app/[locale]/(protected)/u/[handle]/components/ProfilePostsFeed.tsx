@@ -63,6 +63,7 @@ export default function ProfilePostsFeed({
   profileRestricted = false,
   commentsEnabled = true,
   searchQuery = "",
+  belowMediaTabs,
   donation,
   donationCreatorName,
   donationProfilePhoto,
@@ -973,6 +974,8 @@ const shellStyle: CSSProperties = {
       {showMediaTabs && (
         <PostsMediaSubnav active={mediaTab} onChange={setMediaTab} />
       )}
+
+      {belowMediaTabs}
 
       <div style={{ overflow: "hidden", width: "100%", minWidth: 0, minHeight: mediaSlideMinHeight }}>
       <motion.div

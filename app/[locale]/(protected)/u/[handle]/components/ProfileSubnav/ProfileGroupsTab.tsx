@@ -1,5 +1,7 @@
 "use client";
 
+
+import type { ReactNode } from "react";
 import Image from "next/image";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -26,6 +28,12 @@ type ProfileGroupsTabProps = {
   canViewerSeeGroups: boolean;
   groupsVisibleToVisitors: boolean;
   onGroupsVisibilityChanged?: (value: boolean) => void;
+  /**
+   * Va en el MISMO renglon que el titulo, a su derecha. Lo usa el perfil ajeno
+   * para el enlace de volver a publicaciones: suelto encima quedaba despegado,
+   * y aqui se lee como la accion de esta seccion.
+   */
+  titleAction?: ReactNode;
 };
 
 type GroupListItem = {
@@ -128,6 +136,7 @@ export default function ProfileGroupsTab({
   canViewerSeeGroups,
   groupsVisibleToVisitors,
   onGroupsVisibilityChanged,
+  titleAction,
 }: ProfileGroupsTabProps) {
   const tGroups = useTranslations("groups");
   const tProfile = useTranslations("profile");
@@ -141,8 +150,17 @@ export default function ProfileGroupsTab({
   const fontStack =
     'inherit';
 
+  // Con `titleAction` (perfil ajeno) esta seccion arranca mas abajo para que el
+  // enlace del titulo caiga a la MISMA altura que el "Ver sus comunidades" de la
+  // otra pestana, y alternar entre las dos no mueva nada de sitio.
+  //
+  // La cuenta, desde el inicio del panel:
+  //   publicaciones -> subnav de medios 38px + 12 de margen, menos los 6 que
+  //                    el enlace sube con su marginTop negativo = 44px
+  //   comunidades   -> los 12 de siempre
+  // Faltan 32, que es lo que se suma aqui.
   const wrapStyle: CSSProperties = {
-    marginTop: 12,
+    marginTop: titleAction ? 44 : 12,
     border: "none",
     background: "transparent",
     boxShadow: "none",
@@ -427,16 +445,29 @@ export default function ProfileGroupsTab({
         }}
       >
         <div style={{ minWidth: 0 }}>
-          <h2
+          <div
             style={{
-              margin: 0,
-              fontSize: 16,
-              fontWeight: 600,
-              lineHeight: 1.2,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              minWidth: 0,
             }}
           >
-            {title}
-          </h2>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 16,
+                fontWeight: 600,
+                lineHeight: 1.2,
+                minWidth: 0,
+              }}
+            >
+              {title}
+            </h2>
+
+            {titleAction}
+          </div>
 
           {isOwner && (
             <div className="profile-groups-visibility-card">

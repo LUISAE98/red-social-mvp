@@ -130,7 +130,7 @@ export const repriceStripeIntentForCard = onCall(
 
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
-    const charge = await applyCharmRounding(composeCharge(base, resolved.country));
+    const { charge, quote: fxQuote } = await applyCharmRounding(composeCharge(base, resolved.country));
     // La moneda de cobro también puede cambiar: si la IP decía Alemania y la tarjeta resulta
     // mexicana, se pasa de cobrar en EUR a cobrar en MXN.
     const presentment = await resolvePresentment(charge.chargedAmount, charge.displayCurrency);
@@ -165,6 +165,8 @@ export const repriceStripeIntentForCard = onCall(
         form: {
           amount: presentment.amountForStripe,
           currency: presentment.currency.toLowerCase(),
+          // Liquida a la tasa congelada que se usó para calcular este importe.
+          ...(fxQuote ? { fx_quote: fxQuote.id } : {}),
         },
       });
       if (!updateRes.ok) {

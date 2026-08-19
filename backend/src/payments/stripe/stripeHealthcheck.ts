@@ -9,6 +9,8 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { stripeFetch, isStripeTestMode, stripeSecretKey } from "./stripeClient";
 import { requirePlatformMod } from "../../authz";
+import { getFxQuote } from "../../tax/fxQuotes";
+import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 
 const REGION = "us-central1";
 
@@ -27,12 +29,33 @@ export const stripeHealthcheck = onCall(
       throw new HttpsError("internal", `Stripe no respondió (${res.status}): ${res.error.slice(0, 200)}`);
     }
     const mode = isStripeTestMode() ? "test" : "live";
-    logger.info("stripeHealthcheck", { mode, livemode: res.data.livemode });
+
+    // ¿La cuenta tiene acceso a la FX Quotes API? Está en PREVIEW, así que puede no estar
+    // habilitada. Se comprueba con una cotización real: si falla, el cobro sigue funcionando
+    // (cae a `config/exchangeRates`) pero SIN candado de tasa, y eso hay que saberlo.
+    let fx: Record<string, unknown>;
+    try {
+      const q = await getFxQuote("MXN", SETTLEMENT_CURRENCY);
+      fx = q
+        ? {
+            disponible: true,
+            tasa: q.baseRate,
+            comisionStripe: q.fxFeeRate,
+            costoCandado: q.durationPremium,
+            proveedorReferencia: q.referenceProvider,
+          }
+        : { disponible: false, nota: "Stripe no devolvió cotización; revisa los logs de getFxQuote" };
+    } catch (e) {
+      fx = { disponible: false, error: e instanceof Error ? e.message : String(e) };
+    }
+
+    logger.info("stripeHealthcheck", { mode, livemode: res.data.livemode, fx });
     return {
       ok: true,
       mode,
       livemode: res.data.livemode ?? null,
       currencies: (res.data.available ?? []).map((a) => a.currency).filter(Boolean),
+      fxQuotes: fx,
     };
   }
 );

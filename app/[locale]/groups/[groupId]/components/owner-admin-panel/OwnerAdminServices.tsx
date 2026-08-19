@@ -81,8 +81,9 @@ export default function OwnerAdminServices({
     return frase + " " + tServices(aviso.cola.clave as Parameters<typeof tServices>[0], aviso.cola.valores);
   };
   const priceFmt = usePriceFormat();
+  // 🚨 `formatPlain`, NO `format` — ver el mismo comentario en ProfileServicesTab.
   const formatMoney = (value: number, currency?: string) =>
-    priceFmt.format(value, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true });
+    priceFmt.formatPlain(value, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true });
 
   const isOwner = useMemo(
     () => ownerId === currentUserId,

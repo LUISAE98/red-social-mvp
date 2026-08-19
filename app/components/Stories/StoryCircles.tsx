@@ -13,7 +13,6 @@ import {
 import type { StoryDoc, StoryGroupKey, StoryType } from "@/lib/stories/types";
 import { usePublishableGreetings } from "@/lib/stories/usePublishableGreetings";
 import StoryCircle from "./StoryCircle";
-import AddStoryCircle from "./AddStoryCircle";
 import EditTextButton from "@/components/ui/EditTextButton";
 import StoryViewer from "./StoryViewer";
 import StoryCoverPicker from "./StoryCoverPicker";
@@ -122,19 +121,29 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
     { key: "saludo_received", list: saludosRecibidos, type: "saludo", sublabel: tCommon("storyReceived"), role: "buyer" },
     { key: "consejo_received", list: consejosRecibidos, type: "consejo", sublabel: tCommon("storyReceived"), role: "buyer" },
   ];
-  const groups = allGroups.filter((g) => g.list.length > 0);
+  // Lo publicable, repartido en los MISMOS cuatro cajones del rail. El hook ya
+  // aplica las reglas de cada lado, así que basta con separar por papel:
+  //   - "creator" (enviados) solo trae lo que el comprador te autorizó a
+  //     publicar. Si vendiste un consejo sin ese permiso, no cae aquí y por
+  //     tanto su cajón no aparece.
+  //   - "buyer" (recibidos) trae todo lo que compraste. Ese permiso limita al
+  //     creador, no a ti, así que lo tuyo siempre lo puedes publicar.
+  const publishableFor = (key: StoryGroupKey): number => {
+    if (!isOwner) return 0;
+    const pool = key.startsWith("saludo") ? publishableSaludos : publishableConsejos;
+    const role = key.endsWith("_sent") ? "creator" : "buyer";
+    return pool.filter((i) => i.role === role).length;
+  };
 
-  // El rail ya no depende de que HAYA historias publicadas. Si eres el dueño y
-  // tienes algo publicable, aparece igual con los círculos de `+`, que es de
-  // donde sale la primera historia de tu perfil.
-  const addCircles = isOwner
-    ? ([
-        { type: "saludo" as StoryType, count: publishableSaludos.length },
-        { type: "consejo" as StoryType, count: publishableConsejos.length },
-      ].filter((c) => c.count > 0))
-    : [];
+  // Un cajón sale si ya tiene historias o si tienes algo que publicar en él.
+  // Antes había dos botones sueltos de "Agregar historias" que no distinguían
+  // enviados de recibidos, así que no había forma de estrenar el cajón que
+  // tocaba: ahora cada cajón estrena el suyo.
+  const groups = allGroups
+    .map((g) => ({ ...g, pending: publishableFor(g.key) }))
+    .filter((g) => g.list.length > 0 || g.pending > 0);
 
-  if (groups.length === 0 && addCircles.length === 0) return null;
+  if (groups.length === 0) return null;
 
   const getCoverThumbnail = (key: string, list: StoryDoc[]): string | null => {
     if (storyCoverPhoto[key]) return storyCoverPhoto[key]!;
@@ -148,6 +157,11 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
       <div
         style={{
           display: "flex",
+          // "safe center" y no "center" a secas. Con overflow, centrar de golpe
+          // empuja los primeros círculos fuera del borde izquierdo y ya no hay
+          // forma de llegar a ellos con el scroll. La variante segura centra
+          // mientras quepan y se rinde a la izquierda en cuanto desbordan.
+          justifyContent: "safe center",
           gap: 18,
           padding: "10px 16px 6px",
           overflowX: "auto",
@@ -167,9 +181,18 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
           >
             <StoryCircle
               type={g.type}
-              thumbnailUrl={getCoverThumbnail(g.key, g.list)}
+              thumbnailUrl={g.list.length > 0 ? getCoverThumbnail(g.key, g.list) : null}
               sublabel={g.sublabel}
-              onClick={(e) => { setViewerSourceRect(e.currentTarget.getBoundingClientRect()); setViewerState({ stories: g.list, type: g.type }); }}
+              empty={g.list.length === 0}
+              onClick={(e) => {
+                // Vacío no hay nada que ver: el clic lleva a publicar.
+                if (g.list.length === 0) {
+                  setPickerGroup({ key: g.key, type: g.type, role: g.role });
+                  return;
+                }
+                setViewerSourceRect(e.currentTarget.getBoundingClientRect());
+                setViewerState({ stories: g.list, type: g.type });
+              }}
             />
             {isOwner && (
               <EditTextButton
@@ -183,23 +206,6 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
           </div>
         ))}
 
-        {addCircles.map((c) => (
-          <AddStoryCircle
-            key={`add-${c.type}`}
-            type={c.type}
-            label={tCommon("storyAddStories")}
-            ariaLabel={tCommon("storyAddStories")}
-            onClick={() =>
-              setPickerGroup({
-                // La portada que se edita al publicar desde aquí es la del lado
-                // "enviados", que es el circuito principal del creador.
-                key: c.type === "saludo" ? "saludo_sent" : "consejo_sent",
-                type: c.type,
-                role: "both",
-              })
-            }
-          />
-        ))}
       </div>
 
       {viewerState && (

@@ -14,6 +14,7 @@ import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { formatCurrency, roundReference } from "@/lib/currency/format";
 
 export const useLockBodyScroll = useBodyScrollLock;
 
@@ -70,14 +71,43 @@ export const SERVICE_COLORS = {
  *
  * No se muestra cuando el creador ya mira en la moneda de liquidación: ahí sobraría.
  */
-export function LocalPriceHint({ value }: { value: number | null | undefined }) {
+/**
+ * Referencia en la moneda del creador: "≈ 1,700 MXN · ganarás ≈ 1,280 MXN".
+ *
+ * El precio SIEMPRE se fija en la moneda de liquidación, mire el creador lo que mire. Esta
+ * línea es solo para que se ubique, y por eso:
+ *
+ *  · Usa `fromAnchor` (tipo de cambio pelado) y NO `format`, que calcula el precio de cara
+ *    al COMPRADOR — le suma el 2% y lo redondea al paso de la moneda. Como referencia daba
+ *    números absurdos: 1 USD salía "15 MXN" (17.03 → +2% = 17.37 → paso de 5 → 15).
+ *  · Redondea con `roundReference` (escalón grueso), no con el redondeo comercial. Terminar
+ *    en `.99` la haría parecer un precio y el creador se fijaría en el decimal; y un escalón
+ *    fino cambiaría el número con cualquier movimiento del tipo de cambio.
+ *
+ * No se muestra si el creador ya mira en la moneda de liquidación: ahí sobraría.
+ */
+export function LocalPriceHint({
+  value,
+  netRate,
+}: {
+  value: number | null | undefined;
+  /** Proporción que se queda el creador (0.75). Si se omite, no se muestra la ganancia. */
+  netRate?: number;
+}) {
   const pf = usePriceFormat();
   const n = typeof value === "number" && Number.isFinite(value) ? value : Number(value);
   if (!Number.isFinite(n) || n <= 0) return null;
   if (pf.currency === SETTLEMENT_CURRENCY) return null;
+
+  const local = pf.fromAnchor(n);
+  if (local == null) return null;
+  const fmt = (v: number) =>
+    formatCurrency(roundReference(v, pf.currency), pf.currency, pf.locale, { code: true });
+
   return (
     <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 2 }}>
-      ≈ {pf.format(n, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}
+      ≈ {fmt(local)}
+      {netRate ? ` · ganarás ≈ ${fmt(local * netRate)}` : ""}
     </div>
   );
 }

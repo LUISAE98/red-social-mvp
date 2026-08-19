@@ -12,9 +12,15 @@ type Props = {
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   size?: number;
   sublabel?: string;
+  /**
+   * Hay contenido publicable pero todavía ninguna historia. Se pinta idéntico,
+   * con su aro y sus letras, y dentro un "+" en lugar de la portada: el hueco
+   * ocupa el mismo sitio que ocupará la historia cuando exista.
+   */
+  empty?: boolean;
 };
 
-export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, sublabel }: Props) {
+export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, sublabel, empty = false }: Props) {
   const tCommon = useTranslations("common");
   const borderSize = size + 6;
   const label = type === "saludo" ? tCommon("storySaludos") : tCommon("storyConsejos");
@@ -23,7 +29,7 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, su
     <button
       type="button"
       onClick={onClick}
-      aria-label={tCommon("storyViewLabel", { label })}
+      aria-label={empty ? tCommon("storyAddStories") : tCommon("storyViewLabel", { label })}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -68,7 +74,19 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, su
             position: "relative",
           }}
         >
-          {thumbnailUrl ? (
+          {empty ? (
+            // Un "+" a secas. Sin borde punteado: el aro de Vibra ya delimita
+            // el círculo y el punteado lo haría parecer otra cosa.
+            <svg
+              width={Math.round(size * 0.34)} height={Math.round(size * 0.34)}
+              viewBox="0 0 24 24" fill="none" aria-hidden="true"
+            >
+              <path
+                d="M12 5V19M5 12H19"
+                stroke="rgba(255,255,255,0.72)" strokeWidth="2" strokeLinecap="round"
+              />
+            </svg>
+          ) : thumbnailUrl ? (
             <Image
               src={thumbnailUrl}
               alt={label}

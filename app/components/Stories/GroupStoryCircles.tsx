@@ -13,7 +13,6 @@ import {
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { usePublishableGreetings } from "@/lib/stories/usePublishableGreetings";
 import StoryCircle from "./StoryCircle";
-import AddStoryCircle from "./AddStoryCircle";
 import EditTextButton from "@/components/ui/EditTextButton";
 import StoryViewer from "./StoryViewer";
 import StoryCoverPicker from "./StoryCoverPicker";
@@ -110,14 +109,17 @@ export default function GroupStoryCircles({
   const saludos = stories.filter((s) => s.type === "saludo");
   const consejos = stories.filter((s) => s.type === "consejo");
 
-  // Igual que en el perfil, el rail ya no exige historias YA publicadas. Si el
-  // dueño tiene algo publicable en esta comunidad, sale el círculo con `+`.
-  const addCircles = [
-    { type: "saludo" as StoryType, count: publishableSaludos.length },
-    { type: "consejo" as StoryType, count: publishableConsejos.length },
-  ].filter((c) => c.count > 0);
+  // Igual que en el perfil, un cajón sale si ya tiene historias o si hay algo
+  // que publicar en él, y en ese segundo caso se pinta con un "+" dentro del
+  // mismo círculo. Aquí solo hay un lado: una comunidad publica lo que su
+  // creador grabó dentro, y el hook ya devuelve únicamente eso.
+  const pendingSaludos = isOwner ? publishableSaludos.length : 0;
+  const pendingConsejos = isOwner ? publishableConsejos.length : 0;
 
-  if (saludos.length === 0 && consejos.length === 0 && addCircles.length === 0) return null;
+  const showSaludos = saludos.length > 0 || pendingSaludos > 0;
+  const showConsejos = consejos.length > 0 || pendingConsejos > 0;
+
+  if (!showSaludos && !showConsejos) return null;
 
   const getCoverThumbnail = (type: StoryType, list: StoryDoc[]): string | null => {
     if (storyCoverPhoto[type]) return storyCoverPhoto[type]!;
@@ -131,6 +133,11 @@ export default function GroupStoryCircles({
       <div
         style={{
           display: "flex",
+          // "safe center" y no "center" a secas. Con overflow, centrar de golpe
+          // empuja los primeros círculos fuera del borde izquierdo y ya no hay
+          // forma de llegar a ellos con el scroll. La variante segura centra
+          // mientras quepan y se rinde a la izquierda en cuanto desbordan.
+          justifyContent: "safe center",
           gap: 18,
           padding: "10px 16px 6px",
           overflowX: "auto",
@@ -139,12 +146,16 @@ export default function GroupStoryCircles({
           scrollbarWidth: "none",
         }}
       >
-        {saludos.length > 0 && (
+        {showSaludos && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
             <StoryCircle
               type="saludo"
-              thumbnailUrl={getCoverThumbnail("saludo", saludos)}
-              onClick={(e) => { setViewerSourceRect(e.currentTarget.getBoundingClientRect()); setViewerType("saludo"); }}
+              thumbnailUrl={saludos.length > 0 ? getCoverThumbnail("saludo", saludos) : null}
+              empty={saludos.length === 0}
+              onClick={(e) => {
+                if (saludos.length === 0) { setPickerType("saludo"); return; }
+                setViewerSourceRect(e.currentTarget.getBoundingClientRect()); setViewerType("saludo");
+              }}
             />
             {isOwner && (
               <EditTextButton
@@ -158,12 +169,16 @@ export default function GroupStoryCircles({
           </div>
         )}
 
-        {consejos.length > 0 && (
+        {showConsejos && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
             <StoryCircle
               type="consejo"
-              thumbnailUrl={getCoverThumbnail("consejo", consejos)}
-              onClick={(e) => { setViewerSourceRect(e.currentTarget.getBoundingClientRect()); setViewerType("consejo"); }}
+              thumbnailUrl={consejos.length > 0 ? getCoverThumbnail("consejo", consejos) : null}
+              empty={consejos.length === 0}
+              onClick={(e) => {
+                if (consejos.length === 0) { setPickerType("consejo"); return; }
+                setViewerSourceRect(e.currentTarget.getBoundingClientRect()); setViewerType("consejo");
+              }}
             />
             {isOwner && (
               <EditTextButton
@@ -177,15 +192,6 @@ export default function GroupStoryCircles({
           </div>
         )}
 
-        {addCircles.map((c) => (
-          <AddStoryCircle
-            key={`add-${c.type}`}
-            type={c.type}
-            label={tCommon("storyAddStories")}
-            ariaLabel={tCommon("storyAddStories")}
-            onClick={() => setPickerType(c.type)}
-          />
-        ))}
       </div>
 
       {viewerType && (

@@ -179,9 +179,12 @@ export function roundNice(amount: number, currency: DisplayCurrency): number {
 }
 
 /** Monedas sin decimales. ⚠️ Espejo de ZERO_DECIMAL en backend/src/tax/presentmentFormat.ts. */
+// ⚠️ Copia EXACTA del backend, no la lista completa de Stripe. Tenía 7 monedas de más
+// (BIF DJF GNF KMF MGA RWF UGX) que no están en el catálogo, así que no se vendían y el
+// test de paridad no las veía. Si algún día una de esas entra al catálogo, con los sets
+// desalineados el precio mostrado y el cobrado se separarían en silencio.
 const SIN_DECIMALES = new Set([
-  "BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF",
-  "UGX", "VND", "VUV", "XAF", "XOF", "XPF",
+  "CLP", "PYG", "JPY", "KRW", "VND", "XPF", "XAF", "XOF", "VUV",
 ]);
 /** Dinares: tres decimales y Stripe exige último dígito 0. ⚠️ Espejo del backend. */
 const TRES_DECIMALES = new Set(["KWD", "JOD", "BHD", "OMR", "TND"]);
@@ -215,6 +218,38 @@ export function roundCharm(amount: number, currency: string): number {
   if (con99 < amount) con99 += 1;
   const con00 = Math.ceil(amount);
   return Math.round(Math.min(con99, con00) * 100) / 100;
+}
+
+/**
+ * Redondeo de REFERENCIA: para el "≈ 1,700 MXN" que ve el creador junto a su precio en
+ * dólares. NO es un precio — es una estimación, y tiene que leerse como tal.
+ *
+ * 🚨 Por qué NO se usa `roundCharm` aquí. Terminar en `.99` haría que la referencia
+ * PAREZCA un precio, y entonces el creador se fija en el decimal. Peor: un escalón fino
+ * cambia el número con cualquier movimiento del tipo de cambio. Con escalón grueso, el
+ * dólar tiene que moverse de verdad para que la referencia cambie.
+ *
+ *   90.99 con un movimiento de +0.33  →  escalón .50/.99 salta a 91.50 (se nota)
+ *                                     →  este redondeo se queda en 91 (no se nota)
+ *
+ * El escalón crece con el monto para que siempre sean ~3 cifras significativas.
+ */
+export function roundReference(amount: number, currency: DisplayCurrency): number {
+  if (!Number.isFinite(amount) || amount <= 0) return amount;
+  const abs = Math.abs(amount);
+  // Las monedas sin decimales no pueden mostrar medios: su escalón mínimo es 1.
+  // Se consulta el set real, NO se adivina por el paso: MXN tiene paso 5 y sí tiene decimales.
+  const sinDecimales = SIN_DECIMALES.has(currency.toUpperCase());
+  let step: number;
+  if (abs < 10) step = sinDecimales ? 1 : 0.5;
+  else if (abs < 100) step = 1;
+  else if (abs < 1_000) step = 10;
+  else if (abs < 10_000) step = 50;
+  else step = 500;
+  const r = Math.round(amount / step) * step;
+  // ⚠️ Un monto menor a medio escalón redondea a CERO: 0.4 JPY salía "≈ 0 JPY", que no es
+  // una referencia sino un error. Nunca por debajo del escalón.
+  return r > 0 ? r : step;
 }
 
 /**

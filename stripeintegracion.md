@@ -34,7 +34,8 @@ plataformas de creadores.
 | Radar | **Standard**, $0.05/transacción, lo absorbe el comprador | 2026-08-18 |
 | Stripe Tax | **NO se activa** — duplicaría la tabla de 147 países ya construida | 2026-08-18 |
 | Cargo fijo al comprador | **$0.40 USD** | 2026-08-18 |
-| Cargo de conversión | **2%** (1% Stripe + 1% colchón de deriva) | 2026-08-18 |
+| Cargo de conversión | **2%** (1% Stripe + candado + colchón) — ver §5 | 2026-08-18 |
+| FX Quotes API | **Disponible sin habilitar**, verificado con `/diagnostico-fx`. Candado de 1 hora | 2026-08-18 |
 
 ### Por qué EP en México y no residente extranjero (18-D)
 
@@ -170,24 +171,130 @@ cubrir las dos rutas con un número limpio.
 
 ---
 
-## 5. El cargo de conversión del 2%
+## 5. Modelo de cambio de divisa — 📄 **BASE PARA CONTRATO Y DOCUMENTOS LEGALES**
 
-🚨 **No bajarlo a 1%.** Con Stripe México el 2% era exactamente el spread que cobraba Stripe.
-Stripe USA cobra 1%, así que hoy el 2% son dos cosas:
+> Esta sección describe exactamente qué se le cobra al comprador por conversión y por qué.
+> Es la referencia para el contrato del creador y los términos de compra.
 
-- **1%** — spread de conversión de Stripe
-- **1%** — **colchón** de deriva entre nuestra tasa cacheada (`open.er-api.com`, refrescada a
-  diario) y la que Stripe aplica al liquidar
+### Qué se le cobra al comprador
 
-Cuando la matriz de precios quede congelada (refresco mensual + banda ±3%), esa deriva crece y
-el colchón es lo único que la absorbe. Está escrito en el código en los dos espejos.
+**Un 2% de cargo por conversión**, y solo cuando la moneda de su país **no es** la de
+liquidación. Un comprador estadounidense no paga nada de esto.
 
-⚠️ **Dependencia:** `FX_CONVERSION_FEE_BY_CURRENCY` tiene VND en 7% = 2% base + 5% del CIT
-vietnamita. Si algún día se baja la base, Vietnam baja a 6%: el 5% es impuesto y no se mueve.
+Se aplica sobre `precio del creador + cargo fijo`, **antes** del impuesto, porque es
+contraprestación de Vibra y por tanto forma parte de la base gravable (ver `impuestos.md §2`).
+
+### Cómo se compone ese 2%
+
+| Concepto | Cuánto | Qué es |
+|---|---|---|
+| Conversión de Stripe | **1%** | Lo que Stripe cobra por convertir a la moneda de liquidación |
+| Congelamiento de la tasa | **0.15%** | Candado de 1 hora de la FX Quotes API: garantiza que el precio mostrado es el que se cobra |
+| Colchón | el resto | Absorbe la deriva del tipo de cambio |
+
+✅ **VERIFICADO CONTRA STRIPE (2026-08-18)** con `/diagnostico-fx`. El 1% que se venía
+asumiendo es **exacto**, y su tasa coincide con la de mercado (Stripe dio 17.0612 MXN/USD
+el mismo día que Google marcaba 17.06). El candado sale más barato en euros porque el euro
+está en el Grupo 1 de Stripe y el peso y el real en el Grupo 2.
+
+| Moneda | 1 USD = | Conversión | Candado 1 h | Referencia |
+|---|---|---|---|---|
+| MXN | 17.0612 | **1.00%** | 0.150% | `ecb` |
+| EUR | 0.8634 | **1.00%** | **0.100%** | `ecb` |
+| BRL | 5.2127 | **1.00%** | 0.150% | `ecb` |
+
+⚠️ **El colchón NO es 0.85%.** Se cobra el 2% sobre el importe **antes de impuesto**, pero
+Stripe cobra su 1% + candado sobre el **total con impuesto**. Las bases no son la misma, así
+que el colchón real depende del impuesto del país:
+
+| País | Impuesto | Candado | **Colchón real** |
+|---|---|---|---|
+| 🇲🇽 México | 16% | 0.150% | **0.64%** |
+| 🇪🇺 UE típica | 21% | 0.100% | **0.65%** |
+| 🇧🇷 Brasil (hoy, 1%) | 1% | 0.150% | **0.82%** |
+| 🇺🇸 EE. UU. | 0% | — | no aplica: no hay conversión |
+
+Sigue siendo positivo en todos los casos. Es estructural, no un error: mover el 2% fuera de
+la base gravable sería cobrar dinero sin declarar.
+
+⚠️ **Brasil llegará a 26.5% en 2033.** Cuando eso pase su colchón cae de 0.82% a ~0.52%, sin
+que nadie toque nada. Es el país donde primero conviene revisar el 2%.
+
+### De dónde sale el tipo de cambio
+
+De la **FX Quotes API de Stripe**, no de un proveedor externo. Stripe usa el mid-market de
+proveedores de datos financieros (su respuesta expone `reference_rate_provider`, p. ej. `ecb`)
+y devuelve por separado:
+
+- `base_rate` — la tasa sin su comisión
+- `exchange_rate` — la tasa con su comisión incluida
+- `fx_fee_rate` — el porcentaje exacto que está cobrando
+
+⚠️ **Antes se usaba `open.er-api.com`**, una fuente distinta de la que cobra. Ese desajuste
+—que no se medía— era lo que el colchón cubría a ciegas.
+
+Consultar la tasa es gratis (`lock_duration: none`). Congelarla cuesta, según la duración y
+la moneda; para pesos: 5 min 0.12% · **1 hora 0.15%** · 24 h 0.30%. Se eligió **1 hora**.
+
+⚠️ Si el mercado se mueve más de **3.5%**, Stripe invalida la cotización y avisa por el
+webhook `fx_quote.expired`. La API está en **preview** (`Stripe-Version: ...preview`).
+
+### Qué NO cubre
+
+El candado protege desde que se muestra el precio hasta que se cobra. **No** protege el
+payout al creador, que ocurre semanas después y se convierte a la tasa de ese momento.
+
+### Cómo está implementado
+
+`backend/src/tax/fxQuotes.ts` pide la cotización y la cachea **por moneda mientras siga
+dentro de su hora** — las instancias de Cloud Functions se reciclan, así que una cotización
+sirve a varias compras. Reutilizar no ahorra el premium (va dentro de la tasa) pero evita
+una llamada de red por cobro. Se deja de reutilizar 5 minutos antes de que expire: adjuntar
+una cotización a punto de vencer a un PaymentIntent que se confirma un minuto después la
+hace fallar con `payment_intent_fx_quote_invalid`.
+
+La cotización se adjunta al PaymentIntent (`fx_quote`) en los **8 intents** y también en el
+cobro un-clic (`offSessionCharge`). ⚠️ Sin adjuntarla el candado no serviría de nada: se
+mostraría un precio congelado y se liquidaría a la tasa del momento.
+
+Cada `paymentIntent` guarda la evidencia: `fxQuoteId`, `fxQuoteBaseRate`, `fxStripeFeeRate`
+y `fxLockPremium`. **Ése es el dato con el que se dimensiona el colchón**, que hasta ahora
+se llevaba a ojo.
+
+🛟 **Si la API falla se cae a `config/exchangeRates`** y el cobro sigue. Está en preview:
+es preferible cobrar con una tasa aproximada que no cobrar.
 
 ---
 
-## 6. Mínimos y precios por defecto (USD)
+## 6. Qué moneda ve cada quién
+
+| Quién | Ve | Por qué |
+|---|---|---|
+| **Comprador** | Su moneda local, monto exacto | Mejor conversión y autorización; sabe cuánto paga antes de pagar |
+| **Creador** | Su precio en **USD** + referencia en su moneda | El precio se fija en USD; el switch de moneda NO afecta dónde se fija |
+| **Vibra** | Recibe **USD** | Casado con sus costos, que son en USD |
+
+🚫 **Se evaluó y descartó cobrar solo en USD** (modelo Kick/OnlyFans). El banco del comprador
+convierte al 3–5% —mucho peor que el 1% de Stripe—, el comprador no sabe cuánto pagó hasta
+el estado de cuenta, bajan las tasas de autorización, y Vibra perdería el 2% sin poder
+justificarlo. **El comprador paga más y Vibra gana menos.** A Kick le funciona porque su
+precio es uno solo ($4.99) y es su marca; aquí cada creador pone el suyo.
+
+### Dos redondeos distintos, y no son intercambiables
+
+| | Para qué | Cómo |
+|---|---|---|
+| `roundCharm` | El **precio** que paga el comprador | `.99` / `.00`, siempre hacia arriba |
+| `roundReference` | La **referencia** del creador en su moneda | Escalón grueso: 0.50 / 1 / 10 / 50 / 500 según el monto |
+
+⚠️ La referencia NO usa terminación comercial **a propósito**. Con `.99` parecería un precio
+—y el creador se fijaría en el decimal— y además cambiaría con cualquier movimiento de la
+tasa. Con escalón grueso, 90.99 y 91.32 muestran **el mismo número**: el dólar tiene que
+moverse de verdad para que la referencia cambie.
+
+---
+
+## 7. Mínimos y precios por defecto (USD)
 
 | Concepto | USD | ≈ MXN | Antes (MXN) |
 |---|---|---|---|
@@ -207,7 +314,7 @@ $6.81, y es inevitable — el de $3 estaba calibrado contra el fijo mexicano.
 
 ---
 
-## 7. Bitácora
+## 8. Bitácora
 
 ### Fase 0 — Corte de cuenta (✅ 2026-08-18)
 
@@ -311,7 +418,7 @@ ahora reproduce el backend paso a paso, con `roundCharm` espejado en `lib/curren
 
 ---
 
-## 8. Dependencias para operar en vivo
+## 9. Dependencias para operar en vivo
 
 | Qué | Estado | Bloquea |
 |---|---|---|
@@ -326,7 +433,7 @@ dejar el cutover a live como último paso.
 
 ---
 
-## 9. Frentes abiertos
+## 10. Frentes abiertos
 
 🔴 **¿Puede una plataforma US pagar a creadores en México?** El soporte dijo que sí, self-serve,
 pero **contradice la documentación**, que limita los payouts transfronterizos a US·UK·EEE·CA·CH.

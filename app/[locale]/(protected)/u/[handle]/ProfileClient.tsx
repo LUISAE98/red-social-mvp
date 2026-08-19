@@ -42,6 +42,9 @@ import { DEFAULT_MESSAGE_POLICY, type MessagePolicy } from "@/lib/chat/types";
 import CreatorExperiencesSection from "@/components/services/CreatorExperiencesSection";
 import ProfileHeaderSkeleton from "@/components/profile/ProfileHeaderSkeleton";
 import EditTextButton, { avatarEditButtonStyle } from "@/components/ui/EditTextButton";
+// Mismo tono y tamaño que el "Editar" del avatar (EditTextButton no es más que
+// esto con sombra, que solo hace falta encima de una foto).
+import { TextButton } from "@/components/ui";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
@@ -564,11 +567,15 @@ useEffect(() => {
   const showPostsTab = isOwner ? true : visitorCanSeePosts;
   const showGroupsTab = isOwner ? true : visitorCanSeeGroups;
 
-  // El usuario NO logueado no ve el subnav de secciones (ni "Sus comunidades"):
-  // solo publicaciones + el sub-subnav de medios (posts/fotos/videos/lives).
-  const shouldShowSubnav = isOwner
-    ? true
-    : !!viewer && (showPostsTab || showGroupsTab);
+  // El subnav de secciones es SOLO del dueño: es quien tiene algo que elegir
+  // (publicaciones, comunidades, servicios, ajustes). Quien visita ve las
+  // publicaciones directamente, y va a las comunidades por el texto morado que
+  // se pinta bajo el subnav de medios.
+  const shouldShowSubnav = isOwner;
+
+  // Quien visita puede saltar a las comunidades de este perfil, y volver. Las
+  // dos direcciones dependen de lo mismo: que el perfil las tenga a la vista.
+  const visitorCanJumpToGroups = !isOwner && visitorCanSeeGroups;
 
   const followersCount =
     typeof userDoc?.followersCount === "number" && userDoc.followersCount > 0
@@ -2694,6 +2701,30 @@ const res = (await createExclusiveSessionRequest({
   profileRestricted={profileRestricted}
   commentsEnabled={profileCommentsEnabled}
   searchQuery={postSearchQuery}
+  belowMediaTabs={
+    visitorCanJumpToGroups ? (
+      // `flex-end` y no "right": en arabe la linea corre al reves y el enlace
+      // tiene que irse al otro lado con ella. El margen negativo se come parte
+      // del `marginBottom: 12` del subnav de medios, para que quede pegado a el.
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginTop: -6,
+          padding: "0 4px 10px",
+        }}
+      >
+        <TextButton
+          tone="brand"
+          size="sm"
+          onClick={() => handleTabChange("groups")}
+          style={{ fontSize: 13 }}
+        >
+          {tGroups("profileSeeCommunities")}
+        </TextButton>
+      </div>
+    ) : null
+  }
   donation={userDoc.donation as { mode?: string; enabled?: boolean; visible?: boolean; message?: string | null; playbackId?: string | null; suggestedAmounts?: number[] | null; currency?: string | null } | null}
   donationCreatorName={userDoc.displayName ?? userDoc.handle ?? null}
   donationProfilePhoto={userDoc.photoURL ?? null}
@@ -2712,6 +2743,22 @@ const res = (await createExclusiveSessionRequest({
               activeTab === "groups" && (
               <div className="profile-tab-panel">
                 <ProfileGroupsTab
+                  titleAction={
+                    visitorCanJumpToGroups ? (
+                      // El subnav de secciones no existe para quien visita, asi
+                      // que esta es la unica salida de vuelta a publicaciones.
+                      // Va en el renglon del titulo: suelto encima quedaba muy
+                      // arriba y despegado de lo que acompana.
+                      <TextButton
+                        tone="brand"
+                        size="sm"
+                        onClick={() => handleTabChange("posts")}
+                        style={{ fontSize: 13, flexShrink: 0 }}
+                      >
+                        {tGroups("profileBackToPosts")}
+                      </TextButton>
+                    ) : null
+                  }
                   profileUid={userDoc.uid}
                   isOwner={isOwner}
                   isViewerLoggedIn={!!viewer}

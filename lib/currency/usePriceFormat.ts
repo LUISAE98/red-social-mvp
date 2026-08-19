@@ -85,6 +85,10 @@ export type PriceFormatter = {
   ratesSource: "live" | "mock";
   /** Convierte un monto en la moneda mostrada de vuelta a MXN (para inputs del creador). */
   toAnchor: (amount: number) => number | null;
+  /** Conversión SIMPLE del ancla a la moneda del usuario: solo tipo de cambio, sin el 2% ni redondeo. */
+  fromAnchor: (amount: number) => number | null;
+  /** Como `format` pero con conversión SIMPLE (sin el 2% ni redondeo). Para lo que ve el CREADOR de su dinero. */
+  formatPlain: (amount: number, opts?: { baseCurrency?: string | null; code?: boolean }) => string;
   /** Formatea un monto ya en MXN, siempre en MXN (para el "= $X MXN (precio real)"). */
   formatAnchor: (mxnAmount: number, opts?: { code?: boolean }) => string;
   /**
@@ -149,6 +153,31 @@ export function usePriceFormat(): PriceFormatter {
     [locale, resolveLocal]
   );
 
+  /**
+   * Formatea con conversión SIMPLE (solo tipo de cambio) en vez de con el precio de cara
+   * al comprador. Es lo que va en todo lo que el CREADOR ve de su propio dinero.
+   *
+   * 🚨 La diferencia con `format` no es cosmética. `format` suma el 2% de conversión y
+   * redondea al paso de la moneda porque calcula lo que PAGA un comprador. Aplicado a las
+   * ganancias del creador daba números que no son ni su precio ni su ganancia: con 1 USD de
+   * base, "ganarás 0.75" se mostraba como 15 MXN (0.75 → +2% → 13.02 → paso de 5 → 15).
+   */
+  const formatPlain = useCallback(
+    (amount: number, opts: { baseCurrency?: string | null; code?: boolean } = {}): string => {
+      const code = opts.code ?? true;
+      const base: DisplayCurrency = isDisplayCurrency(opts.baseCurrency)
+        ? opts.baseCurrency
+        : ANCHOR_CURRENCY;
+      if (base === currency) return formatCurrency(amount, currency, locale, { code });
+      const usd = base === ANCHOR_CURRENCY ? amount : convertToAnchor(amount, base, rates.rates);
+      if (usd == null) return formatCurrency(amount, base, locale, { code });
+      const local = convertFromAnchor(usd, currency, rates.rates);
+      if (local == null) return formatCurrency(usd, ANCHOR_CURRENCY, locale, { code });
+      return formatCurrency(local, currency, locale, { code });
+    },
+    [currency, locale, rates]
+  );
+
   const formatWithTax = useCallback(
     (amount: number, opts: PriceFormatOptions = {}): TaxedPrice => {
       // ⚠️ ESTE es el número que el comprador va a pagar, así que tiene que reproducir
@@ -198,6 +227,19 @@ export function usePriceFormat(): PriceFormatter {
     [currency, rates]
   );
 
+  /**
+   * Conversión SIMPLE del ancla a la moneda que mira el usuario: solo el tipo de cambio.
+   *
+   * 🚨 No confundir con `format`, que es el precio de cara al COMPRADOR: ese suma el 2% de
+   * conversión y redondea al paso de la moneda. Usarlo como referencia para el creador daba
+   * números absurdos — 1 USD salía como "15 MXN" (17.03 → +2% = 17.37 → paso de 5 → 15).
+   * Para "cuánto es esto en mi moneda" lo que va es la tasa pelada.
+   */
+  const fromAnchor = useCallback(
+    (amount: number) => convertFromAnchor(amount, currency, rates.rates),
+    [currency, rates]
+  );
+
   const formatAnchor = useCallback(
     (mxnAmount: number, opts: { code?: boolean } = {}) =>
       formatCurrency(mxnAmount, ANCHOR_CURRENCY, locale, { code: opts.code ?? true }),
@@ -240,6 +282,8 @@ export function usePriceFormat(): PriceFormatter {
     locale,
     ratesSource: rates.source,
     toAnchor,
+    fromAnchor,
+    formatPlain,
     formatAnchor,
     resolveStoredPrice,
     toDisplayForInput,

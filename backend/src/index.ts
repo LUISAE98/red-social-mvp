@@ -433,6 +433,10 @@ export { getDirectMessageImageUrls } from "./dmImages";
 
 // Pagos (Stripe — Vibra migró 100% a Stripe; Mercado Pago retirado). S1: smoke test.
 export { stripeHealthcheck } from "./payments/stripe/stripeHealthcheck";
+
+// Diagnóstico TEMPORAL de la FX Quotes API, solo con sesión iniciada (el claim de
+// administrador no está entrando). Se borra cuando el healthcheck vuelva a ser usable.
+export { fxQuoteDiagnostic } from "./tax/fxQuoteDiagnostic";
 // S3a: PaymentIntent para la pasarela embebida (Elements) + guardar tarjeta.
 export { createStripePaymentIntent } from "./payments/stripe/createPaymentIntent";
 // Fase 2 del país fiscal: recotiza el intent con el país EMISOR de la tarjeta antes de

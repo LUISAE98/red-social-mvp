@@ -8,7 +8,7 @@ import {
   NICE_STEP as BACKEND_NICE_STEP,
   roundCharm,
 } from "../../backend/src/tax/presentmentFormat";
-import { NICE_STEP as FRONTEND_NICE_STEP, roundCharm as frontendRoundCharm } from "@/lib/currency/format";
+import { NICE_STEP as FRONTEND_NICE_STEP, roundCharm as frontendRoundCharm, roundReference } from "@/lib/currency/format";
 import { DISPLAY_CURRENCIES } from "@/lib/currency/catalog";
 
 // La moneda de PRESENTACIÓN es en la que se le cobra de verdad al comprador. Dos cosas se
@@ -184,6 +184,66 @@ describe("roundCharm — paridad entre el backend y el frontend", () => {
     for (const c of DISPLAY_CURRENCIES) {
       for (const m of montos) {
         expect(frontendRoundCharm(m, c), `${m} ${c}`).toBe(roundCharm(m, c));
+      }
+    }
+  });
+});
+
+// Redondeo de REFERENCIA: el "≈ 1,700 MXN" que ve el creador junto a su precio en dólares.
+// No es un precio, es una estimación. Lo que se protege es que NO se mueva con cualquier
+// movimiento del tipo de cambio — que es justo lo que un escalón fino (o terminación .99)
+// haría, y por lo que se descartó usar el redondeo comercial aquí.
+describe("roundReference — la referencia del creador no debe bailar", () => {
+  it("🚨 un movimiento pequeño del tipo de cambio NO cambia el número mostrado", () => {
+    // El caso que motivó la regla: 90.99 con el dólar subiendo el equivalente a 0.33.
+    expect(roundReference(90.99, "MXN")).toBe(roundReference(91.32, "MXN"));
+  });
+
+  it("el escalón crece con el monto, para dejar ~3 cifras significativas", () => {
+    expect(roundReference(51.08, "MXN")).toBe(51); // < 100 → paso 1
+    expect(roundReference(850.4, "MXN")).toBe(850); // < 1.000 → paso 10
+    expect(roundReference(1703.4, "MXN")).toBe(1700); // < 10.000 → paso 50
+    expect(roundReference(17034, "MXN")).toBe(17000); // ≥ 10.000 → paso 500
+  });
+
+  it("las monedas sin decimales nunca muestran medios", () => {
+    for (const c of ["JPY", "CLP", "KRW", "VND", "XOF"] as const) {
+      const v = roundReference(8.4, c);
+      expect(Number.isInteger(v), `${c} → ${v}`).toBe(true);
+    }
+  });
+
+  // COP NO va en esa lista: para Stripe tiene centavos. MXN tiene paso 5 en NICE_STEP pero SÍ admite decimales: detectar "sin decimales" a
+  // partir del paso daba falsos positivos y le quitaba los medios a monedas que sí los tienen.
+  it("MXN admite medios por debajo de 10 (su paso grande no la hace entera)", () => {
+    expect(roundReference(5.4, "MXN")).toBe(5.5);
+  });
+
+  it("nunca devuelve cero ni negativos para entradas válidas", () => {
+    for (const c of ["USD", "MXN", "EUR", "JPY"] as const) {
+      expect(roundReference(0.4, c)).toBeGreaterThan(0);
+    }
+  });
+});
+
+// 🚨 El set de monedas SIN DECIMALES está duplicado a mano (el backend no importa de lib/).
+// Ya se habían separado una vez: el frontend tenía 7 monedas de más. No se notó porque
+// ninguna estaba en el catálogo — o sea, el test de paridad de `roundCharm` no las veía,
+// porque solo recorre lo vendible. Este test compara los SETS, no sus resultados, así que
+// caza la divergencia ANTES de que una de esas monedas entre al catálogo.
+describe("monedas sin decimales — paridad de los SETS, no solo de los resultados", () => {
+  it("🚨 el backend y el frontend clasifican igual TODA moneda de tres letras", () => {
+    // Se recorre un universo mayor que el catálogo a propósito: el riesgo es justo la
+    // moneda que todavía NO se vende y que alguien agrega mañana.
+    const universo = [
+      ...DISPLAY_CURRENCIES,
+      "BIF", "DJF", "GNF", "KMF", "MGA", "RWF", "UGX", "ISK", "HUF", "TWD", "COP",
+    ];
+    for (const c of universo) {
+      // `roundCharm` toma caminos distintos según la clasificación: si los sets difieren,
+      // para algún importe los dos lados dan números distintos.
+      for (const m of [8.4, 50, 1234.56]) {
+        expect(frontendRoundCharm(m, c), `${c} @ ${m}`).toBe(roundCharm(m, c));
       }
     }
   });

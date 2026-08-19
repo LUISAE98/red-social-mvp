@@ -96,7 +96,7 @@ export const createDonationStripeIntent = onCall(
     // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
-    const charge = await applyCharmRounding(composeCharge(base, country));
+    const { charge, quote: fxQuote } = await applyCharmRounding(composeCharge(base, country));
     const totalMxn = charge.chargedAmount;
 
     const donationId = db.collection("profileDonations").doc().id;
@@ -148,6 +148,13 @@ export const createDonationStripeIntent = onCall(
       taxCountryAgreeingIndicios: resolved.agreeingIndicios,
       taxCountryMeetsTwoEvidenceRule: resolved.meetsTwoEvidenceRule,
       taxCountryConflictResolvedBy: resolved.conflictResolvedBy,
+      // Evidencia de la cotización de Stripe: con qué tasa se calculó, cuánto cobró de
+      // conversión y cuánto costó congelarla. Es el dato con el que se dimensiona el colchón
+      // del 2%, que antes se llevaba a ojo.
+      fxQuoteId: fxQuote?.id ?? null,
+      fxQuoteBaseRate: fxQuote?.baseRate ?? null,
+      fxStripeFeeRate: fxQuote?.fxFeeRate ?? null,
+      fxLockPremium: fxQuote?.durationPremium ?? null,
       paymentMode: "stripe",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -173,6 +180,7 @@ export const createDonationStripeIntent = onCall(
           amountCents: presentment.amountForStripe,
           currency: presentment.currency,
           metadata: { externalReference, sourceType: "profileDonation", sourceId: donationId, buyerId: uid },
+          fxQuoteId: fxQuote?.id ?? null,
         });
       } catch (e) {
         // La tarjeta falló → devolver el crédito reservado (si hubo).
@@ -196,6 +204,8 @@ export const createDonationStripeIntent = onCall(
       form: {
         amount: presentment.amountForStripe,
         currency: presentment.currency.toLowerCase(),
+        // Liquida a la tasa congelada que se usó para calcular este importe.
+        ...(fxQuote ? { fx_quote: fxQuote.id } : {}),
         customer: customerId,
         payment_method_types: ["card"],
         ...(saveCard ? { setup_future_usage: "off_session" } : {}),

@@ -58,8 +58,13 @@ export default function ProfileServicesTab({
   );
 
   const priceFmt = usePriceFormat();
+  // 🚨 `formatPlain`, NO `format`. Todo lo que se formatea aquí es dinero que ve el
+  // CREADOR: su precio y su ganancia. `format` calcula el precio de cara al COMPRADOR
+  // —le suma el 2% de conversión y lo redondea al paso de la moneda— y aplicado a esto
+  // daba números que no son ni una cosa ni la otra: con 1 USD de base, "ganarás 0.75"
+  // salía como 15 MXN.
   const formatMoney = (value: number, currency?: string) =>
-    priceFmt.format(value, { baseCurrency: (currency ?? SETTLEMENT_CURRENCY) as DisplayCurrency, code: true });
+    priceFmt.formatPlain(value, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true });
 
   // Link público del perfil (para el botón "Copiar link" de la vista de éxito).
   const routeParams = useParams<{ handle?: string }>();

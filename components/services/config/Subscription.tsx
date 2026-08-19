@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletRates";
 import { LocalPriceHint } from "./serviceConfigKit";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -807,8 +808,6 @@ function handleModify() {
               {tCommon("priceMin", { min: minPrice })}
             </div>
           </div>
-          {/* Referencia en la moneda del creador: el número se guarda en la de liquidación. */}
-          <LocalPriceHint value={Number(overlayDraft.subscription.price)} />
           {/* Leyenda: cuánto ganas al mes (net), animada, solo si net > 0. */}
           <div
             style={{
@@ -824,7 +823,7 @@ function handleModify() {
           >
             <div style={{ ...subtleStyle, marginTop: 3 }}>
               {tServices.rich("subscriptionEarningsLegend", {
-                net: formatMoney(overlaySubscriptionCalc?.net ?? 0, displayCurrency as Currency),
+                net: formatMoney(overlaySubscriptionCalc?.net ?? 0, SETTLEMENT_CURRENCY),
                 amount: (chunks) => (
                   <span style={{ color: SUBSCRIPTION_ACCENT, fontWeight: 700 }}>
                     {chunks}
@@ -832,6 +831,9 @@ function handleModify() {
                 ),
               })}
             </div>
+          {/* Referencia en la moneda del creador. El precio SIEMPRE se fija en la de
+              liquidación; esto solo lo ayuda a ubicarse. */}
+          <LocalPriceHint value={Number(overlayDraft.subscription.price)} netRate={WALLET_NET_RATE} />
           </div>
           {/* Leyenda fija del cargo de Stripe (mismo patrón que las demás experiencias). */}
           <div style={{ ...subtleStyle, opacity: 0.7, fontSize: 11, marginTop: 3 }}>
