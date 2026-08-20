@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { formatCurrency } from "@/lib/currency/format";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
@@ -272,15 +273,18 @@ export default function ComposerPremiumPanel({
   const hasValidPrice =
     priceInput !== "" && Number.isFinite(parsedPrice) && parsedPrice > 0;
 
-  // Mexico-only: la base es EXACTAMENTE lo que teclea el creador, en MXN (sin conversión).
+  // La base es EXACTAMENTE lo que teclea el creador, en la moneda de liquidación.
   const anchorPrice = hasValidPrice ? parsedPrice : null;
 
+  // ⚠️ NO se usa `priceFmt.format` aquí: ese calcula el precio del COMPRADOR —convierte a
+  // su moneda, suma el 2% y redondea al paso—, así que la ganancia del creador salía
+  // convertida e inflada. Lo que él fija y lo que cobra viven en la moneda de liquidación.
   const creatorEarnings =
     anchorPrice != null
-      ? priceFmt.format(anchorPrice * WALLET_NET_RATE, { baseCurrency: SETTLEMENT_CURRENCY, code: true })
+      ? formatCurrency(anchorPrice * WALLET_NET_RATE, SETTLEMENT_CURRENCY, priceFmt.locale, { code: true })
       : null;
 
-  // Por debajo del mínimo ($25 base) → aviso rojo, no se debe publicar.
+  // Por debajo del mínimo → aviso rojo, no se debe publicar.
   const belowMin = anchorPrice != null && anchorPrice < PREMIUM_MIN_PRICE_USD;
   // Las ganancias se muestran solo con precio válido y por encima del mínimo.
   const earningsVisible = !!creatorEarnings && !belowMin;

@@ -67,9 +67,9 @@ const NAV_ICON = {
 } as const;
 
 /** Casa: tejado, cuerpo y una puerta de arco. */
-const HOME_ROOF = "M3.6 10.9 12 4.2l8.4 6.7";
-const HOME_BODY = "M5.9 9.6v8.9a1.9 1.9 0 0 0 1.9 1.9h8.4a1.9 1.9 0 0 0 1.9-1.9V9.6";
-const HOME_DOOR = "M9.8 20.4v-4.2a2.2 2.2 0 0 1 4.4 0v4.2";
+const HOME_ROOF = "M3.9 10.6 12 3.9l8.1 6.7";
+const HOME_BODY = "M5.9 9.4v9.1a1.9 1.9 0 0 0 1.9 1.9h8.4a1.9 1.9 0 0 0 1.9-1.9V9.4";
+const HOME_DOOR = "M10.2 20.4v-4a1.8 1.8 0 0 1 3.6 0v4";
 
 function NavHomeIcon() {
   return (
@@ -84,14 +84,16 @@ function NavHomeIcon() {
 function NavHomeIconFilled() {
   return (
     <svg {...NAV_ICON}>
-      {/* Tejado y cuerpo en una sola silueta rellena; la puerta se recorta en
-          negativo para que siga leyéndose como casa y no como un pentágono. */}
+      {/* Una sola silueta con la puerta como SUBTRAZADO. Con `evenodd` eso
+          recorta un hueco de verdad y se ve la barra a través; rellenarlo de
+          negro dejaba una mancha oscura sobre un fondo translúcido. */}
       <path
         fill="white"
-        stroke="white"
-        d="M12 3.6 2.9 10.9a1 1 0 0 0 .7 1.5v6.1a2.9 2.9 0 0 0 2.9 2.9h11a2.9 2.9 0 0 0 2.9-2.9v-6.1a1 1 0 0 0 .7-1.5Z"
+        stroke="none"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M12 3.9 20.1 10.6V18.5a1.9 1.9 0 0 1-1.9 1.9H5.8a1.9 1.9 0 0 1-1.9-1.9V10.6ZM10.2 20.4v-4a1.8 1.8 0 0 1 3.6 0v4Z"
       />
-      <path d={HOME_DOOR} stroke="#000000" fill="none" />
     </svg>
   );
 }
@@ -117,7 +119,7 @@ function NavReelsIconFilled() {
 
 /** Mensajes: globo de conversación con la cola abajo a la izquierda. */
 const MESSAGES_BUBBLE =
-  "M12 3.6c-4.6 0-8.4 3.1-8.4 6.9 0 1.9.9 3.6 2.4 4.8l-.9 4a.6.6 0 0 0 .9.6l4.1-2.2c.6.1 1.2.1 1.9.1 4.6 0 8.4-3.1 8.4-6.9S16.6 3.6 12 3.6Z";
+  "M12 3.9c-4.6 0-8.4 3-8.4 6.7 0 1.9.9 3.5 2.4 4.7l-.9 3.9a.6.6 0 0 0 .9.6l4.1-2.1c.6.1 1.2.1 1.9.1 4.6 0 8.4-3 8.4-6.7S16.6 3.9 12 3.9Z";
 
 function NavMessagesIcon() {
   return (
@@ -137,8 +139,8 @@ function NavMessagesIconFilled() {
 
 /** Campana: cuerpo y badajo. */
 const BELL_BODY =
-  "M12 3.6a5.9 5.9 0 0 0-5.9 5.9c0 5-2.1 6.4-2.1 6.4h16s-2.1-1.4-2.1-6.4A5.9 5.9 0 0 0 12 3.6Z";
-const BELL_CLAPPER = "M10.2 19a2 2 0 0 0 3.6 0";
+  "M12 3.9a5.8 5.8 0 0 0-5.8 5.8c0 4.9-2.1 6.3-2.1 6.3h15.8s-2.1-1.4-2.1-6.3A5.8 5.8 0 0 0 12 3.9Z";
+const BELL_CLAPPER = "M10.2 18.6a2 2 0 0 0 3.6 0";
 
 function NavBellIcon() {
   return (
@@ -162,9 +164,9 @@ function NavBellIconFilled() {
 function NavWalletIcon() {
   return (
     <svg {...NAV_ICON}>
-      <rect x="3.6" y="6.2" width="16.8" height="14.2" rx="3.4" />
-      <path d="M3.6 9.7h16.8" />
-      <path d="M16.3 15.1h1.6" />
+      <rect x="3.6" y="4.9" width="16.8" height="14.2" rx="3.4" />
+      <path d="M3.6 8.4h16.8" />
+      <path d="M16.3 13.6h1.6" />
     </svg>
   );
 }
@@ -172,9 +174,15 @@ function NavWalletIcon() {
 function NavWalletIconFilled() {
   return (
     <svg {...NAV_ICON}>
-      <rect x="3.6" y="6.2" width="16.8" height="14.2" rx="3.4" fill="white" stroke="white" />
-      <path d="M3.6 9.7h16.8" stroke="#000000" />
-      <path d="M16.3 15.1h1.6" stroke="#000000" />
+      {/* Mismo recurso que la casa: el bolsillo de la tarjeta es un hueco
+          recortado, no un trazo negro encima del relleno. */}
+      <path
+        fill="white"
+        stroke="none"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M7 4.9h10a3.4 3.4 0 0 1 3.4 3.4v7.4a3.4 3.4 0 0 1-3.4 3.4H7a3.4 3.4 0 0 1-3.4-3.4V8.3A3.4 3.4 0 0 1 7 4.9ZM15.8 10.2h4.6v3.6h-4.6a1.8 1.8 0 0 1 0-3.6Z"
+      />
     </svg>
   );
 }
@@ -214,7 +222,7 @@ function ProfileAvatarIcon({
   src: string | null;
   active: boolean;
 }) {
-  const size = 32;
+  const size = 38;
 
   return (
     <span
@@ -552,7 +560,7 @@ export default function MobileBottomNav({
           width: 100%;
           pointer-events: auto;
           box-sizing: border-box;
-          border-radius: 30px;
+          border-radius: 24px;
           /* Cristal: base translúcida + un degradado de luz encima. El
              degradado es lo que le da relieve — arriba entra la luz y abajo se
              apaga—, y sin él un fondo translúcido se ve como una lámina plana. */
@@ -563,7 +571,7 @@ export default function MobileBottomNav({
               rgba(255, 255, 255, 0.03) 42%,
               rgba(0, 0, 0, 0.10) 100%
             ),
-            rgba(22, 22, 28, 0.52);
+            rgba(18, 18, 24, 0.74);
           border: 1px solid rgba(255, 255, 255, 0.14);
           /* El volumen sale de cuatro capas: filo de luz arriba, sombra propia
              abajo (las dos por dentro, son el grosor del cristal) y dos sombras
@@ -574,8 +582,11 @@ export default function MobileBottomNav({
             inset 0 -1px 0 rgba(0, 0, 0, 0.45),
             0 6px 14px rgba(0, 0, 0, 0.34),
             0 22px 48px rgba(0, 0, 0, 0.52);
-          backdrop-filter: blur(26px) saturate(180%);
-          -webkit-backdrop-filter: blur(26px) saturate(180%);
+          /* Más desenfoque y algo de brillo a la baja: lo que pasa por detrás
+             tiene que quedar irreconocible, no solo suavizado. Con 26 y una base
+             al 52% una foto clara se leía a través y la píldora desaparecía. */
+          backdrop-filter: blur(40px) saturate(180%) brightness(0.72);
+          -webkit-backdrop-filter: blur(40px) saturate(180%) brightness(0.72);
           /* SIN overflow:hidden. Los globos de aviso se dibujan fuera de su
              icono (top:-5px, inset-inline-end:-8px) y en el primer y el ultimo
              elemento caerian justo sobre el borde: recortarlos los partiria por
@@ -599,7 +610,7 @@ export default function MobileBottomNav({
 
         .item {
           position: relative;
-          height: 54px;
+          height: 62px;
           display: grid;
           place-items: center;
           text-decoration: none;
@@ -614,8 +625,25 @@ export default function MobileBottomNav({
         .itemInner {
           position: relative;
           z-index: 1;
-          display: grid;
-          place-items: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 2px;
+        }
+
+        /* Pequeño y en blanco atenuado: tiene que apoyar al icono, no competir
+           con él. Sin cortes de palabra: en un nav de seis huecos, un nombre
+           partido en dos líneas descuadra toda la fila. */
+        .itemLabel {
+          font-size: 9px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          line-height: 1;
+          color: rgba(255, 255, 255, 0.82);
+          white-space: nowrap;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .iconPop {
@@ -627,21 +655,26 @@ export default function MobileBottomNav({
 
         .navBadge {
           position: absolute;
-          top: -5px;
+          /* El globo cuelga HACIA ABAJO desde el borde del icono, no hacia
+             arriba. Con un top negativo se salía de la caja y rozaba el filo de
+             la píldora; a 4px queda dentro y sigue leyéndose como un aviso
+             pegado al icono. */
+          top: 4px;
           inset-inline-end: -8px;
-          min-width: 16px;
-          height: 16px;
-          padding: 0 4px;
+          min-width: 18px;
+          height: 18px;
+          padding: 0 5px;
           border-radius: 999px;
-          background: #ff3b30;
+          background: #a855f7;
           color: #ffffff;
-          font-size: 10px;
+          font-size: 11px;
           font-weight: 800;
-          line-height: 16px;
+          line-height: 18px;
           text-align: center;
           /* Aro al tono del cristal y semitransparente: uno opaco se recortaba
              como un disco oscuro sobre el fondo translúcido. */
           box-shadow: 0 0 0 2px rgba(22, 22, 28, 0.55);
+          pointer-events: none;
           box-sizing: border-box;
         }
 
@@ -831,6 +864,15 @@ export default function MobileBottomNav({
                       isActive ? <NavGroupsIconFilled /> : <NavGroupsIcon />
                     )}
                   </span>
+
+                  {/* El nombre de la sección. Va DENTRO de itemInner para que
+                      se encoja con el nav igual que el icono, y no aparte. El
+                      perfil no lo lleva: su avatar ya dice de quién es, y su
+                      altura se compensa con un círculo más grande para que no
+                      quede desalineado con el resto. */}
+                  {item.type !== "avatar" ? (
+                    <span className="itemLabel">{item.label}</span>
+                  ) : null}
                 </div>
               </Link>
               );

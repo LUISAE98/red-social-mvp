@@ -4456,7 +4456,12 @@ padding: "0 0 2px 0",
 )}
 <StripePaymentModal
   open={paymentPanelOpen}
-  amount={(post.premium?.price ?? post.oneTimePrice) != null ? Number(post.premium?.price ?? post.oneTimePrice) + FIXED_SERVICE_FEE_USD : null}
+  // ⚠️ El ORDEN importa y tiene que ser el MISMO que el del servidor
+  // (`premiumPostStripeIntent`): manda `oneTimePrice` y `premium.price` es el respaldo.
+  // Aquí estaba al revés, así que un post con los dos campos y valores distintos —los hay
+  // de antes— enseñaba un precio y cobraba el otro. La tarjeta del post ya usaba el orden
+  // bueno; el único descolgado era esta pasarela.
+  amount={(post.oneTimePrice ?? post.premium?.price) != null ? Number(post.oneTimePrice ?? post.premium?.price) + FIXED_SERVICE_FEE_USD : null}
   amountCurrency={SETTLEMENT_CURRENCY}
   createIntent={async (args) => {
     // Invitado (sin login): firma anónima antes de cobrar → el acceso (postAccess) se

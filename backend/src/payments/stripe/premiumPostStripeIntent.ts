@@ -60,7 +60,7 @@ export const createPremiumPostStripeIntent = onCall(
     if (!creatorId) throw new HttpsError("failed-precondition", "Publicación sin autor.");
     if (creatorId === uid) throw new HttpsError("failed-precondition", "Es tu propia publicación.");
 
-    // La base del creador se trata en MXN. Se prefiere `oneTimePrice` porque es EXACTAMENTE
+    // La base del creador va en la moneda de liquidación. Se prefiere `oneTimePrice` porque es EXACTAMENTE
     // lo que muestra el frontend (evita cobrar un `premium.price` legacy en USD divergente).
     const base = round2(Number(post.oneTimePrice ?? premium.price ?? 0));
     if (!Number.isFinite(base) || base <= 0) {
@@ -106,7 +106,8 @@ export const createPremiumPostStripeIntent = onCall(
     const savedPaymentMethodId = data.savedPaymentMethodId ? String(data.savedPaymentMethodId).trim() : null;
     const applyCredit = data.applyCredit === true; // aplicar saldo a favor (monto lo decide el server)
 
-    // Precio publicado = base + $3 cargo fijo; IVA 16% encima (todo lo absorbe el comprador).
+    // Precio publicado = base + cargo fijo; luego el 2% de conversión y el impuesto del
+    // país del comprador, que lo absorbe él. Ver `composeCharge`.
     // País fiscal: lo decide el SERVIDOR. Dos señales que el cliente no controla:
     //   · la IP del request
     //   · el país EMISOR de la tarjeta, leído de Stripe con el `pm_...` que manda el

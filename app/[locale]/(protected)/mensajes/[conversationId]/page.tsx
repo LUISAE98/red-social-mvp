@@ -10,6 +10,7 @@ import { useRouter } from "@/i18n/navigation";
 import { setNavSlideDir } from "@/lib/nav-slide";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useVisualViewport } from "@/lib/hooks/useVisualViewport";
+import { resettleVisualViewport } from "@/lib/hooks/resettleVisualViewport";
 import { useAuth } from "@/app/providers";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import ProfileMoreMenu from "@/app/[locale]/(protected)/u/[handle]/components/ProfileMoreMenu";
@@ -201,6 +202,12 @@ export default function ConversationPage() {
       window.scrollTo(0, baseScrollRef.current);
     };
 
+    // Y, en cuanto el campo suelta el foco, EMPUJAR a iOS a reasentar el
+    // viewport visual. Releerlo no basta: si sigue corrido, lo que leemos es un
+    // desfase real, no una lectura vieja, y la pantalla se queda calzada contra
+    // un área que ya no existe. Ver resettleVisualViewport.
+    if (!composerFocused) resettleVisualViewport(baseScrollRef.current);
+
     restore();
 
     const vv = window.visualViewport;
@@ -232,9 +239,16 @@ export default function ConversationPage() {
    */
   useEffect(() => {
     return () => {
-      if (window.scrollY !== baseScrollRef.current) {
-        window.scrollTo(0, baseScrollRef.current);
-      }
+      /* Sin condición, a propósito.
+       *
+       * Antes esto solo actuaba si `window.scrollY` se había movido — y con el
+       * fondo bloqueado por `overflow: hidden` NUNCA se mueve, así que la
+       * corrección no llegaba a ejecutarse justo en el caso para el que se
+       * escribió. Lo que iOS deja torcido no es el scroll del documento sino el
+       * viewport VISUAL, y eso hay que reasentarlo aparte: si no, al volver a la
+       * lista de chats la barra inferior aparece más arriba de donde toca y no se
+       * endereza hasta cambiar de sección. */
+      resettleVisualViewport(baseScrollRef.current);
     };
   }, []);
 
