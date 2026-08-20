@@ -763,35 +763,6 @@ export default function ReelStorySlide({
               </svg>
             )}
           </IconButton>
-          {/* Flamita. Solo para cuentas reales; una anonima puede mirar. */}
-          {likeUid && (
-            <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 1, marginBottom: 2 }}>
-              <IconButton
-                label={liked ? tCommon("removeFlameFromStory") : tCommon("addFlameToStory")}
-                size="sm"
-                tone="bare"
-                shape="square"
-                onClick={(e) => { void handleLike(e); }}
-              >
-                <VibraFlameIcon active={liked} size={compact ? 20 : 24} />
-              </IconButton>
-              {likes > 0 && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    color: "rgba(255,255,255,0.9)",
-                    fontSize: compact ? 10 : 11,
-                    fontWeight: 700,
-                    lineHeight: 1,
-                    fontVariantNumeric: "tabular-nums",
-                    textShadow: "0 1px 6px rgba(0,0,0,0.6)",
-                  }}
-                >
-                  {formatPlays(likes)}
-                </span>
-              )}
-            </span>
-          )}
           <IconButton label={tCommon("shareStory")} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); void handleShare(); }}>
             <VibraShareIcon size={compact ? 20 : 23} color="rgba(255,255,255,0.9)" />
           </IconButton>
@@ -981,6 +952,39 @@ export default function ReelStorySlide({
               </p>
             </div>
           </div>
+
+          {/* Flamita, en su propia fila encima de los botones. Cuenta como una
+              accion sobre la historia, no como un control del reproductor, asi
+              que vive con lo que se hace CON la historia y no en la columna de
+              silencio y compartir. */}
+          {likeUid && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 16px 6px" }}>
+              <IconButton
+                label={liked ? tCommon("removeFlameFromStory") : tCommon("addFlameToStory")}
+                size="sm"
+                tone="bare"
+                shape="square"
+                onClick={(e) => { void handleLike(e); }}
+              >
+                <VibraFlameIcon active={liked} size={compact ? 20 : 24} />
+              </IconButton>
+              {likes > 0 && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    color: "rgba(255,255,255,0.92)",
+                    fontSize: compact ? 12 : 14,
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    fontVariantNumeric: "tabular-nums",
+                    textShadow: "0 1px 6px rgba(0,0,0,0.6)",
+                  }}
+                >
+                  {formatPlays(likes)}
+                </span>
+              )}
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: 10, padding: "0 14px", paddingBottom: btnPadBottom }}>
             <button
