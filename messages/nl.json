@@ -271,7 +271,9 @@
     "priceMin": "De minimumprijs is {min} $",
     "shareStory": "Verhaal delen",
     "pinError": "De post kon niet worden vastgezet of losgemaakt.",
-    "viewsCountAriaLabel": "{count, plural, one {# weergave} other {# weergaven}}"
+    "viewsCountAriaLabel": "{count, plural, one {# weergave} other {# weergaven}}",
+    "addFlameToStory": "Dit verhaal leuk vinden",
+    "removeFlameFromStory": "Vind-ik-leuk verwijderen"
   },
   "groups": {
     "title": "Community's",

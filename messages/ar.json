@@ -271,7 +271,9 @@
     "priceMin": "الحد الأدنى للسعر هو ${min}",
     "shareStory": "مشاركة القصة",
     "pinError": "تعذّر تثبيت المنشور أو إلغاء تثبيته.",
-    "viewsCountAriaLabel": "{count, plural, zero {# مشاهدة} one {مشاهدة واحدة} two {مشاهدتان} few {# مشاهدات} many {# مشاهدة} other {# مشاهدة}}"
+    "viewsCountAriaLabel": "{count, plural, zero {# مشاهدة} one {مشاهدة واحدة} two {مشاهدتان} few {# مشاهدات} many {# مشاهدة} other {# مشاهدة}}",
+    "addFlameToStory": "أعجبني هذه القصة",
+    "removeFlameFromStory": "إزالة الإعجاب من هذه القصة"
   },
   "groups": {
     "title": "المجتمعات",

@@ -271,7 +271,9 @@
     "priceMin": "Minsteprisen er ${min}",
     "shareStory": "Del historie",
     "pinError": "Innlegget kunne ikke festes eller løsnes.",
-    "viewsCountAriaLabel": "{count, plural, one {# visning} other {# visninger}}"
+    "viewsCountAriaLabel": "{count, plural, one {# visning} other {# visninger}}",
+    "addFlameToStory": "Lik denne historien",
+    "removeFlameFromStory": "Fjern liker fra denne historien"
   },
   "groups": {
     "title": "Communities",

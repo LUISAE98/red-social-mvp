@@ -271,7 +271,9 @@
     "priceMin": "តម្លៃអប្បបរមាគឺ ${min}",
     "shareStory": "ចែករំលែករឿងរ៉ាវ",
     "pinError": "មិនអាចខ្ទាស់ ឬដកខ្ទាស់ការបង្ហោះបានទេ។",
-    "viewsCountAriaLabel": "{count, plural, other {# ការមើល}}"
+    "viewsCountAriaLabel": "{count, plural, other {# ការមើល}}",
+    "addFlameToStory": "ចូលចិត្តរឿងនេះ",
+    "removeFlameFromStory": "ដកការចូលចិត្តចេញពីរឿងនេះ"
   },
   "groups": {
     "title": "សហគមន៍",

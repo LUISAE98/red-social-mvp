@@ -271,7 +271,9 @@
     "priceMin": "최소 가격은 ${min}입니다",
     "shareStory": "스토리 공유",
     "pinError": "게시물을 고정하거나 해제하지 못했습니다.",
-    "viewsCountAriaLabel": "{count, plural, other {조회수 #회}}"
+    "viewsCountAriaLabel": "{count, plural, other {조회수 #회}}",
+    "addFlameToStory": "이 스토리에 좋아요",
+    "removeFlameFromStory": "이 스토리의 좋아요 취소"
   },
   "groups": {
     "title": "커뮤니티",

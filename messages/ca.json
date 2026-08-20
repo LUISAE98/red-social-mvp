@@ -271,7 +271,9 @@
     "priceMin": "El preu mínim és ${min}",
     "shareStory": "Compartir història",
     "pinError": "No s'ha pogut fixar ni desfixar la publicació.",
-    "viewsCountAriaLabel": "{count, plural, one {# visualització} other {# visualitzacions}}"
+    "viewsCountAriaLabel": "{count, plural, one {# visualització} other {# visualitzacions}}",
+    "addFlameToStory": "M'agrada aquesta història",
+    "removeFlameFromStory": "Treu el m'agrada d'aquesta història"
   },
   "groups": {
     "title": "Comunitats",

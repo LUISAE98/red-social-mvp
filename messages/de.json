@@ -271,7 +271,9 @@
     "priceMin": "Der Mindestpreis beträgt {min} $",
     "shareStory": "Story teilen",
     "pinError": "Der Beitrag konnte nicht angeheftet oder gelöst werden.",
-    "viewsCountAriaLabel": "{count, plural, one {# Aufruf} other {# Aufrufe}}"
+    "viewsCountAriaLabel": "{count, plural, one {# Aufruf} other {# Aufrufe}}",
+    "addFlameToStory": "Diese Story liken",
+    "removeFlameFromStory": "Like von dieser Story entfernen"
   },
   "groups": {
     "title": "Communitys",

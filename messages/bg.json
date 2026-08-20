@@ -271,7 +271,9 @@
     "priceMin": "Минималната цена е ${min}",
     "shareStory": "Споделяне на историята",
     "pinError": "Публикацията не беше закачена или откачена.",
-    "viewsCountAriaLabel": "{count, plural, one {# гледане} other {# гледания}}"
+    "viewsCountAriaLabel": "{count, plural, one {# гледане} other {# гледания}}",
+    "addFlameToStory": "Харесай тази история",
+    "removeFlameFromStory": "Премахни харесването на тази история"
   },
   "groups": {
     "title": "Общности",

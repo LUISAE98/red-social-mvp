@@ -271,7 +271,9 @@
     "priceMin": "Lägsta pris är ${min}",
     "shareStory": "Dela berättelse",
     "pinError": "Inlägget kunde inte fästas eller lossas.",
-    "viewsCountAriaLabel": "{count, plural, one {# visning} other {# visningar}}"
+    "viewsCountAriaLabel": "{count, plural, one {# visning} other {# visningar}}",
+    "addFlameToStory": "Gilla den här storyn",
+    "removeFlameFromStory": "Ta bort gilla från den här storyn"
   },
   "groups": {
     "title": "Communities",

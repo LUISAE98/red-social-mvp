@@ -271,7 +271,9 @@
     "priceMin": "Harga minimumnya ${min}",
     "shareStory": "Bagikan cerita",
     "pinError": "Tidak bisa menyematkan atau melepas sematan postingan.",
-    "viewsCountAriaLabel": "{count, plural, other {# tayangan}}"
+    "viewsCountAriaLabel": "{count, plural, other {# tayangan}}",
+    "addFlameToStory": "Suka cerita ini",
+    "removeFlameFromStory": "Hapus suka dari cerita ini"
   },
   "groups": {
     "title": "Komunitas",

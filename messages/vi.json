@@ -271,7 +271,9 @@
     "priceMin": "Giá tối thiểu là ${min}",
     "shareStory": "Chia sẻ câu chuyện",
     "pinError": "Không ghim hoặc bỏ ghim được bài viết.",
-    "viewsCountAriaLabel": "{count, plural, other {# lượt xem}}"
+    "viewsCountAriaLabel": "{count, plural, other {# lượt xem}}",
+    "addFlameToStory": "Thích câu chuyện này",
+    "removeFlameFromStory": "Bỏ thích câu chuyện này"
   },
   "groups": {
     "title": "Cộng đồng",

@@ -271,7 +271,9 @@
     "priceMin": "Le prix minimum est de {min} $",
     "shareStory": "Partager la story",
     "pinError": "Impossible d'épingler ou de désépingler la publication.",
-    "viewsCountAriaLabel": "{count, plural, one {# vue} other {# vues}}"
+    "viewsCountAriaLabel": "{count, plural, one {# vue} other {# vues}}",
+    "addFlameToStory": "Aimer cette story",
+    "removeFlameFromStory": "Retirer le j'aime de cette story"
   },
   "groups": {
     "title": "Communautés",

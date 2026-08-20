@@ -271,7 +271,9 @@
     "priceMin": "Çmimi minimal është ${min}",
     "shareStory": "Shpërnda historinë",
     "pinError": "Postimi nuk u fiksua dhe nuk u hoq dot nga fiksimi.",
-    "viewsCountAriaLabel": "{count, plural, one {# shikim} other {# shikime}}"
+    "viewsCountAriaLabel": "{count, plural, one {# shikim} other {# shikime}}",
+    "addFlameToStory": "Pëlqe këtë histori",
+    "removeFlameFromStory": "Hiq pëlqimin nga kjo histori"
   },
   "groups": {
     "title": "Komunitete",

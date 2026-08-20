@@ -271,7 +271,9 @@
     "priceMin": "最低價格是 ${min}",
     "shareStory": "分享限時動態",
     "pinError": "無法置頂或取消置頂貼文。",
-    "viewsCountAriaLabel": "{count, plural, other {# 次觀看}}"
+    "viewsCountAriaLabel": "{count, plural, other {# 次觀看}}",
+    "addFlameToStory": "喜歡這則限時動態",
+    "removeFlameFromStory": "取消喜歡這則限時動態"
   },
   "groups": {
     "title": "社群",

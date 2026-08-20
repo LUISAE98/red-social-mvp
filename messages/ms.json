@@ -271,7 +271,9 @@
     "priceMin": "Harga minimum ialah ${min}",
     "shareStory": "Kongsi cerita",
     "pinError": "Tidak dapat menyemat atau menyahsemat siaran.",
-    "viewsCountAriaLabel": "{count, plural, other {# tontonan}}"
+    "viewsCountAriaLabel": "{count, plural, other {# tontonan}}",
+    "addFlameToStory": "Suka cerita ini",
+    "removeFlameFromStory": "Buang suka daripada cerita ini"
   },
   "groups": {
     "title": "Komuniti",

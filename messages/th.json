@@ -271,7 +271,9 @@
     "priceMin": "ราคาขั้นต่ำคือ ${min}",
     "shareStory": "แชร์สตอรี่",
     "pinError": "ปักหมุดหรือเลิกปักหมุดโพสต์ไม่สำเร็จ",
-    "viewsCountAriaLabel": "{count, plural, other {# การดู}}"
+    "viewsCountAriaLabel": "{count, plural, other {# การดู}}",
+    "addFlameToStory": "ถูกใจสตอรีนี้",
+    "removeFlameFromStory": "เอาถูกใจออกจากสตอรีนี้"
   },
   "groups": {
     "title": "ชุมชน",

@@ -271,7 +271,9 @@
     "priceMin": "අවම මිල ${min}",
     "shareStory": "කථාව බෙදාගන්න",
     "pinError": "පළ කිරීම අමුණන්න හෝ ඉවත් කරන්න නොහැකි විය.",
-    "viewsCountAriaLabel": "{count, plural, one {නැරඹීම් #} other {නැරඹීම් #}}"
+    "viewsCountAriaLabel": "{count, plural, one {නැරඹීම් #} other {නැරඹීම් #}}",
+    "addFlameToStory": "මෙම කතාවට කැමතියි",
+    "removeFlameFromStory": "මෙම කතාවේ කැමැත්ත ඉවත් කරන්න"
   },
   "groups": {
     "title": "ප්‍රජාවන්",

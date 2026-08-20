@@ -271,7 +271,9 @@
     "priceMin": "न्यूनतम मूल्य ${min} हो",
     "shareStory": "कथा साझा गर्नुहोस्",
     "pinError": "पोस्ट पिन वा अनपिन गर्न सकिएन।",
-    "viewsCountAriaLabel": "{count, plural, one {# हेराइ} other {# हेराइ}}"
+    "viewsCountAriaLabel": "{count, plural, one {# हेराइ} other {# हेराइ}}",
+    "addFlameToStory": "यो कथालाई मन पराउनुहोस्",
+    "removeFlameFromStory": "यो कथाबाट मन पराएको हटाउनुहोस्"
   },
   "groups": {
     "title": "समुदायहरू",

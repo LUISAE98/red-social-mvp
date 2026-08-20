@@ -271,7 +271,9 @@
     "priceMin": "Minimālā cena ir ${min}",
     "shareStory": "Kopīgot stāstu",
     "pinError": "Neizdevās piespraust vai atspraust ierakstu.",
-    "viewsCountAriaLabel": "{count, plural, zero {# skatījumu} one {# skatījums} other {# skatījumi}}"
+    "viewsCountAriaLabel": "{count, plural, zero {# skatījumu} one {# skatījums} other {# skatījumi}}",
+    "addFlameToStory": "Patīk šis stāsts",
+    "removeFlameFromStory": "Noņemt patīk no šī stāsta"
   },
   "groups": {
     "title": "Kopienas",

@@ -271,7 +271,9 @@
     "priceMin": "Prețul minim este {min} $",
     "shareStory": "Distribuie povestea",
     "pinError": "Publicația nu a putut fi fixată sau defixată.",
-    "viewsCountAriaLabel": "{count, plural, one {# vizualizare} few {# vizualizări} other {# de vizualizări}}"
+    "viewsCountAriaLabel": "{count, plural, one {# vizualizare} few {# vizualizări} other {# de vizualizări}}",
+    "addFlameToStory": "Apreciază această poveste",
+    "removeFlameFromStory": "Retrage aprecierea acestei povești"
   },
   "groups": {
     "title": "Comunități",

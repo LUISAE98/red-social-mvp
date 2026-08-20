@@ -271,7 +271,9 @@
     "priceMin": "Vähimmäishinta on ${min}",
     "shareStory": "Jaa tarina",
     "pinError": "Julkaisua ei voitu kiinnittää eikä irrottaa.",
-    "viewsCountAriaLabel": "{count, plural, one {# katselukerta} other {# katselukertaa}}"
+    "viewsCountAriaLabel": "{count, plural, one {# katselukerta} other {# katselukertaa}}",
+    "addFlameToStory": "Tykkää tästä tarinasta",
+    "removeFlameFromStory": "Poista tykkäys tästä tarinasta"
   },
   "groups": {
     "title": "Yhteisöt",

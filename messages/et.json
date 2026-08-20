@@ -271,7 +271,9 @@
     "priceMin": "Miinimumhind on ${min}",
     "shareStory": "Jaga lugu",
     "pinError": "Postitust ei õnnestunud kinnitada ega lahti võtta.",
-    "viewsCountAriaLabel": "{count, plural, one {# vaatamine} other {# vaatamist}}"
+    "viewsCountAriaLabel": "{count, plural, one {# vaatamine} other {# vaatamist}}",
+    "addFlameToStory": "Meeldib see lugu",
+    "removeFlameFromStory": "Eemalda meeldimine sellelt loolt"
   },
   "groups": {
     "title": "Kogukonnad",

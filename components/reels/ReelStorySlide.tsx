@@ -29,6 +29,9 @@ import { buildStoryUrl } from "@/lib/reels/reelStories";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import VibraShareIcon from "@/app/components/VibraServiceIcons/VibraShareIcon";
+import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
+import { hasLikedStory, toggleStoryLike } from "@/lib/stories/storyLikes";
+import { useAuth } from "@/app/providers";
 import FollowCreatorButton from "@/components/social/FollowCreatorButton";
 import { PLAY_COUNT_THRESHOLD, recordStoryPlay } from "@/lib/stories/storyPlays";
 import ScrubBar from "./ScrubBar";
@@ -127,10 +130,42 @@ export default function ReelStorySlide({
   const tServices = useTranslations("services");
   const tGroups = useTranslations("groups");
   const { toast: shareToast, showToast: showShareToast } = useVibraToast(2400);
+  const { user: likeUser } = useAuth();
+  // Una cuenta anonima puede mirar, pero no reaccionar: darse de alta como
+  // anonimo cuesta un clic y una flamita repetible sin limite no mide nada.
+  const likeUid = likeUser && !likeUser.isAnonymous ? likeUser.uid : null;
   // Mientras la hoja de compartir está abierta el video se detiene, igual que
   // con el contexto o con la compra. `navigator.share` no resuelve hasta que se
   // cierra, así que sirve de señal exacta de "sigue abierta".
   const [sharing, setSharing] = useState(false);
+
+  /**
+   * Da o quita la flamita.
+   *
+   * Se pinta ANTES de llamar al servidor y se revierte si falla: en un reel el
+   * dedo ya va camino de la siguiente historia, y esperar a la red para encender
+   * el icono se siente como que el toque no registro.
+   */
+  async function handleLike(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!likeUid || likeBusyRef.current) return;
+    likeBusyRef.current = true;
+    const antesLiked = liked;
+    const antesLikes = likes;
+    setLiked(!antesLiked);
+    setLikes(Math.max(0, antesLikes + (antesLiked ? -1 : 1)));
+    const res = await toggleStoryLike(story.id);
+    if (res) {
+      // El servidor es quien lleva la cuenta buena: si dos personas votan a la
+      // vez, su numero es el que vale.
+      setLiked(res.liked);
+      setLikes(res.likes);
+    } else {
+      setLiked(antesLiked);
+      setLikes(antesLikes);
+    }
+    likeBusyRef.current = false;
+  }
 
   /**
    * Comparte el enlace directo a ESTA historia.
@@ -194,17 +229,44 @@ export default function ReelStorySlide({
   // cruzaria el 35% cada vuelta, sumando una vista cada treinta segundos por el
   // mero hecho de dejar la pantalla abierta.
   const playCountedRef = useRef(false);
+  // Flamitas. Es UNA por persona y global: darla aqui o desde el perfil del
+  // creador es lo mismo, y el numero es el mismo en los dos sitios.
+  const [liked, setLiked] = useState(false);
+  const [likes, setLikes] = useState<number>(story.likesCount ?? 0);
+  const likeBusyRef = useRef(false);
 
   const resolvedPlaybackId = story.muxPlaybackId ?? fetchedPlaybackId;
   const instructions = story.instructions ?? fetchedInstructions?.text ?? null;
   const instructionsLoading =
     !story.instructions && !!story.greetingRequestId && fetchedInstructions === null;
-  // El contador vuelve a cero con cada historia: el visor de circulos reutiliza
-  // este mismo componente cambiandole la historia, sin desmontarlo.
+  // Los contadores vuelven a su sitio con cada historia: el visor de circulos
+  // reutiliza este mismo componente cambiandole la historia, sin desmontarlo.
   useEffect(() => {
     playCountedRef.current = false;
     setPlays(story.viewsCount ?? 0);
   }, [story.id, story.viewsCount]);
+
+  useEffect(() => {
+    setLikes(story.likesCount ?? 0);
+  }, [story.id, story.likesCount]);
+
+  // Si ya le diste flamita se lee de TU propio espejo, no de la subcoleccion de
+  // la historia: es un documento tuyo, y responde sin depender de las reglas del
+  // contenido.
+  useEffect(() => {
+    const uid = likeUid;
+    if (!uid) {
+      setLiked(false);
+      return;
+    }
+    let cancelled = false;
+    void hasLikedStory(uid, story.id).then((yes) => {
+      if (!cancelled) setLiked(yes);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [likeUid, story.id]);
 
   // A quién se le encarga el nuevo saludo: quien GRABÓ, no quien publicó.
   const greetingAuthorUid = story.greetingCreatorId ?? story.creatorId ?? null;
@@ -400,7 +462,10 @@ export default function ReelStorySlide({
     return () => {
       if (progressRafRef.current !== null) cancelAnimationFrame(progressRafRef.current);
     };
-  }, [videoReady]);
+    // `story.id` entra de verdad en juego: el visor de circulos cambia de
+    // historia SIN desmontar, y sin esta dependencia el bucle seguiria contando
+    // la vista a la historia anterior.
+  }, [videoReady, story.id]);
 
   useEffect(
     () => () => {
@@ -698,6 +763,35 @@ export default function ReelStorySlide({
               </svg>
             )}
           </IconButton>
+          {/* Flamita. Solo para cuentas reales; una anonima puede mirar. */}
+          {likeUid && (
+            <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 1, marginBottom: 2 }}>
+              <IconButton
+                label={liked ? tCommon("removeFlameFromStory") : tCommon("addFlameToStory")}
+                size="sm"
+                tone="bare"
+                shape="square"
+                onClick={(e) => { void handleLike(e); }}
+              >
+                <VibraFlameIcon active={liked} size={compact ? 20 : 24} />
+              </IconButton>
+              {likes > 0 && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    color: "rgba(255,255,255,0.9)",
+                    fontSize: compact ? 10 : 11,
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    fontVariantNumeric: "tabular-nums",
+                    textShadow: "0 1px 6px rgba(0,0,0,0.6)",
+                  }}
+                >
+                  {formatPlays(likes)}
+                </span>
+              )}
+            </span>
+          )}
           <IconButton label={tCommon("shareStory")} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); void handleShare(); }}>
             <VibraShareIcon size={compact ? 20 : 23} color="rgba(255,255,255,0.9)" />
           </IconButton>

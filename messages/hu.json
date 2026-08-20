@@ -271,7 +271,9 @@
     "priceMin": "A minimális ár {min} $",
     "shareStory": "Történet megosztása",
     "pinError": "A bejegyzést nem sikerült kitűzni vagy levenni.",
-    "viewsCountAriaLabel": "{count, plural, one {# megtekintés} other {# megtekintés}}"
+    "viewsCountAriaLabel": "{count, plural, one {# megtekintés} other {# megtekintés}}",
+    "addFlameToStory": "Tetszik ez a történet",
+    "removeFlameFromStory": "Tetszés visszavonása"
   },
   "groups": {
     "title": "Közösségek",

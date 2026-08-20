@@ -271,7 +271,9 @@
     "priceMin": "En düşük fiyat ${min}",
     "shareStory": "Hikâyeyi paylaş",
     "pinError": "Gönderi sabitlenemedi veya sabitlemesi kaldırılamadı.",
-    "viewsCountAriaLabel": "{count, plural, one {# görüntülenme} other {# görüntülenme}}"
+    "viewsCountAriaLabel": "{count, plural, one {# görüntülenme} other {# görüntülenme}}",
+    "addFlameToStory": "Bu hikâyeyi beğen",
+    "removeFlameFromStory": "Bu hikâyenin beğenisini kaldır"
   },
   "groups": {
     "title": "Topluluklar",

@@ -271,7 +271,9 @@
     "priceMin": "Minimum qiymət ${min}",
     "shareStory": "Hekayəni paylaş",
     "pinError": "Paylaşımı sabitləmək və ya sabitliyini götürmək mümkün olmadı.",
-    "viewsCountAriaLabel": "{count, plural, one {# baxış} other {# baxış}}"
+    "viewsCountAriaLabel": "{count, plural, one {# baxış} other {# baxış}}",
+    "addFlameToStory": "Bu hekayəni bəyən",
+    "removeFlameFromStory": "Bu hekayənin bəyənməsini götür"
   },
   "groups": {
     "title": "İcmalar",

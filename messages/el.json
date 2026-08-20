@@ -271,7 +271,9 @@
     "priceMin": "Η ελάχιστη τιμή είναι {min} $",
     "shareStory": "Κοινοποίηση ιστορίας",
     "pinError": "Δεν ήταν δυνατό το καρφίτσωμα ή το ξεκαρφίτσωμα της δημοσίευσης.",
-    "viewsCountAriaLabel": "{count, plural, one {# προβολή} other {# προβολές}}"
+    "viewsCountAriaLabel": "{count, plural, one {# προβολή} other {# προβολές}}",
+    "addFlameToStory": "Μου αρέσει αυτή η ιστορία",
+    "removeFlameFromStory": "Αφαίρεση από τα αγαπημένα"
   },
   "groups": {
     "title": "Κοινότητες",

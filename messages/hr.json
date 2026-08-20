@@ -271,7 +271,9 @@
     "priceMin": "Najniža cijena je ${min}",
     "shareStory": "Podijeli priču",
     "pinError": "Objavu nije bilo moguće prikvačiti ni otkvačiti.",
-    "viewsCountAriaLabel": "{count, plural, one {# pregled} few {# pregleda} other {# pregleda}}"
+    "viewsCountAriaLabel": "{count, plural, one {# pregled} few {# pregleda} other {# pregleda}}",
+    "addFlameToStory": "Sviđa mi se ova priča",
+    "removeFlameFromStory": "Ukloni sviđanje s ove priče"
   },
   "groups": {
     "title": "Zajednice",

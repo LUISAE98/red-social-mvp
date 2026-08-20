@@ -271,7 +271,9 @@
     "priceMin": "Хамгийн бага үнэ нь ${min}",
     "shareStory": "Түүхийг хуваалцах",
     "pinError": "Нийтлэлийг бэхлэх буюу тайлж чадсангүй.",
-    "viewsCountAriaLabel": "{count, plural, one {# үзэлт} other {# үзэлт}}"
+    "viewsCountAriaLabel": "{count, plural, one {# үзэлт} other {# үзэлт}}",
+    "addFlameToStory": "Энэ түүхэнд таалагдлаа",
+    "removeFlameFromStory": "Энэ түүхээс таалагдсаныг арилгах"
   },
   "groups": {
     "title": "Нийгэмлэгүүд",

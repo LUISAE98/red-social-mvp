@@ -547,6 +547,9 @@ export {
 // publicaciones). Borrar un asset en Mux no avisa a Firestore.
 export { cleanupDeletedMuxVideos } from "./muxOrphanCleanup";
 
+// Me gusta de las historias: global y uno por persona, se de desde donde se de.
+export { toggleStoryLike } from "./storyLikes";
+
 // Contadores de comentarios y respuestas: los lleva el SERVIDOR, no el cliente
 export {
   onCommentCountCreated,

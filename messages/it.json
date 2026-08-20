@@ -271,7 +271,9 @@
     "priceMin": "Il prezzo minimo è {min} $",
     "shareStory": "Condividi storia",
     "pinError": "Impossibile fissare o rimuovere il post.",
-    "viewsCountAriaLabel": "{count, plural, one {# visualizzazione} other {# visualizzazioni}}"
+    "viewsCountAriaLabel": "{count, plural, one {# visualizzazione} other {# visualizzazioni}}",
+    "addFlameToStory": "Mi piace questa storia",
+    "removeFlameFromStory": "Togli mi piace da questa storia"
   },
   "groups": {
     "title": "Community",

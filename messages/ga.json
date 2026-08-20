@@ -271,7 +271,9 @@
     "priceMin": "Is é ${min} an t-íosphraghas",
     "shareStory": "Comhroinn scéal",
     "pinError": "Níorbh fhéidir an postáil a phionnáil ná a dhíphionnáil.",
-    "viewsCountAriaLabel": "{count, plural, one {# amharc} two {# amharc} few {# amharc} many {# n-amharc} other {# amharc}}"
+    "viewsCountAriaLabel": "{count, plural, one {# amharc} two {# amharc} few {# amharc} many {# n-amharc} other {# amharc}}",
+    "addFlameToStory": "Is maith liom an scéal seo",
+    "removeFlameFromStory": "Bain an moladh den scéal seo"
   },
   "groups": {
     "title": "Pobail",

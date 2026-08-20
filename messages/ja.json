@@ -271,7 +271,9 @@
     "priceMin": "最低料金は${min}です",
     "shareStory": "ストーリーを共有",
     "pinError": "投稿をピン留めまたは解除できませんでした。",
-    "viewsCountAriaLabel": "{count, plural, other {# 回視聴}}"
+    "viewsCountAriaLabel": "{count, plural, other {# 回視聴}}",
+    "addFlameToStory": "このストーリーにいいね",
+    "removeFlameFromStory": "このストーリーのいいねを取り消す"
   },
   "groups": {
     "title": "コミュニティ",

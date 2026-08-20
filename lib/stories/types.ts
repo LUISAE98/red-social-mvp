@@ -49,6 +49,11 @@ export type StoryDoc = {
   /** Vistas únicas acumuladas (lo incrementa un trigger backend). Popularidad. */
   viewsCount?: number;
   /**
+   * Me gusta acumulados. Lo escribe el servidor (`toggleStoryLike`), nunca el
+   * cliente: uno por persona y global, se dé desde el reel o desde el perfil.
+   */
+  likesCount?: number;
+  /**
    * Viene de `greetingSamples`, no de `stories`: es una muestra que el creador
    * grabó como escaparate al activar su servicio, sin comprador ni encargo
    * detrás.

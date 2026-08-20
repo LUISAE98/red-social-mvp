@@ -271,7 +271,9 @@
     "priceMin": "Ang pinakamababang presyo ay ${min}",
     "shareStory": "Ibahagi ang kuwento",
     "pinError": "Hindi na-pin o na-unpin ang post.",
-    "viewsCountAriaLabel": "{count, plural, one {# panonood} other {# na panonood}}"
+    "viewsCountAriaLabel": "{count, plural, one {# panonood} other {# na panonood}}",
+    "addFlameToStory": "I-like ang kuwentong ito",
+    "removeFlameFromStory": "Alisin ang like sa kuwentong ito"
   },
   "groups": {
     "title": "Mga komunidad",

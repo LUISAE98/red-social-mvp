@@ -271,7 +271,9 @@
     "priceMin": "O preço mínimo é ${min}",
     "shareStory": "Compartilhar história",
     "pinError": "Não foi possível fixar ou desafixar a publicação.",
-    "viewsCountAriaLabel": "{count, plural, one {# visualização} other {# visualizações}}"
+    "viewsCountAriaLabel": "{count, plural, one {# visualização} other {# visualizações}}",
+    "addFlameToStory": "Curtir esta história",
+    "removeFlameFromStory": "Remover curtida desta história"
   },
   "groups": {
     "title": "Comunidades",

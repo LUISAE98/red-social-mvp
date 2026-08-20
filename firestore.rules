@@ -814,6 +814,19 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      // Espejo de los me gusta que esta persona dio a historias. Es lo que se
+      // lee para pintar el boton, y por eso vive bajo el propio usuario: saberlo
+      // no deberia obligar a listar la subcoleccion del contenido.
+      //
+      // Solo escribe el servidor (`toggleStoryLike`), que es quien mantiene a la
+      // vez la marca, este espejo y el contador.
+      match /storyLikes/{storyId} {
+        allow get, list: if signedIn()
+          && request.auth.uid == uid;
+
+        allow create, update, delete: if false;
+      }
+
 match /savedPosts/{postId} {
   allow get, list: if signedIn()
     && request.auth.uid == uid;

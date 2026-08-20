@@ -271,7 +271,9 @@
     "priceMin": "އެންމެ ދަށް އަގަކީ ${min}",
     "shareStory": "ވާހަކަ ޚިއްޞާކުރޭ",
     "pinError": "ޕޯސްޓް ޕިންކުރުން ނުވަތަ ޕިން ނެގުން ނުކުރެވުނު.",
-    "viewsCountAriaLabel": "{count, plural, one {# ބެލުން} other {# ބެލުން}}"
+    "viewsCountAriaLabel": "{count, plural, one {# ބެލުން} other {# ބެލުން}}",
+    "addFlameToStory": "މި ވާހަކައަށް ލައިކް ދޭ",
+    "removeFlameFromStory": "މި ވާހަކައިން ލައިކް ނަގާ"
   },
   "groups": {
     "title": "ކޮމިއުނިޓީތައް",

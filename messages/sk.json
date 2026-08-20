@@ -271,7 +271,9 @@
     "priceMin": "Minimálna cena je ${min}",
     "shareStory": "Zdieľať príbeh",
     "pinError": "Príspevok sa nepodarilo pripnúť ani odopnúť.",
-    "viewsCountAriaLabel": "{count, plural, one {# zhliadnutie} few {# zhliadnutia} other {# zhliadnutí}}"
+    "viewsCountAriaLabel": "{count, plural, one {# zhliadnutie} few {# zhliadnutia} other {# zhliadnutí}}",
+    "addFlameToStory": "Dať lajk tomuto príbehu",
+    "removeFlameFromStory": "Odobrať lajk tomuto príbehu"
   },
   "groups": {
     "title": "Komunity",

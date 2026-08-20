@@ -271,7 +271,9 @@
     "priceMin": "El precio mínimo es ${min}",
     "shareStory": "Compartir historia",
     "pinError": "No se pudo fijar o desfijar la publicación.",
-    "viewsCountAriaLabel": "{count, plural, one {# vista} other {# vistas}}"
+    "viewsCountAriaLabel": "{count, plural, one {# vista} other {# vistas}}",
+    "addFlameToStory": "Dar flamita a esta historia",
+    "removeFlameFromStory": "Quitar flamita de esta historia"
   },
   "groups": {
     "title": "Comunidades",

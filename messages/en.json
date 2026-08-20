@@ -271,7 +271,9 @@
     "priceMin": "The minimum price is ${min}",
     "shareStory": "Share story",
     "pinError": "Could not pin or unpin the post.",
-    "viewsCountAriaLabel": "{count, plural, one {# view} other {# views}}"
+    "viewsCountAriaLabel": "{count, plural, one {# view} other {# views}}",
+    "addFlameToStory": "Like this story",
+    "removeFlameFromStory": "Remove like from this story"
   },
   "groups": {
     "title": "Communities",

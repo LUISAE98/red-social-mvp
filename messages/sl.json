@@ -271,7 +271,9 @@
     "priceMin": "Najnižja cena je ${min}",
     "shareStory": "Deli zgodbo",
     "pinError": "Objave ni bilo mogoče pripeti ali odpeti.",
-    "viewsCountAriaLabel": "{count, plural, one {# ogled} two {# ogleda} few {# ogledi} other {# ogledov}}"
+    "viewsCountAriaLabel": "{count, plural, one {# ogled} two {# ogleda} few {# ogledi} other {# ogledov}}",
+    "addFlameToStory": "Všeč mi je ta zgodba",
+    "removeFlameFromStory": "Odstrani všeček s te zgodbe"
   },
   "groups": {
     "title": "Skupnosti",

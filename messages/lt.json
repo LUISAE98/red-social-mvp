@@ -271,7 +271,9 @@
     "priceMin": "Mažiausia kaina yra ${min}",
     "shareStory": "Bendrinti istoriją",
     "pinError": "Nepavyko prisegti ar atsegti įrašo.",
-    "viewsCountAriaLabel": "{count, plural, one {# peržiūra} few {# peržiūros} many {# peržiūros} other {# peržiūrų}}"
+    "viewsCountAriaLabel": "{count, plural, one {# peržiūra} few {# peržiūros} many {# peržiūros} other {# peržiūrų}}",
+    "addFlameToStory": "Patinka ši istorija",
+    "removeFlameFromStory": "Pašalinti patinka nuo šios istorijos"
   },
   "groups": {
     "title": "Bendruomenės",

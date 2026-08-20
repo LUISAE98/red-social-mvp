@@ -271,7 +271,9 @@
     "priceMin": "Cena minimalna to {min} $",
     "shareStory": "Udostępnij relację",
     "pinError": "Nie udało się przypiąć ani odpiąć posta.",
-    "viewsCountAriaLabel": "{count, plural, one {# wyświetlenie} few {# wyświetlenia} many {# wyświetleń} other {# wyświetlenia}}"
+    "viewsCountAriaLabel": "{count, plural, one {# wyświetlenie} few {# wyświetlenia} many {# wyświetleń} other {# wyświetlenia}}",
+    "addFlameToStory": "Polub tę historię",
+    "removeFlameFromStory": "Usuń polubienie tej historii"
   },
   "groups": {
     "title": "Społeczności",

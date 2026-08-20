@@ -271,7 +271,9 @@
     "priceMin": "Lágmarksverðið er ${min}",
     "shareStory": "Deila sögu",
     "pinError": "Ekki tókst að festa eða losa færsluna.",
-    "viewsCountAriaLabel": "{count, plural, one {# áhorf} other {# áhorf}}"
+    "viewsCountAriaLabel": "{count, plural, one {# áhorf} other {# áhorf}}",
+    "addFlameToStory": "Líka við þessa sögu",
+    "removeFlameFromStory": "Fjarlægja læk af þessari sögu"
   },
   "groups": {
     "title": "Samfélög",

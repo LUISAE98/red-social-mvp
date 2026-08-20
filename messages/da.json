@@ -271,7 +271,9 @@
     "priceMin": "Mindsteprisen er ${min}",
     "shareStory": "Del historie",
     "pinError": "Opslaget kunne ikke fastgøres eller frigøres.",
-    "viewsCountAriaLabel": "{count, plural, one {# visning} other {# visninger}}"
+    "viewsCountAriaLabel": "{count, plural, one {# visning} other {# visninger}}",
+    "addFlameToStory": "Synes godt om denne historie",
+    "removeFlameFromStory": "Fjern synes godt om fra denne historie"
   },
   "groups": {
     "title": "Communities",

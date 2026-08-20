@@ -271,7 +271,9 @@
     "priceMin": "Najniža cena je ${min}",
     "shareStory": "Подели причу",
     "pinError": "Objavu nije bilo moguće zakačiti ni otkačiti.",
-    "viewsCountAriaLabel": "{count, plural, one {# преглед} few {# прегледа} other {# прегледа}}"
+    "viewsCountAriaLabel": "{count, plural, one {# преглед} few {# прегледа} other {# прегледа}}",
+    "addFlameToStory": "Свиђа ми се ова прича",
+    "removeFlameFromStory": "Уклони свиђање са ове приче"
   },
   "groups": {
     "title": "Zajednice",
