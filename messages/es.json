@@ -1782,6 +1782,7 @@
     "modify": "Modificar",
     "adviceEarningsDesc": "Por un consejo de {gross}, tú cobras {net}.",
     "adviceEarningsLegend": "Por un consejo con ese costo, tú ganarás <amount>{net}</amount>.",
+    "donationReceiveLegend": "Recibes <amount>{net}</amount>",
     "adviceTitle": "Consejos",
     "adviceActivateLabel": "Activar consejos",
     "adviceConfigTitle": "Configurar consejos",

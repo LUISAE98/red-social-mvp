@@ -1782,6 +1782,7 @@
     "modify": "Modify",
     "adviceEarningsDesc": "For an advice of {gross}, you earn {net}.",
     "adviceEarningsLegend": "For advice at that price, you'll earn <amount>{net}</amount>.",
+    "donationReceiveLegend": "You receive <amount>{net}</amount>",
     "adviceTitle": "Advice",
     "adviceActivateLabel": "Activate advice",
     "adviceConfigTitle": "Configure advice",

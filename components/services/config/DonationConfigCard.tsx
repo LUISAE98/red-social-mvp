@@ -11,7 +11,8 @@
 // las palabras de entidad (perfil/comunidad) salen de "services" vía publishSuccess.entityKind.
 
 import { useEffect, useRef, useState } from "react";
-import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_LABEL, FIXED_SERVICE_FEE_NOTE } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_LABEL, FIXED_SERVICE_FEE_NOTE, DONATION_MIN_AMOUNT_USD } from "@/lib/currency/catalog";
+import { formatCurrency } from "@/lib/currency/format";
 import { useTranslations } from "next-intl";
 import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
@@ -27,8 +28,10 @@ import {
   normalizeSuggestedAmounts,
 } from "@/components/services/config/serviceConfigKit";
 
-// Cada monto sugerido debe ser al menos este valor (MXN).
-const DONATION_MIN_PER_AMOUNT = 50;
+// Mínimo por monto sugerido. Sale del catálogo para no repetir la cifra: el modal de pago
+// valida el MISMO valor al donar, y tenerlos en dos sitios era garantía de que se separaran.
+// ⚠️ Era 50 y estaba pensado en pesos; con la denominación en USD pedía 50 dólares por campo.
+const DONATION_MIN_PER_AMOUNT = DONATION_MIN_AMOUNT_USD;
 
 type Currency = "MXN" | "USD";
 type DonationMode = "none" | "general" | "wedding";
@@ -131,7 +134,18 @@ export default function DonationConfigCard({
   const tProfile = useTranslations("profile");
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
-  const { format: formatMoney, currency: displayCurrency } = usePriceFormat();
+  const { locale } = usePriceFormat();
+
+  /**
+   * Dinero del CREADOR, en la moneda de liquidación y con el código al final.
+   *
+   * ⚠️ NO usar `usePriceFormat().format` para esto: ese calcula el
+   * precio del COMPRADOR —convierte a su moneda, suma el 2% y redondea al paso—, así que
+   * "recibes 2.25" salía como "$40.00" en pesos. Lo que el creador configura y lo que
+   * cobra viven en USD; convertirlo aquí es enseñarle una cifra que nadie le va a pagar.
+   */
+  const montoUSD = (n: number) =>
+    formatCurrency(n, SETTLEMENT_CURRENCY, locale, { code: true });
 
   // Diferenciadores por scope (lo único que cambia entre perfil y comunidad).
   const videoCallableName = scope === "group" ? "createMuxGroupDonationUpload" : "createMuxDonationUpload";
@@ -330,7 +344,7 @@ export default function DonationConfigCard({
     if (!isEnabled) return null;
     const amountsList = normalizeSuggestedAmounts(draft.donationSuggestedAmounts);
     const amount = amountsList
-      .map((a) => formatMoney(Number(a), { baseCurrency: displayCurrency }))
+      .map((a) => montoUSD(Number(a)))
       .join(" · ");
     const hasVideo = Boolean(draft.donationPlaybackId);
 
@@ -575,8 +589,16 @@ export default function DonationConfigCard({
                     </div>
                   </div>
                   <div style={{ maxHeight: showEarnI ? 22 : 0, opacity: showEarnI ? 1 : 0, transform: showEarnI ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease" }}>
+                    {/* Mismo formato que las leyendas de los demás servicios —el importe
+                        resaltado con `<amount>`— pero en el celeste de donaciones. Antes era
+                        una cadena en español fija dentro del código, sin traducir. */}
                     <div style={{ ...subtleStyle, fontSize: 11, marginTop: 2 }}>
-                      {`Ganas ${formatMoney(netI ?? 0, { baseCurrency: SETTLEMENT_CURRENCY })}`}
+                      {tServices.rich("donationReceiveLegend", {
+                        net: montoUSD(netI ?? 0),
+                        amount: (chunks) => (
+                          <span style={{ color: "#7dd3fc", fontWeight: 700 }}>{chunks}</span>
+                        ),
+                      })}
                     </div>
                   </div>
                 </div>

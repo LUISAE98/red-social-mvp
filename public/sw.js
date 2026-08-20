@@ -12,9 +12,11 @@
 //
 // Al cambiar VERSION se limpian los caches viejos automáticamente.
 
+// v4: los iconos cambian de contenido (mismo nombre de archivo). Sin subir la
+// version, el cache viejo seguiria sirviendo el icono con el marco negro.
 // v3: cambian las rutas de los iconos. Sin subir la version, el cache viejo
 // seguiria sirviendo el logotipo anterior a quien ya tenga el service worker.
-const VERSION = "v3";
+const VERSION = "v4";
 const STATIC_CACHE = `vibra-static-${VERSION}`;
 const RUNTIME_CACHE = `vibra-runtime-${VERSION}`;
 
