@@ -298,6 +298,20 @@ function ProfileAvatarIcon({
  */
 const NAV_SHRUNK_SCALE = 0.88;
 
+/**
+ * Pantallas con cabecera propia y feed largo debajo: un perfil, el tuyo o el de
+ * otra persona, y una comunidad. En ellas el avatar del nav sube al principio
+ * antes de abrir el menú, que es el atajo que antes daba la flecha flotante.
+ *
+ * `/groups/new` es un formulario y `/groups` a secas es el índice: ninguno de los
+ * dos tiene nada que recorrer.
+ */
+function isScrollableFeed(pathname: string): boolean {
+  if (/^\/u\/[^/]+/.test(pathname)) return true;
+  if (pathname === "/groups/new" || pathname === "/groups") return false;
+  return /^\/groups\/[^/]+/.test(pathname);
+}
+
 export default function MobileBottomNav({
   showWallet = false,
 }: {
@@ -806,6 +820,26 @@ export default function MobileBottomNav({
                   const alreadyHere = pendingHref !== null
                     ? item.href === pendingHref
                     : item.active;
+
+                  // En un perfil —el tuyo o el de otra persona— o dentro de una
+                  // comunidad, el avatar sube primero al principio de la
+                  // pantalla; solo desde arriba abre el menú. Va antes que el
+                  // resto porque su destino (`/menu`) no es la pantalla en la
+                  // que estás, así que la comprobación de "raíz" de abajo nunca
+                  // lo alcanzaría y se iría al menú de un solo toque.
+                  //
+                  // Es el atajo que antes daba la flecha morada flotante: al
+                  // retirarla, estas dos pantallas se habían quedado sin ninguna
+                  // forma de volver arriba que no fuera a dedo.
+                  if (
+                    item.type === "avatar" &&
+                    isScrollableFeed(pathname) &&
+                    window.scrollY > 8
+                  ) {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    sessionStorage.setItem(`nav:scroll:${pathname}`, "0");
+                    return;
+                  }
 
                   if (alreadyHere) {
                     // Estar "en la sección" no siempre es estar en su raíz: el

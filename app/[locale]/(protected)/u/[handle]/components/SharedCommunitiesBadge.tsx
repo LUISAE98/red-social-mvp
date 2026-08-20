@@ -98,7 +98,7 @@ export default function SharedCommunitiesBadge({
       return (
         <span
           className="flex items-center"
-          style={{ minWidth: 32, minHeight: 32 }}
+          style={{ minWidth: 40, minHeight: 40 }}
           aria-hidden="true"
         >
           <style jsx>{`
@@ -130,8 +130,8 @@ export default function SharedCommunitiesBadge({
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="vb-skel relative flex h-8 w-8 shrink-0 rounded-full"
-              style={{ marginInlineStart: i === 0 ? 0 : -15, zIndex: 20 + i }}
+              className="vb-skel relative flex h-10 w-10 shrink-0 rounded-full"
+              style={{ marginInlineStart: i === 0 ? 0 : -18, zIndex: 20 + i }}
             />
           ))}
         </span>
@@ -152,7 +152,7 @@ export default function SharedCommunitiesBadge({
     <>
 <button
   type="button"
-  className="group flex max-w-[160px] items-center justify-end bg-transparent px-0 py-0 transition-opacity duration-200" 
+  className="group flex max-w-[200px] items-center justify-end bg-transparent px-0 py-0 transition-opacity duration-200" 
   aria-label={tProfile("sharedCommunitiesBadgeAriaLabel")}
   title={tProfile("sharedCommunitiesTitle")}
   onTouchStart={handleTouchStart}
@@ -166,13 +166,15 @@ export default function SharedCommunitiesBadge({
               <span
                 key={community.id}
 className={[
-  "relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-neutral-900 text-[11px] font-bold text-white/75 shadow-[0_8px_18px_rgba(0,0,0,0.32)]",
+  "relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-neutral-900 text-[13px] font-bold text-white/75 shadow-[0_8px_18px_rgba(0,0,0,0.32)]",
   "brightness-[0.74] saturate-[0.9] transition-all duration-300 ease-out",
   "group-hover:brightness-100 group-hover:saturate-100 group-hover:-translate-y-0.5 group-hover:scale-105",
   isTouchPopping ? "scale-105 brightness-100 saturate-100" : "",
 ].join(" ")}
                 style={{
-                  marginInlineStart: index === 0 ? 0 : -15,
+                  // El solape crece con el círculo para que la tira siga
+                  // leyéndose como una baraja y no como tres bolas sueltas.
+                  marginInlineStart: index === 0 ? 0 : -18,
                   zIndex: 20 + index,
                 }}
                 aria-label={community.name}
@@ -194,13 +196,15 @@ className={[
           {shouldShowPlus ? (
             <span
 className={[
-  "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-700/85 text-base font-black text-white shadow-[0_8px_18px_rgba(0,0,0,0.32)]",
+  // Gris, no morado: el morado es el color de acción de la plataforma y aquí
+  // esto no es un botón de marca, es el "y N más" de la propia tira.
+  "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-700/85 text-lg font-black text-white shadow-[0_8px_18px_rgba(0,0,0,0.32)]",
   "transition-all duration-300 ease-out",
-  "group-hover:-translate-y-0.5 group-hover:scale-105 group-hover:bg-purple-600/95",
-  isTouchPopping ? "scale-105 bg-purple-600/95" : "",
+  "group-hover:-translate-y-0.5 group-hover:scale-105 group-hover:bg-neutral-600/95",
+  isTouchPopping ? "scale-105 bg-neutral-600/95" : "",
 ].join(" ")}
               style={{
-                marginInlineStart: -15,
+                marginInlineStart: -18,
                 zIndex: 40,
               }}
               aria-label={tProfile("sharesCommunities", { count: communities.length })}

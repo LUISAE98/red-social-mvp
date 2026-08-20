@@ -343,6 +343,10 @@ export default function ConversationPage() {
             `corrido ${viewport?.offsetTop ?? "—"}`,
             `alto vv ${viewport?.height ?? "—"}`,
             `alto win ${typeof window !== "undefined" ? window.innerHeight : "—"}`,
+            // La comparacion que importa: si "alto win" se queda por debajo de
+            // "pantalla" con el teclado ya cerrado, el viewport de LAYOUT sigue
+            // encogido y ese es el hueco negro de abajo.
+            `pantalla ${typeof window !== "undefined" ? window.screen.height : "—"}`,
             `teclado ${keyboardPx}`,
             `foco ${composerFocused ? "sí" : "no"}`,
             `calza ${calzarAreaVisible ? "sí" : "no"}`,

@@ -301,6 +301,50 @@ export default async function RootLayout({
             `,
           }}
         />
+        {/* 🍏 iOS: quitar `interactive-widget` del viewport.
+             =================================================
+             El viewport declara `interactive-widget=resizes-content` para que en
+             Android el navegador ENCOJA el viewport de layout al abrir el teclado
+             y lo anclado abajo suba con él, en vez de esconderse detrás.
+
+             En iOS eso mismo es la causa de un fallo feo: Safari encoge el
+             viewport de layout, pero al cerrarse el teclado NO siempre lo
+             devuelve a su tamaño. Y como `position: fixed` ancla al viewport de
+             LAYOUT, todo lo de abajo —la barra inferior, el campo del chat— se
+             queda flotando a unos 130px del borde, con un hueco negro debajo que
+             parece un safe-area salido de la nada. Sobrevive al cambio de página
+             y solo se endereza al navegar a otra sección.
+
+             iOS no necesita esta pista: la pantalla de chat ya sigue el viewport
+             VISUAL a mano (useVisualViewport), que es la técnica de siempre en
+             Safari y funciona sin encoger nada.
+
+             Va como script en el head y no como efecto de React porque tiene que
+             estar puesto ANTES del primer teclado. Si llega después, el desfase
+             ya se produjo. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var ua = navigator.userAgent || "";
+                  var esIOS = /iPad|iPhone|iPod/.test(ua)
+                    || (/Mac/.test(ua) && navigator.maxTouchPoints > 1);
+                  if (!esIOS) return;
+                  var meta = document.querySelector('meta[name="viewport"]');
+                  if (!meta) return;
+                  var limpio = meta.content
+                    .split(",")
+                    .filter(function (parte) {
+                      return parte.indexOf("interactive-widget") === -1;
+                    })
+                    .join(",");
+                  if (limpio !== meta.content) meta.content = limpio;
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
       </head>
 
       <body

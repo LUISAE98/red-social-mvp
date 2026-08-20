@@ -575,6 +575,17 @@ export default function CommunityRail({
           opacity: !collapsible || open ? 1 : 0,
           transition:
             "grid-template-rows 380ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms ease",
+          // ⚠️ El temblor al abrir y cerrar era el ANCLAJE DE SCROLL del
+          // navegador. Cuando algo por encima del punto de mira cambia de alto,
+          // Chrome corrige el scroll para que lo que estabas mirando no se mueva.
+          // Con una altura animándose eso pasa en CADA fotograma, así que el
+          // menú entero daba tirones mientras durara la transición. Apagarlo en
+          // el contenedor que se anima es la cura: aquí el usuario está mirando
+          // la tira que se despliega, no lo que hay debajo.
+          overflowAnchor: "none",
+          // Aísla el repintado del subárbol para que el navegador no tenga que
+          // rehacer el resto del menú en cada fotograma.
+          contain: "paint",
         }}
       >
         <div style={{ overflow: "hidden", minWidth: 0 }}>

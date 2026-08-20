@@ -3,10 +3,16 @@
 import type { CSSProperties } from "react";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { formatCurrency } from "@/lib/currency/format";
+import { LocalPriceHint } from "@/components/services/config/serviceConfigKit";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
-import { FIXED_SERVICE_FEE_USD, PREMIUM_MIN_PRICE_USD } from "@/lib/currency/catalog";
+import {
+  FIXED_SERVICE_FEE_USD,
+  FIXED_SERVICE_FEE_LABEL,
+  FIXED_SERVICE_FEE_NOTE,
+  PREMIUM_MIN_PRICE_USD,
+} from "@/lib/currency/catalog";
 import type {
   PostPremiumAccessMode,
   PostPremiumFreeFor,
@@ -267,7 +273,6 @@ export default function ComposerPremiumPanel({
 
   const requiresPrice = true;
 
-  const { currency: displayCurrency } = priceFmt;
 
   const parsedPrice = parseFloat(priceInput);
   const hasValidPrice =
@@ -442,7 +447,7 @@ export default function ComposerPremiumPanel({
                 whiteSpace: "nowrap",
               }}
             >
-              + $3
+              {FIXED_SERVICE_FEE_LABEL}
             </span>
 
             <span
@@ -454,7 +459,10 @@ export default function ComposerPremiumPanel({
                 whiteSpace: "nowrap",
               }}
             >
-              {displayCurrency}
+              {/* ⚠️ La moneda en la que TECLEA el creador, no la del visor. Antes salía
+                  `displayCurrency` —la moneda de quien mira— junto a un campo cuyo valor
+                  va en la de liquidación: el creador escribía 20 y leía "MXN" al lado. */}
+              {SETTLEMENT_CURRENCY}
             </span>
           </div>
 
@@ -520,9 +528,13 @@ export default function ComposerPremiumPanel({
                 marginTop: 3,
               }}
             >
-              Se suman ${FIXED_SERVICE_FEE_USD} MXN por el cargo de procesamiento de Stripe.
+              {FIXED_SERVICE_FEE_NOTE}
             </div>
           </div>
+
+          {/* Referencia en la moneda del creador, igual que en el resto de experiencias.
+              El precio SIEMPRE se fija en la de liquidación; esto solo lo ayuda a ubicarse. */}
+          <LocalPriceHint value={anchorPrice} netRate={WALLET_NET_RATE} />
         </>
       ) : null}
     </div>

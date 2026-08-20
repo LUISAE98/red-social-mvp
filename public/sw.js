@@ -12,12 +12,16 @@
 //
 // Al cambiar VERSION se limpian los caches viejos automáticamente.
 
+// v6: el manifest deja de servirse desde cache. Sin esto, un cambio en
+//     manifest.json (display, iconos, colores) no llegaba NUNCA a quien ya
+//     tuviera la app instalada: Chrome revisa el manifest para actualizar el
+//     WebAPK y el service worker le devolvia la copia vieja.
 // v5: logotipo nuevo en los iconos de app.
 // v4: los iconos cambian de contenido (mismo nombre de archivo). Sin subir la
 // version, el cache viejo seguiria sirviendo el icono con el marco negro.
 // v3: cambian las rutas de los iconos. Sin subir la version, el cache viejo
 // seguiria sirviendo el logotipo anterior a quien ya tenga el service worker.
-const VERSION = "v5";
+const VERSION = "v6";
 const STATIC_CACHE = `vibra-static-${VERSION}`;
 const RUNTIME_CACHE = `vibra-runtime-${VERSION}`;
 
@@ -54,7 +58,19 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+/**
+ * El manifest NO es inmutable, aunque este en PRECACHE.
+ *
+ * Se precachea para que la app arranque sin red, pero servirlo desde cache
+ * primero deja congelado su contenido: Chrome lo relee cada cierto tiempo para
+ * actualizar el WebAPK instalado en Android, y con la copia vieja delante un
+ * cambio de `display`, de iconos o de colores no llega jamas al aparato.
+ * Va por la rama de red-primero, que igualmente cae a la cache si no hay senal.
+ */
+const SIEMPRE_FRESCO = ["/manifest.json"];
+
 function isImmutableAsset(url) {
+  if (SIEMPRE_FRESCO.includes(url.pathname)) return false;
   return (
     url.pathname.startsWith("/_next/static/") ||
     PRECACHE.includes(url.pathname) ||
@@ -89,8 +105,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 2) Navegaciones (HTML) → network-first, con caché como respaldo offline.
-  if (request.mode === "navigate") {
+  // 2) Navegaciones (HTML) y el manifest → network-first, con caché de respaldo.
+  if (request.mode === "navigate" || SIEMPRE_FRESCO.includes(url.pathname)) {
     event.respondWith(
       fetch(request)
         .then((res) => {
