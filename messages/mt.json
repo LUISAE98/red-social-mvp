@@ -271,7 +271,7 @@
     "priceMin": "Il-prezz minimu huwa ${min}",
     "shareStory": "Aqsam l-istorja",
     "pinError": "Il-post ma setax jiġi mwaħħal jew imneħħi.",
-    "viewsCountAriaLabel": "{count, plural, one {# dehra} few {# dehriet} many {# dehriet} other {# dehriet}}"
+    "viewsCountAriaLabel": "{count, plural, one {# dehra} two {# dehriet} few {# dehriet} many {# dehriet} other {# dehriet}}"
   },
   "groups": {
     "title": "Komunitajiet",

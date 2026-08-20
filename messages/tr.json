@@ -271,7 +271,7 @@
     "priceMin": "En düşük fiyat ${min}",
     "shareStory": "Hikâyeyi paylaş",
     "pinError": "Gönderi sabitlenemedi veya sabitlemesi kaldırılamadı.",
-    "viewsCountAriaLabel": "{count, plural, other {# görüntülenme}}"
+    "viewsCountAriaLabel": "{count, plural, one {# görüntülenme} other {# görüntülenme}}"
   },
   "groups": {
     "title": "Topluluklar",
