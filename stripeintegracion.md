@@ -284,7 +284,7 @@ precio es uno solo ($4.99) y es su marca; aquí cada creador pone el suyo.
 
 | | Para qué | Cómo |
 |---|---|---|
-| `roundCharm` | El **precio** que paga el comprador | `.99` / `.00`, siempre hacia arriba |
+| `roundCharm` | El **precio** que paga el comprador | Termina en **9**, siempre hacia arriba, subiendo como mucho un escalón (ver 8-ter) |
 | `roundReference` | La **referencia** del creador en su moneda | Escalón grueso: 0.50 / 1 / 10 / 50 / 500 según el monto |
 
 ⚠️ La referencia NO usa terminación comercial **a propósito**. Con `.99` parecería un precio
@@ -377,7 +377,8 @@ explicarle después por qué su precio local cambió.
 
 ### Punto 3 — Precio comercial (✅ cobro, sin desplegar)
 
-`roundCharm`: el total queda en `.99` o `.00`, el que quede más cerca **por arriba**.
+`roundCharm`: el total sube al siguiente escalón de la moneda y termina en **9**. ⚠️ El
+tamaño de ese escalón se bajó el 2026-08-20; ver **8-ter**.
 
 ```
 composeCharge        base + fijo → +2% FX → +impuesto  = 118.80 USD
@@ -618,7 +619,7 @@ El precio se construye siempre en este orden:
 | 2. Cargo fijo | **+ 0.40 USD** | El comprador |
 | 3. Conversión de divisa | **+ 2%** sobre lo anterior, solo si el comprador NO paga en USD | El comprador |
 | 4. Impuesto del país del comprador | Según la tabla de 147 jurisdicciones | El comprador |
-| 5. Redondeo comercial | El total sube al `,99` de su moneda | El comprador |
+| 5. Redondeo comercial | El total sube al siguiente escalón y termina en **9** (ver 8-ter) | El comprador |
 
 **El creador cobra el 75% de su base** (paso 1), siempre, exacto. Ni el cargo fijo, ni la
 conversión, ni el impuesto, ni el redondeo le tocan un céntimo — ni a favor ni en contra.
@@ -757,6 +758,80 @@ Mínimo: **1.50 USD** al mes.
 correcta, con el impuesto correcto y enseñando lo que van a cobrar. Lo que **no** está listo
 es el otro lado del circuito: **el dinero entra y todavía no hay por dónde salga hacia el
 creador.** Hasta que existan los retiros, esto no puede operar en real.
+
+
+## 8-ter. El escalón del redondeo comercial (decisión 2026-08-20)
+
+### Qué se cambió
+
+El redondeo comercial subía el total al siguiente **1 unidad** de la moneda del comprador.
+Ahora sube al siguiente **`NICE_STEP` / 5**, que en dólares son 10 céntimos.
+
+### Por qué
+
+El escalón de 1 unidad **no vale lo mismo en todas las monedas**. Un peso mexicano son 6
+céntimos de dólar y nadie lo notaba; un dólar o un euro son la unidad entera. Medido:
+
+| Base del creador | Total con escalón 1.00 | Encarecía |
+|---|---|---|
+| 2.00 USD | 2.99 USD | **49.5%** |
+| 3.00 USD | 3.99 USD | 33.0% |
+| 5.00 USD | 5.99 USD | 19.8% |
+| 20.00 USD | 20.99 USD | 4.9% |
+
+El daño era **regresivo**: cuanto más barata la experiencia, más se encarecía. Y caía
+justo sobre la compra por impulso —súper comentario, ticket de live, post premium—, que es
+la que vive de ser barata.
+
+### Por qué NO se tocaron los mínimos
+
+Se midió el neto de Vibra después de la comisión real de Stripe (2.9% + 1.5% de tarjeta
+extranjera + 0.30 fijos + 0.05 de Radar). **Ningún mínimo actual pierde dinero**: un post
+premium de 1.50 USD deja 0.39 USD limpios. Así que el problema no eran los mínimos sino el
+escalón, y se corrigió el escalón.
+
+### Por qué NO se pierde estabilidad de precio
+
+El colchón frente al movimiento del tipo de cambio **no lo daba el redondeo**: lo da el
+vigilante de deriva, que refresca la tasa congelada en cuanto se desvía un **0.5%**
+(bandas propias para ARS, TRY, NGN, EGP y VND). Bajar el escalón no quita colchón, quita
+sobrecobro.
+
+### A quién beneficia
+
+**38 de las 78 monedas.** Las de unidad valiosa, que son las que tenían el escalón
+desproporcionado:
+
+| Escalón nuevo | Monedas |
+|---|---|
+| 0.01 – 0.05 | KWD · JOD · KYD |
+| **0.10** | **USD · EUR · GBP** · CAD · AUD · NZD · SGD · MYR · QAR · AED-área · BAM · PGK · FJD · TOP · WST · BZD · BMD · XCD · GIP · AZN · BND |
+| 0.20 | BRL · PLN · DKK · RON · PEN · BOB · GTQ · HKD · AED · SAR · TTD |
+| 0.40 | MAD · SBD · MVR · BWP |
+
+**Las otras 40 no cambian** —peso mexicano, argentino, colombiano, chileno, yen, won,
+real...— porque su escalón ya era fino. Esto importa para el contrato: **el precio en pesos
+mexicanos no se movió ni un céntimo con este cambio.**
+
+⚠️ La calibración no se decidió moneda por moneda: sale de dividir entre 5 la tabla
+`NICE_STEP`, que ya estaba pensada para que el escalón valga lo mismo en poder adquisitivo
+en las 78. Por eso el reparto entre "mejora" y "no cambia" sale solo.
+
+### Lo que el escalón NO arregla
+
+El **cargo fijo de 0.40 USD** no depende del redondeo. En un servicio de 1.50 USD son un
+27% del precio del creador, y es el coste real de Stripe por transacción (0.30 fijos +
+0.05 de Radar, con margen para que Stripe cobre su porcentaje también sobre ese cargo).
+
+Si algún día se quieren micro-compras de verdad baratas, la vía **no** es bajar mínimos:
+es que el comprador recargue saldo una vez y gaste desde ahí, con un solo cargo de Stripe
+para muchas compras. El sistema de saldo a favor ya está construido.
+
+### Verificación
+
+Los dos espejos del redondeo —`backend/src/tax/presentmentFormat.ts` y
+`lib/currency/format.ts`— se comprobaron importe a importe sobre las **78 monedas**: dan el
+mismo número. Si se separan, el precio mostrado y el cobrado se separan con ellos.
 
 ## 9. Dependencias para operar en vivo
 

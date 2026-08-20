@@ -241,11 +241,24 @@ service firebase.storage {
      * coste de Vibra. Sin límite y sin nada que limpiara los archivos que nunca
      * llegaron a ser un mensaje.
      *
-     * ⚠️ La comprobación lee Firestore desde storage.rules, y eso falla CERRADO:
-     * si la consulta no funciona, no se puede subir. Es lo correcto para una
-     * escritura (mejor no subir que subir a cualquier sitio), justo al revés que
-     * en las reglas de LECTURA de esta misma familia, donde el propio dueño va
-     * delante con `||` para que un fallo de la consulta no le cierre su archivo.
+     * 🚨 EL ID VA DELANTE DEL `||`, COMO EN EL RESTO DEL ARCHIVO. 🚨
+     *
+     * La comprobación contra Firestore (`firestore.exists` / `firestore.get`
+     * desde storage.rules) ERROR-A si la lectura entre servicios no está
+     * habilitada, y un error DENIEGA. Se dejó delante razonando que, para una
+     * escritura, fallar cerrado era lo prudente. En la práctica no cerraba a los
+     * intrusos: cerraba a TODO el mundo, y adjuntar una imagen en el chat
+     * devolvía 403 para cualquier cuenta.
+     *
+     * Con `elIdMeIncluye` primero, el caso legítimo ni siquiera llega a
+     * consultar Firestore: los ids son deterministas —los dos uids ordenados y
+     * unidos por `_`, ver buildParticipantsKey— así que quien participa lo
+     * cumple SIEMPRE, y el `||` corta antes.
+     *
+     * Y no se afloja nada: para subir sigue haciendo falta escribir bajo TU
+     * propio uid Y en un id que contenga tu uid. Un hilo ajeno no cumple ni una
+     * de las dos. Quien no participe cae en la rama de Firestore, que denegará
+     * —por error o por respuesta—, que es justo lo que se quiere para él.
      */
     /**
      * ⚠️ El id de una conversación es determinista: los dos uids ordenados y
@@ -277,7 +290,8 @@ service firebase.storage {
         && (folder == "images" || folder == "thumbnails")
         && isImage()
         && maxSize(10 * 1024 * 1024)
-        && participaEnLaConversacion(conversationId);
+        && (elIdMeIncluye(conversationId)
+            || participaEnLaConversacion(conversationId));
 
       // El borrado se queda cerrado: lo hace `onDirectMessageDeletedCleanupImage`
       // con el Admin SDK al retirar el mensaje. Un `allow write` no sirve para

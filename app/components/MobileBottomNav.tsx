@@ -599,14 +599,18 @@ export default function MobileBottomNav({
               rgba(0, 0, 0, 0.18) 100%
             ),
             rgba(10, 10, 14, 0.68);
-          border: 1px solid rgba(255, 255, 255, 0.14);
+          /* El contorno se apoya sobre un cristal ya bastante oscuro, así que un
+             borde al 14% se leía como una línea dibujada y no como un filo. Con
+             el fondo tan ahumado, el volumen lo dan las sombras; el borde solo
+             tiene que insinuar dónde acaba. */
+          border: 1px solid rgba(255, 255, 255, 0.06);
           /* El volumen sale de cuatro capas: filo de luz arriba, sombra propia
              abajo (las dos por dentro, son el grosor del cristal) y dos sombras
              fuera, una corta y pegada y otra larga y difusa, que es lo que
              separa la píldora del contenido y la hace flotar. */
           box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.20),
-            inset 0 -1px 0 rgba(0, 0, 0, 0.45),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.22),
             0 6px 14px rgba(0, 0, 0, 0.34),
             0 22px 48px rgba(0, 0, 0, 0.52);
           /* Más desenfoque y algo de brillo a la baja: lo que pasa por detrás
