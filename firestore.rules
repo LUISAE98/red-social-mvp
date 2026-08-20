@@ -2436,8 +2436,27 @@ match /memberBlocks/{blockId} {
       allow update: if false;
       allow delete: if false;
 
-      allow get, list: if signedIn()
-        && resource.data.creatorId == request.auth.uid;
+      // Una muestra LISTA y de PERFIL es escaparate: se graba justo para que la
+      // vea quien todavia no ha comprado nada. Por eso entra al feed de reels y
+      // se puede leer sin ser el dueno.
+      //
+      // ⚠️ Se lee con `get` y valor por defecto, no a pelo: en un `list` lo que la
+      // consulta no fija se comporta como ausente, y tocarlo es un ERROR de
+      // evaluacion que deniega la consulta ENTERA. Es el mismo fallo que tenia
+      // mordido al feed de lives.
+      //
+      // Las muestras de COMUNIDAD quedan fuera a proposito: su visibilidad
+      // deberia seguir a la de la comunidad, y comprobar eso por documento es
+      // justo lo que agota el tope de accesos de un `list` y tumba la consulta.
+      // Es la misma linea que ya separa a las historias de comunidad privada.
+      function esMuestraDeEscaparate() {
+        return resource.data.get('status', '') == "ready"
+          && resource.data.get('isDeleted', true) == false
+          && resource.data.get('source', '') == "profile";
+      }
+
+      allow get, list: if (signedIn() && resource.data.creatorId == request.auth.uid)
+        || esMuestraDeEscaparate();
     }
 
     match /greetingRequests/{requestId} {

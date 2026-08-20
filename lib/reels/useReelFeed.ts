@@ -37,6 +37,7 @@ import {
 } from "./reelRanking";
 import { dedupeItems, storiesOf, storyItem, type ReelItem } from "./reelItems";
 import { fetchReelLivesOnce, subscribeReelLives } from "./reelLives";
+import { fetchReelSamples } from "./reelSamples";
 import {
   getReelFeedGeneration,
   getReelFeedGenerationServer,
@@ -197,7 +198,7 @@ export function useReelFeed(uid: string | null | undefined) {
 
     (async () => {
       try {
-      const [taste, viewed, interest, followed, pool, lives] = await Promise.all([
+      const [taste, viewed, interest, followed, pool, lives, samples] = await Promise.all([
         getUserTasteVector(uid).catch(() => new Map<CanonicalGroupCategory, number>()),
         fetchViewedMap(uid),
         sameUser ? Promise.resolve(interestRef.current) : loadTermVector(uid),
@@ -207,6 +208,10 @@ export function useReelFeed(uid: string | null | undefined) {
         // usuario scrolle una pagina entera. Por eso se piden aqui y no se
         // deja al primer aviso de la suscripcion, que llegaba cuando queria.
         fetchReelLivesOnce({ uid }),
+        // Las muestras del escaparate. Se piden una vez y se mezclan con la
+        // primera tanda: son pocas —tres por servicio— y su valor esta justo al
+        // principio, cuando el creador aun no tiene encargos que ensenar.
+        fetchReelSamples(),
       ]);
       if (cancelled) return;
 
@@ -233,7 +238,11 @@ export function useReelFeed(uid: string | null | undefined) {
         head.push(storyItem(s));
       }
 
-      const tail = arrange(pool.stories);
+      // Las muestras entran por el mismo sitio que el descubrimiento: son
+      // saludos y consejos, asi que compiten en sus mismos carriles y se
+      // rankean con la misma vara. Lo unico que las distingue es de donde
+      // salieron.
+      const tail = arrange([...pool.stories, ...samples]);
 
       setState({ uid, items: dedupeItems([...head, ...tail]), ready: true });
       } catch (err) {

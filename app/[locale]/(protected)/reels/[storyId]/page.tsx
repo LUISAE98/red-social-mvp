@@ -19,6 +19,7 @@ import { useAuth } from "@/app/providers";
 import { useScreenReady } from "@/lib/useScreenReady";
 import { useReelFeed } from "@/lib/reels/useReelFeed";
 import { dedupeItems, storyItem } from "@/lib/reels/reelItems";
+import { sampleToStory } from "@/lib/reels/reelSamples";
 import { storyVideoKey } from "@/lib/reels/reelStories";
 import type { StoryDoc } from "@/lib/stories/types";
 import ReelsSurface from "@/components/reels/ReelsSurface";
@@ -44,16 +45,26 @@ export default function ReelStoryPage() {
   useEffect(() => {
     if (!storyId) return;
     let cancelled = false;
-    getDoc(doc(db, "stories", storyId))
-      .then((snap) => {
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, "stories", storyId));
         if (cancelled) return;
-        // Las reglas ya deciden si esta persona puede leerla. Una historia de
-        // comunidad privada simplemente no llega, y aquí se trata como ausente.
-        setTarget(snap.exists() ? ({ id: snap.id, ...snap.data() } as StoryDoc) : null);
-      })
-      .catch(() => {
+        if (snap.exists()) {
+          // Las reglas ya deciden si esta persona puede leerla. Una historia de
+          // comunidad privada simplemente no llega, y aqui se trata como ausente.
+          setTarget({ id: snap.id, ...snap.data() } as StoryDoc);
+          return;
+        }
+        // El enlace puede apuntar a una MUESTRA del escaparate, que vive en otra
+        // coleccion. Sin esto, compartir una muestra daba un enlace que abria el
+        // reel por el principio en vez de por ella.
+        const muestra = await getDoc(doc(db, "greetingSamples", storyId));
+        if (cancelled) return;
+        setTarget(muestra.exists() ? sampleToStory(muestra) : null);
+      } catch {
         if (!cancelled) setTarget(null);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };

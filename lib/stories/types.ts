@@ -48,6 +48,17 @@ export type StoryDoc = {
   categories?: CanonicalGroupCategory[];
   /** Vistas únicas acumuladas (lo incrementa un trigger backend). Popularidad. */
   viewsCount?: number;
+  /**
+   * Viene de `greetingSamples`, no de `stories`: es una muestra que el creador
+   * grabó como escaparate al activar su servicio, sin comprador ni encargo
+   * detrás.
+   *
+   * Para quien la ve en el reel es un saludo o un consejo como cualquier otro, y
+   * por eso viaja con la misma forma. La marca existe para lo que SÍ cambia: no
+   * acumula vistas, no se puede retirar del reel y no vive en la colección de
+   * historias.
+   */
+  isSample?: boolean;
 };
 
 export type StoryViewDoc = {
