@@ -347,6 +347,17 @@ export default function ConversationPage() {
             // "pantalla" con el teclado ya cerrado, el viewport de LAYOUT sigue
             // encogido y ese es el hueco negro de abajo.
             `pantalla ${typeof window !== "undefined" ? window.screen.height : "—"}`,
+            // Modo real en el que se esta ejecutando la app instalada. Si aqui
+            // pone "standalone" cuando el manifest pide "fullscreen", el
+            // WebAPK de Android sigue con la copia vieja del manifest y ningun
+            // cambio de codigo va a servir hasta que Chrome lo actualice.
+            `modo ${
+              typeof window !== "undefined"
+                ? (["fullscreen", "standalone", "minimal-ui", "browser"].find((m) =>
+                    window.matchMedia(`(display-mode: ${m})`).matches
+                  ) ?? "—")
+                : "—"
+            }`,
             `teclado ${keyboardPx}`,
             `foco ${composerFocused ? "sí" : "no"}`,
             `calza ${calzarAreaVisible ? "sí" : "no"}`,

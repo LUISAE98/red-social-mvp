@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { formatCurrency } from "@/lib/currency/format";
 import { LocalPriceHint } from "@/components/services/config/serviceConfigKit";
@@ -256,6 +256,27 @@ export default function ComposerPremiumPanel({
   // estar bajo el mínimo se avisa en rojo bajo el propio campo, y publicar ya está
   // bloqueado por `validation.valid` en el composer.
 
+  /**
+   * Al activar la monetización, el panel se trae a la vista.
+   *
+   * Aparece DEBAJO de los medios, así que en un móvil —o en un composer ya largo— nace
+   * fuera de pantalla: el creador activaba premium y no veía ni el campo del precio ni el
+   * aviso del mínimo. Vive aquí, y no en el botón, porque hay varias formas de encenderlo
+   * (el botón del composer de escritorio, el del móvil y el enlace directo de "crea tu
+   * primera publicación premium"), y así ninguna se queda sin ello.
+   *
+   * `block: "nearest"` desplaza lo mínimo necesario: si ya se ve entero, no mueve nada.
+   */
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const visible = hasVideos && premiumEnabled;
+  useEffect(() => {
+    if (!visible) return;
+    const t = window.setTimeout(() => {
+      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 60); // deja que el panel termine de montarse y ocupar su alto
+    return () => window.clearTimeout(t);
+  }, [visible]);
+
   if (!hasVideos || !premiumEnabled) return null;
 
   const showAccessModeOptions = !isEditMode && capabilities.allowedAccessModes.length > 1;
@@ -296,6 +317,7 @@ export default function ComposerPremiumPanel({
 
   return (
     <div
+      ref={panelRef}
       style={{
         fontFamily: fontStack,
         // Sin caja: la sección se separa con una línea, como los bloques del

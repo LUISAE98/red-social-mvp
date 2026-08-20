@@ -15,6 +15,7 @@ import {
   COUNTRY_TO_CURRENCY,
   FX_CONVERSION_FEE,
   DONATION_MIN_AMOUNT_USD,
+  PREMIUM_MIN_PRICE_USD,
   FIXED_SERVICE_FEE_USD,
   displayCurrencyForCountry,
   isDisplayCurrency,
@@ -270,6 +271,14 @@ describe("mínimos de dinero — frontend y backend no pueden separarse", () => 
     const m = leerLedger().match(/export const DONATION_MIN_AMOUNT_USD = ([\d.]+);/);
     expect(m, "no se encontró DONATION_MIN_AMOUNT_USD en backend/src/wallet/ledger.ts").not.toBeNull();
     expect(Number(m![1])).toBe(DONATION_MIN_AMOUNT_USD);
+  });
+
+  it("PREMIUM_MIN_PRICE_USD coincide en catálogo y ledger", () => {
+    // `createPost` valida contra el del ledger; el panel del creador contra el del
+    // catálogo. Si se separan, el creador publica un precio que el servidor rechaza.
+    const m = leerLedger().match(/export const PREMIUM_MIN_PRICE_USD = ([0-9.]+);/);
+    expect(m, "no se encontró PREMIUM_MIN_PRICE_USD en backend/src/wallet/ledger.ts").not.toBeNull();
+    expect(Number(m![1])).toBe(PREMIUM_MIN_PRICE_USD);
   });
 
   it("FIXED_SERVICE_FEE_USD coincide en catálogo y ledger", () => {

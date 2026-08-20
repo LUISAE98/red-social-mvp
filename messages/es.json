@@ -999,6 +999,7 @@
     "premiumEarningsLabel": "Por cada ticket ganas",
     "premiumUnlockForPrice": "Desbloquea el contenido por {price}",
     "premiumUnlockCount": "{count, plural, =0 {Sé el primero en desbloquearlo} one {# persona ya lo desbloqueó} other {# personas ya lo desbloquearon}}",
+    "premiumViewedCount": "{count, plural, one {# persona ya vio esta publicación} other {# personas ya vieron esta publicación}}",
     "premiumUnlockSuccess": "¡Ya es tuyo! Este contenido quedó guardado en tu cuenta para siempre. Disfrútalo cuando quieras.",
     "premiumPayDescription": "Obtienes acceso completo a este contenido exclusivo. Queda tuyo para siempre y podrás verlo cuantas veces quieras.",
     "premiumPayProductType": "Publicación premium",

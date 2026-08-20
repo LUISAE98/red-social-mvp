@@ -15,11 +15,17 @@ import { useEffect } from "react";
  * "safe-area" abajo (mientras que el bottom-nav, que se pinta sin body bloqueado,
  * sí llegaba al borde). Se confirmó con capturas en iPhone.
  *
- * En su lugar bloqueamos con `overflow: hidden` en `<html>` y `<body>` +
- * `overscroll-behavior: none`. Esto NO saca al body del flujo, así que los
- * `position: fixed` siguen anclando al viewport completo (con `viewport-fit: cover`
- * llegan al borde físico) y la franja desaparece. Además la posición de scroll se
- * conserva sola (no se reposiciona nada), sin saltos.
+ * En iOS tampoco se puede bloquear `<html>`/`<body>` con `overflow: hidden`.
+ * Al abrir el teclado WebKit desplaza el visual viewport dentro del layout viewport
+ * y, con la raíz bloqueada, a veces no puede devolverlo a `offsetTop = 0`. El
+ * desplazamiento sobrevive al modal: compositores y barras `position: fixed`
+ * quedan flotando hasta la siguiente navegación.
+ *
+ * Por eso hay dos estrategias:
+ * - iOS: la raíz permanece desplazable y el gesto del fondo se cancela con el
+ *   listener `touchmove` no pasivo. Los scrollers internos siguen permitidos.
+ * - Resto: `overflow: hidden` + `overscroll-behavior: none`, que evita además la
+ *   barra de scroll en escritorio sin provocar el bug de WebKit.
  *
  * - Cuenta referencias: con varios paneles anidados, el fondo se libera solo al
  *   cerrar el último. (Todos deben usar ESTE hook para que el conteo sea correcto.)
@@ -37,7 +43,17 @@ let saved: {
   bodyOverscroll: string;
   htmlTouchAction: string;
   bodyTouchAction: string;
+  rootStylesApplied: boolean;
 } | null = null;
+
+/** iPadOS puede anunciarse como Macintosh cuando solicita el sitio de escritorio. */
+function isIOSDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (/Mac/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+  );
+}
 
 // Respaldo para iOS: `overflow: hidden` no siempre frena el scroll por inercia.
 // Bloqueamos `touchmove` del fondo PERO dejamos scrollear cualquier contenedor
@@ -66,6 +82,7 @@ function applyLock() {
   const body = document.body;
   const html = document.documentElement;
 
+  const rootStylesApplied = !isIOSDevice();
   saved = {
     htmlOverflow: html.style.overflow,
     bodyOverflow: body.style.overflow,
@@ -74,23 +91,26 @@ function applyLock() {
     bodyOverscroll: body.style.overscrollBehavior,
     htmlTouchAction: html.style.touchAction,
     bodyTouchAction: body.style.touchAction,
+    rootStylesApplied,
   };
 
-  // Compensa la scrollbar (escritorio) para evitar el salto horizontal.
-  const scrollbarWidth = window.innerWidth - html.clientWidth;
-  if (scrollbarWidth > 0) body.style.paddingRight = `${scrollbarWidth}px`;
+  if (rootStylesApplied) {
+    // Compensa la scrollbar (escritorio) para evitar el salto horizontal.
+    const scrollbarWidth = window.innerWidth - html.clientWidth;
+    if (scrollbarWidth > 0) body.style.paddingRight = `${scrollbarWidth}px`;
 
-  // Bloqueo por overflow (NO position:fixed): el body sigue en flujo, así los
-  // modales position:fixed anclan al viewport completo y llegan al borde físico.
-  html.style.overflow = "hidden";
-  body.style.overflow = "hidden";
-  html.style.overscrollBehavior = "none";
-  body.style.overscrollBehavior = "none";
-  // `touch-action: none` frena de forma fiable el gesto de scroll del documento en
-  // iOS (donde `overflow: hidden` no basta). Los scrollers internos del modal
-  // (overflow:auto) mantienen su propio scroll porque su touch-action sigue en auto.
-  html.style.touchAction = "none";
-  body.style.touchAction = "none";
+    // Fuera de iOS, el bloqueo de raíz no deja un visual viewport desplazado.
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    body.style.overscrollBehavior = "none";
+    html.style.touchAction = "none";
+    body.style.touchAction = "none";
+  }
+
+  // En iOS ESTE es el bloqueo. No tocar la raíz permite a WebKit reasentar el
+  // visual viewport cuando se cierra el teclado. En los demás navegadores queda
+  // como respaldo para el scroll por inercia.
   document.addEventListener("touchmove", preventBackgroundTouchMove, {
     passive: false,
   });
@@ -103,13 +123,15 @@ function releaseLock() {
   const body = document.body;
   const html = document.documentElement;
 
-  html.style.overflow = saved.htmlOverflow;
-  body.style.overflow = saved.bodyOverflow;
-  body.style.paddingRight = saved.bodyPaddingRight;
-  html.style.overscrollBehavior = saved.htmlOverscroll;
-  body.style.overscrollBehavior = saved.bodyOverscroll;
-  html.style.touchAction = saved.htmlTouchAction;
-  body.style.touchAction = saved.bodyTouchAction;
+  if (saved.rootStylesApplied) {
+    html.style.overflow = saved.htmlOverflow;
+    body.style.overflow = saved.bodyOverflow;
+    body.style.paddingRight = saved.bodyPaddingRight;
+    html.style.overscrollBehavior = saved.htmlOverscroll;
+    body.style.overscrollBehavior = saved.bodyOverscroll;
+    html.style.touchAction = saved.htmlTouchAction;
+    body.style.touchAction = saved.bodyTouchAction;
+  }
   document.removeEventListener("touchmove", preventBackgroundTouchMove);
   body.classList.remove("vb-modal-open");
   saved = null;

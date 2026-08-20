@@ -64,6 +64,18 @@ export const FIXED_SERVICE_FEE_USD = 0.4;
  */
 export const DONATION_MIN_AMOUNT_USD = 3;
 
+/**
+ * Mínimo de un contenido de pago (post premium, ticket de live, VOD).
+ *
+ * ⚠️ ESPEJO de `PREMIUM_MIN_PRICE_USD` en lib/currency/catalog.ts, con test de paridad.
+ *
+ * Antes `createPost` usaba un 10 escrito a mano, que eran DIEZ PESOS de cuando la
+ * plataforma cobraba en MXN. Con la denominación en USD pasaron a ser diez dólares y el
+ * servidor rechazaba cualquier publicación de pago por debajo de eso — un post de 3 USD
+ * salía como «El precio no es válido» aunque el panel dijera que era correcto.
+ */
+export const PREMIUM_MIN_PRICE_USD = 1.5;
+
 export type LedgerServiceType =
   | "supercomment"
   | "profile_donation"

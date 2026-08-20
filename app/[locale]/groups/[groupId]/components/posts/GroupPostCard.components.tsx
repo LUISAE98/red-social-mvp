@@ -19,9 +19,35 @@ import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { formatCurrency, roundReference } from "@/lib/currency/format";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import type { PostPremiumStateResult } from "@/lib/posts/post-premium-state";
 import { fontStack, getInitials, formatMediaDuration } from "./GroupPostCard.utils";
+
+/**
+ * Lo que el CREADOR se lleva por cada desbloqueo.
+ *
+ * ⚠️ NO se usa `usePriceFormat().format` aquí. Ese calcula el precio del COMPRADOR:
+ * convierte a la moneda de quien mira, le suma el 2% de conversión y redondea al paso.
+ * Con eso, la ganancia del creador salía en pesos y además inflada. Lo que él cobra vive
+ * en la moneda de liquidación y no se convierte.
+ *
+ * La referencia en su moneda vive en el panel, bajo el estado de la publicación.
+ */
+function GananciaCreador({ neto }: { neto: number }) {
+  const pf = usePriceFormat();
+  const tPosts = useTranslations("posts");
+  return (
+    <>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", fontFamily: fontStack, lineHeight: 1.3 }}>
+        {tPosts("premiumEarningsLabel")}
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80", fontFamily: fontStack, lineHeight: 1.3, marginTop: 1 }}>
+        {formatCurrency(neto, SETTLEMENT_CURRENCY, pf.locale, { code: true })}
+      </div>
+    </>
+  );
+}
 
 export function PremiumPostPanel({
   state,
@@ -67,6 +93,17 @@ export function PremiumPostPanel({
       ? Math.round(oneTimePrice * WALLET_NET_RATE * 100) / 100 // = round2 del ledger
       : null;
 
+  // Referencia de la ganancia en la moneda del creador. Null si ya mira en la de
+  // liquidación: repetir la misma cifra dos veces no informa de nada.
+  const netoLocal =
+    netEarnings != null && priceFmt.currency !== SETTLEMENT_CURRENCY
+      ? priceFmt.fromAnchor(netEarnings)
+      : null;
+  const referenciaLocal =
+    netoLocal != null
+      ? `Aproximadamente ${formatCurrency(roundReference(netoLocal, priceFmt.currency), priceFmt.currency, priceFmt.locale, { code: true, approx: true })}`
+      : null;
+
   return (
     <div
       style={{
@@ -100,7 +137,17 @@ export function PremiumPostPanel({
             fontFamily: fontStack,
           }}
         >
-          {isUnlocked ? tPosts("premiumUnlockedLabel") : tPosts("premiumLockedLabel")}
+          {/* ⚠️ Para el CREADOR esta línea lleva su estado: de quién es la publicación y,
+              en cuanto empiezan las compras, cuántas van. Antes eso vivía en la línea
+              blanca de abajo y arriba había una etiqueta genérica que no le decía nada.
+              Para un visitante no cambia: sigue viendo si el contenido está abierto. */}
+          {isAuthor
+            ? unlockCount > 0
+              ? tPosts("premiumUnlockCount", { count: unlockCount })
+              : tPosts("premiumBelongsToYou")
+            : isUnlocked
+              ? tPosts("premiumUnlockedLabel")
+              : tPosts("premiumLockedLabel")}
         </div>
         <div
           style={{
@@ -111,8 +158,10 @@ export function PremiumPostPanel({
             fontFamily: fontStack,
           }}
         >
-          {isAuthor && unlockCount <= 0
-            ? tPosts("premiumBelongsToYou")
+          {/* Para el CREADOR, la referencia de su ganancia en su moneda. Para el resto, su
+              estado o el mensaje de bloqueo, como siempre. */}
+          {isAuthor
+            ? referenciaLocal
             : showUnlockCount
               ? tPosts("premiumUnlockCount", { count: unlockCount })
               : isUnlocked
@@ -129,28 +178,29 @@ export function PremiumPostPanel({
             marginInlineEnd: 4,
           }}
         >
-          <div
-            style={{
-              fontSize: 10,
-              color: "rgba(255,255,255,0.7)",
-              fontFamily: fontStack,
-              lineHeight: 1.3,
-            }}
-          >
-            {tPosts("premiumEarningsLabel")}
-          </div>
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: "#4ade80",
-              fontFamily: fontStack,
-              lineHeight: 1.3,
-              marginTop: 1,
-            }}
-          >
-            {priceFmt.format(netEarnings, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true })}
-          </div>
+          <GananciaCreador neto={netEarnings} />
+        </div>
+      )}
+
+      {/* Prueba social para quien ya desbloqueó: ese hueco es donde va el botón de compra,
+          y sin botón quedaba vacío. Un solo renglón, alineado abajo.
+          ⚠️ El número son DESBLOQUEOS, el mismo contador que ve el creador; el texto dice
+          "vieron" porque se lee mejor. Con cero no se enseña: a quien acaba de comprar,
+          un "0 personas" le sobra. */}
+      {!state.isBlocked && !isAuthor && !isMobile && unlockCount > 0 && (
+        <div
+          style={{
+            flexShrink: 0,
+            alignSelf: "flex-end",
+            marginInlineEnd: 4,
+            whiteSpace: "nowrap",
+            fontSize: 10,
+            lineHeight: 1.35,
+            color: "rgba(255,255,255,0.55)",
+            fontFamily: fontStack,
+          }}
+        >
+          {tPosts("premiumViewedCount", { count: unlockCount })}
         </div>
       )}
 
@@ -299,12 +349,7 @@ export function LiveTicketPanel({
 
       {netEarnings !== null && (
         <div style={{ flexShrink: 0, textAlign: "end", marginInlineEnd: 4 }}>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", fontFamily: fontStack, lineHeight: 1.3 }}>
-            {tPosts("premiumEarningsLabel")}
-          </div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80", fontFamily: fontStack, lineHeight: 1.3, marginTop: 1 }}>
-            {priceFmt.format(netEarnings, { baseCurrency: currency ?? SETTLEMENT_CURRENCY, code: true })}
-          </div>
+          <GananciaCreador neto={netEarnings} />
         </div>
       )}
 

@@ -30,6 +30,7 @@
 // duplicación que se está tratando de eliminar.
 
 import * as admin from "firebase-admin";
+import { PREMIUM_MIN_PRICE_USD } from "./wallet/ledger";
 import { logger } from "firebase-functions";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 
@@ -51,7 +52,11 @@ const MAX_TEXT = 5000;
 const MAX_MEDIA = 10;
 const MAX_TAGS = 20;
 
-const PRECIO_MIN = 10;
+// ⚠️ Mínimo REAL de un contenido de pago, no un número redondo. Era 10 —diez pesos de
+// la época MXN— y con la denominación en USD se convirtió en diez dólares: el servidor
+// rechazaba publicaciones que el panel del creador daba por buenas.
+const PRECIO_MIN = PREMIUM_MIN_PRICE_USD;
+// Tope de seguridad, no una regla de negocio: ataja un precio absurdo por dedo torpe.
 const PRECIO_MAX = 100000;
 
 // ── Esquema cerrado del borrador ────────────────────────────────────────────

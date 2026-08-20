@@ -999,6 +999,7 @@
     "premiumEarningsLabel": "You earn per ticket",
     "premiumUnlockForPrice": "Unlock content for {price}",
     "premiumUnlockCount": "{count, plural, =0 {Be the first to unlock it} one {# person already unlocked it} other {# people already unlocked it}}",
+    "premiumViewedCount": "{count, plural, one {# person has already viewed this post} other {# people have already viewed this post}}",
     "premiumUnlockSuccess": "It's yours! This content is now saved to your account forever. Enjoy it whenever you like.",
     "premiumPayDescription": "You get full access to this exclusive content. It's yours forever and you can watch it as many times as you like.",
     "premiumPayProductType": "Premium post",
