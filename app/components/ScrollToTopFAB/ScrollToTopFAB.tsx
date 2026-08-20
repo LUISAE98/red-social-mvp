@@ -25,13 +25,15 @@ import { usePathname } from "@/i18n/navigation";
  * React lo remonta limpio en cada ruta, sin código de reinicio que mantener.
  */
 function isFeedRoute(pathname: string): boolean {
-  // Home.
-  if (pathname === "/") return true;
-  // Perfil: `/u/{handle}`, solo su raíz.
-  if (/^\/u\/[^/]+$/.test(pathname)) return true;
-  // Comunidad: `/groups/{groupId}`. `/groups/new` es un formulario, no un feed,
-  // y `/groups` a secas es el índice — ninguno de los dos entra.
-  if (pathname !== "/groups/new" && /^\/groups\/[^/]+$/.test(pathname)) return true;
+  // RETIRADA de todas las rutas. Subir al principio pasó a ser cosa del nav
+  // inferior: se toca el icono de la sección en la que estás y sube. Mantener
+  // además una flecha flotante era un segundo control para lo mismo, y encima
+  // tapando contenido.
+  //
+  // La función se conserva en vez de borrar el componente porque el criterio de
+  // qué pantallas son un feed estaba centralizado aquí a propósito. Para
+  // devolver la flecha a una ruta basta con volver a listarla.
+  void pathname;
   return false;
 }
 

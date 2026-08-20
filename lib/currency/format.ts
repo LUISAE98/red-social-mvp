@@ -197,12 +197,29 @@ const TRES_DECIMALES = new Set(["KWD", "JOD", "BHD", "OMR", "TND"]);
  * dos se separan, el comprador ve un precio y se le cobra otro — que es justo el bug que
  * este redondeo vino a cerrar, no a abrir.
  */
+/**
+ * Escalón del redondeo comercial, por moneda.
+ *
+ * ⚠️ ESPEJO EXACTO de `charmStep` en backend/src/tax/presentmentFormat.ts. Hay un test que
+ * compara las dos funciones importe a importe: si se separan, el precio mostrado y el
+ * cobrado dejan de coincidir, que es justo lo que esto viene a evitar.
+ *
+ * Es la quinta parte de `NICE_STEP`, que ya está calibrado para valer lo mismo en poder
+ * adquisitivo en las 78 monedas. Se bajó el 2026-08-20: con escalón de 1 unidad, en
+ * dólares o euros un servicio de 2.40 saltaba a 2.99 — un 49.5% encima del precio del
+ * creador, y el daño era peor cuanto más barata la experiencia.
+ */
+function charmStep(code: string): number {
+  const nice = NICE_STEP[code as DisplayCurrency] ?? 1;
+  return nice / 5;
+}
+
 export function roundCharm(amount: number, currency: string): number {
   if (!Number.isFinite(amount) || amount <= 0) return amount;
   const code = currency.toUpperCase();
 
   if (SIN_DECIMALES.has(code)) {
-    const step = NICE_STEP[code as DisplayCurrency] ?? 1;
+    const step = Math.max(1, Math.round(charmStep(code)));
     if (step <= 1) return Math.ceil(amount);
     const arriba = Math.ceil(amount / step) * step;
     const charm = arriba - 1;
@@ -210,14 +227,13 @@ export function roundCharm(amount: number, currency: string): number {
   }
 
   if (TRES_DECIMALES.has(code)) {
-    const step = NICE_STEP[code as DisplayCurrency] ?? 1;
+    const step = charmStep(code);
     return Math.ceil(amount / step) * step;
   }
 
-  let con99 = Math.floor(amount) + 0.99;
-  if (con99 < amount) con99 += 1;
-  const con00 = Math.ceil(amount);
-  return Math.round(Math.min(con99, con00) * 100) / 100;
+  const step = charmStep(code);
+  const arriba = Math.ceil((Math.round((amount + 0.01) * 100) / 100) / step) * step;
+  return Math.round((arriba - 0.01) * 100) / 100;
 }
 
 /**

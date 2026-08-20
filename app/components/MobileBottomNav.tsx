@@ -587,18 +587,18 @@ export default function MobileBottomNav({
           width: 100%;
           pointer-events: auto;
           box-sizing: border-box;
-          border-radius: 24px;
+          border-radius: 20px;
           /* Cristal: base translúcida + un degradado de luz encima. El
              degradado es lo que le da relieve — arriba entra la luz y abajo se
              apaga—, y sin él un fondo translúcido se ve como una lámina plana. */
           background:
             linear-gradient(
               180deg,
-              rgba(255, 255, 255, 0.11) 0%,
-              rgba(255, 255, 255, 0.03) 42%,
-              rgba(0, 0, 0, 0.10) 100%
+              rgba(255, 255, 255, 0.08) 0%,
+              rgba(255, 255, 255, 0.02) 42%,
+              rgba(0, 0, 0, 0.18) 100%
             ),
-            rgba(18, 18, 24, 0.56);
+            rgba(10, 10, 14, 0.68);
           border: 1px solid rgba(255, 255, 255, 0.14);
           /* El volumen sale de cuatro capas: filo de luz arriba, sombra propia
              abajo (las dos por dentro, son el grosor del cristal) y dos sombras
@@ -612,8 +612,13 @@ export default function MobileBottomNav({
           /* Más desenfoque y algo de brillo a la baja: lo que pasa por detrás
              tiene que quedar irreconocible, no solo suavizado. Con 26 y una base
              al 52% una foto clara se leía a través y la píldora desaparecía. */
-          backdrop-filter: blur(40px) saturate(180%) brightness(0.82);
-          -webkit-backdrop-filter: blur(40px) saturate(180%) brightness(0.82);
+          /* Cristal AHUMADO. Tres cosas distintas, y conviene no confundirlas:
+             el desenfoque hace ilegible lo de detrás, el brillo lo oscurece y la
+             capa opaca de arriba lo tapa. Para que se vea oscuro y borroso pero
+             se siga notando que hay algo pasando, el peso va en los dos primeros
+             y la capa opaca se queda a media altura. */
+          backdrop-filter: blur(64px) saturate(140%) brightness(0.36);
+          -webkit-backdrop-filter: blur(64px) saturate(140%) brightness(0.36);
           /* SIN overflow:hidden. Los globos de aviso se dibujan fuera de su
              icono (top:-5px, inset-inline-end:-8px) y en el primer y el ultimo
              elemento caerian justo sobre el borde: recortarlos los partiria por
@@ -811,6 +816,16 @@ export default function MobileBottomNav({
                       : pathname === item.href;
 
                     if (atRoot) {
+                      // Estando en la raíz de la sección, el primer toque sube
+                      // al principio del feed. La sacudida queda para cuando ya
+                      // no hay a dónde ir, que es su significado: "esto es todo".
+                      // El umbral evita que un scroll de dos píxeles se coma la
+                      // sacudida sin que se note ningún movimiento.
+                      if (window.scrollY > 8) {
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                        sessionStorage.setItem(`nav:scroll:${pathname}`, "0");
+                        return;
+                      }
                       setShakingKey(item.key);
                       return;
                     }

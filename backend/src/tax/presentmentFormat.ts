@@ -133,34 +133,59 @@ export function roundToCurrencyPrecision(amount: number, currency: string): numb
  * después del impuesto, y por eso el impuesto hay que despejarlo hacia atrás desde el
  * resultado: si no, el desglose no cuadra con lo que se cobró.
  */
+/**
+ * Escalón del redondeo comercial, por moneda.
+ *
+ * ⚠️ Es la QUINTA parte de `NICE_STEP`, y ese divisor no es arbitrario: `NICE_STEP` ya
+ * está calibrado para valer lo mismo en poder adquisitivo en las 78 monedas (~0.05–0.50
+ * USD), así que dividirlo mantiene esa calibración y deja el escalón en ~0.01–0.10 USD
+ * en todas.
+ *
+ * POR QUÉ SE BAJÓ (2026-08-20). El escalón era 1 unidad de la moneda. En pesos eso son
+ * 6 céntimos de dólar y no molestaba, pero en dólares o euros es la unidad entera: un
+ * servicio de 2.40 USD saltaba a 2.99, un 49.5% encima del precio del creador. El daño
+ * era REGRESIVO — cuanto más barata la experiencia, más se encarecía — y caía justo sobre
+ * las compras por impulso.
+ *
+ * El colchón de variación del tipo de cambio NO depende de esto: lo da el vigilante de
+ * deriva, que refresca la tasa congelada en cuanto se desvía un 0.5%.
+ *
+ * ⚠️ El resultado sigue cumpliendo las dos restricciones de Stripe: entero en las monedas
+ * sin decimales y múltiplo de 10 milésimas en las de tres.
+ */
+function charmStep(code: string): number {
+  const nice = NICE_STEP[code] ?? 1;
+  return nice / 5;
+}
+
 export function roundCharm(amount: number, currency: string): number {
   if (!Number.isFinite(amount) || amount <= 0) return amount;
   const code = currency.toUpperCase();
 
-  // Sin parte decimal: el ".99" no existe. Se sube al siguiente paso de la moneda y se le
-  // resta 1 para conservar la terminación en 9 (JPY 10.865 → 10.900 → 10.899).
+  // Sin parte decimal: el ",99" no existe. Se sube al siguiente escalón y se le resta 1
+  // para conservar la terminación en 9 (JPY, paso 10: 10.865 → 10.870 → 10.869).
   if (ZERO_DECIMAL.has(code)) {
-    const step = NICE_STEP[code] ?? 1;
+    const step = Math.max(1, Math.round(charmStep(code)));
     if (step <= 1) return Math.ceil(amount);
     const arriba = Math.ceil(amount / step) * step;
-    // ⚠️ Restar 1 para dejar la terminación en 9 puede caer POR DEBAJO del monto cuando
-    // este ya es múltiplo exacto del paso: 50 JPY (paso 50) daba 49, que además queda bajo
-    // el mínimo de Stripe. En ese caso hay que irse al siguiente escalón.
+    // ⚠️ Restar 1 puede caer POR DEBAJO del monto cuando ya es múltiplo exacto del paso.
+    // Ahí hay que irse al siguiente escalón: cobrar de menos por redondear sería lo
+    // contrario de lo que se busca, y puede quedar bajo el mínimo de Stripe.
     const charm = arriba - 1;
     return charm >= amount ? charm : arriba + step - 1;
   }
 
   // Stripe exige que el último dígito sea 0 en las monedas de tres decimales, así que la
-  // terminación comercial es imposible: se sube al paso de la moneda y se deja ahí.
+  // terminación comercial es imposible: se sube al escalón y se deja ahí.
   if (THREE_DECIMAL.has(code)) {
-    const step = NICE_STEP[code] ?? 1;
+    const step = charmStep(code);
     return Math.ceil(amount / step) * step;
   }
 
-  let con99 = Math.floor(amount) + 0.99;
-  if (con99 < amount) con99 += 1;
-  const con00 = Math.ceil(amount);
-  return round2(Math.min(con99, con00));
+  const step = charmStep(code);
+  // Sube al siguiente múltiplo del escalón y resta un céntimo: 2.40 con paso 0.10 → 2.49.
+  const arriba = Math.ceil(round2(amount + 0.01) / step) * step;
+  return round2(arriba - 0.01);
 }
 
 export type Presentment = {

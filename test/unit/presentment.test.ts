@@ -126,12 +126,16 @@ describe("meetsStripeMinimum", () => {
 // redondee hacia abajo (dejaría el cobro por debajo del costo) y que no suba más de una
 // unidad (un salto grande es un sobrecargo silencioso, no un precio bonito).
 describe("roundCharm — precio con terminación comercial", () => {
-  it("deja el total en .99 o .00, el que quede más cerca por arriba", () => {
+  // ⚠️ El escalón se BAJÓ el 2026-08-20 (era 1 unidad de la moneda). En pesos el escalón
+  // es 1 y estos números no se mueven; en dólares pasó a 0.10, y ahí está el cambio:
+  // 12.246 ya no salta a 12.99 sino a 12.29. Ver `charmStep`.
+  it("deja el total terminado en 9, subiendo lo mínimo del escalón", () => {
     expect(roundCharm(108.65, "MXN")).toBe(108.99);
-    expect(roundCharm(108.995, "MXN")).toBe(109); // el .99 ya quedó abajo → sube al entero
-    expect(roundCharm(109, "MXN")).toBe(109); // ya es .00, no lo mueve
+    expect(roundCharm(108.995, "MXN")).toBe(109.99);
     expect(roundCharm(109.5, "MXN")).toBe(109.99);
-    expect(roundCharm(12.246, "USD")).toBe(12.99);
+    // Dólar: escalón de 0.10, así que sube como mucho 10 céntimos.
+    expect(roundCharm(12.246, "USD")).toBe(12.29);
+    expect(roundCharm(40.4, "USD")).toBe(40.49);
   });
 
   it("🚨 NUNCA redondea hacia abajo", () => {

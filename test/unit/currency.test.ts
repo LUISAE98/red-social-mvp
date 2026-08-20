@@ -227,22 +227,23 @@ describe("formatCurrency · código ISO sin duplicar", () => {
 // impuesto o no. `roundCharm` es el mismo cálculo del backend (hay paridad probada aparte).
 // ─────────────────────────────────────────────────────────────────────────────
 describe("el total del comprador no depende de si hay impuesto", () => {
-  it("sin impuesto sigue redondeando: 40.40 USD → 40.99, nunca 40.40", () => {
-    expect(roundCharm(40.4, "USD")).toBe(40.99);
+  it("sin impuesto sigue redondeando: 40.40 USD → 40.49, nunca 40.40", () => {
+    expect(roundCharm(40.4, "USD")).toBe(40.49);
   });
 
-  it("el cargo fijo NO es el total: 40 + 0.40 se cobra como 40.99", () => {
+  it("el cargo fijo NO es el total: 40 + 0.40 se cobra como 40.49", () => {
     const base = 40;
     const conCargo = base + 0.4;
     const total = roundCharm(conCargo, "USD");
     expect(total).toBeGreaterThan(conCargo); // el redondeo sube, nunca baja
-    expect(Math.round(total * 100) % 100).toBe(99);
+    expect(Math.round(total * 100) % 10).toBe(9); // termina en 9
+    expect(total - conCargo).toBeLessThanOrEqual(0.1); // y sube como mucho un escalón
   });
 
-  it("da lo mismo con impuesto y sin él: los dos terminan en ,99", () => {
+  it("da lo mismo con impuesto y sin él: los dos terminan en 9", () => {
     const conIva = roundCharm(40.4 * 1.16, "USD"); // como si fuera México
     const sinIva = roundCharm(40.4, "USD");
-    for (const t of [conIva, sinIva]) expect(Math.round(t * 100) % 100).toBe(99);
+    for (const t of [conIva, sinIva]) expect(Math.round(t * 100) % 10).toBe(9);
     expect(conIva).toBeGreaterThan(sinIva);
   });
 });
