@@ -270,7 +270,8 @@
     "videoUploadError": "Videoen kunne ikke lastes opp.",
     "priceMin": "Minsteprisen er ${min}",
     "shareStory": "Del historie",
-    "pinError": "Innlegget kunne ikke festes eller løsnes."
+    "pinError": "Innlegget kunne ikke festes eller løsnes.",
+    "viewsCountAriaLabel": "{count, plural, one {# visning} other {# visninger}}"
   },
   "groups": {
     "title": "Communities",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Medlemmernes synlighet kunne ikke oppdateres.",
     "canvasInitError": "Canvas kunne ikke initialiseres.",
     "cropGenerateError": "Beskjæringen kunne ikke lages.",
-    "avatarReadError": "Avatar: bildet kunne ikke leses.",
-    "coverReadError": "Cover: bildet kunne ikke leses.",
+    "avatarReadError": "Avatarbildet kunne ikke leses.",
+    "coverReadError": "Forsidebildet kunne ikke leses.",
     "descriptionMinLength": "Beskrivelsen skal ha minst 10 tegn.",
     "ageMinInvalid": "Ugyldig minimumsalder (18–99).",
     "ageMaxInvalid": "Ugyldig maksimumsalder (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategorien er oppdatert.",
     "tagsUpdated": "Taggene er oppdatert.",
     "inviteLoadError": "Feil under lasting av invitasjonen.",
-    "inviteUseError": "Invitasjonen kunne ikke brukes."
+    "inviteUseError": "Invitasjonen kunne ikke brukes.",
+    "actionInviteToMod": "Inviter til å moderere"
   },
   "profile": {
     "ariaChangeAvatar": "Skift profilbilde",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Der kunne ikke bedes om refusjon.",
     "errorRequestReschedule": "Der kunne ikke bedes om å flytte.",
     "selectDateTimeError": "Velg dag, måned, år, time og minutt.",
-    "scheduleConflictError": "Det tidspunkt er allerede tatt opp. Velg et annet ledigt tidspunkt.",
+    "scheduleConflictError": "Det tidspunktet er opptatt, velg et annet ledig tidspunkt.",
     "rescheduleNotificationTitle": "Sesjonen er flyttet",
     "scheduledDateLabel": "Planlagt dato",
     "cardExperiencesWith": "Opplevelser med {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Creatoren fastsetter, hva det koster å låse innlegget opp.",
     "mergeDonationSupportDesc": "Bidrag med det beløp, du har lyst til, for å vise creatoren din støtte.",
     "addSampleAriaLabel": "Legg til eksempel",
-    "addSampleHint": "Ta opp et eksempel så kjøpere ser hva de får",
+    "addSampleHint": "Spill inn et eksempel så kjøperne ser hva de får. Du trenger minst ett for å slå på opplevelsen, og du kan laste opp opptil tre.",
     "priceInvalidGreetings": "Ugyldig pris for hilsener.",
     "priceInvalidAdvice": "Ugyldig pris for råd.",
     "priceInvalidMeetGreet": "Ugyldig pris for Tid med deg.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Prøvehilsenen din er delt!",
     "sampleSharedAdvice": "Prøverådet ditt er delt!",
     "recordAnotherSample": "Spill inn en til",
-    "finishSamples": "Fullfør"
+    "finishSamples": "Fullfør",
+    "deleteSample": "Slett",
+    "confirmDeleteSampleTitle": "Er du sikker på at du vil slette denne prøven?",
+    "confirmDeleteSampleBody": "Den forsvinner fra profilen og historiene dine. Dette kan ikke angres.",
+    "sampleRequiredToActivate": "Spill inn minst én prøve før du slår på denne opplevelsen."
   },
   "live": {
     "accessTicket": "Tilgangsbillet",
@@ -2096,7 +2102,7 @@
     "endSession": "Avslut sesjonen",
     "free": "Gratis",
     "goToLive": "Gå til sendingen",
-    "invalidContext": "Ugyldig kontekst. Sendingens destinasjon kunne ikke bestemmes.",
+    "invalidContext": "Det kunne ikke fastslås hvor direktesendingen skal.",
     "invalidDateTime": "Ugyldig dato og tid",
     "liveAlt": "Live",
     "liveEnded": "Sendingen er slutt",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Ugyldigt etternavn (1-40 tegn).",
       "errInvalidName": "Ugyldigt fornavn (1-40 tegn).",
       "errEmailInUse": "Denne e-postadressen er allerede registrert.",
-      "errRegistrationFailed": "Tilmeldingen kunne ikke gjennomføres. Prøv igjen.",
+      "errRegistrationFailed": "Tilmeldingen kunne ikke gjennomføres, prøv igjen.",
       "errWeakPassword": "Passordet skal være på minst 6 tegn.",
-      "errPasswordWeak": "Bruk minst 10 tegn, med stor og liten bokstav, tall og symbol."
+      "errPasswordWeak": "Passordet må ha minst 10 tegn, med stor og liten bokstav, tall og symbol."
     },
     "resetPassword": {
       "title": "Tilbakestill passord",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Innlegget ble slettet.",
     "serviceNotEnabled": "Denne tjenesten er ikke aktivert.",
     "futureDateRequired": "Datoen må være i fremtiden.",
-    "internalError": "Noe gikk galt. Prøv igjen.",
+    "internalError": "Noe gikk galt, prøv igjen.",
     "countryNotAvailable": "Betaling er foreløpig ikke tilgjengelig i landet ditt.",
     "cardCountryNotAvailable": "Vi kan foreløpig ikke belaste et kort fra det landet."
   },

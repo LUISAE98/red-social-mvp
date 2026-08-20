@@ -30,12 +30,29 @@ import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import VibraShareIcon from "@/app/components/VibraServiceIcons/VibraShareIcon";
 import FollowCreatorButton from "@/components/social/FollowCreatorButton";
+import { PLAY_COUNT_THRESHOLD, recordStoryPlay } from "@/lib/stories/storyPlays";
 import ScrubBar from "./ScrubBar";
 
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const FONT = "inherit";
 /** Segundos reproducidos para contar la historia como vista. */
 const VIEW_THRESHOLD_MS = 2_000;
+
+/**
+ * Acorta el numero de vistas cuando crece.
+ *
+ * Va en la misma fila que los controles de lectura, y ahi no cabe un numero de
+ * siete cifras sin empujar a los botones.
+ */
+function formatPlays(n: number): string {
+  if (n < 1_000) return String(n);
+  if (n < 1_000_000) {
+    const k = n / 1_000;
+    return `${k < 10 ? k.toFixed(1).replace(/.0$/, "") : Math.round(k)}K`;
+  }
+  const m = n / 1_000_000;
+  return `${m < 10 ? m.toFixed(1).replace(/.0$/, "") : Math.round(m)}M`;
+}
 
 type Props = {
   story: StoryDoc;
@@ -155,11 +172,26 @@ export default function ReelStorySlide({
   // Mientras se arrastra la barra, el video se detiene: reproducir y arrastrar a
   // la vez hace que el indicador pelee contra el dedo.
   const [scrubbing, setScrubbing] = useState(false);
+  // Vistas de ESTA historia. Arranca con lo que traiga el documento y sube sola
+  // cuando esta reproduccion cuenta: el numero del servidor tardaria en volver y
+  // el espectador acaba de hacer que suba.
+  const [plays, setPlays] = useState<number>(story.viewsCount ?? 0);
+  // Una apertura, una vista como mucho. Sin esto, el reel repite en bucle y
+  // cruzaria el 35% cada vuelta, sumando una vista cada treinta segundos por el
+  // mero hecho de dejar la pantalla abierta.
+  const playCountedRef = useRef(false);
 
   const resolvedPlaybackId = story.muxPlaybackId ?? fetchedPlaybackId;
   const instructions = story.instructions ?? fetchedInstructions?.text ?? null;
   const instructionsLoading =
     !story.instructions && !!story.greetingRequestId && fetchedInstructions === null;
+  // El contador vuelve a cero con cada historia: el visor de circulos reutiliza
+  // este mismo componente cambiandole la historia, sin desmontarlo.
+  useEffect(() => {
+    playCountedRef.current = false;
+    setPlays(story.viewsCount ?? 0);
+  }, [story.id, story.viewsCount]);
+
   // A quién se le encarga el nuevo saludo: quien GRABÓ, no quien publicó.
   const greetingAuthorUid = story.greetingCreatorId ?? story.creatorId ?? null;
 
@@ -336,6 +368,14 @@ export default function ReelStorySlide({
       if (dur > 0) {
         const ratio = v.currentTime / dur;
         onProgressRef.current?.(ratio);
+        // Una VISTA no es el marcador de "ya la vi" de los dos segundos: exige
+        // el 35% y suma cada vez que ocurre, tambien si es la misma persona
+        // abriendola de nuevo desde otro sitio.
+        if (!playCountedRef.current && ratio >= PLAY_COUNT_THRESHOLD) {
+          playCountedRef.current = true;
+          setPlays((n) => n + 1);
+          void recordStoryPlay(story.id);
+        }
         // Devolver el MISMO valor evita el render. La barra no distingue
         // milesimas, y sin esto esto repintaba el slide entero cada fotograma.
         setOwnProgress((prev) => (Math.abs(prev - ratio) < 0.001 ? prev : ratio));
@@ -732,7 +772,30 @@ export default function ReelStorySlide({
               if (dy > 40) setContextOpen(false);
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "8px 18px 4px", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 18px 4px", flexShrink: 0 }}>
+              {/* Las vistas, a la izquierda de los controles de lectura. */}
+              <span
+                aria-label={tCommon("viewsCountAriaLabel", { count: plays })}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  color: "rgba(255,255,255,0.72)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  fontVariantNumeric: "tabular-nums",
+                  flexShrink: 0,
+                }}
+              >
+                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                {formatPlays(plays)}
+              </span>
+
+              {/* Lectura y cierre, a la derecha. */}
+              <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
               {reader.state !== "idle" && (
                 <button
                   type="button"
@@ -765,6 +828,7 @@ export default function ReelStorySlide({
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </IconButton>
+              </span>
             </div>
 
             <div style={{ overflowY: "auto", maxHeight: "calc(50vh - 44px)" }}>

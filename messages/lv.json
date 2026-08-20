@@ -270,7 +270,8 @@
     "videoUploadError": "Video neizdevās augšupielādēt.",
     "priceMin": "Minimālā cena ir ${min}",
     "shareStory": "Kopīgot stāstu",
-    "pinError": "Neizdevās piespraust vai atspraust ierakstu."
+    "pinError": "Neizdevās piespraust vai atspraust ierakstu.",
+    "viewsCountAriaLabel": "{count, plural, zero {# skatījumu} one {# skatījums} other {# skatījumi}}"
   },
   "groups": {
     "title": "Kopienas",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Dalībnieku redzamību neizdevās atjaunināt.",
     "canvasInitError": "Canvas neizdevās inicializēt.",
     "cropGenerateError": "Apgriezumu neizdevās izveidot.",
-    "avatarReadError": "Attēls: to neizdevās nolasīt.",
-    "coverReadError": "Vāks: attēlu neizdevās nolasīt.",
+    "avatarReadError": "Neizdevās nolasīt avatara attēlu.",
+    "coverReadError": "Neizdevās nolasīt vāka attēlu.",
     "descriptionMinLength": "Aprakstā jābūt vismaz 10 rakstzīmēm.",
     "ageMinInvalid": "Nederīgs minimālais vecums (18–99).",
     "ageMaxInvalid": "Nederīgs maksimālais vecums (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategorija atjaunināta.",
     "tagsUpdated": "Birkas atjauninātas.",
     "inviteLoadError": "Kļūda, ielādējot ielūgumu.",
-    "inviteUseError": "Neizdevās izmantot ielūgumu."
+    "inviteUseError": "Neizdevās izmantot ielūgumu.",
+    "actionInviteToMod": "Uzaicināt moderēt"
   },
   "profile": {
     "ariaChangeAvatar": "Mainīt profila attēlu",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Atmaksu neizdevās pieprasīt.",
     "errorRequestReschedule": "Pārplānošanu neizdevās pieprasīt.",
     "selectDateTimeError": "Izvēlies dienu, mēnesi, gadu, stundu un minūti.",
-    "scheduleConflictError": "Šis laiks jau ir aizņemts. Lūdzu, izvēlies citu brīvu laiku.",
+    "scheduleConflictError": "Šis laiks ir aizņemts, izvēlies citu brīvu laiku.",
     "rescheduleNotificationTitle": "Sesija pārplānota",
     "scheduledDateLabel": "Ieplānotais datums",
     "cardExperiencesWith": "Pieredzes ar {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Veidotājs nosaka, cik maksā ieraksta atbloķēšana.",
     "mergeDonationSupportDesc": "Ziedo tik, cik vēlies, lai parādītu veidotājam savu atbalstu.",
     "addSampleAriaLabel": "Pievienot paraugu",
-    "addSampleHint": "Ieraksti piemēru, lai pircēji redz, ko saņems",
+    "addSampleHint": "Ieraksti paraugu, lai pircēji redz, ko saņems. Pieredzes ieslēgšanai vajag vismaz vienu, un augšupielādēt vari līdz trim.",
     "priceInvalidGreetings": "Nederīga cena sveicieniem.",
     "priceInvalidAdvice": "Nederīga cena padomiem.",
     "priceInvalidMeetGreet": "Nederīga cena Laikam ar tevi.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Tavs parauga sveiciens ir kopīgots!",
     "sampleSharedAdvice": "Tavs parauga padoms ir kopīgots!",
     "recordAnotherSample": "Ierakstīt vēl vienu",
-    "finishSamples": "Pabeigt"
+    "finishSamples": "Pabeigt",
+    "deleteSample": "Dzēst",
+    "confirmDeleteSampleTitle": "Vai tiešām vēlies dzēst šo paraugu?",
+    "confirmDeleteSampleBody": "Tas pazudīs no tava profila un stāstiem. To nevar atsaukt.",
+    "sampleRequiredToActivate": "Ieraksti vismaz vienu paraugu, pirms ieslēdz šo pieredzi."
   },
   "live": {
     "accessTicket": "Piekļuves biļete",
@@ -2096,7 +2102,7 @@
     "endSession": "Beigt sesiju",
     "free": "Bez maksas",
     "goToLive": "Doties uz tiešraidi",
-    "invalidContext": "Nederīgs konteksts. Neizdevās noteikt tiešraides galamērķi.",
+    "invalidContext": "Neizdevās noteikt, kurp jādodas tiešraidei.",
     "invalidDateTime": "Nederīgs datums un laiks",
     "liveAlt": "Tiešraide",
     "liveEnded": "Tiešraide ir beigusies",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Nederīgs uzvārds (1–40 rakstzīmes).",
       "errInvalidName": "Nederīgs vārds (1–40 rakstzīmes).",
       "errEmailInUse": "Šis e-pasts jau ir reģistrēts.",
-      "errRegistrationFailed": "Reģistrāciju neizdevās pabeigt. Mēģini vēlreiz.",
+      "errRegistrationFailed": "Reģistrāciju neizdevās pabeigt, mēģini vēlreiz.",
       "errWeakPassword": "Parolē jābūt vismaz 6 rakstzīmēm.",
-      "errPasswordWeak": "Izmanto vismaz 10 rakstzīmes, ar lielo un mazo burtu, ciparu un simbolu."
+      "errPasswordWeak": "Parolē jābūt vismaz 10 rakstzīmēm, ar lielo un mazo burtu, ciparu un simbolu."
     },
     "resetPassword": {
       "title": "Atjaunot paroli",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Ieraksts tika dzēsts.",
     "serviceNotEnabled": "Šis pakalpojums nav iespējots.",
     "futureDateRequired": "Datumam jābūt nākotnē.",
-    "internalError": "Kaut kas nogāja greizi. Mēģini vēlreiz.",
+    "internalError": "Kaut kas nogāja greizi, mēģini vēlreiz.",
     "countryNotAvailable": "Maksājums pagaidām nav pieejams tavā valstī.",
     "cardCountryNotAvailable": "Pagaidām nevaram norēķināties ar tās valsts karti."
   },

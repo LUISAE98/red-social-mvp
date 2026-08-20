@@ -270,7 +270,8 @@
     "videoUploadError": "Không tải lên được video.",
     "priceMin": "Giá tối thiểu là ${min}",
     "shareStory": "Chia sẻ câu chuyện",
-    "pinError": "Không ghim hoặc bỏ ghim được bài viết."
+    "pinError": "Không ghim hoặc bỏ ghim được bài viết.",
+    "viewsCountAriaLabel": "{count, plural, other {# lượt xem}}"
   },
   "groups": {
     "title": "Cộng đồng",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Không cập nhật được chế độ hiển thị thành viên.",
     "canvasInitError": "Không khởi tạo được canvas.",
     "cropGenerateError": "Không tạo được phần cắt.",
-    "avatarReadError": "Ảnh đại diện: không đọc được ảnh.",
-    "coverReadError": "Ảnh bìa: không đọc được ảnh.",
+    "avatarReadError": "Không đọc được ảnh đại diện.",
+    "coverReadError": "Không đọc được ảnh bìa.",
     "descriptionMinLength": "Mô tả phải có ít nhất 10 ký tự.",
     "ageMinInvalid": "Tuổi tối thiểu không hợp lệ (18–99).",
     "ageMaxInvalid": "Tuổi tối đa không hợp lệ (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Đã cập nhật danh mục.",
     "tagsUpdated": "Đã cập nhật thẻ.",
     "inviteLoadError": "Lỗi khi tải lời mời.",
-    "inviteUseError": "Không dùng được lời mời."
+    "inviteUseError": "Không dùng được lời mời.",
+    "actionInviteToMod": "Mời làm kiểm duyệt"
   },
   "profile": {
     "ariaChangeAvatar": "Đổi ảnh hồ sơ",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Không xin hoàn tiền được.",
     "errorRequestReschedule": "Không yêu cầu đổi lịch được.",
     "selectDateTimeError": "Hãy chọn ngày, tháng, năm, giờ và phút.",
-    "scheduleConflictError": "Khung giờ đó đã kín. Vui lòng chọn một giờ trống khác.",
+    "scheduleConflictError": "Khung giờ đó đã kín, hãy chọn giờ trống khác.",
     "rescheduleNotificationTitle": "Đã đổi lịch phiên",
     "scheduledDateLabel": "Ngày đã lên lịch",
     "cardExperiencesWith": "Trải nghiệm cùng {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Nhà sáng tạo quyết định chi phí mở khóa bài viết.",
     "mergeDonationSupportDesc": "Góp số tiền tùy ý để thể hiện sự ủng hộ với nhà sáng tạo.",
     "addSampleAriaLabel": "Thêm mẫu",
-    "addSampleHint": "Quay một ví dụ để người mua thấy họ sẽ nhận được gì",
+    "addSampleHint": "Quay một ví dụ để người mua thấy họ sẽ nhận được gì. Bạn cần ít nhất một cái để bật trải nghiệm, và có thể tải lên tối đa ba cái.",
     "priceInvalidGreetings": "Giá không hợp lệ cho lời chào.",
     "priceInvalidAdvice": "Giá không hợp lệ cho lời khuyên.",
     "priceInvalidMeetGreet": "Giá không hợp lệ cho Thời gian với bạn.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Lời chào mẫu của bạn đã được chia sẻ!",
     "sampleSharedAdvice": "Lời khuyên mẫu của bạn đã được chia sẻ!",
     "recordAnotherSample": "Quay thêm một cái nữa",
-    "finishSamples": "Kết thúc"
+    "finishSamples": "Kết thúc",
+    "deleteSample": "Xóa",
+    "confirmDeleteSampleTitle": "Bạn chắc chắn muốn xóa mẫu này?",
+    "confirmDeleteSampleBody": "Nó sẽ biến mất khỏi hồ sơ và tin của bạn. Không thể hoàn tác.",
+    "sampleRequiredToActivate": "Hãy quay ít nhất một mẫu trước khi bật trải nghiệm này."
   },
   "live": {
     "accessTicket": "Vé vào cửa",
@@ -2096,7 +2102,7 @@
     "endSession": "Kết thúc phiên",
     "free": "Miễn phí",
     "goToLive": "Tới buổi phát",
-    "invalidContext": "Bối cảnh không hợp lệ. Không xác định được nơi phát.",
+    "invalidContext": "Không xác định được buổi phát trực tiếp sẽ đi đâu.",
     "invalidDateTime": "Ngày và giờ không hợp lệ",
     "liveAlt": "Trực tiếp",
     "liveEnded": "Buổi phát đã kết thúc",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Họ không hợp lệ (1–40 ký tự).",
       "errInvalidName": "Tên không hợp lệ (1–40 ký tự).",
       "errEmailInUse": "Email này đã được đăng ký.",
-      "errRegistrationFailed": "Không hoàn tất được việc đăng ký. Vui lòng thử lại.",
+      "errRegistrationFailed": "Không hoàn tất được việc đăng ký, hãy thử lại.",
       "errWeakPassword": "Mật khẩu phải có ít nhất 6 ký tự.",
-      "errPasswordWeak": "Dùng ít nhất 10 ký tự, có chữ hoa, chữ thường, số và ký hiệu."
+      "errPasswordWeak": "Mật khẩu phải có ít nhất 10 ký tự, gồm chữ hoa, chữ thường, số và ký hiệu."
     },
     "resetPassword": {
       "title": "Đặt lại mật khẩu",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Bài đăng đã bị xóa.",
     "serviceNotEnabled": "Dịch vụ này chưa được bật.",
     "futureDateRequired": "Ngày phải ở tương lai.",
-    "internalError": "Đã xảy ra lỗi. Hãy thử lại.",
+    "internalError": "Đã xảy ra lỗi, hãy thử lại.",
     "countryNotAvailable": "Hiện thanh toán chưa khả dụng ở quốc gia của bạn.",
     "cardCountryNotAvailable": "Hiện chúng tôi không thể thu tiền từ thẻ của quốc gia đó."
   },

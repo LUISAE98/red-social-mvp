@@ -270,7 +270,8 @@
     "videoUploadError": "No se pudo subir el video.",
     "priceMin": "El precio mínimo es ${min}",
     "shareStory": "Compartir historia",
-    "pinError": "No se pudo fijar o desfijar la publicación."
+    "pinError": "No se pudo fijar o desfijar la publicación.",
+    "viewsCountAriaLabel": "{count, plural, one {# vista} other {# vistas}}"
   },
   "groups": {
     "title": "Comunidades",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "No se pudo actualizar la visibilidad de integrantes.",
     "canvasInitError": "No se pudo inicializar canvas.",
     "cropGenerateError": "No se pudo generar el recorte.",
-    "avatarReadError": "Avatar: no se pudo leer la imagen.",
-    "coverReadError": "Portada: no se pudo leer la imagen.",
+    "avatarReadError": "No se pudo leer la imagen del avatar.",
+    "coverReadError": "No se pudo leer la imagen de la portada.",
     "descriptionMinLength": "La descripción debe tener al menos 10 caracteres.",
     "ageMinInvalid": "Edad mínima inválida (18–99).",
     "ageMaxInvalid": "Edad máxima inválida (18–99).",
@@ -1590,7 +1591,7 @@
     "errorRequestRefund": "No se pudo solicitar la devolución.",
     "errorRequestReschedule": "No se pudo solicitar el reagendamiento.",
     "selectDateTimeError": "Selecciona día, mes, año, hora y minuto.",
-    "scheduleConflictError": "Ese horario ya está ocupado. Selecciona otra hora disponible.",
+    "scheduleConflictError": "Ese horario ya está ocupado, elige otra hora disponible.",
     "rescheduleNotificationTitle": "Sesión reagendada",
     "scheduledDateLabel": "Fecha agendada",
     "exclusiveSessionScheduled": "Sesión exclusiva agendada",
@@ -1986,7 +1987,7 @@
     "premiumPostPreviewPriceDescUser": "El creador define cuánto cuesta desbloquear la publicación.",
     "mergeDonationSupportDesc": "Aportas el monto que tú quieras para demostrarle tu apoyo al creador.",
     "addSampleAriaLabel": "Agregar muestra",
-    "addSampleHint": "Graba un ejemplo para que los compradores vean qué van a recibir",
+    "addSampleHint": "Graba un ejemplo para que los compradores vean qué van a recibir. Necesitas al menos uno para activar la experiencia y puedes subir hasta tres.",
     "priceInvalidGreetings": "Precio inválido para saludos.",
     "priceInvalidAdvice": "Precio inválido para consejos.",
     "priceInvalidMeetGreet": "Precio inválido para Tiempo contigo.",
@@ -2039,7 +2040,11 @@
     "sampleSharedGreeting": "¡Tu saludo muestra ya está compartido!",
     "sampleSharedAdvice": "¡Tu consejo muestra ya está compartido!",
     "recordAnotherSample": "Grabar uno más",
-    "finishSamples": "Terminar"
+    "finishSamples": "Terminar",
+    "deleteSample": "Eliminar",
+    "confirmDeleteSampleTitle": "¿Seguro que quieres eliminar esta muestra?",
+    "confirmDeleteSampleBody": "Desaparecerá de tu perfil y de tus historias. No se puede deshacer.",
+    "sampleRequiredToActivate": "Graba al menos una muestra antes de activar esta experiencia."
   },
   "live": {
     "accessTicket": "Ticket de acceso",
@@ -2097,7 +2102,7 @@
     "endSession": "Finalizar sesión",
     "free": "Gratis",
     "goToLive": "Ir a la transmisión en vivo",
-    "invalidContext": "Contexto inválido. No se pudo determinar el destino de la transmisión en vivo.",
+    "invalidContext": "No se pudo determinar a dónde va la transmisión en vivo.",
     "invalidDateTime": "Fecha y hora inválidas",
     "liveAlt": "En vivo",
     "liveEnded": "La transmisión en vivo ha terminado",
@@ -2533,9 +2538,9 @@
       "errInvalidLastName": "Apellido inválido (1–40 caracteres).",
       "errInvalidName": "Nombre inválido (1–40 caracteres).",
       "errEmailInUse": "Este correo ya está registrado.",
-      "errRegistrationFailed": "No se pudo completar el registro. Intenta nuevamente.",
+      "errRegistrationFailed": "No se pudo completar el registro, intenta de nuevo.",
       "errWeakPassword": "La contraseña debe tener al menos 6 caracteres.",
-      "errPasswordWeak": "Usa al menos 10 caracteres, con mayúscula, minúscula, número y símbolo."
+      "errPasswordWeak": "La contraseña debe tener al menos 10 caracteres, con mayúscula, minúscula, número y símbolo."
     },
     "resetPassword": {
       "title": "Restablecer contraseña",
@@ -2715,7 +2720,7 @@
     "deletedPost": "La publicación fue eliminada.",
     "serviceNotEnabled": "Este servicio no está habilitado.",
     "futureDateRequired": "La fecha debe ser futura.",
-    "internalError": "Ocurrió un error. Intenta de nuevo.",
+    "internalError": "Ocurrió un error, intenta de nuevo.",
     "countryNotAvailable": "El cobro no está disponible en tu país por ahora.",
     "cardCountryNotAvailable": "No podemos cobrar con una tarjeta de ese país por ahora."
   },

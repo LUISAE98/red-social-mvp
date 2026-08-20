@@ -270,7 +270,8 @@
     "videoUploadError": "Video yüklənə bilmədi.",
     "priceMin": "Minimum qiymət ${min}",
     "shareStory": "Hekayəni paylaş",
-    "pinError": "Paylaşımı sabitləmək və ya sabitliyini götürmək mümkün olmadı."
+    "pinError": "Paylaşımı sabitləmək və ya sabitliyini götürmək mümkün olmadı.",
+    "viewsCountAriaLabel": "{count, plural, one {# baxış} other {# baxış}}"
   },
   "groups": {
     "title": "İcmalar",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Üzv görünürlüyünü yeniləmək mümkün olmadı.",
     "canvasInitError": "Canvas işə salınmadı.",
     "cropGenerateError": "Kəsim yaradılmadı.",
-    "avatarReadError": "Avatar: şəkli oxumaq mümkün olmadı.",
-    "coverReadError": "Örtük: şəkli oxumaq mümkün olmadı.",
+    "avatarReadError": "Avatar şəkli oxunmadı.",
+    "coverReadError": "Örtük şəkli oxunmadı.",
     "descriptionMinLength": "Təsvir ən azı 10 simvol olmalıdır.",
     "ageMinInvalid": "Yanlış minimum yaş (18–99).",
     "ageMaxInvalid": "Yanlış maksimum yaş (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kateqoriya yeniləndi.",
     "tagsUpdated": "Etiketlər yeniləndi.",
     "inviteLoadError": "Dəvət yüklənərkən xəta.",
-    "inviteUseError": "Dəvəti istifadə etmək mümkün olmadı."
+    "inviteUseError": "Dəvəti istifadə etmək mümkün olmadı.",
+    "actionInviteToMod": "Moderatorluğa dəvət et"
   },
   "profile": {
     "ariaChangeAvatar": "Profil şəklini dəyiş",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Geri qaytarma istəmək mümkün olmadı.",
     "errorRequestReschedule": "Yenidən planlaşdırma istəmək mümkün olmadı.",
     "selectDateTimeError": "Gün, ay, il, saat və dəqiqə seç.",
-    "scheduleConflictError": "Bu vaxt doludur. Zəhmət olmasa başqa boş vaxt seç.",
+    "scheduleConflictError": "Bu vaxt tutulub, başqa boş vaxt seç.",
     "rescheduleNotificationTitle": "Sessiya yenidən planlaşdırıldı",
     "scheduledDateLabel": "Planlaşdırılmış tarix",
     "cardExperiencesWith": "{name} ilə təcrübələr",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Paylaşımın kilidini açmağın nə qədər olacağını yaradıcı təyin edir.",
     "mergeDonationSupportDesc": "Yaradıcıya dəstəyini göstərmək üçün istədiyin məbləğdə töhfə ver.",
     "addSampleAriaLabel": "Nümunə əlavə et",
-    "addSampleHint": "Alıcıların nə alacağını görməsi üçün nümunə çək",
+    "addSampleHint": "Alıcıların nə alacağını görməsi üçün bir nümunə çək. Təcrübəni aktivləşdirmək üçün ən azı bir dənə lazımdır, üç dənəyə qədər yükləyə bilərsən.",
     "priceInvalidGreetings": "Salamlar üçün yanlış qiymət.",
     "priceInvalidAdvice": "Məsləhətlər üçün yanlış qiymət.",
     "priceInvalidMeetGreet": "Səninlə vaxt üçün yanlış qiymət.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Nümunə salamın paylaşıldı!",
     "sampleSharedAdvice": "Nümunə məsləhətin paylaşıldı!",
     "recordAnotherSample": "Daha bir dənə çək",
-    "finishSamples": "Bitir"
+    "finishSamples": "Bitir",
+    "deleteSample": "Sil",
+    "confirmDeleteSampleTitle": "Bu nümunəni silmək istəyirsən?",
+    "confirmDeleteSampleBody": "Profilindən və hekayələrindən yox olacaq. Geri qaytarmaq olmaz.",
+    "sampleRequiredToActivate": "Bu təcrübəni aktivləşdirmədən əvvəl ən azı bir nümunə çək."
   },
   "live": {
     "accessTicket": "Giriş bileti",
@@ -2096,7 +2102,7 @@
     "endSession": "Sessiyanı bitir",
     "free": "Pulsuz",
     "goToLive": "Yayıma keç",
-    "invalidContext": "Yanlış kontekst. Yayımın təyinatı müəyyən edilmədi.",
+    "invalidContext": "Canlı yayımın hara gedəcəyi müəyyən edilmədi.",
     "invalidDateTime": "Yanlış tarix və saat",
     "liveAlt": "Canlı",
     "liveEnded": "Yayım başa çatdı",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Yanlış soyad (1–40 simvol).",
       "errInvalidName": "Yanlış ad (1–40 simvol).",
       "errEmailInUse": "Bu e-poçt artıq qeydiyyatdan keçib.",
-      "errRegistrationFailed": "Qeydiyyatı tamamlamaq mümkün olmadı. Zəhmət olmasa yenidən cəhd et.",
+      "errRegistrationFailed": "Qeydiyyat tamamlanmadı, yenidən cəhd et.",
       "errWeakPassword": "Şifrə ən azı 6 simvol olmalıdır.",
-      "errPasswordWeak": "Ən azı 10 simvol, o cümlədən böyük və kiçik hərf, rəqəm və simvol istifadə edin."
+      "errPasswordWeak": "Parol ən azı 10 simvoldan ibarət olmalıdır, böyük və kiçik hərf, rəqəm və simvolla."
     },
     "resetPassword": {
       "title": "Şifrəni sıfırla",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Paylaşım silindi.",
     "serviceNotEnabled": "Bu xidmət aktiv deyil.",
     "futureDateRequired": "Tarix gələcəkdə olmalıdır.",
-    "internalError": "Xəta baş verdi. Yenidən cəhd et.",
+    "internalError": "Xəta baş verdi, yenidən cəhd et.",
     "countryNotAvailable": "Ödəniş hazırda ölkəndə əlçatan deyil.",
     "cardCountryNotAvailable": "Hazırda həmin ölkənin kartından ödəniş ala bilmirik."
   },

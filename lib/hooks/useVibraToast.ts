@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { mensajeSeguro } from "@/lib/errors/mensajeSeguro";
 
-export type ToastType = "success" | "error" | "warning";
+export type ToastType = "success" | "error" | "warning" | "info";
 export type ToastState = { text: string; type: ToastType } | null;
 
 /** Cuánto se queda el aviso en pantalla antes de irse solo. */
@@ -18,6 +18,10 @@ export function useVibraToast(duration = 4000) {
     if (!raw) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     const limpio = raw.replace(/^[✅❌⚠️🚫]\s*/, "");
+    // ⚠️ TRAMPA: sin `typeHint`, el tipo se deduce del emoji inicial y **lo que no lleva
+    // emoji se pinta como ERROR**. Un mensaje de éxito redactado sin ✅ sale en rojo con
+    // una cruz. Pasó con el panel de servicios de comunidades: todos sus guardados
+    // correctos salían como fallo. Al añadir un aviso nuevo, pasa el tipo explícito.
     const type: ToastType =
       typeHint ??
       (raw.startsWith("✅") ? "success" : raw.startsWith("⚠️") ? "warning" : "error");

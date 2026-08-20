@@ -270,7 +270,8 @@
     "videoUploadError": "Video tidak dapat diunggah.",
     "priceMin": "Harga minimumnya ${min}",
     "shareStory": "Bagikan cerita",
-    "pinError": "Tidak bisa menyematkan atau melepas sematan postingan."
+    "pinError": "Tidak bisa menyematkan atau melepas sematan postingan.",
+    "viewsCountAriaLabel": "{count, plural, other {# tayangan}}"
   },
   "groups": {
     "title": "Komunitas",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Visibilitas anggota tidak bisa diperbarui.",
     "canvasInitError": "Canvas tidak bisa diinisialisasi.",
     "cropGenerateError": "Hasil potongan tidak bisa dibuat.",
-    "avatarReadError": "Gambar: tidak bisa dibaca.",
-    "coverReadError": "Sampul: gambar tidak bisa dibaca.",
+    "avatarReadError": "Gambar avatar tidak bisa dibaca.",
+    "coverReadError": "Gambar sampul tidak bisa dibaca.",
     "descriptionMinLength": "Deskripsi harus minimal 10 karakter.",
     "ageMinInvalid": "Usia minimum tidak valid (18–99).",
     "ageMaxInvalid": "Usia maksimum tidak valid (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategori diperbarui.",
     "tagsUpdated": "Tag diperbarui.",
     "inviteLoadError": "Terjadi kesalahan saat memuat undangan.",
-    "inviteUseError": "Undangan tidak bisa dipakai."
+    "inviteUseError": "Undangan tidak bisa dipakai.",
+    "actionInviteToMod": "Undang jadi moderator"
   },
   "profile": {
     "ariaChangeAvatar": "Ganti foto profil",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Pengembalian dana tidak bisa diminta.",
     "errorRequestReschedule": "Penjadwalan ulang tidak bisa diminta.",
     "selectDateTimeError": "Pilih hari, bulan, tahun, jam, dan menit.",
-    "scheduleConflictError": "Slot waktu itu sudah terisi. Silakan pilih waktu lain yang tersedia.",
+    "scheduleConflictError": "Waktu itu sudah terisi, pilih waktu lain yang tersedia.",
     "rescheduleNotificationTitle": "Sesi dijadwalkan ulang",
     "scheduledDateLabel": "Tanggal terjadwal",
     "cardExperiencesWith": "Pengalaman bersama {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Kreator yang menentukan berapa biaya untuk membuka postingannya.",
     "mergeDonationSupportDesc": "Beri berapa pun yang kamu mau untuk menunjukkan dukunganmu pada kreator.",
     "addSampleAriaLabel": "Tambah contoh",
-    "addSampleHint": "Rekam contoh agar pembeli tahu apa yang akan diterima",
+    "addSampleHint": "Rekam contoh supaya pembeli tahu apa yang akan mereka terima. Kamu butuh minimal satu untuk mengaktifkan pengalaman, dan bisa mengunggah sampai tiga.",
     "priceInvalidGreetings": "Harga tidak valid untuk sapaan.",
     "priceInvalidAdvice": "Harga tidak valid untuk saran.",
     "priceInvalidMeetGreet": "Harga tidak valid untuk Waktu bersamamu.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Contoh salammu sudah dibagikan!",
     "sampleSharedAdvice": "Contoh saranmu sudah dibagikan!",
     "recordAnotherSample": "Rekam satu lagi",
-    "finishSamples": "Selesai"
+    "finishSamples": "Selesai",
+    "deleteSample": "Hapus",
+    "confirmDeleteSampleTitle": "Yakin ingin menghapus contoh ini?",
+    "confirmDeleteSampleBody": "Ini akan hilang dari profil dan story kamu. Tidak bisa dibatalkan.",
+    "sampleRequiredToActivate": "Rekam minimal satu contoh sebelum mengaktifkan pengalaman ini."
   },
   "live": {
     "accessTicket": "Tiket akses",
@@ -2096,7 +2102,7 @@
     "endSession": "Akhiri sesi",
     "free": "Gratis",
     "goToLive": "Ke siaran langsung",
-    "invalidContext": "Konteks tidak valid. Tujuan siaran langsungnya tidak bisa ditentukan.",
+    "invalidContext": "Tidak bisa ditentukan ke mana siaran langsung ini ditujukan.",
     "invalidDateTime": "Tanggal dan jam tidak valid",
     "liveAlt": "Siaran langsung",
     "liveEnded": "Siaran langsung sudah berakhir",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Nama belakang tidak valid (1–40 karakter).",
       "errInvalidName": "Nama depan tidak valid (1–40 karakter).",
       "errEmailInUse": "Email ini sudah terdaftar.",
-      "errRegistrationFailed": "Pendaftaran tidak bisa diselesaikan. Coba lagi.",
+      "errRegistrationFailed": "Pendaftaran tidak bisa diselesaikan, coba lagi.",
       "errWeakPassword": "Kata sandi harus minimal 6 karakter.",
-      "errPasswordWeak": "Gunakan minimal 10 karakter, dengan huruf besar, huruf kecil, angka dan simbol."
+      "errPasswordWeak": "Kata sandi harus minimal 10 karakter, dengan huruf besar, huruf kecil, angka dan simbol."
     },
     "resetPassword": {
       "title": "Atur ulang kata sandi",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Postingan telah dihapus.",
     "serviceNotEnabled": "Layanan ini tidak aktif.",
     "futureDateRequired": "Tanggal harus di masa depan.",
-    "internalError": "Terjadi kesalahan. Coba lagi.",
+    "internalError": "Terjadi kesalahan, coba lagi.",
     "countryNotAvailable": "Pembayaran belum tersedia di negaramu untuk saat ini.",
     "cardCountryNotAvailable": "Untuk saat ini kami tidak bisa menagih kartu dari negara tersebut."
   },

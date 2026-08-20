@@ -137,6 +137,9 @@ type Props = {
    */
   onAddSample?: () => void;
 
+  /** Avisa al creador. Se usa para explicar por qué no se pudo activar. */
+  onNotify?: (message: string) => void;
+
   /** Dueño de las muestras. Sin esto la fila no se consulta. */
   sampleCreatorId?: string | null;
   /** Comunidad a la que pertenecen, o null si son del perfil. */
@@ -164,6 +167,7 @@ export default function Consejos({
   publishSuccess,
   onSaveDraft,
   onAddSample,
+  onNotify,
   sampleCreatorId,
   sampleGroupId = null,
 }: Props) {
@@ -251,6 +255,14 @@ export default function Consejos({
     if (overlayDraft.consejo.price !== "" && Number.isFinite(n) && n > 0) {
       consejoToSave = { ...consejoToSave, price: String(n), currency: SETTLEMENT_CURRENCY };
     }
+    // Sin una muestra el servicio no se puede encender. Es lo único que el
+    // comprador puede mirar antes de pagar, así que publicarlo vacío es vender
+    // a ciegas. El guardado se corta ANTES de escribir nada.
+    if (overlayDraft.consejo.enabled && samples.length === 0) {
+      onNotify?.(tServices("sampleRequiredToActivate"));
+      return;
+    }
+
     const ok = await onSaveDraft({
       ...overlayDraft,
       consejo: consejoToSave,
@@ -285,13 +297,6 @@ export default function Consejos({
 
     return (
       <>
-      {/* Las muestras ya grabadas, encima de "Modificar". Es donde el creador
-          mira su servicio, así que es donde tiene sentido ver qué enseña. */}
-      {samples.length > 0 && (
-        <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 14 }}>
-          <SampleAvatars samples={samples} size={44} />
-        </div>
-      )}
       <div
         style={{
           display: "flex",
@@ -305,8 +310,14 @@ export default function Consejos({
           flexWrap: "wrap",
         }}
       >
-        {/* Izquierda: cuánto ganas, visibilidad y botón Modificar. */}
+        {/* Izquierda: las muestras y, debajo, Modificar. Solapadas para que tres
+            círculos no se coman el alto de la tarjeta. */}
         <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+          {samples.length > 0 && (
+            <div style={{ justifySelf: "flex-start" }}>
+              <SampleAvatars samples={samples} size={40} overlap />
+            </div>
+          )}
           <button
             type="button"
             onClick={handleModify}
@@ -528,9 +539,12 @@ export default function Consejos({
                 forma de ver qué había subido ya. */}
             <SampleAvatars
               samples={samples}
+              size={72}
               onAdd={onAddSample}
               showHint
               hintStyle={subtleStyle}
+              accentColor={accentColor}
+              deletable
             />
           </div>
         </>

@@ -270,7 +270,8 @@
     "videoUploadError": "No s’ha pogut pujar el vídeo.",
     "priceMin": "El preu mínim és ${min}",
     "shareStory": "Compartir història",
-    "pinError": "No s'ha pogut fixar ni desfixar la publicació."
+    "pinError": "No s'ha pogut fixar ni desfixar la publicació.",
+    "viewsCountAriaLabel": "{count, plural, one {# visualització} other {# visualitzacions}}"
   },
   "groups": {
     "title": "Comunitats",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "No s'ha pogut actualitzar la visibilitat dels membres.",
     "canvasInitError": "No s'ha pogut inicialitzar el canvas.",
     "cropGenerateError": "No s'ha pogut generar el retall.",
-    "avatarReadError": "Avatar: no s'ha pogut llegir la imatge.",
-    "coverReadError": "Portada: no s'ha pogut llegir la imatge.",
+    "avatarReadError": "No s'ha pogut llegir la imatge de l'avatar.",
+    "coverReadError": "No s'ha pogut llegir la imatge de portada.",
     "descriptionMinLength": "La descripció ha de tenir com a mínim 10 caràcters.",
     "ageMinInvalid": "Edat mínima no vàlida (18–99).",
     "ageMaxInvalid": "Edat màxima no vàlida (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Categoria actualitzada.",
     "tagsUpdated": "Etiquetes actualitzades.",
     "inviteLoadError": "Error carregant la invitació.",
-    "inviteUseError": "No s'ha pogut fer servir la invitació."
+    "inviteUseError": "No s'ha pogut fer servir la invitació.",
+    "actionInviteToMod": "Convidar a moderar"
   },
   "profile": {
     "ariaChangeAvatar": "Canvia la foto de perfil",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "No s'ha pogut demanar la devolució.",
     "errorRequestReschedule": "No s'ha pogut demanar la reprogramació.",
     "selectDateTimeError": "Tria dia, mes, any, hora i minut.",
-    "scheduleConflictError": "Aquesta franja ja està ocupada. Tria una altra hora disponible.",
+    "scheduleConflictError": "Aquesta hora ja està ocupada, tria'n una altra de disponible.",
     "rescheduleNotificationTitle": "Sessió reprogramada",
     "scheduledDateLabel": "Data programada",
     "cardExperiencesWith": "Experiències amb {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "El creador fixa quant costa desbloquejar la publicació.",
     "mergeDonationSupportDesc": "Aporta l'import que vulguis per mostrar al creador el teu suport.",
     "addSampleAriaLabel": "Afegeix una mostra",
-    "addSampleHint": "Grava un exemple perquè els compradors vegin què rebran",
+    "addSampleHint": "Grava un exemple perquè els compradors vegin què rebran. En necessites com a mínim un per activar l'experiència i en pots pujar fins a tres.",
     "priceInvalidGreetings": "Preu no vàlid per a salutacions.",
     "priceInvalidAdvice": "Preu no vàlid per a consells.",
     "priceInvalidMeetGreet": "Preu no vàlid per a Temps amb tu.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "La teva salutació de mostra ja està compartida!",
     "sampleSharedAdvice": "El teu consell de mostra ja està compartit!",
     "recordAnotherSample": "Grava'n un altre",
-    "finishSamples": "Acabar"
+    "finishSamples": "Acabar",
+    "deleteSample": "Eliminar",
+    "confirmDeleteSampleTitle": "Segur que vols eliminar aquesta mostra?",
+    "confirmDeleteSampleBody": "Desapareixerà del teu perfil i de les teves històries. No es pot desfer.",
+    "sampleRequiredToActivate": "Grava com a mínim una mostra abans d'activar aquesta experiència."
   },
   "live": {
     "accessTicket": "Entrada d'accés",
@@ -2096,7 +2102,7 @@
     "endSession": "Acaba la sessió",
     "free": "Gratis",
     "goToLive": "Ves al directe",
-    "invalidContext": "Context no vàlid. No s'ha pogut determinar la destinació del directe.",
+    "invalidContext": "No s'ha pogut determinar on va la retransmissió en directe.",
     "invalidDateTime": "Data i hora no vàlides",
     "liveAlt": "Directe",
     "liveEnded": "El directe s'ha acabat",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Cognoms no vàlids (1–40 caràcters).",
       "errInvalidName": "Nom no vàlid (1–40 caràcters).",
       "errEmailInUse": "Aquest correu ja està registrat.",
-      "errRegistrationFailed": "No s'ha pogut completar el registre. Torna-ho a provar.",
+      "errRegistrationFailed": "No s'ha pogut completar el registre, torna-ho a provar.",
       "errWeakPassword": "La contrasenya ha de tenir com a mínim 6 caràcters.",
-      "errPasswordWeak": "Fes servir com a mínim 10 caràcters, amb majúscula, minúscula, número i símbol."
+      "errPasswordWeak": "La contrasenya ha de tenir com a mínim 10 caràcters, amb majúscula, minúscula, número i símbol."
     },
     "resetPassword": {
       "title": "Restableix la contrasenya",
@@ -2714,7 +2720,7 @@
     "deletedPost": "La publicació s’ha eliminat.",
     "serviceNotEnabled": "Aquest servei no està activat.",
     "futureDateRequired": "La data ha de ser futura.",
-    "internalError": "S’ha produït un error. Torna-ho a provar.",
+    "internalError": "S'ha produït un error, torna-ho a provar.",
     "countryNotAvailable": "El pagament no està disponible al teu país de moment.",
     "cardCountryNotAvailable": "De moment no podem cobrar amb una targeta d’aquest país."
   },

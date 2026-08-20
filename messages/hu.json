@@ -270,7 +270,8 @@
     "videoUploadError": "A videót nem sikerült feltölteni.",
     "priceMin": "A minimális ár {min} $",
     "shareStory": "Történet megosztása",
-    "pinError": "A bejegyzést nem sikerült kitűzni vagy levenni."
+    "pinError": "A bejegyzést nem sikerült kitűzni vagy levenni.",
+    "viewsCountAriaLabel": "{count, plural, one {# megtekintés} other {# megtekintés}}"
   },
   "groups": {
     "title": "Közösségek",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "A tagok láthatóságát nem sikerült frissíteni.",
     "canvasInitError": "A vásznat nem sikerült inicializálni.",
     "cropGenerateError": "A kivágást nem sikerült létrehozni.",
-    "avatarReadError": "Avatar: a képet nem sikerült beolvasni.",
-    "coverReadError": "Borító: a képet nem sikerült beolvasni.",
+    "avatarReadError": "Az avatar képét nem sikerült beolvasni.",
+    "coverReadError": "A borítóképet nem sikerült beolvasni.",
     "descriptionMinLength": "A leírásnak legalább 10 karakteresnek kell lennie.",
     "ageMinInvalid": "Érvénytelen minimális életkor (18–99).",
     "ageMaxInvalid": "Érvénytelen maximális életkor (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "A kategória frissítve.",
     "tagsUpdated": "A címkék frissítve.",
     "inviteLoadError": "Hiba a meghívó betöltésekor.",
-    "inviteUseError": "A meghívót nem sikerült felhasználni."
+    "inviteUseError": "A meghívót nem sikerült felhasználni.",
+    "actionInviteToMod": "Meghívás moderálásra"
   },
   "profile": {
     "ariaChangeAvatar": "Profilkép módosítása",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "A visszatérítést nem sikerült kérni.",
     "errorRequestReschedule": "Az áthelyezést nem sikerült kérni.",
     "selectDateTimeError": "Válassz napot, hónapot, évet, órát és percet.",
-    "scheduleConflictError": "Ez az idősáv már foglalt. Válassz másik szabad időpontot.",
+    "scheduleConflictError": "Ez az időpont foglalt, válassz másik szabad időpontot.",
     "rescheduleNotificationTitle": "Alkalom áthelyezve",
     "scheduledDateLabel": "Tervezett időpont",
     "cardExperiencesWith": "Élmények vele: {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Az alkotó szabja meg, mennyibe kerül a bejegyzés feloldása.",
     "mergeDonationSupportDesc": "Adj annyit, amennyit akarsz, hogy kimutasd a támogatásod az alkotónak.",
     "addSampleAriaLabel": "Minta hozzáadása",
-    "addSampleHint": "Vegyél fel egy példát, hogy a vásárlók lássák, mit kapnak",
+    "addSampleHint": "Vegyél fel egy példát, hogy a vásárlók lássák, mit kapnak. Az élmény bekapcsolásához legalább egy kell, és legfeljebb hármat tölthetsz fel.",
     "priceInvalidGreetings": "Érvénytelen ár az üdvözletekhez.",
     "priceInvalidAdvice": "Érvénytelen ár a tanácsokhoz.",
     "priceInvalidMeetGreet": "Érvénytelen ár az Idő veled szolgáltatáshoz.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "A mintaköszöntőd meg van osztva!",
     "sampleSharedAdvice": "A mintatanácsod meg van osztva!",
     "recordAnotherSample": "Veszek fel még egyet",
-    "finishSamples": "Befejezés"
+    "finishSamples": "Befejezés",
+    "deleteSample": "Törlés",
+    "confirmDeleteSampleTitle": "Biztosan törlöd ezt a mintát?",
+    "confirmDeleteSampleBody": "Eltűnik a profilodról és a történeteidből. Ez nem vonható vissza.",
+    "sampleRequiredToActivate": "Vegyél fel legalább egy mintát, mielőtt bekapcsolod ezt az élményt."
   },
   "live": {
     "accessTicket": "Belépőjegy",
@@ -2096,7 +2102,7 @@
     "endSession": "Alkalom befejezése",
     "free": "Ingyenes",
     "goToLive": "Ugrás az adáshoz",
-    "invalidContext": "Érvénytelen környezet. Nem sikerült meghatározni az adás célját.",
+    "invalidContext": "Nem sikerült megállapítani, hová megy az élő adás.",
     "invalidDateTime": "Érvénytelen dátum és időpont",
     "liveAlt": "Live",
     "liveEnded": "Az adás véget ért",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Érvénytelen vezetéknév (1–40 karakter).",
       "errInvalidName": "Érvénytelen keresztnév (1–40 karakter).",
       "errEmailInUse": "Ez az e-mail-cím már regisztrálva van.",
-      "errRegistrationFailed": "A regisztrációt nem sikerült befejezni. Próbáld újra.",
+      "errRegistrationFailed": "A regisztrációt nem sikerült befejezni, próbáld újra.",
       "errWeakPassword": "A jelszónak legalább 6 karakteresnek kell lennie.",
-      "errPasswordWeak": "Használj legalább 10 karaktert, nagy- és kisbetűvel, számmal és szimbólummal."
+      "errPasswordWeak": "A jelszónak legalább 10 karakterből kell állnia, nagy- és kisbetűvel, számmal és szimbólummal."
     },
     "resetPassword": {
       "title": "Jelszó visszaállítása",
@@ -2714,7 +2720,7 @@
     "deletedPost": "A bejegyzést törölték.",
     "serviceNotEnabled": "Ez a szolgáltatás nincs engedélyezve.",
     "futureDateRequired": "A dátumnak a jövőben kell lennie.",
-    "internalError": "Hiba történt. Próbáld újra.",
+    "internalError": "Hiba történt, próbáld újra.",
     "countryNotAvailable": "A fizetés egyelőre nem érhető el az országodban.",
     "cardCountryNotAvailable": "Egyelőre nem tudunk megterhelni egy ilyen országból származó kártyát."
   },

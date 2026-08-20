@@ -270,7 +270,8 @@
     "videoUploadError": "無法上傳影片。",
     "priceMin": "最低價格是 ${min}",
     "shareStory": "分享限時動態",
-    "pinError": "無法置頂或取消置頂貼文。"
+    "pinError": "無法置頂或取消置頂貼文。",
+    "viewsCountAriaLabel": "{count, plural, other {# 次觀看}}"
   },
   "groups": {
     "title": "社群",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "無法更新成員的顯示設定。",
     "canvasInitError": "無法初始化 Canvas。",
     "cropGenerateError": "無法產生裁切結果。",
-    "avatarReadError": "圖片：無法讀取。",
-    "coverReadError": "封面：無法讀取圖片。",
+    "avatarReadError": "無法讀取大頭貼圖片。",
+    "coverReadError": "無法讀取封面圖片。",
     "descriptionMinLength": "簡介至少要 10 個字元。",
     "ageMinInvalid": "年齡下限無效（18–99）。",
     "ageMaxInvalid": "年齡上限無效（18–99）。",
@@ -633,7 +634,8 @@
     "categoryUpdated": "已更新分類。",
     "tagsUpdated": "已更新標籤。",
     "inviteLoadError": "載入邀請時發生錯誤。",
-    "inviteUseError": "無法使用這個邀請。"
+    "inviteUseError": "無法使用這個邀請。",
+    "actionInviteToMod": "邀請擔任版主"
   },
   "profile": {
     "ariaChangeAvatar": "變更個人檔案照片",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "無法申請退款。",
     "errorRequestReschedule": "無法申請改期。",
     "selectDateTimeError": "請選擇日、月、年、時和分。",
-    "scheduleConflictError": "這個時間已經有人預約了，請選擇其他可用的時間。",
+    "scheduleConflictError": "這個時段已被預約，請選擇其他可用時段。",
     "rescheduleNotificationTitle": "時段已改期",
     "scheduledDateLabel": "預定時間",
     "cardExperiencesWith": "與 {name} 的體驗",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "解鎖貼文要多少錢，由創作者設定。",
     "mergeDonationSupportDesc": "想給多少就給多少，讓創作者感受到你的支持。",
     "addSampleAriaLabel": "新增範例",
-    "addSampleHint": "錄製範例，讓買家看到會收到什麼",
+    "addSampleHint": "錄一段範例,讓買家看到他們會收到什麼。要開啟這項體驗至少需要一段,最多可以上傳三段。",
     "priceInvalidGreetings": "問候的價格不正確。",
     "priceInvalidAdvice": "建議的價格不正確。",
     "priceInvalidMeetGreet": "與你的時光價格不正確。",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "你的範例問候已經分享了!",
     "sampleSharedAdvice": "你的範例建議已經分享了!",
     "recordAnotherSample": "再錄一則",
-    "finishSamples": "完成"
+    "finishSamples": "完成",
+    "deleteSample": "刪除",
+    "confirmDeleteSampleTitle": "確定要刪除這則範例嗎?",
+    "confirmDeleteSampleBody": "它會從你的個人檔案和限時動態中消失,而且無法復原。",
+    "sampleRequiredToActivate": "開啟這項體驗前,請至少錄一段範例。"
   },
   "live": {
     "accessTicket": "觀看門票",
@@ -2096,7 +2102,7 @@
     "endSession": "結束時段",
     "free": "免費",
     "goToLive": "前往直播",
-    "invalidContext": "資訊有誤。無法判斷這場直播要發布到哪裡。",
+    "invalidContext": "無法判斷直播要送往何處。",
     "invalidDateTime": "日期或時間無效",
     "liveAlt": "直播",
     "liveEnded": "直播已結束",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "姓氏無效（1–40 個字元）。",
       "errInvalidName": "名字無效（1–40 個字元）。",
       "errEmailInUse": "這個電子郵件已經註冊過了。",
-      "errRegistrationFailed": "無法完成註冊。請再試一次。",
+      "errRegistrationFailed": "無法完成註冊，請再試一次。",
       "errWeakPassword": "密碼至少要 6 個字元。",
-      "errPasswordWeak": "至少 10 個字元，並包含大寫、小寫、數字與符號。"
+      "errPasswordWeak": "密碼至少要 10 個字元，並包含大寫、小寫、數字與符號。"
     },
     "resetPassword": {
       "title": "重設密碼",

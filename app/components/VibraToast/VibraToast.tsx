@@ -24,6 +24,8 @@ const COLORES = {
   success: "#4ade80",
   error: "#f87171",
   warning: "rgba(255,255,255,0.78)",
+  // Informativo: no ha ido mal ni hay nada que revisar, solo se está contando algo.
+  info: "rgba(255,255,255,0.62)",
 } as const;
 
 type Props = {
@@ -139,6 +141,16 @@ export default function VibraToast({ toast }: Props) {
                 strokeWidth="2.6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+              />
+            </svg>
+          ) : visible.type === "info" ? (
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="6.4" r="1.5" fill="currentColor" />
+              <path
+                d="M12 10.5V18.5"
+                stroke="currentColor"
+                strokeWidth="2.6"
+                strokeLinecap="round"
               />
             </svg>
           ) : visible.type === "error" ? (

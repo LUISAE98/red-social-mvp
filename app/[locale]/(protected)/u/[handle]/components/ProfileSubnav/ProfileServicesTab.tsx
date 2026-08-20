@@ -662,6 +662,7 @@ export default function ProfileServicesTab({
         publishSuccess={publishSuccessConfig}
         onAddSample={() => setSampleType("saludo")}
         sampleCreatorId={profileUserId}
+        onNotify={(m) => showToast(m, "error")}
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
@@ -685,6 +686,7 @@ export default function ProfileServicesTab({
         publishSuccess={publishSuccessConfig}
         onAddSample={() => setSampleType("consejo")}
         sampleCreatorId={profileUserId}
+        onNotify={(m) => showToast(m, "error")}
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>

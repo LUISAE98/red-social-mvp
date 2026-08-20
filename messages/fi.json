@@ -270,7 +270,8 @@
     "videoUploadError": "Videota ei voitu ladata.",
     "priceMin": "Vähimmäishinta on ${min}",
     "shareStory": "Jaa tarina",
-    "pinError": "Julkaisua ei voitu kiinnittää eikä irrottaa."
+    "pinError": "Julkaisua ei voitu kiinnittää eikä irrottaa.",
+    "viewsCountAriaLabel": "{count, plural, one {# katselukerta} other {# katselukertaa}}"
   },
   "groups": {
     "title": "Yhteisöt",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Jäsenten näkyvyyttä ei voitu päivittää.",
     "canvasInitError": "Canvasia ei voitu alustaa.",
     "cropGenerateError": "Rajausta ei voitu luoda.",
-    "avatarReadError": "Avatar: kuvaa ei voitu lukea.",
-    "coverReadError": "Kansikuva: kuvaa ei voitu lukea.",
+    "avatarReadError": "Avatar-kuvaa ei voitu lukea.",
+    "coverReadError": "Kansikuvaa ei voitu lukea.",
     "descriptionMinLength": "Kuvauksessa on oltava vähintään 10 merkkiä.",
     "ageMinInvalid": "Virheellinen alaikäraja (18–99).",
     "ageMaxInvalid": "Virheellinen yläikäraja (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategoria päivitetty.",
     "tagsUpdated": "Tunnisteet päivitetty.",
     "inviteLoadError": "Virhe kutsun lataamisessa.",
-    "inviteUseError": "Kutsua ei voitu käyttää."
+    "inviteUseError": "Kutsua ei voitu käyttää.",
+    "actionInviteToMod": "Kutsu moderoimaan"
   },
   "profile": {
     "ariaChangeAvatar": "Vaihda profiilikuva",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Hyvitystä ei voitu pyytää.",
     "errorRequestReschedule": "Siirtoa ei voitu pyytää.",
     "selectDateTimeError": "Valitse päivä, kuukausi, vuosi, tunti ja minuutti.",
-    "scheduleConflictError": "Tuo aika on jo varattu. Valitse toinen vapaa aika.",
+    "scheduleConflictError": "Tämä aika on varattu, valitse toinen vapaa aika.",
     "rescheduleNotificationTitle": "Sessio siirretty",
     "scheduledDateLabel": "Ajoitettu päivämäärä",
     "cardExperiencesWith": "Elämyksiä — tekijä: {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Sisällöntuottaja määrittää, paljonko julkaisun avaaminen maksaa.",
     "mergeDonationSupportDesc": "Anna haluamasi summa osoittaaksesi tukesi sisällöntuottajalle.",
     "addSampleAriaLabel": "Lisää näyte",
-    "addSampleHint": "Tallenna esimerkki, jotta ostajat näkevät mitä saavat",
+    "addSampleHint": "Kuvaa näyte, jotta ostajat näkevät mitä saavat. Elämyksen käyttöönottoon tarvitset vähintään yhden, ja voit ladata enintään kolme.",
     "priceInvalidGreetings": "Virheellinen hinta tervehdyksille.",
     "priceInvalidAdvice": "Virheellinen hinta neuvoille.",
     "priceInvalidMeetGreet": "Virheellinen hinta Aikaa kanssasi -palvelulle.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Näytetervehdyksesi on jaettu!",
     "sampleSharedAdvice": "Näyteneuvosi on jaettu!",
     "recordAnotherSample": "Kuvaa vielä yksi",
-    "finishSamples": "Valmis"
+    "finishSamples": "Valmis",
+    "deleteSample": "Poista",
+    "confirmDeleteSampleTitle": "Haluatko varmasti poistaa tämän näytteen?",
+    "confirmDeleteSampleBody": "Se katoaa profiilistasi ja tarinoistasi. Tätä ei voi peruuttaa.",
+    "sampleRequiredToActivate": "Kuvaa vähintään yksi näyte ennen kuin otat tämän elämyksen käyttöön."
   },
   "live": {
     "accessTicket": "Pääsylippu",
@@ -2096,7 +2102,7 @@
     "endSession": "Lopeta sessio",
     "free": "Ilmainen",
     "goToLive": "Siirry lähetykseen",
-    "invalidContext": "Virheellinen konteksti. Lähetyksen kohdetta ei voitu määrittää.",
+    "invalidContext": "Ei voitu määrittää, mihin suora lähetys menee.",
     "invalidDateTime": "Virheellinen päivä ja kellonaika",
     "liveAlt": "Live",
     "liveEnded": "Lähetys on päättynyt",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Virheellinen sukunimi (1–40 merkkiä).",
       "errInvalidName": "Virheellinen etunimi (1–40 merkkiä).",
       "errEmailInUse": "Tämä sähköposti on jo rekisteröity.",
-      "errRegistrationFailed": "Rekisteröitymistä ei voitu viedä loppuun. Yritä uudelleen.",
+      "errRegistrationFailed": "Rekisteröitymistä ei voitu viedä loppuun, yritä uudelleen.",
       "errWeakPassword": "Salasanassa on oltava vähintään 6 merkkiä.",
-      "errPasswordWeak": "Käytä vähintään 10 merkkiä, isolla ja pienellä kirjaimella, numerolla ja symbolilla."
+      "errPasswordWeak": "Salasanassa pitää olla vähintään 10 merkkiä, iso ja pieni kirjain, numero ja symboli."
     },
     "resetPassword": {
       "title": "Palauta salasana",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Julkaisu poistettiin.",
     "serviceNotEnabled": "Tämä palvelu ei ole käytössä.",
     "futureDateRequired": "Päivämäärän on oltava tulevaisuudessa.",
-    "internalError": "Jokin meni pieleen. Yritä uudelleen.",
+    "internalError": "Jokin meni pieleen, yritä uudelleen.",
     "countryNotAvailable": "Maksaminen ei ole toistaiseksi käytettävissä maassasi.",
     "cardCountryNotAvailable": "Emme voi toistaiseksi veloittaa kyseisen maan korttia."
   },

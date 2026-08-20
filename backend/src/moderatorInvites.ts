@@ -136,18 +136,26 @@ export const inviteGroupModerator = onCall({ region: REGION }, async (request) =
     );
   }
 
-  // Nunca en comunidades ocultas.
-  if (str(groupData.visibility) === "hidden") {
+  const userSnap = await db.collection("users").doc(userId).get();
+  if (!userSnap.exists) throw new HttpsError("not-found", "La persona no existe.");
+
+  const memberSnap = await groupRef.collection("members").doc(userId).get();
+
+  /**
+   * En una comunidad oculta solo se invita HACIA DENTRO.
+   *
+   * Lo que hay que proteger es su existencia: mandarle una invitación a alguien
+   * de fuera le revela el nombre de una comunidad que no debería saber que
+   * existe. A quien ya es integrante no se le revela nada — ya está dentro y ya
+   * la ve—, así que ascenderlo a moderador es seguro.
+   */
+  if (str(groupData.visibility) === "hidden" && !memberSnap.exists) {
     throw new HttpsError(
       "failed-precondition",
       "Una comunidad oculta no puede invitar moderadores desde fuera."
     );
   }
 
-  const userSnap = await db.collection("users").doc(userId).get();
-  if (!userSnap.exists) throw new HttpsError("not-found", "La persona no existe.");
-
-  const memberSnap = await groupRef.collection("members").doc(userId).get();
   if (memberSnap.exists) {
     const member = memberSnap.data() ?? {};
     const status = str(member.status);
@@ -279,7 +287,10 @@ export const respondGroupModeratorInvite = onCall(
         );
       }
 
-      if (str(grupo.visibility) === "hidden") {
+      // Igual que al invitar: en una oculta solo entra quien ya estaba dentro.
+      // Si la comunidad se volvió oculta con la invitación en el aire y la
+      // persona no es integrante, aceptar la metería desde fuera.
+      if (str(grupo.visibility) === "hidden" && !memberSnap.exists) {
         throw new HttpsError(
           "failed-precondition",
           "Esta comunidad pasó a ser oculta. El creador debe invitarte desde dentro."

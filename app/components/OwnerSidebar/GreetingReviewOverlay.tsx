@@ -1749,7 +1749,12 @@ export default function GreetingReviewOverlay({
                       {/* En una muestra no hay dinero ni siguiente encargo: solo
                           decidir si se graba otra o se termina. */}
                       {sampleMode ? (
-                        <div style={{ display: "flex", alignItems: "stretch", gap: 10 }}>
+                        <div style={{
+                          // Rejilla de columnas 1fr para que los dos midan lo
+                          // mismo, lo marque el texto que lo marque.
+                          display: "grid", gridAutoFlow: "column", gridAutoColumns: "1fr",
+                          alignItems: "stretch", gap: 10,
+                        }}>
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); handleAnimatedClose(); }}

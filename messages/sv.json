@@ -270,7 +270,8 @@
     "videoUploadError": "Videon kunde inte laddas upp.",
     "priceMin": "Lägsta pris är ${min}",
     "shareStory": "Dela berättelse",
-    "pinError": "Inlägget kunde inte fästas eller lossas."
+    "pinError": "Inlägget kunde inte fästas eller lossas.",
+    "viewsCountAriaLabel": "{count, plural, one {# visning} other {# visningar}}"
   },
   "groups": {
     "title": "Communities",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Det gick inte att uppdatera medlemmarnas synlighet.",
     "canvasInitError": "Det gick inte att initiera canvas.",
     "cropGenerateError": "Det gick inte att skapa beskärningen.",
-    "avatarReadError": "Avatar: det gick inte att läsa bilden.",
-    "coverReadError": "Omslag: det gick inte att läsa bilden.",
+    "avatarReadError": "Det gick inte att läsa avatarbilden.",
+    "coverReadError": "Det gick inte att läsa omslagsbilden.",
     "descriptionMinLength": "Beskrivningen måste ha minst 10 tecken.",
     "ageMinInvalid": "Ogiltig lägsta ålder (18–99).",
     "ageMaxInvalid": "Ogiltig högsta ålder (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategorin är uppdaterad.",
     "tagsUpdated": "Taggarna är uppdaterade.",
     "inviteLoadError": "Fel när inbjudan laddades.",
-    "inviteUseError": "Inbjudan kunde inte användas."
+    "inviteUseError": "Inbjudan kunde inte användas.",
+    "actionInviteToMod": "Bjud in att moderera"
   },
   "profile": {
     "ariaChangeAvatar": "Byt profilbild",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Det gick inte att begära återbetalning.",
     "errorRequestReschedule": "Det gick inte att begära ombokning.",
     "selectDateTimeError": "Välj dag, månad, år, timme och minut.",
-    "scheduleConflictError": "Den tiden är redan upptagen. Välj en annan ledig tid.",
+    "scheduleConflictError": "Den tiden är upptagen, välj en annan ledig tid.",
     "rescheduleNotificationTitle": "Sessionen är ombokad",
     "scheduledDateLabel": "Inbokat datum",
     "cardExperiencesWith": "Upplevelser med {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Kreatören bestämmer vad det kostar att låsa upp inlägget.",
     "mergeDonationSupportDesc": "Bidra med det belopp du vill för att visa kreatören ditt stöd.",
     "addSampleAriaLabel": "Lägg till exempel",
-    "addSampleHint": "Spela in ett exempel så köpare ser vad de får",
+    "addSampleHint": "Spela in ett exempel så köparna ser vad de får. Du behöver minst ett för att slå på upplevelsen, och du kan ladda upp upp till tre.",
     "priceInvalidGreetings": "Ogiltigt pris för hälsningar.",
     "priceInvalidAdvice": "Ogiltigt pris för råd.",
     "priceInvalidMeetGreet": "Ogiltigt pris för Tid med dig.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Din exempelhälsning är delad!",
     "sampleSharedAdvice": "Ditt exempelråd är delat!",
     "recordAnotherSample": "Spela in en till",
-    "finishSamples": "Slutför"
+    "finishSamples": "Slutför",
+    "deleteSample": "Radera",
+    "confirmDeleteSampleTitle": "Är du säker på att du vill radera det här provet?",
+    "confirmDeleteSampleBody": "Det försvinner från din profil och dina stories. Det går inte att ångra.",
+    "sampleRequiredToActivate": "Spela in minst ett prov innan du slår på den här upplevelsen."
   },
   "live": {
     "accessTicket": "Inträdesbiljett",
@@ -2096,7 +2102,7 @@
     "endSession": "Avsluta sessionen",
     "free": "Gratis",
     "goToLive": "Gå till sändningen",
-    "invalidContext": "Ogiltigt sammanhang. Det gick inte att avgöra sändningens destination.",
+    "invalidContext": "Det gick inte att avgöra vart livesändningen ska.",
     "invalidDateTime": "Ogiltigt datum och tid",
     "liveAlt": "Live",
     "liveEnded": "Sändningen är slut",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Ogiltigt efternamn (1–40 tecken).",
       "errInvalidName": "Ogiltigt förnamn (1–40 tecken).",
       "errEmailInUse": "Den här e-postadressen är redan registrerad.",
-      "errRegistrationFailed": "Det gick inte att slutföra registreringen. Försök igen.",
+      "errRegistrationFailed": "Det gick inte att slutföra registreringen, försök igen.",
       "errWeakPassword": "Lösenordet måste vara minst 6 tecken.",
-      "errPasswordWeak": "Använd minst 10 tecken, med stor och liten bokstav, siffra och symbol."
+      "errPasswordWeak": "Lösenordet måste ha minst 10 tecken, med stor och liten bokstav, siffra och symbol."
     },
     "resetPassword": {
       "title": "Återställ lösenordet",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Inlägget har raderats.",
     "serviceNotEnabled": "Den här tjänsten är inte aktiverad.",
     "futureDateRequired": "Datumet måste vara i framtiden.",
-    "internalError": "Något gick fel. Försök igen.",
+    "internalError": "Något gick fel, försök igen.",
     "countryNotAvailable": "Betalning är tills vidare inte tillgänglig i ditt land.",
     "cardCountryNotAvailable": "Vi kan tills vidare inte debitera ett kort från det landet."
   },

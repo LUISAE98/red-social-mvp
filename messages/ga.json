@@ -270,7 +270,8 @@
     "videoUploadError": "Níorbh fhéidir an físeán a uaslódáil.",
     "priceMin": "Is é ${min} an t-íosphraghas",
     "shareStory": "Comhroinn scéal",
-    "pinError": "Níorbh fhéidir an postáil a phionnáil ná a dhíphionnáil."
+    "pinError": "Níorbh fhéidir an postáil a phionnáil ná a dhíphionnáil.",
+    "viewsCountAriaLabel": "{count, plural, one {# amharc} two {# amharc} few {# amharc} many {# n-amharc} other {# amharc}}"
   },
   "groups": {
     "title": "Pobail",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Níorbh fhéidir infheictheacht na mball a nuashonrú.",
     "canvasInitError": "Níorbh fhéidir an Canvas a thúsú.",
     "cropGenerateError": "Níorbh fhéidir an bearradh a chruthú.",
-    "avatarReadError": "Íomhá: níorbh fhéidir í a léamh.",
-    "coverReadError": "Clúdach: níorbh fhéidir an íomhá a léamh.",
+    "avatarReadError": "Níorbh fhéidir íomhá an abhatáir a léamh.",
+    "coverReadError": "Níorbh fhéidir an íomhá chlúdaigh a léamh.",
     "descriptionMinLength": "Caithfidh 10 gcarachtar ar a laghad a bheith sa chur síos.",
     "ageMinInvalid": "Íosaois neamhbhailí (18–99).",
     "ageMaxInvalid": "Uasaois neamhbhailí (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Nuashonraíodh an chatagóir.",
     "tagsUpdated": "Nuashonraíodh na clibeanna.",
     "inviteLoadError": "Earráid agus an cuireadh á lódáil.",
-    "inviteUseError": "Níorbh fhéidir an cuireadh a úsáid."
+    "inviteUseError": "Níorbh fhéidir an cuireadh a úsáid.",
+    "actionInviteToMod": "Tabhair cuireadh modhnóireachta"
   },
   "profile": {
     "ariaChangeAvatar": "Athraigh íomhá na próifíle",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Níorbh fhéidir aisíocaíocht a iarraidh.",
     "errorRequestReschedule": "Níorbh fhéidir athsceidealú a iarraidh.",
     "selectDateTimeError": "Roghnaigh lá, mí, bliain, uair agus nóiméad.",
-    "scheduleConflictError": "Tá an sliotán ama sin tógtha cheana. Roghnaigh am eile atá ar fáil.",
+    "scheduleConflictError": "Tá an t-am sin tógtha, roghnaigh am eile atá saor.",
     "rescheduleNotificationTitle": "Seisiún athsceidealta",
     "scheduledDateLabel": "Dáta sceidealta",
     "cardExperiencesWith": "Eispéiris le {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Socraíonn an cruthaitheoir cé mhéad a chosnaíonn sé an phostáil a dhíghlasáil.",
     "mergeDonationSupportDesc": "Tabhair pé méid is mian leat chun do thacaíocht a thaispeáint don chruthaitheoir.",
     "addSampleAriaLabel": "Cuir sampla leis",
-    "addSampleHint": "Taifead sampla le go bhfeicfidh ceannaitheoirí a bhfaighidh siad",
+    "addSampleHint": "Taifead sampla ionas go bhfeicfidh ceannaitheoirí a bhfaighidh siad. Teastaíonn ceann amháin ar a laghad chun an taithí a chur ar siúl, agus is féidir leat suas le trí cinn a uaslódáil.",
     "priceInvalidGreetings": "Praghas neamhbhailí do bheannachtaí.",
     "priceInvalidAdvice": "Praghas neamhbhailí do chomhairle.",
     "priceInvalidMeetGreet": "Praghas neamhbhailí do Am leat.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Tá do bheannacht shamplach roinnte!",
     "sampleSharedAdvice": "Tá do chomhairle shamplach roinnte!",
     "recordAnotherSample": "Taifead ceann eile",
-    "finishSamples": "Críochnaigh"
+    "finishSamples": "Críochnaigh",
+    "deleteSample": "Scrios",
+    "confirmDeleteSampleTitle": "An bhfuil tú cinnte gur mian leat an sampla seo a scriosadh?",
+    "confirmDeleteSampleBody": "Imeoidh sé de do phróifíl agus de do scéalta. Ní féidir é seo a chur ar ais.",
+    "sampleRequiredToActivate": "Taifead sampla amháin ar a laghad sula gcuireann tú an taithí seo ar siúl."
   },
   "live": {
     "accessTicket": "Ticéad rochtana",
@@ -2096,7 +2102,7 @@
     "endSession": "Cuir deireadh leis an seisiún",
     "free": "Saor in aisce",
     "goToLive": "Téigh chuig an gcraoladh beo",
-    "invalidContext": "Comhthéacs neamhbhailí. Níorbh fhéidir ceann scríbe an chraolta bheo a dhéanamh amach.",
+    "invalidContext": "Níorbh fhéidir a dhéanamh amach cá bhfuil an craoladh beo ag dul.",
     "invalidDateTime": "Dáta agus am neamhbhailí",
     "liveAlt": "Craoladh beo",
     "liveEnded": "Tá deireadh leis an gcraoladh beo",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Sloinne neamhbhailí (1–40 carachtar).",
       "errInvalidName": "Ainm neamhbhailí (1–40 carachtar).",
       "errEmailInUse": "Tá an ríomhphost seo cláraithe cheana.",
-      "errRegistrationFailed": "Níorbh fhéidir an clárú a chríochnú. Bain triail eile as.",
+      "errRegistrationFailed": "Níorbh fhéidir an clárú a chríochnú, bain triail eile as.",
       "errWeakPassword": "Caithfidh 6 charachtar ar a laghad a bheith sa phasfhocal.",
-      "errPasswordWeak": "Bain úsáid as 10 gcarachtar ar a laghad, le ceannlitir, litir bheag, uimhir agus siombail."
+      "errPasswordWeak": "Caithfidh 10 gcarachtar ar a laghad a bheith san fhocal faire, le ceannlitir, litir bheag, uimhir agus siombail."
     },
     "resetPassword": {
       "title": "Athshocraigh an pasfhocal",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Scriosadh an phostáil.",
     "serviceNotEnabled": "Níl an tseirbhís seo cumasaithe.",
     "futureDateRequired": "Caithfidh an dáta a bheith sa todhchaí.",
-    "internalError": "Chuaigh rud éigin mícheart. Bain triail eile as.",
+    "internalError": "Chuaigh rud éigin mícheart, bain triail eile as.",
     "countryNotAvailable": "Níl íocaíocht ar fáil i do thír faoi láthair.",
     "cardCountryNotAvailable": "Ní féidir linn cárta ón tír sin a mhuirearú faoi láthair."
   },

@@ -270,7 +270,8 @@
     "videoUploadError": "Non è stato possibile caricare il video.",
     "priceMin": "Il prezzo minimo è {min} $",
     "shareStory": "Condividi storia",
-    "pinError": "Impossibile fissare o rimuovere il post."
+    "pinError": "Impossibile fissare o rimuovere il post.",
+    "viewsCountAriaLabel": "{count, plural, one {# visualizzazione} other {# visualizzazioni}}"
   },
   "groups": {
     "title": "Community",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Impossibile aggiornare la visibilità dei membri.",
     "canvasInitError": "Impossibile inizializzare il canvas.",
     "cropGenerateError": "Impossibile generare il ritaglio.",
-    "avatarReadError": "Avatar: impossibile leggere l'immagine.",
-    "coverReadError": "Copertina: impossibile leggere l'immagine.",
+    "avatarReadError": "Impossibile leggere l'immagine dell'avatar.",
+    "coverReadError": "Impossibile leggere l'immagine di copertina.",
     "descriptionMinLength": "La descrizione deve avere almeno 10 caratteri.",
     "ageMinInvalid": "Età minima non valida (18–99).",
     "ageMaxInvalid": "Età massima non valida (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Categoria aggiornata.",
     "tagsUpdated": "Tag aggiornati.",
     "inviteLoadError": "Errore nel caricamento dell'invito.",
-    "inviteUseError": "Impossibile usare l'invito."
+    "inviteUseError": "Impossibile usare l'invito.",
+    "actionInviteToMod": "Invita a moderare"
   },
   "profile": {
     "ariaChangeAvatar": "Cambia la foto del profilo",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Impossibile richiedere il rimborso.",
     "errorRequestReschedule": "Impossibile richiedere la riprogrammazione.",
     "selectDateTimeError": "Seleziona giorno, mese, anno, ora e minuto.",
-    "scheduleConflictError": "Questa fascia oraria è già occupata. Seleziona un altro orario disponibile.",
+    "scheduleConflictError": "Questo orario è già occupato, scegli un altro orario disponibile.",
     "rescheduleNotificationTitle": "Sessione riprogrammata",
     "scheduledDateLabel": "Data programmata",
     "cardExperiencesWith": "Esperienze con {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Il creator stabilisce quanto costa sbloccare il post.",
     "mergeDonationSupportDesc": "Contribuisci con l'importo che vuoi per mostrare il tuo sostegno al creator.",
     "addSampleAriaLabel": "Aggiungi un esempio",
-    "addSampleHint": "Registra un esempio così gli acquirenti vedono cosa riceveranno",
+    "addSampleHint": "Registra un esempio così gli acquirenti vedono cosa riceveranno. Te ne serve almeno uno per attivare l'esperienza e puoi caricarne fino a tre.",
     "priceInvalidGreetings": "Prezzo non valido per i saluti.",
     "priceInvalidAdvice": "Prezzo non valido per i consigli.",
     "priceInvalidMeetGreet": "Prezzo non valido per Tempo con te.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Il tuo saluto di esempio è condiviso!",
     "sampleSharedAdvice": "Il tuo consiglio di esempio è condiviso!",
     "recordAnotherSample": "Registrane un altro",
-    "finishSamples": "Fine"
+    "finishSamples": "Fine",
+    "deleteSample": "Elimina",
+    "confirmDeleteSampleTitle": "Vuoi davvero eliminare questo esempio?",
+    "confirmDeleteSampleBody": "Sparirà dal tuo profilo e dalle tue storie. Non si può annullare.",
+    "sampleRequiredToActivate": "Registra almeno un esempio prima di attivare questa esperienza."
   },
   "live": {
     "accessTicket": "Biglietto d'accesso",
@@ -2096,7 +2102,7 @@
     "endSession": "Termina la sessione",
     "free": "Gratis",
     "goToLive": "Vai alla diretta",
-    "invalidContext": "Contesto non valido. Impossibile determinare la destinazione della diretta.",
+    "invalidContext": "Impossibile determinare la destinazione della diretta.",
     "invalidDateTime": "Data e ora non valide",
     "liveAlt": "Live",
     "liveEnded": "La diretta è terminata",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Cognome non valido (1–40 caratteri).",
       "errInvalidName": "Nome non valido (1–40 caratteri).",
       "errEmailInUse": "Questa email è già registrata.",
-      "errRegistrationFailed": "Impossibile completare la registrazione. Riprova.",
+      "errRegistrationFailed": "Impossibile completare la registrazione, riprova.",
       "errWeakPassword": "La password deve avere almeno 6 caratteri.",
-      "errPasswordWeak": "Usa almeno 10 caratteri, con maiuscola, minuscola, numero e simbolo."
+      "errPasswordWeak": "La password deve avere almeno 10 caratteri, con maiuscola, minuscola, numero e simbolo."
     },
     "resetPassword": {
       "title": "Reimposta la password",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Il post è stato eliminato.",
     "serviceNotEnabled": "Questo servizio non è attivo.",
     "futureDateRequired": "La data deve essere futura.",
-    "internalError": "Si è verificato un errore. Riprova.",
+    "internalError": "Si è verificato un errore, riprova.",
     "countryNotAvailable": "Il pagamento non è disponibile nel tuo paese per ora.",
     "cardCountryNotAvailable": "Per ora non possiamo addebitare una carta di quel paese."
   },

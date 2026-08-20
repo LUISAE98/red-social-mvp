@@ -37,14 +37,9 @@ export default function RootChrome({
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setHydrated(true); }, []);
 
-  // Marca el <body> cuando hay sesión → habilita un safe-area inferior CONSTANTE
-  // (tamaño fijo, nunca env()) solo estando logueado. Ver `body.vb-authed` en
-  // globals.css. Sin sesión: 0 (edge-to-edge).
-  useEffect(() => {
-    const authed = hydrated && !!user;
-    document.body.classList.toggle("vb-authed", authed);
-    return () => { document.body.classList.remove("vb-authed"); };
-  }, [hydrated, user]);
+  // Aquí se marcaba el <body> con `vb-authed` para encender un safe-area
+  // inferior de 20px estando logueado. Ya no hay safe-area inferior en ninguna
+  // parte, así que la clase no la leía nadie más y se fue con ella.
 
 const isPublicRoute =
   pathname === "/" ||

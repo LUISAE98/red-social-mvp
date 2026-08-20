@@ -270,7 +270,8 @@
     "videoUploadError": "Videot ei õnnestunud üles laadida.",
     "priceMin": "Miinimumhind on ${min}",
     "shareStory": "Jaga lugu",
-    "pinError": "Postitust ei õnnestunud kinnitada ega lahti võtta."
+    "pinError": "Postitust ei õnnestunud kinnitada ega lahti võtta.",
+    "viewsCountAriaLabel": "{count, plural, one {# vaatamine} other {# vaatamist}}"
   },
   "groups": {
     "title": "Kogukonnad",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Liikmete nähtavust ei õnnestunud uuendada.",
     "canvasInitError": "Canvas'i ei õnnestunud lähtestada.",
     "cropGenerateError": "Kärbet ei õnnestunud luua.",
-    "avatarReadError": "Pilt: seda ei õnnestunud lugeda.",
-    "coverReadError": "Kaas: pilti ei õnnestunud lugeda.",
+    "avatarReadError": "Avatari pilti ei õnnestunud lugeda.",
+    "coverReadError": "Kaanepilti ei õnnestunud lugeda.",
     "descriptionMinLength": "Kirjelduses peab olema vähemalt 10 tähemärki.",
     "ageMinInvalid": "Vigane vanuse alampiir (18–99).",
     "ageMaxInvalid": "Vigane vanuse ülempiir (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategooria on uuendatud.",
     "tagsUpdated": "Sildid on uuendatud.",
     "inviteLoadError": "Viga kutse laadimisel.",
-    "inviteUseError": "Kutset ei õnnestunud kasutada."
+    "inviteUseError": "Kutset ei õnnestunud kasutada.",
+    "actionInviteToMod": "Kutsu modereerima"
   },
   "profile": {
     "ariaChangeAvatar": "Muuda profiilipilti",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Tagasimakset ei õnnestunud taotleda.",
     "errorRequestReschedule": "Ümberajastamist ei õnnestunud taotleda.",
     "selectDateTimeError": "Vali päev, kuu, aasta, tund ja minut.",
-    "scheduleConflictError": "See ajavahemik on juba hõivatud. Palun vali mõni muu vaba aeg.",
+    "scheduleConflictError": "See aeg on hõivatud, vali mõni muu vaba aeg.",
     "rescheduleNotificationTitle": "Seanss ümber ajastatud",
     "scheduledDateLabel": "Ajastatud kuupäev",
     "cardExperiencesWith": "Kogemused kasutajaga {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Looja määrab, kui palju postituse avamine maksab.",
     "mergeDonationSupportDesc": "Anna nii palju kui soovid, et loojale oma toetust näidata.",
     "addSampleAriaLabel": "Lisa näidis",
-    "addSampleHint": "Salvesta näide, et ostjad näeksid, mida saavad",
+    "addSampleHint": "Salvesta näidis, et ostjad näeksid, mida nad saavad. Elamuse sisselülitamiseks on vaja vähemalt üht ja üles saab laadida kuni kolm.",
     "priceInvalidGreetings": "Sobimatu hind tervituste jaoks.",
     "priceInvalidAdvice": "Sobimatu hind nõuannete jaoks.",
     "priceInvalidMeetGreet": "Sobimatu hind Aeg sinuga jaoks.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Sinu näidistervitus on jagatud!",
     "sampleSharedAdvice": "Sinu näidisnõuanne on jagatud!",
     "recordAnotherSample": "Salvesta veel üks",
-    "finishSamples": "Lõpeta"
+    "finishSamples": "Lõpeta",
+    "deleteSample": "Kustuta",
+    "confirmDeleteSampleTitle": "Kas soovid selle näidise kustutada?",
+    "confirmDeleteSampleBody": "See kaob su profiililt ja lugudest. Seda ei saa tagasi võtta.",
+    "sampleRequiredToActivate": "Salvesta vähemalt üks näidis, enne kui selle elamuse sisse lülitad."
   },
   "live": {
     "accessTicket": "Ligipääsupilet",
@@ -2096,7 +2102,7 @@
     "endSession": "Lõpeta seanss",
     "free": "Tasuta",
     "goToLive": "Mine otseülekandesse",
-    "invalidContext": "Vigane kontekst. Otseülekande sihtkohta ei õnnestunud tuvastada.",
+    "invalidContext": "Ei õnnestunud tuvastada, kuhu otseülekanne läheb.",
     "invalidDateTime": "Vigane kuupäev ja kellaaeg",
     "liveAlt": "Otseülekanne",
     "liveEnded": "Otseülekanne on lõppenud",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Vigane perekonnanimi (1–40 tähemärki).",
       "errInvalidName": "Vigane eesnimi (1–40 tähemärki).",
       "errEmailInUse": "See e-post on juba registreeritud.",
-      "errRegistrationFailed": "Registreerimist ei õnnestunud lõpule viia. Proovi uuesti.",
+      "errRegistrationFailed": "Registreerimist ei õnnestunud lõpule viia, proovi uuesti.",
       "errWeakPassword": "Paroolis peab olema vähemalt 6 tähemärki.",
-      "errPasswordWeak": "Kasuta vähemalt 10 märki, suur- ja väiketähte, numbrit ja sümbolit."
+      "errPasswordWeak": "Parool peab olema vähemalt 10 märki, suur- ja väiketähe, numbri ja sümboliga."
     },
     "resetPassword": {
       "title": "Lähtesta parool",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Postitus kustutati.",
     "serviceNotEnabled": "See teenus ei ole lubatud.",
     "futureDateRequired": "Kuupäev peab olema tulevikus.",
-    "internalError": "Midagi läks valesti. Proovi uuesti.",
+    "internalError": "Midagi läks valesti, proovi uuesti.",
     "countryNotAvailable": "Makse ei ole praegu sinu riigis saadaval.",
     "cardCountryNotAvailable": "Praegu ei saa me selle riigi kaarti debiteerida."
   },

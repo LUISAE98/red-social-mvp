@@ -270,7 +270,8 @@
     "videoUploadError": "Nepavyko įkelti vaizdo įrašo.",
     "priceMin": "Mažiausia kaina yra ${min}",
     "shareStory": "Bendrinti istoriją",
-    "pinError": "Nepavyko prisegti ar atsegti įrašo."
+    "pinError": "Nepavyko prisegti ar atsegti įrašo.",
+    "viewsCountAriaLabel": "{count, plural, one {# peržiūra} few {# peržiūros} many {# peržiūros} other {# peržiūrų}}"
   },
   "groups": {
     "title": "Bendruomenės",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Narių matomumo nepavyko atnaujinti.",
     "canvasInitError": "Canvas nepavyko inicijuoti.",
     "cropGenerateError": "Apkarpymo nepavyko sukurti.",
-    "avatarReadError": "Avataras: paveikslėlio nepavyko perskaityti.",
-    "coverReadError": "Viršelis: paveikslėlio nepavyko perskaityti.",
+    "avatarReadError": "Nepavyko perskaityti avataro paveikslėlio.",
+    "coverReadError": "Nepavyko perskaityti viršelio paveikslėlio.",
     "descriptionMinLength": "Aprašymą turi sudaryti bent 10 simbolių.",
     "ageMinInvalid": "Netinkamas mažiausias amžius (18 – 99).",
     "ageMaxInvalid": "Netinkamas didžiausias amžius (18 – 99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategorija atnaujinta.",
     "tagsUpdated": "Žymos atnaujintos.",
     "inviteLoadError": "Klaida įkeliant pakvietimą.",
-    "inviteUseError": "Nepavyko panaudoti pakvietimo."
+    "inviteUseError": "Nepavyko panaudoti pakvietimo.",
+    "actionInviteToMod": "Pakviesti moderuoti"
   },
   "profile": {
     "ariaChangeAvatar": "Keisti profilio nuotrauką",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Grąžinimo nepavyko paprašyti.",
     "errorRequestReschedule": "Perkėlimo nepavyko paprašyti.",
     "selectDateTimeError": "Pasirink dieną, mėnesį, metus, valandą ir minutę.",
-    "scheduleConflictError": "Šis laikas jau užimtas. Pasirink kitą laisvą laiką.",
+    "scheduleConflictError": "Šis laikas užimtas, pasirink kitą laisvą laiką.",
     "rescheduleNotificationTitle": "Sesija perkelta",
     "scheduledDateLabel": "Suplanuota data",
     "cardExperiencesWith": "Potyriai su kūrėju {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Kūrėjas nustato, kiek kainuoja atrakinti įrašą.",
     "mergeDonationSupportDesc": "Prisidėk tokia suma, kokia nori, kad parodytum kūrėjui savo palaikymą.",
     "addSampleAriaLabel": "Pridėti pavyzdį",
-    "addSampleHint": "Įrašyk pavyzdį, kad pirkėjai matytų, ką gaus",
+    "addSampleHint": "Įrašyk pavyzdį, kad pirkėjai matytų, ką gaus. Patirčiai įjungti reikia bent vieno, o įkelti gali iki trijų.",
     "priceInvalidGreetings": "Netinkama pasisveikinimų kaina.",
     "priceInvalidAdvice": "Netinkama patarimų kaina.",
     "priceInvalidMeetGreet": "Netinkama Laiko su tavimi kaina.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Tavo pavyzdinis sveikinimas jau bendrinamas!",
     "sampleSharedAdvice": "Tavo pavyzdinis patarimas jau bendrinamas!",
     "recordAnotherSample": "Įrašyti dar vieną",
-    "finishSamples": "Baigti"
+    "finishSamples": "Baigti",
+    "deleteSample": "Ištrinti",
+    "confirmDeleteSampleTitle": "Ar tikrai nori ištrinti šį pavyzdį?",
+    "confirmDeleteSampleBody": "Jis dings iš tavo profilio ir istorijų. To nebus galima atšaukti.",
+    "sampleRequiredToActivate": "Prieš įjungdamas šią patirtį įrašyk bent vieną pavyzdį."
   },
   "live": {
     "accessTicket": "Prieigos bilietas",
@@ -2096,7 +2102,7 @@
     "endSession": "Baigti sesiją",
     "free": "Nemokamai",
     "goToLive": "Eiti į transliaciją",
-    "invalidContext": "Netinkamas kontekstas. Transliacijos paskirties nepavyko nustatyti.",
+    "invalidContext": "Nepavyko nustatyti, kur turi eiti tiesioginė transliacija.",
     "invalidDateTime": "Netinkama data ir laikas",
     "liveAlt": "Tiesiogiai",
     "liveEnded": "Transliacija baigėsi",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Netinkama pavardė (1–40 simbolių).",
       "errInvalidName": "Netinkamas vardas (1–40 simbolių).",
       "errEmailInUse": "Šis el. paštas jau užregistruotas.",
-      "errRegistrationFailed": "Registracijos nepavyko užbaigti. Bandyk dar kartą.",
+      "errRegistrationFailed": "Registracijos nepavyko užbaigti, bandyk dar kartą.",
       "errWeakPassword": "Slaptažodį turi sudaryti bent 6 simboliai.",
-      "errPasswordWeak": "Naudok bent 10 simbolių, su didžiąja ir mažąja raide, skaičiumi ir simboliu."
+      "errPasswordWeak": "Slaptažodį turi sudaryti bent 10 simbolių, su didžiąja ir mažąja raide, skaičiumi ir simboliu."
     },
     "resetPassword": {
       "title": "Atkurti slaptažodį",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Įrašas buvo ištrintas.",
     "serviceNotEnabled": "Ši paslauga neįjungta.",
     "futureDateRequired": "Data turi būti ateityje.",
-    "internalError": "Kažkas nepavyko. Bandyk dar kartą.",
+    "internalError": "Kažkas nepavyko, bandyk dar kartą.",
     "countryNotAvailable": "Mokėjimas tavo šalyje kol kas negalimas.",
     "cardCountryNotAvailable": "Kol kas negalime nuskaityti lėšų iš tos šalies kortelės."
   },

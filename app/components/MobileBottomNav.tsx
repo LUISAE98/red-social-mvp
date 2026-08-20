@@ -494,7 +494,7 @@ export default function MobileBottomNav({
           display: grid;
           grid-template-columns: repeat(var(--mobile-nav-count), minmax(0, 1fr));
           align-items: center;
-          /* Safe-area inferior constante solo logueado (var = 20px con body.vb-authed, 0 sin sesión). */
+          /* La variable del safe-area inferior vale 0 en toda la plataforma: la barra apoya en el canto. Se deja en el calc para no tener que volver aquí si algún día se reactiva. */
           padding: 8px 6px calc(8px + var(--vb-safe-bottom, 0px));
           background: #000000;
           box-sizing: border-box;

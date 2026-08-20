@@ -263,6 +263,15 @@ export default function ProfileGroupsTab({
         // Conteo real de miembros por comunidad (subcolección members).
         await Promise.all(
           next.map(async (g) => {
+            // El contador lo lleva el SERVIDOR en `membersCount`, y ese campo es de
+            // lectura pública. Contar la subcolección al vuelo pasa por las reglas
+            // de lectura, así que en una comunidad privada donde no eres miembro
+            // fallaba, y además gastaba una consulta por comunidad.
+            const fromDoc = (g as { membersCount?: unknown }).membersCount;
+            if (typeof fromDoc === "number" && fromDoc >= 0) {
+              g.memberCount = fromDoc;
+              return;
+            }
             try {
               const countSnap = await getCountFromServer(
                 collection(db, "groups", g.id, "members")

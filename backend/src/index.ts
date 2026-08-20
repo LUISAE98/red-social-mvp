@@ -538,6 +538,7 @@ export { generateBuyerInvoice, downloadBuyerInvoice } from "./facturacion/genera
 // se publicó antes de que Mux terminara, y backfill de los campos del reel.
 export {
   onStoryViewed,
+  recordStoryPlay,
   onStoryCreatedPlaybackBackfill,
   backfillStoriesReelFields,
 } from "./storyDiscovery";

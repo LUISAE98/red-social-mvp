@@ -17,24 +17,65 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const REGION = "us-central1";
 
-// E — Incrementa `viewsCount` de la historia en la PRIMERA vista de cada usuario
-// (el doc de vista se crea una sola vez por usuario). Como las reglas tienen
-// `stories: allow update: if false`, el conteo se hace server-side.
+// E — Contador de vistas.
+//
+// ⚠️ Este disparador YA NO CUENTA, y no es un olvido.
+//
+// `userStoryViews` marca "ya la vi" para que el feed de reels no vuelva a
+// mostrarla, y eso ocurre a los DOS SEGUNDOS. Una VISTA contable es otra cosa:
+// exige el 35% del video y suma cada vez que ocurre, no una vez por persona.
+// Son dos umbrales, dos significados y dos recuentos distintos.
+//
+// Mientras esto incrementaba, cada persona sumaba ademas +1 al cruzar los dos
+// segundos, asi que el numero mezclaba las dos cosas. Ahora cuenta solo
+// `recordStoryPlay`.
+//
+// Se deja como no-op en vez de borrarse: una funcion desplegada que se quita del
+// codigo sigue viva en el proyecto ejecutando la version ANTERIOR hasta que se
+// borra de verdad, y ahi volveria el doble conteo. Se puede retirar del proyecto
+// cuando toque limpiar.
 export const onStoryViewed = onDocumentCreated(
   { document: "userStoryViews/{userId}/views/{storyId}", region: REGION },
-  async (event) => {
-    const storyId = event.params.storyId;
-    if (!storyId) return;
-    try {
-      await db
-        .collection("stories")
-        .doc(storyId)
-        .update({ viewsCount: admin.firestore.FieldValue.increment(1) });
-    } catch {
-      // La historia pudo haber sido borrada; ignorar.
-    }
+  async () => {
+    return;
   }
 );
+
+/**
+ * Suma UNA vista a una historia.
+ *
+ * Lo llama el reproductor al pasar del 35% del video, una sola vez por apertura.
+ * Cuenta cada apertura: ver la misma historia en el reel y luego otra vez desde
+ * el perfil del creador son dos vistas, que es justo lo que se quiere medir.
+ *
+ * Vive en el servidor porque las reglas prohiben actualizar historias desde el
+ * cliente, y porque un contador que el cliente puede escribir no es un contador.
+ */
+export const recordStoryPlay = onCall({ region: REGION }, async (request) => {
+  // Basta con estar identificado; las cuentas anonimas tambien miran, y sus
+  // vistas cuentan igual.
+  if (!request.auth) return { counted: false };
+
+  const storyId =
+    typeof request.data?.storyId === "string" ? request.data.storyId.trim() : "";
+  if (!storyId) return { counted: false };
+
+  const inc = admin.firestore.FieldValue.increment(1);
+
+  try {
+    await db.collection("stories").doc(storyId).update({ viewsCount: inc });
+    return { counted: true };
+  } catch {
+    // Puede ser una MUESTRA del escaparate, que vive en otra coleccion, o una
+    // historia ya borrada.
+    try {
+      await db.collection("greetingSamples").doc(storyId).update({ viewsCount: inc });
+      return { counted: true };
+    } catch {
+      return { counted: false };
+    }
+  }
+});
 
 // ─── Video de la historia (muxPlaybackId) ────────────────────────────────────
 //

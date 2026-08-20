@@ -270,7 +270,8 @@
     "videoUploadError": "Das Video konnte nicht hochgeladen werden.",
     "priceMin": "Der Mindestpreis beträgt {min} $",
     "shareStory": "Story teilen",
-    "pinError": "Der Beitrag konnte nicht angeheftet oder gelöst werden."
+    "pinError": "Der Beitrag konnte nicht angeheftet oder gelöst werden.",
+    "viewsCountAriaLabel": "{count, plural, one {# Aufruf} other {# Aufrufe}}"
   },
   "groups": {
     "title": "Communitys",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Die Sichtbarkeit der Mitglieder konnte nicht aktualisiert werden.",
     "canvasInitError": "Canvas konnte nicht initialisiert werden.",
     "cropGenerateError": "Der Zuschnitt konnte nicht erzeugt werden.",
-    "avatarReadError": "Avatar: Bild konnte nicht gelesen werden.",
-    "coverReadError": "Titelbild: Bild konnte nicht gelesen werden.",
+    "avatarReadError": "Das Avatarbild konnte nicht gelesen werden.",
+    "coverReadError": "Das Titelbild konnte nicht gelesen werden.",
     "descriptionMinLength": "Die Beschreibung muss mindestens 10 Zeichen haben.",
     "ageMinInvalid": "Ungültiges Mindestalter (18–99).",
     "ageMaxInvalid": "Ungültiges Höchstalter (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategorie aktualisiert.",
     "tagsUpdated": "Tags aktualisiert.",
     "inviteLoadError": "Fehler beim Laden der Einladung.",
-    "inviteUseError": "Die Einladung konnte nicht verwendet werden."
+    "inviteUseError": "Die Einladung konnte nicht verwendet werden.",
+    "actionInviteToMod": "Zum Moderieren einladen"
   },
   "profile": {
     "ariaChangeAvatar": "Profilbild ändern",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Die Rückerstattung konnte nicht angefordert werden.",
     "errorRequestReschedule": "Die Neuterminierung konnte nicht angefordert werden.",
     "selectDateTimeError": "Wähle Tag, Monat, Jahr, Stunde und Minute.",
-    "scheduleConflictError": "Dieser Zeitraum ist bereits belegt. Bitte wähle eine andere freie Zeit.",
+    "scheduleConflictError": "Diese Zeit ist belegt, wähle eine andere freie Zeit.",
     "rescheduleNotificationTitle": "Session neu terminiert",
     "scheduledDateLabel": "Geplanter Termin",
     "cardExperiencesWith": "Erlebnisse mit {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Der Creator legt fest, wie viel die Freischaltung des Beitrags kostet.",
     "mergeDonationSupportDesc": "Steuere jeden Betrag bei, den du möchtest, um dem Creator deine Unterstützung zu zeigen.",
     "addSampleAriaLabel": "Beispiel hinzufügen",
-    "addSampleHint": "Nimm ein Beispiel auf, damit Käufer sehen, was sie bekommen",
+    "addSampleHint": "Nimm ein Beispiel auf, damit Käufer sehen, was sie bekommen. Für die Aktivierung des Erlebnisses brauchst du mindestens eins, hochladen kannst du bis zu drei.",
     "priceInvalidGreetings": "Ungültiger Preis für Grüße.",
     "priceInvalidAdvice": "Ungültiger Preis für Ratschläge.",
     "priceInvalidMeetGreet": "Ungültiger Preis für Zeit mit dir.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Dein Beispielgruß ist geteilt!",
     "sampleSharedAdvice": "Dein Beispielrat ist geteilt!",
     "recordAnotherSample": "Noch einen aufnehmen",
-    "finishSamples": "Fertig"
+    "finishSamples": "Fertig",
+    "deleteSample": "Löschen",
+    "confirmDeleteSampleTitle": "Willst du dieses Beispiel wirklich löschen?",
+    "confirmDeleteSampleBody": "Es verschwindet aus deinem Profil und deinen Stories. Das lässt sich nicht rückgängig machen.",
+    "sampleRequiredToActivate": "Nimm mindestens ein Beispiel auf, bevor du dieses Erlebnis aktivierst."
   },
   "live": {
     "accessTicket": "Zugangsticket",
@@ -2096,7 +2102,7 @@
     "endSession": "Session beenden",
     "free": "Kostenlos",
     "goToLive": "Zum Live-Stream",
-    "invalidContext": "Ungültiger Kontext. Das Ziel des Live-Streams konnte nicht bestimmt werden.",
+    "invalidContext": "Es konnte nicht ermittelt werden, wohin der Livestream gehen soll.",
     "invalidDateTime": "Ungültiges Datum und Uhrzeit",
     "liveAlt": "Live",
     "liveEnded": "Der Live-Stream ist beendet",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Ungültiger Nachname (1–40 Zeichen).",
       "errInvalidName": "Ungültiger Vorname (1–40 Zeichen).",
       "errEmailInUse": "Diese E-Mail-Adresse ist bereits registriert.",
-      "errRegistrationFailed": "Die Registrierung konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
+      "errRegistrationFailed": "Die Registrierung konnte nicht abgeschlossen werden, versuche es erneut.",
       "errWeakPassword": "Das Passwort muss mindestens 6 Zeichen lang sein.",
-      "errPasswordWeak": "Nimm mindestens 10 Zeichen, mit Groß- und Kleinbuchstabe, Zahl und Symbol."
+      "errPasswordWeak": "Das Passwort braucht mindestens 10 Zeichen, mit Groß- und Kleinbuchstabe, Zahl und Symbol."
     },
     "resetPassword": {
       "title": "Passwort zurücksetzen",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Der Beitrag wurde gelöscht.",
     "serviceNotEnabled": "Dieser Dienst ist nicht aktiviert.",
     "futureDateRequired": "Das Datum muss in der Zukunft liegen.",
-    "internalError": "Etwas ist schiefgelaufen. Versuche es erneut.",
+    "internalError": "Etwas ist schiefgelaufen, versuche es erneut.",
     "countryNotAvailable": "Die Zahlung ist in deinem Land vorerst nicht verfügbar.",
     "cardCountryNotAvailable": "Wir können eine Karte aus diesem Land vorerst nicht belasten."
   },

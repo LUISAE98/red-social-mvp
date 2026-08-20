@@ -270,7 +270,8 @@
     "videoUploadError": "Video yüklenemedi.",
     "priceMin": "En düşük fiyat ${min}",
     "shareStory": "Hikâyeyi paylaş",
-    "pinError": "Gönderi sabitlenemedi veya sabitlemesi kaldırılamadı."
+    "pinError": "Gönderi sabitlenemedi veya sabitlemesi kaldırılamadı.",
+    "viewsCountAriaLabel": "{count, plural, other {# görüntülenme}}"
   },
   "groups": {
     "title": "Topluluklar",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Üye görünürlüğü güncellenemedi.",
     "canvasInitError": "Canvas başlatılamadı.",
     "cropGenerateError": "Kırpma oluşturulamadı.",
-    "avatarReadError": "Avatar: görsel okunamadı.",
-    "coverReadError": "Kapak: görsel okunamadı.",
+    "avatarReadError": "Avatar görseli okunamadı.",
+    "coverReadError": "Kapak görseli okunamadı.",
     "descriptionMinLength": "Açıklama en az 10 karakter olmalı.",
     "ageMinInvalid": "Geçersiz en küçük yaş (18–99).",
     "ageMaxInvalid": "Geçersiz en büyük yaş (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategori güncellendi.",
     "tagsUpdated": "Etiketler güncellendi.",
     "inviteLoadError": "Davet yüklenirken hata oluştu.",
-    "inviteUseError": "Davet kullanılamadı."
+    "inviteUseError": "Davet kullanılamadı.",
+    "actionInviteToMod": "Moderatörlüğe davet et"
   },
   "profile": {
     "ariaChangeAvatar": "Profil fotoğrafını değiştir",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "İade istenemedi.",
     "errorRequestReschedule": "Yeniden planlama istenemedi.",
     "selectDateTimeError": "Gün, ay, yıl, saat ve dakika seç.",
-    "scheduleConflictError": "Bu saat dolu. Lütfen başka bir müsait saat seç.",
+    "scheduleConflictError": "Bu saat dolu, başka bir uygun saat seç.",
     "rescheduleNotificationTitle": "Seans yeniden planlandı",
     "scheduledDateLabel": "Planlanan tarih",
     "cardExperiencesWith": "{name} ile deneyimler",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Gönderinin kilidini açmanın kaça mal olacağını içerik üreticisi belirler.",
     "mergeDonationSupportDesc": "İçerik üreticisine desteğini göstermek için istediğin tutarda katkıda bulun.",
     "addSampleAriaLabel": "Örnek ekle",
-    "addSampleHint": "Alıcıların ne alacağını görmesi için bir örnek kaydet",
+    "addSampleHint": "Alıcılar ne alacaklarını görsün diye bir örnek çek. Deneyimi açmak için en az bir tane gerekiyor ve en fazla üç tane yükleyebilirsin.",
     "priceInvalidGreetings": "Selamlar için geçersiz fiyat.",
     "priceInvalidAdvice": "Tavsiyeler için geçersiz fiyat.",
     "priceInvalidMeetGreet": "Seninle vakit için geçersiz fiyat.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Örnek selamın paylaşıldı!",
     "sampleSharedAdvice": "Örnek tavsiyen paylaşıldı!",
     "recordAnotherSample": "Bir tane daha çek",
-    "finishSamples": "Bitir"
+    "finishSamples": "Bitir",
+    "deleteSample": "Sil",
+    "confirmDeleteSampleTitle": "Bu örneği silmek istediğine emin misin?",
+    "confirmDeleteSampleBody": "Profilinden ve hikâyelerinden kaybolacak. Geri alınamaz.",
+    "sampleRequiredToActivate": "Bu deneyimi açmadan önce en az bir örnek çek."
   },
   "live": {
     "accessTicket": "Giriş bileti",
@@ -2096,7 +2102,7 @@
     "endSession": "Seansı bitir",
     "free": "Ücretsiz",
     "goToLive": "Yayına git",
-    "invalidContext": "Geçersiz bağlam. Yayının hedefi belirlenemedi.",
+    "invalidContext": "Canlı yayının nereye gideceği belirlenemedi.",
     "invalidDateTime": "Geçersiz tarih ve saat",
     "liveAlt": "Canlı",
     "liveEnded": "Yayın sona erdi",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Geçersiz soyad (1–40 karakter).",
       "errInvalidName": "Geçersiz ad (1–40 karakter).",
       "errEmailInUse": "Bu e-posta zaten kayıtlı.",
-      "errRegistrationFailed": "Kayıt tamamlanamadı. Lütfen tekrar dene.",
+      "errRegistrationFailed": "Kayıt tamamlanamadı, tekrar dene.",
       "errWeakPassword": "Parola en az 6 karakter olmalı.",
-      "errPasswordWeak": "En az 10 karakter kullan, büyük ve küçük harf, rakam ve sembolle."
+      "errPasswordWeak": "Parola en az 10 karakter olmalı, büyük ve küçük harf, rakam ve sembolle."
     },
     "resetPassword": {
       "title": "Parolayı sıfırla",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Gönderi silindi.",
     "serviceNotEnabled": "Bu hizmet etkin değil.",
     "futureDateRequired": "Tarih gelecekte olmalı.",
-    "internalError": "Bir şeyler ters gitti. Tekrar dene.",
+    "internalError": "Bir şeyler ters gitti, tekrar dene.",
     "countryNotAvailable": "Ödeme şu an ülkende kullanılamıyor.",
     "cardCountryNotAvailable": "Şu an o ülkeye ait bir karttan tahsilat yapamıyoruz."
   },

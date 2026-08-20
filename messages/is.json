@@ -270,7 +270,8 @@
     "videoUploadError": "Ekki tókst að hlaða upp myndbandinu.",
     "priceMin": "Lágmarksverðið er ${min}",
     "shareStory": "Deila sögu",
-    "pinError": "Ekki tókst að festa eða losa færsluna."
+    "pinError": "Ekki tókst að festa eða losa færsluna.",
+    "viewsCountAriaLabel": "{count, plural, one {# áhorf} other {# áhorf}}"
   },
   "groups": {
     "title": "Samfélög",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Ekki tókst að uppfæra sýnileika meðlima.",
     "canvasInitError": "Ekki tókst að frumstilla canvas.",
     "cropGenerateError": "Ekki tókst að búa til útskurðinn.",
-    "avatarReadError": "Táknmynd: ekki tókst að lesa myndina.",
-    "coverReadError": "Forsíðumynd: ekki tókst að lesa myndina.",
+    "avatarReadError": "Ekki tókst að lesa táknmyndina.",
+    "coverReadError": "Ekki tókst að lesa forsíðumyndina.",
     "descriptionMinLength": "Lýsingin verður að vera að minnsta kosti 10 stafir.",
     "ageMinInvalid": "Ógildur lágmarksaldur (18–99).",
     "ageMaxInvalid": "Ógildur hámarksaldur (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Flokkurinn var uppfærður.",
     "tagsUpdated": "Merkin voru uppfærð.",
     "inviteLoadError": "Villa við að hlaða boðinu.",
-    "inviteUseError": "Ekki tókst að nota boðið."
+    "inviteUseError": "Ekki tókst að nota boðið.",
+    "actionInviteToMod": "Bjóða að stjórna"
   },
   "profile": {
     "ariaChangeAvatar": "Skipta um prófílmynd",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Ekki tókst að óska eftir endurgreiðslu.",
     "errorRequestReschedule": "Ekki tókst að óska eftir nýjum tíma.",
     "selectDateTimeError": "Veldu dag, mánuð, ár, klukkustund og mínútu.",
-    "scheduleConflictError": "Þessi tími er þegar upptekinn. Veldu annan lausan tíma.",
+    "scheduleConflictError": "Þessi tími er upptekinn, veldu annan lausan tíma.",
     "rescheduleNotificationTitle": "Lotu breytt í nýjan tíma",
     "scheduledDateLabel": "Tímasett dagsetning",
     "cardExperiencesWith": "Upplifanir með {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Höfundurinn ákveður hvað það kostar að opna færsluna.",
     "mergeDonationSupportDesc": "Leggðu fram þá upphæð sem þú vilt til að sýna höfundinum stuðning.",
     "addSampleAriaLabel": "Bæta við sýnishorni",
-    "addSampleHint": "Taktu upp dæmi svo kaupendur sjái hvað þeir fá",
+    "addSampleHint": "Taktu upp dæmi svo kaupendur sjái hvað þeir fá. Þú þarft að minnsta kosti eitt til að kveikja á upplifuninni og getur hlaðið upp allt að þremur.",
     "priceInvalidGreetings": "Ógilt verð fyrir kveðjur.",
     "priceInvalidAdvice": "Ógilt verð fyrir ráð.",
     "priceInvalidMeetGreet": "Ógilt verð fyrir Tíma með þér.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Sýniskveðjan þín hefur verið deilt!",
     "sampleSharedAdvice": "Sýnisráðið þitt hefur verið deilt!",
     "recordAnotherSample": "Taka upp eitt í viðbót",
-    "finishSamples": "Ljúka"
+    "finishSamples": "Ljúka",
+    "deleteSample": "Eyða",
+    "confirmDeleteSampleTitle": "Viltu örugglega eyða þessu sýnishorni?",
+    "confirmDeleteSampleBody": "Það hverfur af prófílnum þínum og úr sögunum. Þessu verður ekki snúið við.",
+    "sampleRequiredToActivate": "Taktu upp að minnsta kosti eitt sýnishorn áður en þú kveikir á þessari upplifun."
   },
   "live": {
     "accessTicket": "Aðgangsmiði",
@@ -2096,7 +2102,7 @@
     "endSession": "Ljúka lotu",
     "free": "Ókeypis",
     "goToLive": "Fara í útsendinguna",
-    "invalidContext": "Ógilt samhengi. Ekki tókst að ákvarða áfangastað útsendingarinnar.",
+    "invalidContext": "Ekki tókst að greina hvert beina útsendingin á að fara.",
     "invalidDateTime": "Ógild dagsetning og tími",
     "liveAlt": "Bein útsending",
     "liveEnded": "Útsendingunni er lokið",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Ógilt eftirnafn (1–40 stafir).",
       "errInvalidName": "Ógilt fornafn (1–40 stafir).",
       "errEmailInUse": "Þetta netfang er þegar skráð.",
-      "errRegistrationFailed": "Ekki tókst að ljúka skráningunni. Reyndu aftur.",
+      "errRegistrationFailed": "Ekki tókst að ljúka skráningunni, reyndu aftur.",
       "errWeakPassword": "Lykilorðið verður að vera að minnsta kosti 6 stafir.",
-      "errPasswordWeak": "Notaðu að minnsta kosti 10 stafi, með hástaf, lágstaf, tölu og tákni."
+      "errPasswordWeak": "Aðgangsorðið þarf að vera minnst 10 stafir, með hástaf, lágstaf, tölu og tákni."
     },
     "resetPassword": {
       "title": "Endurstilla lykilorð",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Færslunni var eytt.",
     "serviceNotEnabled": "Þessi þjónusta er ekki virk.",
     "futureDateRequired": "Dagsetningin verður að vera í framtíðinni.",
-    "internalError": "Eitthvað fór úrskeiðis. Reyndu aftur.",
+    "internalError": "Eitthvað fór úrskeiðis, reyndu aftur.",
     "countryNotAvailable": "Greiðsla er ekki í boði í landinu þínu að svo stöddu.",
     "cardCountryNotAvailable": "Við getum ekki skuldfært kort frá því landi að svo stöddu."
   },

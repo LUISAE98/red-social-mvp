@@ -270,7 +270,8 @@
     "videoUploadError": "Hindi na-upload ang video.",
     "priceMin": "Ang pinakamababang presyo ay ${min}",
     "shareStory": "Ibahagi ang kuwento",
-    "pinError": "Hindi na-pin o na-unpin ang post."
+    "pinError": "Hindi na-pin o na-unpin ang post.",
+    "viewsCountAriaLabel": "{count, plural, one {# panonood} other {# na panonood}}"
   },
   "groups": {
     "title": "Mga komunidad",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Hindi na-update ang visibility ng mga miyembro.",
     "canvasInitError": "Hindi nasimulan ang canvas.",
     "cropGenerateError": "Hindi nagawa ang crop.",
-    "avatarReadError": "Avatar: hindi nabasa ang larawan.",
-    "coverReadError": "Cover: hindi nabasa ang larawan.",
+    "avatarReadError": "Hindi nabasa ang larawan ng avatar.",
+    "coverReadError": "Hindi nabasa ang larawan ng cover.",
     "descriptionMinLength": "Dapat may hindi bababa sa 10 karakter ang paglalarawan.",
     "ageMinInvalid": "Hindi balidong pinakamababang edad (18–99).",
     "ageMaxInvalid": "Hindi balidong pinakamataas na edad (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Na-update ang kategorya.",
     "tagsUpdated": "Na-update ang mga tag.",
     "inviteLoadError": "Error sa pag-load ng imbitasyon.",
-    "inviteUseError": "Hindi nagamit ang imbitasyon."
+    "inviteUseError": "Hindi nagamit ang imbitasyon.",
+    "actionInviteToMod": "Imbitahan na mag-moderate"
   },
   "profile": {
     "ariaChangeAvatar": "Palitan ang larawan ng profile",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Hindi nahiling ang refund.",
     "errorRequestReschedule": "Hindi nahiling ang pag-reschedule.",
     "selectDateTimeError": "Pumili ng araw, buwan, taon, oras at minuto.",
-    "scheduleConflictError": "Puno na ang oras na iyon. Pumili ng ibang available na oras.",
+    "scheduleConflictError": "Kuha na ang oras na iyan, pumili ng ibang available na oras.",
     "rescheduleNotificationTitle": "Na-reschedule ang session",
     "scheduledDateLabel": "Nakatakdang petsa",
     "cardExperiencesWith": "Mga karanasan kasama si {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Ang creator ang nagtatakda kung magkano ang halaga para i-unlock ang post.",
     "mergeDonationSupportDesc": "Mag-ambag ng kahit anong halagang gusto mo para ipakita sa creator ang suporta mo.",
     "addSampleAriaLabel": "Magdagdag ng sample",
-    "addSampleHint": "Mag-record ng halimbawa para makita ng mga bibili ang matatanggap nila",
+    "addSampleHint": "Mag-record ng halimbawa para makita ng mga bumibili ang matatanggap nila. Kailangan mo ng kahit isa para i-on ang karanasan, at puwede kang mag-upload ng hanggang tatlo.",
     "priceInvalidGreetings": "Hindi valid na presyo para sa mga pagbati.",
     "priceInvalidAdvice": "Hindi valid na presyo para sa mga payo.",
     "priceInvalidMeetGreet": "Hindi valid na presyo para sa Oras kasama ka.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Naibahagi na ang sample mong pagbati!",
     "sampleSharedAdvice": "Naibahagi na ang sample mong payo!",
     "recordAnotherSample": "Mag-record pa ng isa",
-    "finishSamples": "Tapusin"
+    "finishSamples": "Tapusin",
+    "deleteSample": "Tanggalin",
+    "confirmDeleteSampleTitle": "Sigurado kang buburahin ang sample na ito?",
+    "confirmDeleteSampleBody": "Mawawala ito sa profile at sa mga story mo. Hindi na ito maibabalik.",
+    "sampleRequiredToActivate": "Mag-record ng kahit isang sample bago mo i-on ang karanasang ito."
   },
   "live": {
     "accessTicket": "Access ticket",
@@ -2096,7 +2102,7 @@
     "endSession": "Tapusin ang session",
     "free": "Libre",
     "goToLive": "Pumunta sa live",
-    "invalidContext": "Hindi balidong konteksto. Hindi natukoy ang destinasyon ng live.",
+    "invalidContext": "Hindi matukoy kung saan pupunta ang live.",
     "invalidDateTime": "Hindi balidong petsa at oras",
     "liveAlt": "Live",
     "liveEnded": "Tapos na ang live",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Hindi balidong apelyido (1–40 karakter).",
       "errInvalidName": "Hindi balidong pangalan (1–40 karakter).",
       "errEmailInUse": "Nakarehistro na ang email na ito.",
-      "errRegistrationFailed": "Hindi nakumpleto ang pagrehistro. Pakisubukan ulit.",
+      "errRegistrationFailed": "Hindi nakumpleto ang pagrehistro, subukan ulit.",
       "errWeakPassword": "Dapat hindi bababa sa 6 na karakter ang password.",
-      "errPasswordWeak": "Gumamit ng hindi bababa sa 10 karakter, may malaki at maliit na letra, numero at simbolo."
+      "errPasswordWeak": "Kailangang hindi bababa sa 10 karakter ang password, may malaki at maliit na letra, numero at simbolo."
     },
     "resetPassword": {
       "title": "I-reset ang password",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Na-delete ang post.",
     "serviceNotEnabled": "Hindi naka-enable ang serbisyong ito.",
     "futureDateRequired": "Dapat nasa hinaharap ang petsa.",
-    "internalError": "May naganap na error. Subukan ulit.",
+    "internalError": "May naganap na error, subukan ulit.",
     "countryNotAvailable": "Hindi pa available ang pagbabayad sa bansa mo sa ngayon.",
     "cardCountryNotAvailable": "Sa ngayon ay hindi kami makasingil sa card mula sa bansang iyon."
   },

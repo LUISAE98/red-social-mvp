@@ -4,10 +4,21 @@
   --background: #000000;
   --foreground: #ffffff;
 
-  /* Safe-area inferior CENTRALIZADO. Toda la plataforma consume var(--vb-safe-bottom)
-     en vez de env(safe-area-inset-bottom). En 0px = sin safe-area (edge-to-edge, look
-     que pidió el usuario). Para reactivar el respeto al home-indicator, cambiar a
-     `env(safe-area-inset-bottom, 0px)`. */
+  /* 🚨 SAFE-AREA INFERIOR: SIEMPRE 0. NO HAY EXCEPCIONES. 🚨
+     La plataforma va a sangre por abajo, con y sin sesión, en todas las rutas.
+
+     Esta variable es el ÚNICO sitio donde se decide. Toda la plataforma —111
+     lugares— consume `var(--vb-safe-bottom, 0px)`; ni uno solo lee
+     `env(safe-area-inset-bottom)` por su cuenta, y así tiene que seguir: en
+     cuanto una pantalla se salte la variable, el inset vuelve por esa rendija y
+     ya no hay un sitio donde apagarlo.
+
+     Hubo un inset de 20px que se encendía solo estando logueado, con toda una
+     maquinaria alrededor (`body.vb-authed`, `body.vb-splash` y un temporizador
+     que lo devolvía al terminar el fade del splash). Se eliminó entera.
+
+     Para reactivarlo algún día: poner aquí `env(safe-area-inset-bottom, 0px)`.
+     Nada más. */
   --vb-safe-bottom: 0px;
 
   /* Sentido de lectura, como NÚMERO, para las animaciones.
@@ -52,23 +63,6 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out:    cubic-bezier(0, 0, 0.2, 1);
   --ease-in:     cubic-bezier(0.4, 0, 1, 1);
-}
-
-/* Safe-area inferior SOLO estando logueado (body.vb-authed lo pone RootChrome).
-   Tamaño FIJO en px (nunca env(), que cambia según dispositivo/toolbar) → nunca
-   cambia de tamaño. Sin sesión queda en 0px (edge-to-edge). Lo consumen el
-   bottom-nav y los composers/footers de los modales vía var(--vb-safe-bottom). */
-body.vb-authed {
-  --vb-safe-bottom: 20px;
-}
-
-/* Mientras el splash cubre la pantalla NO hay safe-area, sin excepción.
-   `body.vb-authed` se alterna siguiendo a la sesión, que resuelve en momentos
-   distintos según caché y red, así que bajo el splash el inset de 20px aparecía
-   y desaparecía solo. Los dos selectores de clase (0,2,1) ganan a `body.vb-authed`
-   (0,1,1) sin depender del orden del archivo. La pone lib/splash.ts. */
-body.vb-authed.vb-splash {
-  --vb-safe-bottom: 0px;
 }
 
 @theme inline {

@@ -270,7 +270,8 @@
     "videoUploadError": "The video could not be uploaded.",
     "priceMin": "The minimum price is ${min}",
     "shareStory": "Share story",
-    "pinError": "Could not pin or unpin the post."
+    "pinError": "Could not pin or unpin the post.",
+    "viewsCountAriaLabel": "{count, plural, one {# view} other {# views}}"
   },
   "groups": {
     "title": "Communities",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Could not update members visibility.",
     "canvasInitError": "Could not initialize canvas.",
     "cropGenerateError": "Could not generate the crop.",
-    "avatarReadError": "Avatar: could not read image.",
-    "coverReadError": "Cover: could not read image.",
+    "avatarReadError": "Could not read the avatar image.",
+    "coverReadError": "Could not read the cover image.",
     "descriptionMinLength": "Description must have at least 10 characters.",
     "ageMinInvalid": "Invalid minimum age (18–99).",
     "ageMaxInvalid": "Invalid maximum age (18–99).",
@@ -1626,7 +1627,7 @@
     "errorRequestRefund": "Could not request a refund.",
     "errorRequestReschedule": "Could not request a reschedule.",
     "selectDateTimeError": "Select day, month, year, hour, and minute.",
-    "scheduleConflictError": "That time slot is already taken. Please select another available time.",
+    "scheduleConflictError": "That time is taken, pick another available time.",
     "rescheduleNotificationTitle": "Session rescheduled",
     "scheduledDateLabel": "Scheduled date",
     "cardExperiencesWith": "Experiences with {name}",
@@ -1986,7 +1987,7 @@
     "premiumPostPreviewPriceDescUser": "The creator sets how much it costs to unlock the post.",
     "mergeDonationSupportDesc": "Contribute any amount you want to show the creator your support.",
     "addSampleAriaLabel": "Add a sample",
-    "addSampleHint": "Record an example so buyers see what they will get",
+    "addSampleHint": "Record an example so buyers can see what they will get. You need at least one to switch the experience on, and you can upload up to three.",
     "priceInvalidGreetings": "Invalid price for greetings.",
     "priceInvalidAdvice": "Invalid price for advice.",
     "priceInvalidMeetGreet": "Invalid price for Time with you.",
@@ -2039,7 +2040,11 @@
     "sampleSharedGreeting": "Your sample greeting is now shared!",
     "sampleSharedAdvice": "Your sample advice is now shared!",
     "recordAnotherSample": "Record one more",
-    "finishSamples": "Finish"
+    "finishSamples": "Finish",
+    "deleteSample": "Delete",
+    "confirmDeleteSampleTitle": "Are you sure you want to delete this sample?",
+    "confirmDeleteSampleBody": "It will disappear from your profile and your stories. This cannot be undone.",
+    "sampleRequiredToActivate": "Record at least one sample before switching this experience on."
   },
   "live": {
     "accessTicket": "Access ticket",
@@ -2097,7 +2102,7 @@
     "endSession": "End session",
     "free": "Free",
     "goToLive": "Go to live",
-    "invalidContext": "Invalid context. Could not determine the live destination.",
+    "invalidContext": "Could not tell where the live stream should go.",
     "invalidDateTime": "Invalid date and time",
     "liveAlt": "Live",
     "liveEnded": "The live has ended",
@@ -2533,9 +2538,9 @@
       "errInvalidLastName": "Invalid last name (1–40 characters).",
       "errInvalidName": "Invalid first name (1–40 characters).",
       "errEmailInUse": "This email is already registered.",
-      "errRegistrationFailed": "Could not complete registration. Please try again.",
+      "errRegistrationFailed": "Could not complete the sign-up, try again.",
       "errWeakPassword": "The password must be at least 6 characters.",
-      "errPasswordWeak": "Use at least 10 characters, with an uppercase and a lowercase letter, a number and a symbol."
+      "errPasswordWeak": "The password needs at least 10 characters, with an uppercase, a lowercase, a number and a symbol."
     },
     "resetPassword": {
       "title": "Reset password",
@@ -2715,7 +2720,7 @@
     "deletedPost": "The post was deleted.",
     "serviceNotEnabled": "This service is not enabled.",
     "futureDateRequired": "The date must be in the future.",
-    "internalError": "Something went wrong. Try again.",
+    "internalError": "Something went wrong, try again.",
     "countryNotAvailable": "Payment is not available in your country for now.",
     "cardCountryNotAvailable": "We cannot charge a card from that country for now."
   },

@@ -270,7 +270,8 @@
     "videoUploadError": "Video se nepodařilo nahrát.",
     "priceMin": "Minimální cena je {min} $",
     "shareStory": "Sdílet příběh",
-    "pinError": "Příspěvek se nepodařilo připnout ani odepnout."
+    "pinError": "Příspěvek se nepodařilo připnout ani odepnout.",
+    "viewsCountAriaLabel": "{count, plural, one {# zhlédnutí} few {# zhlédnutí} other {# zhlédnutí}}"
   },
   "groups": {
     "title": "Komunity",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Viditelnost členů se nepodařilo aktualizovat.",
     "canvasInitError": "Plátno se nepodařilo inicializovat.",
     "cropGenerateError": "Ořez se nepodařilo vytvořit.",
-    "avatarReadError": "Avatar: obrázek se nepodařilo načíst.",
-    "coverReadError": "Obálka: obrázek se nepodařilo načíst.",
+    "avatarReadError": "Obrázek avataru se nepodařilo načíst.",
+    "coverReadError": "Obrázek na pozadí se nepodařilo načíst.",
     "descriptionMinLength": "Popis musí mít alespoň 10 znaků.",
     "ageMinInvalid": "Neplatný minimální věk (18–99).",
     "ageMaxInvalid": "Neplatný maximální věk (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategorie byla aktualizována.",
     "tagsUpdated": "Štítky byly aktualizovány.",
     "inviteLoadError": "Chyba při načítání pozvánky.",
-    "inviteUseError": "Pozvánku se nepodařilo použít."
+    "inviteUseError": "Pozvánku se nepodařilo použít.",
+    "actionInviteToMod": "Pozvat k moderování"
   },
   "profile": {
     "ariaChangeAvatar": "Změnit profilovou fotku",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "O vrácení peněz se nepodařilo požádat.",
     "errorRequestReschedule": "O přeložení se nepodařilo požádat.",
     "selectDateTimeError": "Vyber den, měsíc, rok, hodinu a minutu.",
-    "scheduleConflictError": "Tenhle termín je už obsazený. Vyber jiný dostupný čas.",
+    "scheduleConflictError": "Tento čas je obsazený, vyber jiný volný termín.",
     "rescheduleNotificationTitle": "Sezení přeloženo",
     "scheduledDateLabel": "Naplánované datum",
     "cardExperiencesWith": "Zážitky s {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Kolik stojí odemknutí příspěvku, určuje tvůrce.",
     "mergeDonationSupportDesc": "Přispěj částkou, jakou chceš, a projev tvůrci svou podporu.",
     "addSampleAriaLabel": "Přidat ukázku",
-    "addSampleHint": "Nahraj příklad, aby kupující viděli, co dostanou",
+    "addSampleHint": "Natoč ukázku, ať kupující vidí, co dostanou. K aktivaci zážitku potřebuješ aspoň jednu a nahrát můžeš až tři.",
     "priceInvalidGreetings": "Neplatná cena za pozdravy.",
     "priceInvalidAdvice": "Neplatná cena za rady.",
     "priceInvalidMeetGreet": "Neplatná cena za Čas s tebou.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Tvůj ukázkový pozdrav je sdílený!",
     "sampleSharedAdvice": "Tvá ukázková rada je sdílená!",
     "recordAnotherSample": "Natočit další",
-    "finishSamples": "Hotovo"
+    "finishSamples": "Hotovo",
+    "deleteSample": "Smazat",
+    "confirmDeleteSampleTitle": "Opravdu chceš tuto ukázku smazat?",
+    "confirmDeleteSampleBody": "Zmizí z tvého profilu i ze stories. Nelze to vzít zpět.",
+    "sampleRequiredToActivate": "Než tenhle zážitek aktivuješ, natoč aspoň jednu ukázku."
   },
   "live": {
     "accessTicket": "Vstupenka",
@@ -2096,7 +2102,7 @@
     "endSession": "Ukončit sezení",
     "free": "Zdarma",
     "goToLive": "Přejít na vysílání",
-    "invalidContext": "Neplatný kontext. Nepodařilo se určit cíl vysílání.",
+    "invalidContext": "Nepodařilo se určit, kam má živé vysílání jít.",
     "invalidDateTime": "Neplatné datum a čas",
     "liveAlt": "Live",
     "liveEnded": "Vysílání skončilo",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Neplatné příjmení (1–40 znaků).",
       "errInvalidName": "Neplatné jméno (1–40 znaků).",
       "errEmailInUse": "Tenhle e-mail je už zaregistrovaný.",
-      "errRegistrationFailed": "Registraci se nepodařilo dokončit. Zkus to znovu.",
+      "errRegistrationFailed": "Registraci se nepodařilo dokončit, zkus to znovu.",
       "errWeakPassword": "Heslo musí mít alespoň 6 znaků.",
-      "errPasswordWeak": "Použij aspoň 10 znaků, s velkým i malým písmenem, číslem a symbolem."
+      "errPasswordWeak": "Heslo musí mít aspoň 10 znaků, s velkým i malým písmenem, číslem a symbolem."
     },
     "resetPassword": {
       "title": "Obnovit heslo",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Příspěvek byl smazán.",
     "serviceNotEnabled": "Tato služba není povolená.",
     "futureDateRequired": "Datum musí být v budoucnosti.",
-    "internalError": "Něco se pokazilo. Zkus to znovu.",
+    "internalError": "Něco se pokazilo, zkus to znovu.",
     "countryNotAvailable": "Platba zatím není ve tvé zemi dostupná.",
     "cardCountryNotAvailable": "Zatím nemůžeme účtovat kartu z této země."
   },

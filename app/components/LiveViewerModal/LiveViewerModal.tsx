@@ -2249,18 +2249,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     />
   );
 
-  // Franja del safe-area inferior (home-indicator) pintada de blanco mientras el panel
-  // de donación está abierto. Va `position: fixed` al viewport real (no a un contenedor)
-  // con z-index por encima del modal, porque en iOS/PWA la franja del home-indicator
-  // muestra el fondo del documento y un elemento "contenido" no la cubre. Con
-  // viewport-fit=cover (ya activo) esto pinta la franja en iOS y Android.
-  const liveDonateSafeAreaFill = liveDonateOpen ? (
-    <div aria-hidden style={{
-      position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0,
-      height: "var(--vb-safe-bottom, 0px)",
-      background: "#fff", zIndex: 10001, pointerEvents: "none",
-    }} />
-  ) : null;
+  /* Aquí se pintaba una franja blanca fija sobre el hueco del home-indicator
+     mientras el panel de donación estaba abierto. Sin safe-area inferior no
+     hay hueco que tapar: medía 0px y no pintaba nada. */
 
   async function handleToggleLike() {
     if (flameBusyRef.current) return;
@@ -2744,7 +2735,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         </div>
         {donationPanel}
         {renderLiveDonationSheet(portraitDonateRef.current)}
-        {liveDonateSafeAreaFill}
       </>,
       document.body
     );
@@ -2803,7 +2793,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       </div>
       {donationPanel}
       {renderLiveDonationSheet(belowVideoRef.current)}
-      {liveDonateSafeAreaFill}
       {reportTarget && <ReportModal target={reportTarget} onClose={closeReport} />}
     </>,
     document.body

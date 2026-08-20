@@ -270,7 +270,8 @@
     "videoUploadError": "Video tidak dapat dimuat naik.",
     "priceMin": "Harga minimum ialah ${min}",
     "shareStory": "Kongsi cerita",
-    "pinError": "Tidak dapat menyemat atau menyahsemat siaran."
+    "pinError": "Tidak dapat menyemat atau menyahsemat siaran.",
+    "viewsCountAriaLabel": "{count, plural, other {# tontonan}}"
   },
   "groups": {
     "title": "Komuniti",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Keterlihatan ahli tidak dapat dikemas kini.",
     "canvasInitError": "Canvas tidak dapat dimulakan.",
     "cropGenerateError": "Hasil pangkasan tidak dapat dijana.",
-    "avatarReadError": "Imej: tidak dapat dibaca.",
-    "coverReadError": "Sampul: imej tidak dapat dibaca.",
+    "avatarReadError": "Imej avatar tidak dapat dibaca.",
+    "coverReadError": "Imej kulit muka tidak dapat dibaca.",
     "descriptionMinLength": "Penerangan mestilah sekurang-kurangnya 10 aksara.",
     "ageMinInvalid": "Umur minimum tidak sah (18–99).",
     "ageMaxInvalid": "Umur maksimum tidak sah (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategori dikemas kini.",
     "tagsUpdated": "Tag dikemas kini.",
     "inviteLoadError": "Ralat semasa memuatkan jemputan.",
-    "inviteUseError": "Jemputan tidak dapat digunakan."
+    "inviteUseError": "Jemputan tidak dapat digunakan.",
+    "actionInviteToMod": "Jemput jadi moderator"
   },
   "profile": {
     "ariaChangeAvatar": "Tukar gambar profil",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Bayaran balik tidak dapat dimohon.",
     "errorRequestReschedule": "Penjadualan semula tidak dapat dimohon.",
     "selectDateTimeError": "Pilih hari, bulan, tahun, jam dan minit.",
-    "scheduleConflictError": "Slot masa itu sudah diisi. Sila pilih masa lain yang tersedia.",
+    "scheduleConflictError": "Waktu itu sudah diambil, pilih waktu lain yang ada.",
     "rescheduleNotificationTitle": "Sesi dijadualkan semula",
     "scheduledDateLabel": "Tarikh berjadual",
     "cardExperiencesWith": "Pengalaman bersama {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Pencipta menetapkan berapa kosnya untuk membuka hantaran itu.",
     "mergeDonationSupportDesc": "Beri seberapa banyak yang anda mahu untuk menunjukkan sokongan anda kepada pencipta.",
     "addSampleAriaLabel": "Tambah sampel",
-    "addSampleHint": "Rakam contoh supaya pembeli nampak apa yang akan diterima",
+    "addSampleHint": "Rakam contoh supaya pembeli nampak apa yang mereka akan terima. Anda perlu sekurang-kurangnya satu untuk mengaktifkan pengalaman, dan boleh muat naik sehingga tiga.",
     "priceInvalidGreetings": "Harga tidak sah untuk salam.",
     "priceInvalidAdvice": "Harga tidak sah untuk nasihat.",
     "priceInvalidMeetGreet": "Harga tidak sah untuk Masa bersamamu.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Ucapan sampel anda telah dikongsi!",
     "sampleSharedAdvice": "Nasihat sampel anda telah dikongsi!",
     "recordAnotherSample": "Rakam satu lagi",
-    "finishSamples": "Selesai"
+    "finishSamples": "Selesai",
+    "deleteSample": "Padam",
+    "confirmDeleteSampleTitle": "Pasti mahu memadam sampel ini?",
+    "confirmDeleteSampleBody": "Ia akan hilang dari profil dan cerita anda. Tidak boleh dibatalkan.",
+    "sampleRequiredToActivate": "Rakam sekurang-kurangnya satu sampel sebelum mengaktifkan pengalaman ini."
   },
   "live": {
     "accessTicket": "Tiket akses",
@@ -2096,7 +2102,7 @@
     "endSession": "Tamatkan sesi",
     "free": "Percuma",
     "goToLive": "Ke siaran langsung",
-    "invalidContext": "Konteks tidak sah. Destinasi siaran langsung tidak dapat ditentukan.",
+    "invalidContext": "Tidak dapat menentukan ke mana siaran langsung ini pergi.",
     "invalidDateTime": "Tarikh dan masa tidak sah",
     "liveAlt": "Siaran langsung",
     "liveEnded": "Siaran langsung telah tamat",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Nama keluarga tidak sah (1–40 aksara).",
       "errInvalidName": "Nama pertama tidak sah (1–40 aksara).",
       "errEmailInUse": "E-mel ini sudah didaftarkan.",
-      "errRegistrationFailed": "Pendaftaran tidak dapat diselesaikan. Cuba lagi.",
+      "errRegistrationFailed": "Pendaftaran tidak dapat diselesaikan, cuba lagi.",
       "errWeakPassword": "Kata laluan mestilah sekurang-kurangnya 6 aksara.",
-      "errPasswordWeak": "Guna sekurang-kurangnya 10 aksara, dengan huruf besar, huruf kecil, nombor dan simbol."
+      "errPasswordWeak": "Kata laluan mesti sekurang-kurangnya 10 aksara, dengan huruf besar, huruf kecil, nombor dan simbol."
     },
     "resetPassword": {
       "title": "Tetapkan semula kata laluan",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Siaran telah dipadamkan.",
     "serviceNotEnabled": "Perkhidmatan ini tidak diaktifkan.",
     "futureDateRequired": "Tarikh mestilah pada masa hadapan.",
-    "internalError": "Sesuatu tidak kena. Cuba lagi.",
+    "internalError": "Sesuatu tidak kena, cuba lagi.",
     "countryNotAvailable": "Pembayaran belum tersedia di negara anda buat masa ini.",
     "cardCountryNotAvailable": "Buat masa ini kami tidak boleh mengecaj kad dari negara tersebut."
   },

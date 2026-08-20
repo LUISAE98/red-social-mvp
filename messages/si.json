@@ -270,7 +270,8 @@
     "videoUploadError": "වීඩියෝව උඩුගත කළ නොහැකි විය.",
     "priceMin": "අවම මිල ${min}",
     "shareStory": "කථාව බෙදාගන්න",
-    "pinError": "පළ කිරීම අමුණන්න හෝ ඉවත් කරන්න නොහැකි විය."
+    "pinError": "පළ කිරීම අමුණන්න හෝ ඉවත් කරන්න නොහැකි විය.",
+    "viewsCountAriaLabel": "{count, plural, one {නැරඹීම් #} other {නැරඹීම් #}}"
   },
   "groups": {
     "title": "ප්‍රජාවන්",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "සාමාජික දෘශ්‍යතාව යාවත්කාලීන කළ නොහැකි විය.",
     "canvasInitError": "Canvas ආරම්භ කළ නොහැකි විය.",
     "cropGenerateError": "කැපුම සෑදිය නොහැකි විය.",
-    "avatarReadError": "අවතාරය: රූපය කියවිය නොහැකි විය.",
-    "coverReadError": "කවරය: රූපය කියවිය නොහැකි විය.",
+    "avatarReadError": "අවතාර රූපය කියවිය නොහැකි විය.",
+    "coverReadError": "කවර රූපය කියවිය නොහැකි විය.",
     "descriptionMinLength": "විස්තරයේ අවම වශයෙන් අකුරු 10ක් තිබිය යුතුය.",
     "ageMinInvalid": "අවම වයස වලංගු නොවේ (18–99).",
     "ageMaxInvalid": "උපරිම වයස වලංගු නොවේ (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "ප්‍රවර්ගය යාවත්කාලීන කරන ලදී.",
     "tagsUpdated": "ටැග යාවත්කාලීන කරන ලදී.",
     "inviteLoadError": "ආරාධනය පූරණය කිරීමේ දෝෂයකි.",
-    "inviteUseError": "ආරාධනය භාවිතා කළ නොහැකි විය."
+    "inviteUseError": "ආරාධනය භාවිතා කළ නොහැකි විය.",
+    "actionInviteToMod": "මධ්‍යස්ථ කිරීමට ආරාධනා කරන්න"
   },
   "profile": {
     "ariaChangeAvatar": "පැතිකඩ ඡායාරූපය වෙනස් කරන්න",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "මුදල් ආපසු ඉල්ලිය නොහැකි විය.",
     "errorRequestReschedule": "නැවත කාලසටහන් ගත කිරීම ඉල්ලිය නොහැකි විය.",
     "selectDateTimeError": "දිනය, මාසය, වර්ෂය, පැය සහ මිනිත්තුව තෝරන්න.",
-    "scheduleConflictError": "එම කාල පරාසය දැනටමත් වෙන් කර ඇත. ලබා ගත හැකි වෙනත් වේලාවක් තෝරන්න.",
+    "scheduleConflictError": "එම වේලාව දැනටමත් වෙන් කර ඇත, වෙනත් වේලාවක් තෝරන්න.",
     "rescheduleNotificationTitle": "සැසිය නැවත කාලසටහන් ගත කරන ලදී",
     "scheduledDateLabel": "නියමිත දිනය",
     "cardExperiencesWith": "{name} සමඟ අත්දැකීම්",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "පළකිරීම අගුළු ඇරීමට කොපමණ වැයවේදැයි නිර්මාණකරු නියම කරයි.",
     "mergeDonationSupportDesc": "නිර්මාණකරුට ඔබේ සහාය පෙන්වීමට ඔබට කැමති මුදලක් දායක කරන්න.",
     "addSampleAriaLabel": "නියැදියක් එක් කරන්න",
-    "addSampleHint": "ගැනුම්කරුවන්ට ලැබෙන දේ පෙනෙන උදාහරණයක් පටිගත කරන්න",
+    "addSampleHint": "ගැනුම්කරුවන්ට ලැබෙන්නේ කුමක්ද කියා පෙනෙන්න උදාහරණයක් පටිගත කරන්න. අත්දැකීම සක්‍රිය කිරීමට අවම වශයෙන් එකක් අවශ්‍යයි, තුනක් දක්වා උඩුගත කළ හැක.",
     "priceInvalidGreetings": "සුබපැතුම් සඳහා වලංගු නොවන මිලක්.",
     "priceInvalidAdvice": "උපදෙස් සඳහා වලංගු නොවන මිලක්.",
     "priceInvalidMeetGreet": "ඔබ සමඟ කාලය සඳහා වලංගු නොවන මිලක්.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "ඔබේ නියැදි සුබපැතුම බෙදාගෙන ඇත!",
     "sampleSharedAdvice": "ඔබේ නියැදි උපදෙස බෙදාගෙන ඇත!",
     "recordAnotherSample": "තව එකක් පටිගත කරන්න",
-    "finishSamples": "අවසන් කරන්න"
+    "finishSamples": "අවසන් කරන්න",
+    "deleteSample": "මකන්න",
+    "confirmDeleteSampleTitle": "මෙම නියැදිය මැකීමට විශ්වාසද?",
+    "confirmDeleteSampleBody": "එය ඔබේ පැතිකඩෙන් සහ කථාවලින් අතුරුදහන් වේ. මෙය ආපසු හැරවිය නොහැක.",
+    "sampleRequiredToActivate": "මෙම අත්දැකීම සක්‍රිය කිරීමට පෙර අවම වශයෙන් එක් නියැදියක් පටිගත කරන්න."
   },
   "live": {
     "accessTicket": "ප්‍රවේශ ප්‍රවේශපත්‍රය",
@@ -2096,7 +2102,7 @@
     "endSession": "සැසිය අවසන් කරන්න",
     "free": "නොමිලේ",
     "goToLive": "සජීවී විකාශයට යන්න",
-    "invalidContext": "වලංගු නොවන සන්දර්භය. සජීවී විකාශයේ ගමනාන්තය හඳුනාගත නොහැකි විය.",
+    "invalidContext": "සජීවී විකාශය කොහෙද යන්නේ කියා තීරණය කළ නොහැකි විය.",
     "invalidDateTime": "වලංගු නොවන දිනය සහ වේලාව",
     "liveAlt": "සජීවී",
     "liveEnded": "සජීවී විකාශය අවසන් විය",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "වලංගු නොවන වාසගම (අකුරු 1–40).",
       "errInvalidName": "වලංගු නොවන නම (අකුරු 1–40).",
       "errEmailInUse": "මෙම විද්‍යුත් තැපෑල දැනටමත් ලියාපදිංචි කර ඇත.",
-      "errRegistrationFailed": "ලියාපදිංචිය සම්පූර්ණ කළ නොහැකි විය. නැවත උත්සාහ කරන්න.",
+      "errRegistrationFailed": "ලියාපදිංචිය සම්පූර්ණ කළ නොහැකි විය, නැවත උත්සාහ කරන්න.",
       "errWeakPassword": "මුරපදය අවම වශයෙන් අකුරු 6ක් විය යුතුය.",
-      "errPasswordWeak": "අවම වශයෙන් අකුරු 10ක්, ලොකු අකුරක්, කුඩා අකුරක්, අංකයක් සහ සංකේතයක් සමඟ."
+      "errPasswordWeak": "මුරපදයේ අවම වශයෙන් අකුරු 10ක් තිබිය යුතුයි, ලොකු අකුරක්, කුඩා අකුරක්, අංකයක් සහ සංකේතයක් සමඟ."
     },
     "resetPassword": {
       "title": "මුරපදය යළි පිහිටුවන්න",
@@ -2714,7 +2720,7 @@
     "deletedPost": "පළකිරීම මකා දමන ලදී.",
     "serviceNotEnabled": "මෙම සේවාව සක්‍රීය නැත.",
     "futureDateRequired": "දිනය අනාගතයේ විය යුතුයි.",
-    "internalError": "දෝෂයක් ඇති විය. නැවත උත්සාහ කරන්න.",
+    "internalError": "දෝෂයක් ඇති විය, නැවත උත්සාහ කරන්න.",
     "countryNotAvailable": "දැනට ඔබේ රටේ ගෙවීම් සේවාව නොමැත.",
     "cardCountryNotAvailable": "දැනට එම රටේ කාඩ්පතකින් අය කිරීමට නොහැක."
   },

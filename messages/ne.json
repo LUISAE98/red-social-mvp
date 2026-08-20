@@ -270,7 +270,8 @@
     "videoUploadError": "भिडियो अपलोड गर्न सकिएन।",
     "priceMin": "न्यूनतम मूल्य ${min} हो",
     "shareStory": "कथा साझा गर्नुहोस्",
-    "pinError": "पोस्ट पिन वा अनपिन गर्न सकिएन।"
+    "pinError": "पोस्ट पिन वा अनपिन गर्न सकिएन।",
+    "viewsCountAriaLabel": "{count, plural, one {# हेराइ} other {# हेराइ}}"
   },
   "groups": {
     "title": "समुदायहरू",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "सदस्य दृश्यता अद्यावधिक गर्न सकिएन।",
     "canvasInitError": "Canvas सुरु गर्न सकिएन।",
     "cropGenerateError": "क्रप सिर्जना गर्न सकिएन।",
-    "avatarReadError": "अवतार: छवि पढ्न सकिएन।",
-    "coverReadError": "कभर: छवि पढ्न सकिएन।",
+    "avatarReadError": "अवतारको छवि पढ्न सकिएन।",
+    "coverReadError": "कभर छवि पढ्न सकिएन।",
     "descriptionMinLength": "विवरणमा कम्तीमा 10 अक्षर हुनुपर्छ।",
     "ageMinInvalid": "न्यूनतम उमेर अमान्य छ (18–99)।",
     "ageMaxInvalid": "अधिकतम उमेर अमान्य छ (18–99)।",
@@ -633,7 +634,8 @@
     "categoryUpdated": "कोटि अद्यावधिक भयो।",
     "tagsUpdated": "ट्यागहरू अद्यावधिक भए।",
     "inviteLoadError": "निमन्त्रणा लोड गर्दा त्रुटि भयो।",
-    "inviteUseError": "निमन्त्रणा प्रयोग गर्न सकिएन।"
+    "inviteUseError": "निमन्त्रणा प्रयोग गर्न सकिएन।",
+    "actionInviteToMod": "मध्यस्थता गर्न निम्तो दिनुहोस्"
   },
   "profile": {
     "ariaChangeAvatar": "प्रोफाइल फोटो परिवर्तन गर्नुहोस्",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "फिर्ता अनुरोध गर्न सकिएन।",
     "errorRequestReschedule": "पुनःतालिका अनुरोध गर्न सकिएन।",
     "selectDateTimeError": "दिन, महिना, वर्ष, घण्टा र मिनेट छान्नुहोस्।",
-    "scheduleConflictError": "त्यो समय पहिले नै लिइसकिएको छ। कृपया अर्को उपलब्ध समय छान्नुहोस्।",
+    "scheduleConflictError": "त्यो समय भरिएको छ, अर्को उपलब्ध समय छान्नुहोस्।",
     "rescheduleNotificationTitle": "सत्रको तालिका पुनः बनाइयो",
     "scheduledDateLabel": "तय गरिएको मिति",
     "cardExperiencesWith": "{name} सँगका अनुभवहरू",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "सर्जकले पोस्ट अनलक गर्न कति लाग्छ तोक्छन्।",
     "mergeDonationSupportDesc": "सर्जकलाई आफ्नो सहयोग देखाउन चाहेजति रकम योगदान गर्नुहोस्।",
     "addSampleAriaLabel": "नमुना थप्नुहोस्",
-    "addSampleHint": "खरिदकर्ताले के पाउँछन् देख्न उदाहरण रेकर्ड गर्नुहोस्",
+    "addSampleHint": "खरिदकर्ताले के पाउँछन् भन्ने देख्न सकून् भनेर एउटा नमूना रेकर्ड गर्नुहोस्। अनुभव सक्रिय गर्न कम्तीमा एक चाहिन्छ र तीनवटासम्म अपलोड गर्न सक्नुहुन्छ।",
     "priceInvalidGreetings": "अभिवादनका लागि अमान्य मूल्य।",
     "priceInvalidAdvice": "सल्लाहका लागि अमान्य मूल्य।",
     "priceInvalidMeetGreet": "तपाईंसँगको समयका लागि अमान्य मूल्य।",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "तपाईंको नमूना अभिवादन साझा भयो!",
     "sampleSharedAdvice": "तपाईंको नमूना सल्लाह साझा भयो!",
     "recordAnotherSample": "अर्को एउटा रेकर्ड गर्नुहोस्",
-    "finishSamples": "सिद्ध्याउनुहोस्"
+    "finishSamples": "सिद्ध्याउनुहोस्",
+    "deleteSample": "मेट्नुहोस्",
+    "confirmDeleteSampleTitle": "यो नमूना मेट्न निश्चित हुनुहुन्छ?",
+    "confirmDeleteSampleBody": "यो तपाईंको प्रोफाइल र स्टोरीबाट हराउनेछ। यो फिर्ता गर्न सकिँदैन।",
+    "sampleRequiredToActivate": "यो अनुभव सक्रिय गर्नुअघि कम्तीमा एउटा नमूना रेकर्ड गर्नुहोस्।"
   },
   "live": {
     "accessTicket": "पहुँच टिकट",
@@ -2096,7 +2102,7 @@
     "endSession": "सत्र समाप्त गर्नुहोस्",
     "free": "निःशुल्क",
     "goToLive": "लाइभमा जानुहोस्",
-    "invalidContext": "अमान्य सन्दर्भ। लाइभको गन्तव्य पत्ता लगाउन सकिएन।",
+    "invalidContext": "लाइभ कहाँ जाने हो पत्ता लगाउन सकिएन।",
     "invalidDateTime": "अमान्य मिति र समय",
     "liveAlt": "लाइभ",
     "liveEnded": "लाइभ समाप्त भयो",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "अमान्य थर (1–40 अक्षर)।",
       "errInvalidName": "अमान्य नाम (1–40 अक्षर)।",
       "errEmailInUse": "यो इमेल पहिले नै दर्ता भइसकेको छ।",
-      "errRegistrationFailed": "दर्ता पूरा गर्न सकिएन। कृपया पुनः प्रयास गर्नुहोस्।",
+      "errRegistrationFailed": "दर्ता पूरा गर्न सकिएन, फेरि प्रयास गर्नुहोस्।",
       "errWeakPassword": "पासवर्ड कम्तीमा 6 अक्षरको हुनुपर्छ।",
-      "errPasswordWeak": "कम्तीमा १० वर्ण प्रयोग गर्नुहोस्, ठूलो र सानो अक्षर, अंक र चिन्हसहित।"
+      "errPasswordWeak": "पासवर्ड कम्तीमा १० वर्णको हुनुपर्छ, ठूलो र सानो अक्षर, अंक र चिन्हसहित।"
     },
     "resetPassword": {
       "title": "पासवर्ड रिसेट गर्नुहोस्",
@@ -2714,7 +2720,7 @@
     "deletedPost": "पोस्ट मेटाइयो।",
     "serviceNotEnabled": "यो सेवा सक्षम छैन।",
     "futureDateRequired": "मिति भविष्यमा हुनुपर्छ।",
-    "internalError": "त्रुटि भयो। फेरि प्रयास गर्नुहोस्।",
+    "internalError": "त्रुटि भयो, फेरि प्रयास गर्नुहोस्।",
     "countryNotAvailable": "हाल तपाईंको देशमा भुक्तानी उपलब्ध छैन।",
     "cardCountryNotAvailable": "हाल हामी त्यो देशको कार्डबाट शुल्क लिन सक्दैनौं।"
   },

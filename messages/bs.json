@@ -270,7 +270,8 @@
     "videoUploadError": "Video nije bilo moguće poslati.",
     "priceMin": "Najniža cijena je ${min}",
     "shareStory": "Podijeli priču",
-    "pinError": "Objavu nije bilo moguće zakačiti ni otkačiti."
+    "pinError": "Objavu nije bilo moguće zakačiti ni otkačiti.",
+    "viewsCountAriaLabel": "{count, plural, one {# pregled} few {# pregleda} other {# pregleda}}"
   },
   "groups": {
     "title": "Zajednice",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Vidljivost članova nije bilo moguće ažurirati.",
     "canvasInitError": "Canvas nije bilo moguće inicijalizirati.",
     "cropGenerateError": "Izrezak nije bilo moguće stvoriti.",
-    "avatarReadError": "Avatar: sliku nije bilo moguće pročitati.",
-    "coverReadError": "Naslovnica: sliku nije bilo moguće pročitati.",
+    "avatarReadError": "Nije bilo moguće pročitati sliku avatara.",
+    "coverReadError": "Nije bilo moguće pročitati sliku naslovnice.",
     "descriptionMinLength": "Opis mora imati barem 10 znakova.",
     "ageMinInvalid": "Nevažeća najniža dob (18 – 99).",
     "ageMaxInvalid": "Nevažeća najviša dob (18 – 99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategorija je ažurirana.",
     "tagsUpdated": "Oznake su ažurirane.",
     "inviteLoadError": "Greška pri učitavanju pozivnice.",
-    "inviteUseError": "Pozivnicu nije bilo moguće iskoristiti."
+    "inviteUseError": "Pozivnicu nije bilo moguće iskoristiti.",
+    "actionInviteToMod": "Pozovi za moderatora"
   },
   "profile": {
     "ariaChangeAvatar": "Promijeni profilnu sliku",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Povrat nije bilo moguće zatražiti.",
     "errorRequestReschedule": "Premještanje nije bilo moguće zatražiti.",
     "selectDateTimeError": "Odaberi dan, mjesec, godinu, sat i minutu.",
-    "scheduleConflictError": "Taj termin je već zauzet. Odaberi drugi slobodan termin.",
+    "scheduleConflictError": "Taj termin je zauzet, izaberi drugo slobodno vrijeme.",
     "rescheduleNotificationTitle": "Sesija je premještena",
     "scheduledDateLabel": "Zakazani datum",
     "cardExperiencesWith": "Doživljaji s kreatorom {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Kreator određuje koliko stoji otključavanje objave.",
     "mergeDonationSupportDesc": "Doprinesi iznosom koji želiš i pokaži kreatoru svoju podršku.",
     "addSampleAriaLabel": "Dodaj primjer",
-    "addSampleHint": "Snimi primjer da kupci vide šta dobijaju",
+    "addSampleHint": "Snimi primjer da kupci vide šta dobijaju. Treba ti barem jedan da aktiviraš iskustvo, a možeš postaviti do tri.",
     "priceInvalidGreetings": "Neispravna cijena za pozdrave.",
     "priceInvalidAdvice": "Neispravna cijena za savjete.",
     "priceInvalidMeetGreet": "Neispravna cijena za Vrijeme s tobom.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Tvoj primjer pozdrava je podijeljen!",
     "sampleSharedAdvice": "Tvoj primjer savjeta je podijeljen!",
     "recordAnotherSample": "Snimi još jedan",
-    "finishSamples": "Završi"
+    "finishSamples": "Završi",
+    "deleteSample": "Obriši",
+    "confirmDeleteSampleTitle": "Želiš li obrisati ovaj primjer?",
+    "confirmDeleteSampleBody": "Nestat će s tvog profila i iz tvojih priča. Nema povratka.",
+    "sampleRequiredToActivate": "Snimi barem jedan primjer prije nego aktiviraš ovo iskustvo."
   },
   "live": {
     "accessTicket": "Ulaznica",
@@ -2096,7 +2102,7 @@
     "endSession": "Završi sesiju",
     "free": "Besplatno",
     "goToLive": "Idi na prenos",
-    "invalidContext": "Nevažeći kontekst. Odredište prenosa nije bilo moguće utvrditi.",
+    "invalidContext": "Nije bilo moguće utvrditi kamo ide prijenos uživo.",
     "invalidDateTime": "Nevažeći datum i vrijeme",
     "liveAlt": "Uživo",
     "liveEnded": "Prenos je završio",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Nevažeće prezime (1 – 40 znakova).",
       "errInvalidName": "Nevažeće ime (1 – 40 znakova).",
       "errEmailInUse": "Ovaj email je već registrovan.",
-      "errRegistrationFailed": "Registraciju nije bilo moguće dovršiti. Pokušaj ponovo.",
+      "errRegistrationFailed": "Registraciju nije bilo moguće dovršiti, pokušaj ponovo.",
       "errWeakPassword": "Lozinka mora imati najmanje 6 znakova.",
-      "errPasswordWeak": "Koristi bar 10 znakova, s velikim i malim slovom, brojem i simbolom."
+      "errPasswordWeak": "Lozinka mora imati bar 10 znakova, s velikim i malim slovom, brojem i simbolom."
     },
     "resetPassword": {
       "title": "Ponovo postavi lozinku",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Objava je obrisana.",
     "serviceNotEnabled": "Ova usluga nije omogućena.",
     "futureDateRequired": "Datum mora biti u budućnosti.",
-    "internalError": "Nešto je pošlo po zlu. Pokušaj ponovo.",
+    "internalError": "Nešto je pošlo po zlu, pokušaj ponovo.",
     "countryNotAvailable": "Plaćanje zasad nije dostupno u tvojoj zemlji.",
     "cardCountryNotAvailable": "Zasad ne možemo naplatiti karticom iz te zemlje."
   },

@@ -270,7 +270,8 @@
     "videoUploadError": "Видеог байршуулж чадсангүй.",
     "priceMin": "Хамгийн бага үнэ нь ${min}",
     "shareStory": "Түүхийг хуваалцах",
-    "pinError": "Нийтлэлийг бэхлэх буюу тайлж чадсангүй."
+    "pinError": "Нийтлэлийг бэхлэх буюу тайлж чадсангүй.",
+    "viewsCountAriaLabel": "{count, plural, one {# үзэлт} other {# үзэлт}}"
   },
   "groups": {
     "title": "Нийгэмлэгүүд",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Гишүүдийн харагдацыг шинэчилж чадсангүй.",
     "canvasInitError": "Canvas-ыг эхлүүлж чадсангүй.",
     "cropGenerateError": "Тайралтыг үүсгэж чадсангүй.",
-    "avatarReadError": "Аватар: зургийг уншиж чадсангүй.",
-    "coverReadError": "Нүүр зураг: зургийг уншиж чадсангүй.",
+    "avatarReadError": "Аватарын зургийг уншиж чадсангүй.",
+    "coverReadError": "Нүүр зургийг уншиж чадсангүй.",
     "descriptionMinLength": "Тайлбар дор хаяж 10 тэмдэгттэй байх ёстой.",
     "ageMinInvalid": "Хамгийн бага нас буруу байна (18–99).",
     "ageMaxInvalid": "Хамгийн их нас буруу байна (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Ангилал шинэчлэгдлээ.",
     "tagsUpdated": "Шошго шинэчлэгдлээ.",
     "inviteLoadError": "Урилга ачаалахад алдаа гарлаа.",
-    "inviteUseError": "Урилгыг ашиглаж чадсангүй."
+    "inviteUseError": "Урилгыг ашиглаж чадсангүй.",
+    "actionInviteToMod": "Модератор болохыг урих"
   },
   "profile": {
     "ariaChangeAvatar": "Профайлын зургийг солих",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Мөнгө буцаах хүсэлт гаргаж чадсангүй.",
     "errorRequestReschedule": "Дахин товлох хүсэлт гаргаж чадсангүй.",
     "selectDateTimeError": "Өдөр, сар, жил, цаг, минутаа сонгоно уу.",
-    "scheduleConflictError": "Тэр цагийн хуваарь аль хэдийн эзэлэгдсэн байна. Өөр боломжтой цаг сонгоно уу.",
+    "scheduleConflictError": "Энэ цаг завгүй байна, өөр сул цаг сонгоно уу.",
     "rescheduleNotificationTitle": "Хуралдаан дахин товлогдлоо",
     "scheduledDateLabel": "Товлогдсон огноо",
     "cardExperiencesWith": "{name}-тай туршлагууд",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Нийтлэлийг нээхэд хэдийг төлөхийг бүтээгч тогтооно.",
     "mergeDonationSupportDesc": "Бүтээгчид дэмжлэгээ харуулахын тулд хүссэн хэмжээгээ оруулаарай.",
     "addSampleAriaLabel": "Жишээ нэмэх",
-    "addSampleHint": "Худалдан авагчид юу авахаа харахын тулд жишээ бичээрэй",
+    "addSampleHint": "Худалдан авагчид юу авахаа харахын тулд жишээ бичээрэй. Туршлагыг асаахад дор хаяж нэг хэрэгтэй бөгөөд гурав хүртэл байршуулж болно.",
     "priceInvalidGreetings": "Мэндчилгээний үнэ буруу байна.",
     "priceInvalidAdvice": "Зөвлөгөөний үнэ буруу байна.",
     "priceInvalidMeetGreet": "Тантай хамт цагийн үнэ буруу байна.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Таны жишээ мэндчилгээг хуваалцлаа!",
     "sampleSharedAdvice": "Таны жишээ зөвлөгөөг хуваалцлаа!",
     "recordAnotherSample": "Дахиад нэгийг бичих",
-    "finishSamples": "Дуусгах"
+    "finishSamples": "Дуусгах",
+    "deleteSample": "Устгах",
+    "confirmDeleteSampleTitle": "Энэ жишээг устгах уу?",
+    "confirmDeleteSampleBody": "Профайл болон түүхээс чинь алга болно. Буцаах боломжгүй.",
+    "sampleRequiredToActivate": "Энэ туршлагыг асаахаас өмнө дор хаяж нэг жишээ бичээрэй."
   },
   "live": {
     "accessTicket": "Хандах тасалбар",
@@ -2096,7 +2102,7 @@
     "endSession": "Хуралдааныг дуусгах",
     "free": "Үнэгүй",
     "goToLive": "Дамжуулалт руу очих",
-    "invalidContext": "Буруу нөхцөл байдал. Дамжуулалтын очих газрыг тодорхойлж чадсангүй.",
+    "invalidContext": "Шууд дамжуулалт хаашаа явахыг тодорхойлж чадсангүй.",
     "invalidDateTime": "Буруу огноо, цаг",
     "liveAlt": "Шууд",
     "liveEnded": "Дамжуулалт дууслаа",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Буруу овог (1–40 тэмдэгт).",
       "errInvalidName": "Буруу нэр (1–40 тэмдэгт).",
       "errEmailInUse": "Энэ имэйл аль хэдийн бүртгэгдсэн байна.",
-      "errRegistrationFailed": "Бүртгэлийг гүйцээж чадсангүй. Дахин оролдоно уу.",
+      "errRegistrationFailed": "Бүртгэлийг гүйцээж чадсангүй, дахин оролдоно уу.",
       "errWeakPassword": "Нууц үг дор хаяж 6 тэмдэгттэй байх ёстой.",
-      "errPasswordWeak": "Дор хаяж 10 тэмдэгт, том, жижиг үсэг, тоо, тэмдэг оруулна уу."
+      "errPasswordWeak": "Нууц үг дор хаяж 10 тэмдэгт байх ёстой, том, жижиг үсэг, тоо, тэмдэгтэй."
     },
     "resetPassword": {
       "title": "Нууц үг сэргээх",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Нийтлэл устгагдсан.",
     "serviceNotEnabled": "Энэ үйлчилгээ идэвхгүй байна.",
     "futureDateRequired": "Огноо ирээдүйд байх ёстой.",
-    "internalError": "Алдаа гарлаа. Дахин оролдоно уу.",
+    "internalError": "Алдаа гарлаа, дахин оролдоно уу.",
     "countryNotAvailable": "Одоогоор танай улсад төлбөр хийх боломжгүй байна.",
     "cardCountryNotAvailable": "Одоогоор тухайн улсын картаас төлбөр авах боломжгүй."
   },

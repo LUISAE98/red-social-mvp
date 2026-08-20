@@ -8,7 +8,7 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { useVibraToast, type ToastType } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import {
   collection,
@@ -748,18 +748,34 @@ export default function OwnerAdminServices({
 
       skipHydrationWhileSavingRef.current = true;
 
-      await updateDoc(doc(db, "groups", groupId), {
-        monetization: {
-          ...commerce.monetization,
-          transitions: nextTransitions,
-        },
-        offerings: commerce.offerings,
-        donation: commerce.donation,
-        greetingsEnabled: commerce.monetization.greetingsEnabled,
-      });
+      // ⚠️ El error se re-lanza DICIENDO QUÉ PASO falló. Sin esto, el aviso mostraba
+      // "Missing or insufficient permissions" a secas y era indistinguible del error de
+      // cualquier otra suscripción de Firestore que estuviera fallando en la pantalla:
+      // se perdían horas buscando en el sitio equivocado.
+      try {
+        await updateDoc(doc(db, "groups", groupId), {
+          monetization: {
+            ...commerce.monetization,
+            transitions: nextTransitions,
+          },
+          offerings: commerce.offerings,
+          donation: commerce.donation,
+          greetingsEnabled: commerce.monetization.greetingsEnabled,
+        });
+      } catch (errorGuardado: unknown) {
+        const detalle = errorGuardado instanceof Error ? errorGuardado.message : String(errorGuardado);
+        console.error("[servicios] falló updateDoc de groups/" + groupId, {
+          error: errorGuardado,
+          monetization: { ...commerce.monetization, transitions: nextTransitions },
+        });
+        throw new Error(`No se pudo guardar la configuración de la comunidad: ${detalle}`);
+      }
 
       let successMessage =
         tServices("configAllSaved");
+      // ⚠️ EXPLÍCITO. `useVibraToast` deduce el tipo del emoji inicial y lo que no lleva
+      // ninguno lo pinta como ERROR: sin esto, guardar bien salía en rojo con una cruz.
+      let successType: ToastType = "success";
 
       if (isTransitioningSubscriptionModel) {
         try {
@@ -794,6 +810,9 @@ export default function OwnerAdminServices({
           });
 
           successMessage = textoAvisoTransicion(buildTransitionSuccessMessage(transitionResponse));
+          // Cuenta cuántos miembros quedaron gratuitos: es información, no un fallo ni
+          // una advertencia. Va en gris.
+          successType = "info";
         } catch (transitionError: unknown) {
           const transitionMessage =
             (transitionError instanceof Error ? transitionError.message : null) ??
@@ -933,7 +952,7 @@ export default function OwnerAdminServices({
 
       setDraft(nextSaved);
       setSavedDraft(nextSaved);
-      showAdminServicesToast(successMessage);
+      showAdminServicesToast(successMessage, successType);
       return true;
     } catch (e: unknown) {
       showAdminServicesToast((e instanceof Error ? e.message : null) ?? tServices(AVISOS_SERVICIOS.noGuardado), "error");

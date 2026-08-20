@@ -270,7 +270,8 @@
     "videoUploadError": "동영상을 업로드하지 못했습니다.",
     "priceMin": "최소 가격은 ${min}입니다",
     "shareStory": "스토리 공유",
-    "pinError": "게시물을 고정하거나 해제하지 못했습니다."
+    "pinError": "게시물을 고정하거나 해제하지 못했습니다.",
+    "viewsCountAriaLabel": "{count, plural, other {조회수 #회}}"
   },
   "groups": {
     "title": "커뮤니티",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "멤버 공개 설정을 업데이트하지 못했습니다.",
     "canvasInitError": "캔버스를 초기화하지 못했습니다.",
     "cropGenerateError": "자르기를 생성하지 못했습니다.",
-    "avatarReadError": "아바타: 이미지를 읽지 못했습니다.",
-    "coverReadError": "커버: 이미지를 읽지 못했습니다.",
+    "avatarReadError": "아바타 이미지를 읽지 못했습니다.",
+    "coverReadError": "커버 이미지를 읽지 못했습니다.",
     "descriptionMinLength": "설명은 10자 이상이어야 합니다.",
     "ageMinInvalid": "최소 연령이 올바르지 않습니다 (18–99).",
     "ageMaxInvalid": "최대 연령이 올바르지 않습니다 (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "카테고리를 업데이트했습니다.",
     "tagsUpdated": "태그를 업데이트했습니다.",
     "inviteLoadError": "초대를 불러오는 중 오류가 났습니다.",
-    "inviteUseError": "초대를 사용하지 못했습니다."
+    "inviteUseError": "초대를 사용하지 못했습니다.",
+    "actionInviteToMod": "관리자로 초대"
   },
   "profile": {
     "ariaChangeAvatar": "프로필 사진 변경",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "환불을 요청하지 못했습니다.",
     "errorRequestReschedule": "일정 변경을 요청하지 못했습니다.",
     "selectDateTimeError": "일, 월, 년, 시, 분을 선택하세요.",
-    "scheduleConflictError": "그 시간대는 이미 찼습니다. 다른 가능한 시간을 선택하세요.",
+    "scheduleConflictError": "그 시간은 이미 찼어요, 다른 가능한 시간을 골라 주세요.",
     "rescheduleNotificationTitle": "세션 일정이 변경되었습니다",
     "scheduledDateLabel": "예정 날짜",
     "cardExperiencesWith": "{name} 님과의 경험",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "게시물의 잠금 해제 비용은 크리에이터가 정합니다.",
     "mergeDonationSupportDesc": "원하는 금액을 후원해 크리에이터에게 응원을 보여 주세요.",
     "addSampleAriaLabel": "샘플 추가",
-    "addSampleHint": "구매자가 받을 내용을 볼 수 있도록 예시를 녹화하세요",
+    "addSampleHint": "구매자가 무엇을 받는지 알 수 있도록 예시를 녹화하세요. 경험을 켜려면 최소 하나가 필요하고, 최대 세 개까지 올릴 수 있어요.",
     "priceInvalidGreetings": "인사 가격이 올바르지 않습니다.",
     "priceInvalidAdvice": "조언 가격이 올바르지 않습니다.",
     "priceInvalidMeetGreet": "함께하는 시간 가격이 올바르지 않습니다.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "샘플 인사를 공개했어요!",
     "sampleSharedAdvice": "샘플 조언을 공개했어요!",
     "recordAnotherSample": "하나 더 녹화하기",
-    "finishSamples": "마치기"
+    "finishSamples": "마치기",
+    "deleteSample": "삭제",
+    "confirmDeleteSampleTitle": "이 샘플을 삭제할까요?",
+    "confirmDeleteSampleBody": "프로필과 스토리에서 사라져요. 되돌릴 수 없어요.",
+    "sampleRequiredToActivate": "이 경험을 켜기 전에 샘플을 최소 하나 녹화하세요."
   },
   "live": {
     "accessTicket": "입장 티켓",
@@ -2096,7 +2102,7 @@
     "endSession": "세션 종료",
     "free": "무료",
     "goToLive": "라이브로 가기",
-    "invalidContext": "잘못된 컨텍스트입니다. 라이브의 대상을 확인하지 못했습니다.",
+    "invalidContext": "라이브를 어디로 보낼지 확인하지 못했어요.",
     "invalidDateTime": "잘못된 날짜와 시간",
     "liveAlt": "라이브",
     "liveEnded": "라이브가 종료되었습니다",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "잘못된 성입니다 (1~40자).",
       "errInvalidName": "잘못된 이름입니다 (1~40자).",
       "errEmailInUse": "이미 가입된 이메일입니다.",
-      "errRegistrationFailed": "가입을 완료하지 못했습니다. 다시 시도해 주세요.",
+      "errRegistrationFailed": "가입을 완료하지 못했어요, 다시 시도해 주세요.",
       "errWeakPassword": "비밀번호는 6자 이상이어야 합니다.",
-      "errPasswordWeak": "10자 이상으로, 대문자와 소문자, 숫자, 기호를 각각 포함해 주세요."
+      "errPasswordWeak": "비밀번호는 10자 이상이어야 하고, 대문자와 소문자, 숫자, 기호를 각각 포함해야 해요."
     },
     "resetPassword": {
       "title": "비밀번호 재설정",
@@ -2714,7 +2720,7 @@
     "deletedPost": "게시물이 삭제되었습니다.",
     "serviceNotEnabled": "이 서비스는 활성화되어 있지 않습니다.",
     "futureDateRequired": "날짜는 미래여야 합니다.",
-    "internalError": "오류가 발생했습니다. 다시 시도하세요.",
+    "internalError": "오류가 발생했어요, 다시 시도하세요.",
     "countryNotAvailable": "현재 회원님의 국가에서는 결제를 이용할 수 없습니다.",
     "cardCountryNotAvailable": "현재 해당 국가의 카드로는 결제할 수 없습니다."
   },

@@ -270,7 +270,8 @@
     "videoUploadError": "อัปโหลดวิดีโอไม่สำเร็จ",
     "priceMin": "ราคาขั้นต่ำคือ ${min}",
     "shareStory": "แชร์สตอรี่",
-    "pinError": "ปักหมุดหรือเลิกปักหมุดโพสต์ไม่สำเร็จ"
+    "pinError": "ปักหมุดหรือเลิกปักหมุดโพสต์ไม่สำเร็จ",
+    "viewsCountAriaLabel": "{count, plural, other {# การดู}}"
   },
   "groups": {
     "title": "ชุมชน",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "อัปเดตการมองเห็นของสมาชิกไม่สำเร็จ",
     "canvasInitError": "เริ่มต้น Canvas ไม่สำเร็จ",
     "cropGenerateError": "สร้างภาพที่ครอบตัดไม่สำเร็จ",
-    "avatarReadError": "รูปภาพ: อ่านไม่สำเร็จ",
-    "coverReadError": "ภาพปก: อ่านรูปภาพไม่สำเร็จ",
+    "avatarReadError": "อ่านรูปอวาตาร์ไม่สำเร็จ",
+    "coverReadError": "อ่านรูปหน้าปกไม่สำเร็จ",
     "descriptionMinLength": "คำอธิบายต้องมีอย่างน้อย 10 ตัวอักษร",
     "ageMinInvalid": "อายุขั้นต่ำไม่ถูกต้อง (18–99)",
     "ageMaxInvalid": "อายุสูงสุดไม่ถูกต้อง (18–99)",
@@ -633,7 +634,8 @@
     "categoryUpdated": "อัปเดตหมวดหมู่แล้ว",
     "tagsUpdated": "อัปเดตแท็กแล้ว",
     "inviteLoadError": "เกิดข้อผิดพลาดขณะโหลดคำเชิญ",
-    "inviteUseError": "ใช้คำเชิญไม่สำเร็จ"
+    "inviteUseError": "ใช้คำเชิญไม่สำเร็จ",
+    "actionInviteToMod": "เชิญมาเป็นผู้ดูแล"
   },
   "profile": {
     "ariaChangeAvatar": "เปลี่ยนรูปโปรไฟล์",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "ขอคืนเงินไม่สำเร็จ",
     "errorRequestReschedule": "ขอเลื่อนเวลาไม่สำเร็จ",
     "selectDateTimeError": "เลือกวัน เดือน ปี ชั่วโมง และนาที",
-    "scheduleConflictError": "ช่วงเวลานั้นมีคนจองแล้ว กรุณาเลือกเวลาอื่นที่ว่างอยู่",
+    "scheduleConflictError": "ช่วงเวลานี้ถูกจองแล้ว เลือกเวลาอื่นที่ว่าง",
     "rescheduleNotificationTitle": "เลื่อนเซสชันแล้ว",
     "scheduledDateLabel": "วันเวลาที่กำหนด",
     "cardExperiencesWith": "ประสบการณ์กับ {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "ครีเอเตอร์เป็นคนกำหนดว่าการปลดล็อกโพสต์ราคาเท่าไร",
     "mergeDonationSupportDesc": "ให้เท่าไรก็ได้เพื่อแสดงกำลังใจให้ครีเอเตอร์",
     "addSampleAriaLabel": "เพิ่มตัวอย่าง",
-    "addSampleHint": "บันทึกตัวอย่างเพื่อให้ผู้ซื้อเห็นสิ่งที่จะได้รับ",
+    "addSampleHint": "บันทึกตัวอย่างเพื่อให้ผู้ซื้อเห็นว่าจะได้อะไร คุณต้องมีอย่างน้อยหนึ่งรายการจึงจะเปิดประสบการณ์ได้ และอัปโหลดได้สูงสุดสามรายการ",
     "priceInvalidGreetings": "ราคาไม่ถูกต้องสำหรับคำทักทาย",
     "priceInvalidAdvice": "ราคาไม่ถูกต้องสำหรับคำแนะนำ",
     "priceInvalidMeetGreet": "ราคาไม่ถูกต้องสำหรับเวลากับคุณ",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "แชร์คำทักทายตัวอย่างของคุณแล้ว!",
     "sampleSharedAdvice": "แชร์คำแนะนำตัวอย่างของคุณแล้ว!",
     "recordAnotherSample": "บันทึกอีกหนึ่งรายการ",
-    "finishSamples": "เสร็จสิ้น"
+    "finishSamples": "เสร็จสิ้น",
+    "deleteSample": "ลบ",
+    "confirmDeleteSampleTitle": "แน่ใจไหมว่าจะลบตัวอย่างนี้?",
+    "confirmDeleteSampleBody": "มันจะหายไปจากโปรไฟล์และสตอรี่ของคุณ ย้อนกลับไม่ได้",
+    "sampleRequiredToActivate": "บันทึกตัวอย่างอย่างน้อยหนึ่งรายการก่อนเปิดประสบการณ์นี้"
   },
   "live": {
     "accessTicket": "ตั๋วเข้าชม",
@@ -2096,7 +2102,7 @@
     "endSession": "จบเซสชัน",
     "free": "ฟรี",
     "goToLive": "ไปที่ไลฟ์",
-    "invalidContext": "ข้อมูลไม่ถูกต้อง ระบุปลายทางของไลฟ์ไม่ได้",
+    "invalidContext": "ไม่สามารถระบุปลายทางของไลฟ์ได้",
     "invalidDateTime": "วันและเวลาไม่ถูกต้อง",
     "liveAlt": "ไลฟ์",
     "liveEnded": "ไลฟ์จบแล้ว",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "นามสกุลไม่ถูกต้อง (1–40 ตัวอักษร)",
       "errInvalidName": "ชื่อไม่ถูกต้อง (1–40 ตัวอักษร)",
       "errEmailInUse": "อีเมลนี้ลงทะเบียนไว้แล้ว",
-      "errRegistrationFailed": "สมัครไม่สำเร็จ กรุณาลองอีกครั้ง",
+      "errRegistrationFailed": "สมัครไม่สำเร็จ ลองอีกครั้ง",
       "errWeakPassword": "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร",
-      "errPasswordWeak": "ใช้อย่างน้อย 10 ตัวอักษร โดยมีตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก ตัวเลข และสัญลักษณ์"
+      "errPasswordWeak": "รหัสผ่านต้องมีอย่างน้อย 10 ตัวอักษร โดยมีตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก ตัวเลข และสัญลักษณ์"
     },
     "resetPassword": {
       "title": "รีเซ็ตรหัสผ่าน",

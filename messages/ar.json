@@ -270,7 +270,8 @@
     "videoUploadError": "تعذر رفع الفيديو.",
     "priceMin": "الحد الأدنى للسعر هو ${min}",
     "shareStory": "مشاركة القصة",
-    "pinError": "تعذّر تثبيت المنشور أو إلغاء تثبيته."
+    "pinError": "تعذّر تثبيت المنشور أو إلغاء تثبيته.",
+    "viewsCountAriaLabel": "{count, plural, zero {# مشاهدة} one {مشاهدة واحدة} two {مشاهدتان} few {# مشاهدات} many {# مشاهدة} other {# مشاهدة}}"
   },
   "groups": {
     "title": "المجتمعات",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "تعذّر تحديث ظهور الأعضاء.",
     "canvasInitError": "تعذّر تهيئة Canvas.",
     "cropGenerateError": "تعذّر إنشاء الاقتصاص.",
-    "avatarReadError": "الصورة الشخصية: تعذّرت قراءة الصورة.",
-    "coverReadError": "الغلاف: تعذّرت قراءة الصورة.",
+    "avatarReadError": "تعذّرت قراءة صورة الملف الشخصي.",
+    "coverReadError": "تعذّرت قراءة صورة الغلاف.",
     "descriptionMinLength": "يجب ألا يقل الوصف عن 10 أحرف.",
     "ageMinInvalid": "الحد الأدنى للعمر غير صالح (18–99).",
     "ageMaxInvalid": "الحد الأقصى للعمر غير صالح (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "تم تحديث الفئة.",
     "tagsUpdated": "تم تحديث الوسوم.",
     "inviteLoadError": "خطأ أثناء تحميل الدعوة.",
-    "inviteUseError": "تعذّر استخدام الدعوة."
+    "inviteUseError": "تعذّر استخدام الدعوة.",
+    "actionInviteToMod": "دعوة للإشراف"
   },
   "profile": {
     "ariaChangeAvatar": "تغيير صورة الملف الشخصي",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "تعذّر طلب الاسترداد.",
     "errorRequestReschedule": "تعذّر طلب تغيير الموعد.",
     "selectDateTimeError": "اختر اليوم والشهر والسنة والساعة والدقيقة.",
-    "scheduleConflictError": "هذا الموعد محجوز. يُرجى اختيار وقت آخر متاح.",
+    "scheduleConflictError": "هذا الموعد محجوز، اختر وقتًا آخر متاحًا.",
     "rescheduleNotificationTitle": "تم تغيير موعد الجلسة",
     "scheduledDateLabel": "التاريخ المحدد",
     "cardExperiencesWith": "تجارب مع {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "يحدد صانع المحتوى كم يكلّف فتح قفل المنشور.",
     "mergeDonationSupportDesc": "ساهم بالمبلغ الذي تريده لتُظهر لصانع المحتوى دعمك.",
     "addSampleAriaLabel": "إضافة عينة",
-    "addSampleHint": "سجّل مثالاً ليرى المشترون ما سيحصلون عليه",
+    "addSampleHint": "سجّل مثالاً حتى يرى المشترون ما سيحصلون عليه. تحتاج واحداً على الأقل لتفعيل التجربة، ويمكنك رفع حتى ثلاثة.",
     "priceInvalidGreetings": "سعر غير صالح للتحيات.",
     "priceInvalidAdvice": "سعر غير صالح للنصائح.",
     "priceInvalidMeetGreet": "سعر غير صالح لوقت معك.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "تم نشر تحيتك النموذجية!",
     "sampleSharedAdvice": "تمت مشاركة نصيحتك النموذجية!",
     "recordAnotherSample": "تسجيل واحدة أخرى",
-    "finishSamples": "إنهاء"
+    "finishSamples": "إنهاء",
+    "deleteSample": "حذف",
+    "confirmDeleteSampleTitle": "هل تريد حذف هذا النموذج؟",
+    "confirmDeleteSampleBody": "سيختفي من ملفك ومن قصصك. لا يمكن التراجع.",
+    "sampleRequiredToActivate": "سجّل نموذجاً واحداً على الأقل قبل تفعيل هذه التجربة."
   },
   "live": {
     "accessTicket": "تذكرة دخول",
@@ -2096,7 +2102,7 @@
     "endSession": "إنهاء الجلسة",
     "free": "مجاني",
     "goToLive": "الذهاب إلى البث",
-    "invalidContext": "سياق غير صالح. تعذّر تحديد وجهة البث.",
+    "invalidContext": "تعذّر تحديد وجهة البث المباشر.",
     "invalidDateTime": "تاريخ ووقت غير صالحين",
     "liveAlt": "مباشر",
     "liveEnded": "انتهى البث",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "اسم عائلة غير صالح (1–40 حرفًا).",
       "errInvalidName": "اسم غير صالح (1–40 حرفًا).",
       "errEmailInUse": "هذا البريد الإلكتروني مسجّل بالفعل.",
-      "errRegistrationFailed": "تعذّر إكمال التسجيل. يُرجى المحاولة مرة أخرى.",
+      "errRegistrationFailed": "تعذّر إكمال التسجيل، حاول مرة أخرى.",
       "errWeakPassword": "يجب ألا تقل كلمة المرور عن 6 أحرف.",
-      "errPasswordWeak": "استخدم 10 أحرف على الأقل، مع حرف كبير وحرف صغير ورقم ورمز."
+      "errPasswordWeak": "يجب أن تتكوّن كلمة المرور من 10 أحرف على الأقل، مع حرف كبير وحرف صغير ورقم ورمز."
     },
     "resetPassword": {
       "title": "إعادة تعيين كلمة المرور",
@@ -2714,7 +2720,7 @@
     "deletedPost": "تم حذف المنشور.",
     "serviceNotEnabled": "هذه الخدمة غير مفعلة.",
     "futureDateRequired": "يجب أن يكون التاريخ في المستقبل.",
-    "internalError": "حدث خطأ. حاول مرة أخرى.",
+    "internalError": "حدث خطأ، حاول مرة أخرى.",
     "countryNotAvailable": "الدفع غير متاح حاليًا في بلدك.",
     "cardCountryNotAvailable": "لا يمكننا حاليًا الخصم من بطاقة صادرة من ذلك البلد."
   },

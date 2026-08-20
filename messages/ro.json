@@ -270,7 +270,8 @@
     "videoUploadError": "Videoclipul nu a putut fi încărcat.",
     "priceMin": "Prețul minim este {min} $",
     "shareStory": "Distribuie povestea",
-    "pinError": "Publicația nu a putut fi fixată sau defixată."
+    "pinError": "Publicația nu a putut fi fixată sau defixată.",
+    "viewsCountAriaLabel": "{count, plural, one {# vizualizare} few {# vizualizări} other {# de vizualizări}}"
   },
   "groups": {
     "title": "Comunități",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Vizibilitatea membrilor nu a putut fi actualizată.",
     "canvasInitError": "Canvasul nu a putut fi inițializat.",
     "cropGenerateError": "Decuparea nu a putut fi generată.",
-    "avatarReadError": "Avatar: imaginea nu a putut fi citită.",
-    "coverReadError": "Copertă: imaginea nu a putut fi citită.",
+    "avatarReadError": "Imaginea avatarului nu a putut fi citită.",
+    "coverReadError": "Imaginea de copertă nu a putut fi citită.",
     "descriptionMinLength": "Descrierea trebuie să aibă cel puțin 10 caractere.",
     "ageMinInvalid": "Vârstă minimă invalidă (18–99).",
     "ageMaxInvalid": "Vârstă maximă invalidă (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Categoria a fost actualizată.",
     "tagsUpdated": "Etichetele au fost actualizate.",
     "inviteLoadError": "Eroare la încărcarea invitației.",
-    "inviteUseError": "Invitația nu a putut fi folosită."
+    "inviteUseError": "Invitația nu a putut fi folosită.",
+    "actionInviteToMod": "Invită să modereze"
   },
   "profile": {
     "ariaChangeAvatar": "Schimbă poza de profil",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Rambursarea nu a putut fi solicitată.",
     "errorRequestReschedule": "Reprogramarea nu a putut fi solicitată.",
     "selectDateTimeError": "Alege ziua, luna, anul, ora și minutul.",
-    "scheduleConflictError": "Acest interval este deja ocupat. Alege altă oră disponibilă.",
+    "scheduleConflictError": "Acest interval este ocupat, alege altă oră disponibilă.",
     "rescheduleNotificationTitle": "Sesiune reprogramată",
     "scheduledDateLabel": "Dată programată",
     "cardExperiencesWith": "Experiențe cu {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Creatorul stabilește cât costă deblocarea postării.",
     "mergeDonationSupportDesc": "Contribuie cu suma pe care o vrei ca să îi arăți creatorului sprijinul tău.",
     "addSampleAriaLabel": "Adaugă un exemplu",
-    "addSampleHint": "Înregistrează un exemplu ca cumpărătorii să vadă ce vor primi",
+    "addSampleHint": "Înregistrează un exemplu ca să vadă cumpărătorii ce vor primi. Ai nevoie de cel puțin unul ca să activezi experiența și poți încărca până la trei.",
     "priceInvalidGreetings": "Preț nevalid pentru salutări.",
     "priceInvalidAdvice": "Preț nevalid pentru sfaturi.",
     "priceInvalidMeetGreet": "Preț nevalid pentru Timp cu tine.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Salutul tău de mostră este publicat!",
     "sampleSharedAdvice": "Sfatul tău de mostră este publicat!",
     "recordAnotherSample": "Mai înregistrează unul",
-    "finishSamples": "Termină"
+    "finishSamples": "Termină",
+    "deleteSample": "Șterge",
+    "confirmDeleteSampleTitle": "Sigur vrei să ștergi această mostră?",
+    "confirmDeleteSampleBody": "Va dispărea din profilul și din poveștile tale. Nu se poate anula.",
+    "sampleRequiredToActivate": "Înregistrează cel puțin o mostră înainte să activezi această experiență."
   },
   "live": {
     "accessTicket": "Bilet de acces",
@@ -2096,7 +2102,7 @@
     "endSession": "Încheie sesiunea",
     "free": "Gratuit",
     "goToLive": "Mergi la transmisiune",
-    "invalidContext": "Context invalid. Destinația transmisiunii nu a putut fi determinată.",
+    "invalidContext": "Nu s-a putut determina unde merge transmisiunea live.",
     "invalidDateTime": "Dată și oră invalide",
     "liveAlt": "Live",
     "liveEnded": "Transmisiunea s-a încheiat",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Nume invalid (1–40 de caractere).",
       "errInvalidName": "Prenume invalid (1–40 de caractere).",
       "errEmailInUse": "Acest e-mail este deja înregistrat.",
-      "errRegistrationFailed": "Înregistrarea nu a putut fi finalizată. Încearcă din nou.",
+      "errRegistrationFailed": "Înregistrarea nu a putut fi finalizată, încearcă din nou.",
       "errWeakPassword": "Parola trebuie să aibă cel puțin 6 caractere.",
-      "errPasswordWeak": "Folosește cel puțin 10 caractere, cu majusculă, minusculă, cifră și simbol."
+      "errPasswordWeak": "Parola trebuie să aibă cel puțin 10 caractere, cu majusculă, minusculă, cifră și simbol."
     },
     "resetPassword": {
       "title": "Resetează parola",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Postarea a fost ștearsă.",
     "serviceNotEnabled": "Acest serviciu nu este activat.",
     "futureDateRequired": "Data trebuie să fie în viitor.",
-    "internalError": "A apărut o eroare. Încearcă din nou.",
+    "internalError": "A apărut o eroare, încearcă din nou.",
     "countryNotAvailable": "Plata nu este disponibilă în țara ta deocamdată.",
     "cardCountryNotAvailable": "Deocamdată nu putem debita un card din acea țară."
   },

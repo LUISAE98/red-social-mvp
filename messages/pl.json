@@ -270,7 +270,8 @@
     "videoUploadError": "Nie udało się przesłać wideo.",
     "priceMin": "Cena minimalna to {min} $",
     "shareStory": "Udostępnij relację",
-    "pinError": "Nie udało się przypiąć ani odpiąć posta."
+    "pinError": "Nie udało się przypiąć ani odpiąć posta.",
+    "viewsCountAriaLabel": "{count, plural, one {# wyświetlenie} few {# wyświetlenia} many {# wyświetleń} other {# wyświetlenia}}"
   },
   "groups": {
     "title": "Społeczności",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Nie udało się zaktualizować widoczności członków.",
     "canvasInitError": "Nie udało się zainicjować obszaru roboczego.",
     "cropGenerateError": "Nie udało się wygenerować kadru.",
-    "avatarReadError": "Awatar: nie udało się odczytać obrazu.",
-    "coverReadError": "Okładka: nie udało się odczytać obrazu.",
+    "avatarReadError": "Nie udało się odczytać obrazu awatara.",
+    "coverReadError": "Nie udało się odczytać obrazu okładki.",
     "descriptionMinLength": "Opis musi mieć co najmniej 10 znaków.",
     "ageMinInvalid": "Nieprawidłowy wiek minimalny (18–99).",
     "ageMaxInvalid": "Nieprawidłowy wiek maksymalny (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategoria zaktualizowana.",
     "tagsUpdated": "Tagi zaktualizowane.",
     "inviteLoadError": "Błąd podczas wczytywania zaproszenia.",
-    "inviteUseError": "Nie udało się użyć zaproszenia."
+    "inviteUseError": "Nie udało się użyć zaproszenia.",
+    "actionInviteToMod": "Zaproś do moderowania"
   },
   "profile": {
     "ariaChangeAvatar": "Zmień zdjęcie profilowe",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Nie udało się poprosić o zwrot.",
     "errorRequestReschedule": "Nie udało się poprosić o przełożenie.",
     "selectDateTimeError": "Wybierz dzień, miesiąc, rok, godzinę i minutę.",
-    "scheduleConflictError": "Ten termin jest już zajęty. Wybierz inną dostępną godzinę.",
+    "scheduleConflictError": "Ten termin jest zajęty, wybierz inną wolną godzinę.",
     "rescheduleNotificationTitle": "Sesja przełożona",
     "scheduledDateLabel": "Zaplanowany termin",
     "cardExperiencesWith": "Doświadczenia z {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Twórca ustala, ile kosztuje odblokowanie posta.",
     "mergeDonationSupportDesc": "Dorzuć tyle, ile chcesz, aby okazać twórcy wsparcie.",
     "addSampleAriaLabel": "Dodaj przykład",
-    "addSampleHint": "Nagraj przykład, aby kupujący zobaczyli, co dostaną",
+    "addSampleHint": "Nagraj przykład, żeby kupujący widzieli, co dostaną. Do włączenia doświadczenia potrzebujesz co najmniej jednego, a przesłać możesz maksymalnie trzy.",
     "priceInvalidGreetings": "Nieprawidłowa cena za pozdrowienia.",
     "priceInvalidAdvice": "Nieprawidłowa cena za porady.",
     "priceInvalidMeetGreet": "Nieprawidłowa cena za Czas z tobą.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Twoje przykładowe pozdrowienie jest udostępnione!",
     "sampleSharedAdvice": "Twoja przykładowa porada jest udostępniona!",
     "recordAnotherSample": "Nagraj jeszcze jedno",
-    "finishSamples": "Zakończ"
+    "finishSamples": "Zakończ",
+    "deleteSample": "Usuń",
+    "confirmDeleteSampleTitle": "Na pewno chcesz usunąć tę próbkę?",
+    "confirmDeleteSampleBody": "Zniknie z twojego profilu i relacji. Nie da się tego cofnąć.",
+    "sampleRequiredToActivate": "Nagraj co najmniej jedną próbkę, zanim włączysz to doświadczenie."
   },
   "live": {
     "accessTicket": "Bilet wstępu",
@@ -2096,7 +2102,7 @@
     "endSession": "Zakończ sesję",
     "free": "Za darmo",
     "goToLive": "Przejdź do transmisji",
-    "invalidContext": "Nieprawidłowy kontekst. Nie udało się ustalić miejsca docelowego transmisji.",
+    "invalidContext": "Nie udało się ustalić, dokąd trafia transmisja na żywo.",
     "invalidDateTime": "Nieprawidłowa data i godzina",
     "liveAlt": "Live",
     "liveEnded": "Transmisja się zakończyła",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Nieprawidłowe nazwisko (1–40 znaków).",
       "errInvalidName": "Nieprawidłowe imię (1–40 znaków).",
       "errEmailInUse": "Ten adres e-mail jest już zarejestrowany.",
-      "errRegistrationFailed": "Nie udało się dokończyć rejestracji. Spróbuj ponownie.",
+      "errRegistrationFailed": "Nie udało się dokończyć rejestracji, spróbuj ponownie.",
       "errWeakPassword": "Hasło musi mieć co najmniej 6 znaków.",
-      "errPasswordWeak": "Użyj co najmniej 10 znaków, z wielką i małą literą, cyfrą i symbolem."
+      "errPasswordWeak": "Hasło musi mieć co najmniej 10 znaków, z wielką i małą literą, cyfrą i symbolem."
     },
     "resetPassword": {
       "title": "Zresetuj hasło",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Post został usunięty.",
     "serviceNotEnabled": "Ta usługa nie jest włączona.",
     "futureDateRequired": "Data musi być w przyszłości.",
-    "internalError": "Coś poszło nie tak. Spróbuj ponownie.",
+    "internalError": "Coś poszło nie tak, spróbuj ponownie.",
     "countryNotAvailable": "Płatność nie jest na razie dostępna w twoim kraju.",
     "cardCountryNotAvailable": "Na razie nie możemy obciążyć karty z tego kraju."
   },

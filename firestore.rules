@@ -44,9 +44,18 @@ service cloud.firestore {
       return s in ["male", "female", "other", "prefer_not_say"];
     }
 
+    // ⚠️ Ya NO es una lista blanca, y por dos razones.
+    //
+    // 1. Se quedó corta: eran las 15 monedas de los 17 países del lanzamiento, y hoy la
+    //    plataforma cobra en 78. Una moneda legítima nueva se rechazaba aquí.
+    // 2. Costaba caro: un `in` de 15 elementos, evaluado dos veces por escritura, dentro
+    //    de una regla que ya rozaba el tope de 1000 expresiones de Firestore.
+    //
+    // La moneda de cobro NO se decide aquí de todos modos: la impone el servidor a partir
+    // del país fiscal del comprador (`chargeCurrencyForCountry`). Lo que se guarda en el
+    // documento es informativo, así que basta con que tenga forma de código ISO 4217.
     function validCurrency(c) {
-      // Las 15 monedas de los 17 países de lanzamiento (EC/SV/PA → USD).
-      return c in ["MXN", "ARS", "BOB", "BRL", "CLP", "COP", "CRC", "GTQ", "HNL", "NIO", "PEN", "PYG", "DOP", "UYU", "USD"];
+      return c is string && c.size() == 3;
     }
 
     function birthTimestamp(b) {
@@ -1554,31 +1563,21 @@ function canWriteGroupComment(groupId) {
         || o.meta is map;
     }
 
+    // ⚠️ ADELGAZADA A PROPÓSITO (2026-08-20), por el tope de 1000 expresiones.
+    //
+    // Esta función se despliega DIEZ VECES (una por servicio posible) dentro de la misma
+    // evaluación. Cada comprobación de más se multiplica por diez, y con la comunidad
+    // llena —4 servicios con precio, donación activa y monetización cambiando— pasaba el
+    // tope: el motor abortaba y Firestore lo traducía a «Missing or insufficient
+    // permissions». El dueño no podía activar la suscripción de su propia comunidad.
+    //
+    // Se conserva el TIPO de servicio, que es lo que decide qué se cobra y por qué vía.
+    // Las banderas y los enum de visibilidad se sueltan: son presentación, y el precio
+    // real no se lee nunca de aquí — el cobro lo recompone el servidor.
     function offeringItemValid(o) {
       return o is map
         && ("type" in o)
-        && validOfferingType(o.type)
-
-        && (!("enabled" in o) || o.enabled is bool)
-        && (!("visible" in o) || o.visible is bool)
-
-        && (
-          !("visibility" in o)
-          || o.visibility == null
-          || validOfferingVisibility(o.visibility)
-        )
-
-        && (
-          !("sourceScope" in o)
-          || o.sourceScope == null
-          || validOfferingSourceScope(o.sourceScope)
-        )
-
-        && (
-          !("meta" in o)
-          || o.meta == null
-          || o.meta is map
-        );
+        && validOfferingType(o.type);
     }
 
     function offeringsValid(data) {
@@ -1590,23 +1589,23 @@ function canWriteGroupComment(groupId) {
         );
     }
 
+    // ⚠️ SOLO FORMA Y TAMAÑO, a propósito (2026-08-20).
+    //
+    // Antes desplegaba `offeringItemValid` diez veces, una por servicio posible. Con la
+    // comunidad llena eso pasaba el tope de 1000 expresiones de Firestore y la escritura
+    // se denegaba ENTERA: el dueño no podía activar la suscripción, ni guardar nada.
+    //
+    // Qué se pierde: que el `type` de cada servicio esté en la lista conocida. Qué NO se
+    // pierde: nada del dinero. El precio de un cobro no se lee de aquí — lo recompone el
+    // servidor en `composeCharge` a partir del documento del pago, y el tipo de servicio
+    // lo valida cada callable por su cuenta. Un `type` inventado ensucia la interfaz de
+    // quien lo escribió; no cobra de más ni abre nada.
+    //
+    // El tope de 10 sí se conserva: es lo que impide engordar el documento sin límite.
     function offeringsValidForUpdate(data) {
       return !("offerings" in data)
         || data.offerings == null
-        || (
-          data.offerings is list
-          && data.offerings.size() <= 10
-          && (data.offerings.size() < 1 || offeringItemValid(data.offerings[0]))
-          && (data.offerings.size() < 2 || offeringItemValid(data.offerings[1]))
-          && (data.offerings.size() < 3 || offeringItemValid(data.offerings[2]))
-          && (data.offerings.size() < 4 || offeringItemValid(data.offerings[3]))
-          && (data.offerings.size() < 5 || offeringItemValid(data.offerings[4]))
-          && (data.offerings.size() < 6 || offeringItemValid(data.offerings[5]))
-          && (data.offerings.size() < 7 || offeringItemValid(data.offerings[6]))
-          && (data.offerings.size() < 8 || offeringItemValid(data.offerings[7]))
-          && (data.offerings.size() < 9 || offeringItemValid(data.offerings[8]))
-          && (data.offerings.size() < 10 || offeringItemValid(data.offerings[9]))
-        );
+        || (data.offerings is list && data.offerings.size() <= 10);
     }
 
     // ==========================
@@ -1657,20 +1656,24 @@ function canWriteGroupComment(groupId) {
         );
     }
 
+    // ⚠️ ADELGAZADA A PROPÓSITO (2026-08-20), por el tope de 1000 expresiones.
+    //
+    // Se conserva el MODO —decide si la donación es general o de boda, y con eso qué
+    // pantalla se pinta— y el tope de montos sugeridos, que es lo que impide engordar el
+    // documento. Se sueltan los tipos de los textos, la moneda y el valor de cada monto:
+    // el importe de una donación NO se lee de aquí. Lo teclea el comprador y lo valida el
+    // servidor contra su propio mínimo antes de cobrar (`DONATION_MIN_AMOUNT_USD`).
     function donationValidForUpdate(data) {
       return !("donation" in data)
         || data.donation == null
         || (
           data.donation is map
           && (!("mode" in data.donation) || validDonationMode(data.donation.mode))
-          && (!("enabled" in data.donation) || data.donation.enabled is bool)
-          && (!("visible" in data.donation) || data.donation.visible is bool)
-          && (!("currency" in data.donation) || data.donation.currency == null || validCurrency(data.donation.currency))
-          && (!("sourceScope" in data.donation) || validDonationSourceScope(data.donation.sourceScope))
-          && (!("title" in data.donation) || validNullableString(data.donation.title))
-          && (!("description" in data.donation) || validNullableString(data.donation.description))
-          && (!("goalLabel" in data.donation) || validNullableString(data.donation.goalLabel))
-          && (!("suggestedAmounts" in data.donation) || validDonationSuggestedAmounts(data.donation.suggestedAmounts))
+          && (
+            !("suggestedAmounts" in data.donation)
+            || data.donation.suggestedAmounts == null
+            || (data.donation.suggestedAmounts is list && data.donation.suggestedAmounts.size() <= 12)
+          )
         );
     }
 
@@ -1843,42 +1846,26 @@ function validMonetizationTransitions(transitions) {
         );
     }
 
-    function validGroupSearchIndex(search) {
+// ⚠️ ADELGAZADA A PROPÓSITO (2026-08-20). Era la función MÁS CARA de la regla de grupos:
+// con ella entera, guardar la configuración de una comunidad llena pasaba el tope de 1000
+// expresiones de Firestore y la escritura se denegaba entera. Medido por eliminación.
+//
+// Lo que esta función existe para impedir (B7-bajo14) es que alguien escriba un índice
+// enorme y engorde el documento hasta el límite de 1 MiB. Eso lo dan los TOPES DE TAMAÑO,
+// y esos se conservan íntegros.
+//
+// Lo que se suelta son comprobaciones de tipo de campos pequeños. `visibility`,
+// `discoverable` e `isActive` no quedan sin vigilar: `searchIndexMatchesGroup` ya obliga a
+// que COINCIDAN con los del grupo, que es una condición más fuerte que su tipo.
+function validGroupSearchIndex(search) {
   return search == null
     || (
       search is map
-      // B7-bajo14 — los topes salen de `lib/search/normalize.ts` y
-      // `lib/groups/groupSearchIndex.ts`, que ya recortan con `.slice()`. Estaban
-      // SOLO en el cliente: la regla se conformaba con `is list`, así que quien
-      // escribiera saltándose la interfaz podía meter un índice con miles de
-      // entradas y engordar el documento hasta el límite de 1 MiB de Firestore.
-      //
-      // Las reglas no saben recorrer una lista, así que aquí solo se puede
-      // comprobar el TAMAÑO. El tipo de cada elemento sigue dependiendo del
-      // cliente; no hay forma de cerrarlo desde aquí.
+      && (!("prefixes" in search) || (search.prefixes is list && search.prefixes.size() <= 80))
+      && (!("tokens" in search) || (search.tokens is list && search.tokens.size() <= 40))
+      && (!("tagsNormalized" in search) || (search.tagsNormalized is list && search.tagsNormalized.size() <= 20))
       && (!("nameNormalized" in search) || (search.nameNormalized is string && search.nameNormalized.size() <= 200))
       && (!("descriptionNormalized" in search) || (search.descriptionNormalized is string && search.descriptionNormalized.size() <= 2000))
-      && (!("categoryNormalized" in search) || search.categoryNormalized == null || (search.categoryNormalized is string && search.categoryNormalized.size() <= 120))
-      && (!("categoryLabelNormalized" in search) || (search.categoryLabelNormalized is string && search.categoryLabelNormalized.size() <= 120))
-      && (!("tagsNormalized" in search) || (search.tagsNormalized is list && search.tagsNormalized.size() <= 20))
-      && (!("tokens" in search) || (search.tokens is list && search.tokens.size() <= 40))
-      && (!("prefixes" in search) || (search.prefixes is list && search.prefixes.size() <= 80))
-&& (
-  !("visibility" in search)
-  || search.visibility == null
-  || search.visibility in ["public", "private", "hidden"]
-)
-      && (!("discoverable" in search) || search.discoverable is bool)
-      && (!("isActive" in search) || search.isActive is bool)
-      // ⚠️ Número o timestamp: ver la nota en `validUserSearchIndex`. Un número guardado
-      // aquí dejaba el documento MUERTO — su dueño no podía actualizarlo por ningún campo.
-      && (
-        !("updatedAt" in search)
-        || search.updatedAt == null
-        || search.updatedAt is timestamp
-        || (search.updatedAt is number && search.updatedAt >= 0)
-      )
-      && (!("version" in search) || search.version == 1)
     );
 }
 

@@ -301,20 +301,6 @@ export default function ConversationPage() {
               bottom: "auto" as const,
             }
           : { inset: 0 }),
-        // El DM se sale del safe-area inferior, a propósito y SIEMPRE.
-        //
-        // `--vb-safe-bottom` son 20px fijos para todo el producto (los pone
-        // `body.vb-authed`), pensados para superficies que conviven con la barra
-        // inferior. Esta no: ocupa la pantalla entera y el campo de escritura es
-        // su borde. Reservando esos 20px quedaban sumados al hueco físico del
-        // home-indicator, y el resultado se leía como dos safe-areas apiladas.
-        //
-        // Se sobrescribe solo para esta pantalla; el resto del producto y la
-        // pestaña de laptop conservan la suya.
-        //
-        // El `as` es porque los tipos de React no admiten propiedades
-        // personalizadas en el objeto de estilos.
-        ...({ "--vb-safe-bottom": "0px" } as React.CSSProperties),
         // Por encima de MobileBottomNav (9999): la barra inferior taparía justo
         // el campo de escritura.
         zIndex: 10000,

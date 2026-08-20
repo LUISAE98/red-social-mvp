@@ -270,7 +270,8 @@
     "videoUploadError": "動画をアップロードできませんでした。",
     "priceMin": "最低料金は${min}です",
     "shareStory": "ストーリーを共有",
-    "pinError": "投稿をピン留めまたは解除できませんでした。"
+    "pinError": "投稿をピン留めまたは解除できませんでした。",
+    "viewsCountAriaLabel": "{count, plural, other {# 回視聴}}"
   },
   "groups": {
     "title": "コミュニティ",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "メンバーの公開設定を更新できませんでした。",
     "canvasInitError": "Canvasを初期化できませんでした。",
     "cropGenerateError": "切り抜きを作成できませんでした。",
-    "avatarReadError": "画像：読み込めませんでした。",
-    "coverReadError": "カバー：画像を読み込めませんでした。",
+    "avatarReadError": "アバターの画像を読み込めませんでした。",
+    "coverReadError": "カバー画像を読み込めませんでした。",
     "descriptionMinLength": "説明は10文字以上にしてください。",
     "ageMinInvalid": "下限年齢が正しくありません（18〜99）。",
     "ageMaxInvalid": "上限年齢が正しくありません（18〜99）。",
@@ -633,7 +634,8 @@
     "categoryUpdated": "カテゴリを更新しました。",
     "tagsUpdated": "タグを更新しました。",
     "inviteLoadError": "招待の読み込み中にエラーが起きました。",
-    "inviteUseError": "招待を使用できませんでした。"
+    "inviteUseError": "招待を使用できませんでした。",
+    "actionInviteToMod": "モデレーターに招待"
   },
   "profile": {
     "ariaChangeAvatar": "プロフィール画像を変更",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "返金を申請できませんでした。",
     "errorRequestReschedule": "日程変更を依頼できませんでした。",
     "selectDateTimeError": "日、月、年、時、分を選んでください。",
-    "scheduleConflictError": "その時間はすでに埋まっています。空いている別の時間を選んでください。",
+    "scheduleConflictError": "その時間はすでに埋まっています、別の空き時間を選んでください。",
     "rescheduleNotificationTitle": "セッションの日程が変更されました",
     "scheduledDateLabel": "予定日時",
     "cardExperiencesWith": "{name}との体験",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "投稿のロック解除にかかる金額はクリエイターが設定します。",
     "mergeDonationSupportDesc": "好きな金額を送って、クリエイターに応援の気持ちを伝えましょう。",
     "addSampleAriaLabel": "サンプルを追加",
-    "addSampleHint": "購入者が受け取る内容がわかる例を録画",
+    "addSampleHint": "購入者が何を受け取るのか分かるように、見本を録画してください。体験を有効にするには最低1本必要で、最大3本までアップロードできます。",
     "priceInvalidGreetings": "あいさつの価格が正しくありません。",
     "priceInvalidAdvice": "アドバイスの価格が正しくありません。",
     "priceInvalidMeetGreet": "あなたとの時間の価格が正しくありません。",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "サンプルのあいさつを公開しました!",
     "sampleSharedAdvice": "サンプルのアドバイスを公開しました!",
     "recordAnotherSample": "もう一つ録画する",
-    "finishSamples": "終了"
+    "finishSamples": "終了",
+    "deleteSample": "削除",
+    "confirmDeleteSampleTitle": "このサンプルを削除しますか?",
+    "confirmDeleteSampleBody": "プロフィールとストーリーから消えます。元には戻せません。",
+    "sampleRequiredToActivate": "この体験を有効にする前に、見本を最低1本録画してください。"
   },
   "live": {
     "accessTicket": "アクセスチケット",
@@ -2096,7 +2102,7 @@
     "endSession": "セッションを終了",
     "free": "無料",
     "goToLive": "ライブ配信へ",
-    "invalidContext": "情報が正しくありません。ライブ配信の公開先を判別できませんでした。",
+    "invalidContext": "ライブの配信先を特定できませんでした。",
     "invalidDateTime": "日時が正しくありません",
     "liveAlt": "ライブ配信",
     "liveEnded": "ライブ配信は終了しました",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "姓が正しくありません（1〜40文字）。",
       "errInvalidName": "名が正しくありません（1〜40文字）。",
       "errEmailInUse": "このメールアドレスはすでに登録されています。",
-      "errRegistrationFailed": "登録を完了できませんでした。もう一度お試しください。",
+      "errRegistrationFailed": "登録を完了できませんでした、もう一度お試しください。",
       "errWeakPassword": "パスワードは6文字以上にしてください。",
-      "errPasswordWeak": "10文字以上で、大文字・小文字・数字・記号をそれぞれ入れてください。"
+      "errPasswordWeak": "パスワードは10文字以上で、大文字・小文字・数字・記号をそれぞれ入れてください。"
     },
     "resetPassword": {
       "title": "パスワードを再設定",
@@ -2714,7 +2720,7 @@
     "deletedPost": "投稿は削除されました。",
     "serviceNotEnabled": "このサービスは有効になっていません。",
     "futureDateRequired": "日付は未来である必要があります。",
-    "internalError": "エラーが発生しました。もう一度お試しください。",
+    "internalError": "エラーが発生しました、もう一度お試しください。",
     "countryNotAvailable": "現在、お住まいの国では決済をご利用いただけません。",
     "cardCountryNotAvailable": "現在、その国のカードではお支払いいただけません。"
   },

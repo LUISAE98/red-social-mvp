@@ -7,7 +7,7 @@
  * no se puede montar ni desmontar como un componente: se enciende y se apaga con
  * clases sobre un nodo que ya existe. Estas dos funciones son la ÚNICA puerta a
  * ese nodo — antes cada sitio hacía su propio `getElementById` y era fácil que
- * uno se olvidara del safe-area o del reseteo de los temporizadores.
+ * uno se olvidara del reseteo de los temporizadores.
  *
  * Se usan en las transiciones de sesión (entrar y salir). Antes esas transiciones
  * pintaban un `<div>` negro encima, y como el destino tarda en resolver —Firebase,
@@ -18,33 +18,10 @@
 const SPLASH_ID = "desktop-refresh-splash";
 const HIDDEN_CLASS = "desktop-refresh-splash-hidden";
 
-/**
- * Marca en el <body> que el splash está cubriendo la pantalla.
- *
- * Existe por el safe-area: `body.vb-authed` vale 20px de inset inferior y se
- * alterna siguiendo a `user`, que resuelve en momentos distintos según caché y
- * red. Estando el splash encima eso se traducía en un inset que aparecía y
- * desaparecía solo. Con esta clase, `body.vb-authed.vb-splash` lo fuerza a 0
- * mientras dure el splash (ver globals.css).
- */
-const SPLASH_BODY_CLASS = "vb-splash";
-
-/** Lo que tarda el fade de salida del splash (declarado en app/layout.tsx). */
-const FADE_MS = 220;
-
-/**
- * El safe-area se devuelve al TERMINAR el fade, no al empezarlo. Recuperar los
- * 20px con el splash todavía medio visible se ve como un brinco del contenido
- * a través de él. Guardamos el temporizador para poder cancelarlo si el splash
- * se vuelve a encender antes de que el fade acabe.
- */
-let restoreSafeAreaTimer: ReturnType<typeof setTimeout> | null = null;
-
-function cancelSafeAreaRestore(): void {
-  if (restoreSafeAreaTimer === null) return;
-  clearTimeout(restoreSafeAreaTimer);
-  restoreSafeAreaTimer = null;
-}
+/* Aquí vivía `vb-safe-bottom`: una clase en el <body> mientras durase el
+   splash, más un temporizador que devolvía el inset inferior de 20px al acabar
+   el fade. Ya no hay safe-area inferior en ninguna parte, así que las dos cosas
+   sobraban. */
 
 /**
  * Cubre la pantalla con el splash AHORA, de forma síncrona.
@@ -63,9 +40,7 @@ export function showSplash(): void {
   const el = document.getElementById(SPLASH_ID);
   if (!el) return;
 
-  cancelSafeAreaRestore();
   el.classList.remove(HIDDEN_CLASS);
-  document.body.classList.add(SPLASH_BODY_CLASS);
   window.dispatchEvent(new Event("vibra:auth-splash"));
 }
 
@@ -80,10 +55,4 @@ export function hideSplash(): void {
   if (!el) return;
 
   el.classList.add(HIDDEN_CLASS);
-
-  cancelSafeAreaRestore();
-  restoreSafeAreaTimer = setTimeout(() => {
-    document.body.classList.remove(SPLASH_BODY_CLASS);
-    restoreSafeAreaTimer = null;
-  }, FADE_MS);
 }

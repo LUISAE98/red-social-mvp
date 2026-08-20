@@ -124,3 +124,39 @@ describe("comunidad privada VACÍA (0 historias)", () => {
     await assertSucceeds(listarHistorias(db));
   });
 });
+
+// EL CASO QUE FALLABA EN PRODUCCIÓN.
+//
+// El aro de historias (`useStoryRingState`) se pinta en carruseles, búsquedas y barras
+// laterales, y se suscribía a las historias de CUALQUIER comunidad listada, incluidas
+// aquellas de las que quien mira no es miembro. Denegación garantizada.
+//
+// La consulta del aro ahora fija `searchable == true`, que es la única rama de la regla
+// que se resuelve sin consultar otras colecciones. Estas pruebas fijan que esa consulta
+// la puede hacer cualquiera, incluso sobre una comunidad privada ajena.
+function listarPublicas(db: ReturnType<RulesTestEnvironment["authenticatedContext"]>["firestore"] extends () => infer T ? T : never) {
+  return getDocs(query(
+    collection(db as never, "stories"),
+    where("groupId", "==", GID),
+    where("searchable", "==", true),
+  ));
+}
+
+describe("el aro de historias (consulta acotada a públicas)", () => {
+  it("un EXTRAÑO puede consultarla sobre una comunidad privada", async () => {
+    await seedGroupWithStories("private", 10);
+    const db = testEnv.authenticatedContext(OUTSIDER).firestore();
+    await assertSucceeds(listarPublicas(db));
+  });
+
+  it("y sobre una comunidad pública con muchas historias", async () => {
+    await seedGroupWithStories("public", 30);
+    const db = testEnv.authenticatedContext(OUTSIDER).firestore();
+    await assertSucceeds(listarPublicas(db));
+  });
+
+  it("sin sesión iniciada también", async () => {
+    await seedGroupWithStories("public", 10);
+    await assertSucceeds(listarPublicas(testEnv.unauthenticatedContext().firestore()));
+  });
+});

@@ -270,7 +270,8 @@
     "videoUploadError": "Il-video ma setax jittella.",
     "priceMin": "Il-prezz minimu huwa ${min}",
     "shareStory": "Aqsam l-istorja",
-    "pinError": "Il-post ma setax jiġi mwaħħal jew imneħħi."
+    "pinError": "Il-post ma setax jiġi mwaħħal jew imneħħi.",
+    "viewsCountAriaLabel": "{count, plural, one {# dehra} few {# dehriet} many {# dehriet} other {# dehriet}}"
   },
   "groups": {
     "title": "Komunitajiet",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Ma setgħetx tiġi aġġornata l-viżibbiltà tal-membri.",
     "canvasInitError": "Il-Canvas ma setax jiġi inizjalizzat.",
     "cropGenerateError": "Il-qtugħ ma setax jinħoloq.",
-    "avatarReadError": "Immaġni: ma setgħetx tinqara.",
-    "coverReadError": "Qoxra: ma setgħetx tinqara l-immaġni.",
+    "avatarReadError": "L-immaġni tal-avatar ma setgħetx tinqara.",
+    "coverReadError": "L-immaġni tal-qoxra ma setgħetx tinqara.",
     "descriptionMinLength": "Id-deskrizzjoni trid ikollha mill-inqas 10 karattri.",
     "ageMinInvalid": "Età minima invalida (18–99).",
     "ageMaxInvalid": "Età massima invalida (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Il-kategorija ġiet aġġornata.",
     "tagsUpdated": "It-tags ġew aġġornati.",
     "inviteLoadError": "Żball waqt it-tagħbija tal-istedina.",
-    "inviteUseError": "L-istedina ma setgħetx tintuża."
+    "inviteUseError": "L-istedina ma setgħetx tintuża.",
+    "actionInviteToMod": "Stieden biex jimmodera"
   },
   "profile": {
     "ariaChangeAvatar": "Ibdel ir-ritratt tal-profil",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Ir-rifużjoni ma setgħetx tintalab.",
     "errorRequestReschedule": "L-iskedar mill-ġdid ma setax jintalab.",
     "selectDateTimeError": "Agħżel jum, xahar, sena, siegħa u minuta.",
-    "scheduleConflictError": "Dak il-ħin diġà huwa meħud. Jekk jogħġbok agħżel ħin ieħor disponibbli.",
+    "scheduleConflictError": "Dak il-ħin huwa maħtuf, agħżel ħin ieħor disponibbli.",
     "rescheduleNotificationTitle": "Sessjoni skedata mill-ġdid",
     "scheduledDateLabel": "Data skedata",
     "cardExperiencesWith": "Esperjenzi ma' {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Il-kreatur jistabbilixxi kemm tiswa biex jinfetaħ il-post.",
     "mergeDonationSupportDesc": "Agħti kemm trid biex turi s-sapport tiegħek lill-kreatur.",
     "addSampleAriaLabel": "Żid kampjun",
-    "addSampleHint": "Irrekordja eżempju biex ix-xerrejja jaraw x'se jieħdu",
+    "addSampleHint": "Irrekordja eżempju biex ix-xerrejja jaraw x'se jirċievu. Trid mill-inqas wieħed biex tixgħel l-esperjenza, u tista' ttella' sa tlieta.",
     "priceInvalidGreetings": "Prezz mhux validu għat-tislimiet.",
     "priceInvalidAdvice": "Prezz mhux validu għall-pariri.",
     "priceInvalidMeetGreet": "Prezz mhux validu għal Ħin miegħek.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "It-tislima ta' eżempju tiegħek inqasmet!",
     "sampleSharedAdvice": "Il-parir ta' eżempju tiegħek inqasam!",
     "recordAnotherSample": "Irrekordja ieħor",
-    "finishSamples": "Lesti"
+    "finishSamples": "Lesti",
+    "deleteSample": "Ħassar",
+    "confirmDeleteSampleTitle": "Żgur li trid tħassar dan il-kampjun?",
+    "confirmDeleteSampleBody": "Jisparixxi mill-profil u mill-istejjer tiegħek. Ma tistax terġa' lura.",
+    "sampleRequiredToActivate": "Irrekordja mill-inqas kampjun wieħed qabel ma tixgħel din l-esperjenza."
   },
   "live": {
     "accessTicket": "Biljett ta' aċċess",
@@ -2096,7 +2102,7 @@
     "endSession": "Temm is-sessjoni",
     "free": "B'xejn",
     "goToLive": "Mur fix-xandira diretta",
-    "invalidContext": "Kuntest invalidu. Ma setgħetx tiġi determinata d-destinazzjoni tax-xandira diretta.",
+    "invalidContext": "Ma setax jiġi ddeterminat fejn sejjer ix-xandir dirett.",
     "invalidDateTime": "Data u ħin invalidi",
     "liveAlt": "Xandira diretta",
     "liveEnded": "Ix-xandira diretta ntemmet",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Kunjom invalidu (1–40 karattru).",
       "errInvalidName": "Isem invalidu (1–40 karattru).",
       "errEmailInUse": "Din l-email diġà hija rreġistrata.",
-      "errRegistrationFailed": "Ir-reġistrazzjoni ma setgħetx titlesta. Erġa' pprova.",
+      "errRegistrationFailed": "Ir-reġistrazzjoni ma setgħetx titlesta, erġa' pprova.",
       "errWeakPassword": "Il-password trid ikollha mill-inqas 6 karattri.",
-      "errPasswordWeak": "Uża mill-inqas 10 karattri, b''ittra kbira, ittra żgħira, numru u simbolu."
+      "errPasswordWeak": "Il-password trid tkun ta' mill-inqas 10 karattri, b'ittra kbira, ittra żgħira, numru u simbolu."
     },
     "resetPassword": {
       "title": "Irrisettja l-password",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Il-post gie mhassar.",
     "serviceNotEnabled": "Dan is-servizz mhux attivat.",
     "futureDateRequired": "Id-data trid tkun fil-futur.",
-    "internalError": "Xi ħaġa marret ħażin. Erġa' prova.",
+    "internalError": "Xi ħaġa marret ħażin, erġa' prova.",
     "countryNotAvailable": "Il-ħlas bħalissa mhux disponibbli fil-pajjiż tiegħek.",
     "cardCountryNotAvailable": "Bħalissa ma nistgħux nirċievu ħlas b'kard minn dak il-pajjiż."
   },

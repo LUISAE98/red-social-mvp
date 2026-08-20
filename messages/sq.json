@@ -270,7 +270,8 @@
     "videoUploadError": "Videoja nuk u ngarkua dot.",
     "priceMin": "Çmimi minimal është ${min}",
     "shareStory": "Shpërnda historinë",
-    "pinError": "Postimi nuk u fiksua dhe nuk u hoq dot nga fiksimi."
+    "pinError": "Postimi nuk u fiksua dhe nuk u hoq dot nga fiksimi.",
+    "viewsCountAriaLabel": "{count, plural, one {# shikim} other {# shikime}}"
   },
   "groups": {
     "title": "Komunitete",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "Dukshmëria e anëtarëve nuk u përditësua dot.",
     "canvasInitError": "Canvas nuk u nis dot.",
     "cropGenerateError": "Prerja nuk u gjenerua dot.",
-    "avatarReadError": "Avatari: imazhi nuk u lexua dot.",
-    "coverReadError": "Kopertina: imazhi nuk u lexua dot.",
+    "avatarReadError": "Imazhi i avatarit nuk u lexua dot.",
+    "coverReadError": "Imazhi i kopertinës nuk u lexua dot.",
     "descriptionMinLength": "Përshkrimi duhet të ketë të paktën 10 shkronja.",
     "ageMinInvalid": "Mosha minimale e pavlefshme (18–99).",
     "ageMaxInvalid": "Mosha maksimale e pavlefshme (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Kategoria u përditësua.",
     "tagsUpdated": "Etiketat u përditësuan.",
     "inviteLoadError": "Gabim gjatë ngarkimit të ftesës.",
-    "inviteUseError": "Ftesa nuk u përdor dot."
+    "inviteUseError": "Ftesa nuk u përdor dot.",
+    "actionInviteToMod": "Fto për të moderuar"
   },
   "profile": {
     "ariaChangeAvatar": "Ndrysho foton e profilit",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "Rimbursimi nuk u kërkua dot.",
     "errorRequestReschedule": "Riplanifikimi nuk u kërkua dot.",
     "selectDateTimeError": "Zgjidh ditën, muajin, vitin, orën dhe minutën.",
-    "scheduleConflictError": "Ai interval është i zënë. Zgjidh një orar tjetër të lirë.",
+    "scheduleConflictError": "Ky orar është i zënë, zgjidh një orar tjetër të lirë.",
     "rescheduleNotificationTitle": "Sesioni u riplanifikua",
     "scheduledDateLabel": "Data e planifikuar",
     "cardExperiencesWith": "Përvoja me {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "Krijuesi cakton sa kushton shkyçja e postimit.",
     "mergeDonationSupportDesc": "Kontribuo me shumën që dëshiron për t'i treguar krijuesit mbështetjen tënde.",
     "addSampleAriaLabel": "Shto një mostër",
-    "addSampleHint": "Regjistro një shembull që blerësit të shohin çfarë do të marrin",
+    "addSampleHint": "Regjistro një shembull që blerësit të shohin çfarë do të marrin. Të duhet të paktën një për ta aktivizuar përvojën dhe mund të ngarkosh deri në tre.",
     "priceInvalidGreetings": "Çmim i pavlefshëm për përshëndetjet.",
     "priceInvalidAdvice": "Çmim i pavlefshëm për këshillat.",
     "priceInvalidMeetGreet": "Çmim i pavlefshëm për Kohë me ty.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Përshëndetja jote shembull u nda!",
     "sampleSharedAdvice": "Këshilla jote shembull u nda!",
     "recordAnotherSample": "Regjistro edhe një",
-    "finishSamples": "Përfundo"
+    "finishSamples": "Përfundo",
+    "deleteSample": "Fshi",
+    "confirmDeleteSampleTitle": "Je i sigurt që do ta fshish këtë mostër?",
+    "confirmDeleteSampleBody": "Do të zhduket nga profili dhe historitë e tua. Nuk mund të zhbëhet.",
+    "sampleRequiredToActivate": "Regjistro të paktën një mostër para se ta aktivizosh këtë përvojë."
   },
   "live": {
     "accessTicket": "Biletë hyrjeje",
@@ -2096,7 +2102,7 @@
     "endSession": "Përfundo sesionin",
     "free": "Falas",
     "goToLive": "Shko te transmetimi",
-    "invalidContext": "Kontekst i pavlefshëm. Nuk u përcaktua dot destinacioni i transmetimit.",
+    "invalidContext": "Nuk u përcaktua dot ku shkon transmetimi live.",
     "invalidDateTime": "Datë dhe orë të pavlefshme",
     "liveAlt": "Drejtpërdrejt",
     "liveEnded": "Transmetimi ka përfunduar",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Mbiemër i pavlefshëm (1–40 shenja).",
       "errInvalidName": "Emër i pavlefshëm (1–40 shenja).",
       "errEmailInUse": "Ky email është regjistruar tashmë.",
-      "errRegistrationFailed": "Regjistrimi nuk u përfundua dot. Provo sërish.",
+      "errRegistrationFailed": "Regjistrimi nuk u përfundua dot, provo sërish.",
       "errWeakPassword": "Fjalëkalimi duhet të ketë të paktën 6 shenja.",
-      "errPasswordWeak": "Përdor të paktën 10 karaktere, me shkronjë të madhe, të vogël, numër dhe simbol."
+      "errPasswordWeak": "Fjalëkalimi duhet të ketë të paktën 10 karaktere, me shkronjë të madhe, të vogël, numër dhe simbol."
     },
     "resetPassword": {
       "title": "Rivendos fjalëkalimin",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Postimi u fshi.",
     "serviceNotEnabled": "Ky shërbim nuk është aktiv.",
     "futureDateRequired": "Data duhet të jetë në të ardhmen.",
-    "internalError": "Diçka shkoi keq. Provo sërish.",
+    "internalError": "Diçka shkoi keq, provo sërish.",
     "countryNotAvailable": "Pagesa nuk është e disponueshme në vendin tënd për momentin.",
     "cardCountryNotAvailable": "Për momentin nuk mund të arkëtojmë me një kartë nga ai vend."
   },

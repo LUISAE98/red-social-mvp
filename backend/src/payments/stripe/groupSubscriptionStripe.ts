@@ -17,11 +17,12 @@ import { logger } from "firebase-functions";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { extractAuthRequiredPI } from "./offSessionCharge";
-import { isChargeableCountry, chargeCurrencyForCountry } from "../../tax/config";
-import { resolvePresentment } from "../../tax/presentment";
+import { isChargeableCountry } from "../../tax/config";
+import { resolvePresentment, applyCharmRounding } from "../../tax/presentment";
+import { composeCharge } from "../../tax/composeCharge";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
 import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
-import { readGroupSub, reserveInviteSlot, computeMonthlyCharge } from "../groupSubscriptionCore";
+import { readGroupSub, reserveInviteSlot } from "../groupSubscriptionCore";
 import { stripeIdempotencyKey } from "./idempotency";
 
 if (admin.apps.length === 0) {
@@ -153,12 +154,33 @@ export const createGroupSubscription = onCall(
       throw new HttpsError("failed-precondition", "El cobro no está disponible en tu país por ahora.");
     }
 
-    const charge = computeMonthlyCharge(sub.price, country); // (base + $3) × IVA
-    // La suscripción también se cobra en la moneda del comprador (Stripe convierte y liquida
-    // en MXN). Se fija al crear el Price y aplica a todas las renovaciones.
+    // ⚠️ MISMO camino que los otros nueve cobros: `composeCharge` + redondeo comercial.
+    //
+    // Antes usaba `computeMonthlyCharge`, una función propia que hacía (base + fijo) × IVA
+    // y SE SALTABA DOS COSAS:
+    //   · el 2% de conversión — que en una suscripción es aún MÁS necesario, porque no se
+    //     puede fijar la tasa: Stripe convierte a su cambio en CADA renovación, mes tras
+    //     mes, y ese coste lo estaba absorbiendo Vibra;
+    //   · el redondeo comercial — así que la pasarela enseñaba un total (que sí lo aplica)
+    //     y se cobraba otro más bajo.
+    const { charge: composicion, displayAmount } = await applyCharmRounding(
+      composeCharge(sub.price, country)
+    );
+    const charge = {
+      base: composicion.baseAmount,
+      fixedFee: composicion.fixedFee,
+      published: composicion.publishedAmount,
+      taxCountry: country,
+      taxRate: composicion.buyerTax.rate,
+      taxMonthly: composicion.buyerTax.amount,
+      chargedMonthly: composicion.chargedAmount,
+    };
+    // El precio se fija al crear el Price y rige TODAS las renovaciones, así que aquí se
+    // cobra exactamente el importe comercial que vio el comprador.
     const presentment = await resolvePresentment(
-      charge.chargedMonthly,
-      chargeCurrencyForCountry(country)
+      composicion.chargedAmount,
+      composicion.displayCurrency,
+      displayAmount
     );
     const unitAmount = presentment.amountForStripe;
     const groupName = String(group.name ?? "la comunidad");
@@ -192,7 +214,11 @@ export const createGroupSubscription = onCall(
       taxRate: String(charge.taxRate),
       taxMonthly: String(charge.taxMonthly),
       chargedMonthly: String(charge.chargedMonthly),
-      currency: sub.currency || SETTLEMENT_CURRENCY,
+      // ⚠️ La moneda de ESTOS importes, que van todos en la de liquidación. Antes salía de
+      // `sub.currency` —lo que el creador tuviera guardado, a veces "MXN" de la época
+      // anterior— y la renovación lo copiaba al documento de la suscripción: importes en
+      // dólares etiquetados como pesos, mes tras mes.
+      currency: SETTLEMENT_CURRENCY,
       groupName,
       ...(inviteToken ? { inviteToken } : {}),
     };

@@ -270,7 +270,8 @@
     "videoUploadError": "De video kon niet worden geüpload.",
     "priceMin": "De minimumprijs is {min} $",
     "shareStory": "Verhaal delen",
-    "pinError": "De post kon niet worden vastgezet of losgemaakt."
+    "pinError": "De post kon niet worden vastgezet of losgemaakt.",
+    "viewsCountAriaLabel": "{count, plural, one {# weergave} other {# weergaven}}"
   },
   "groups": {
     "title": "Community's",
@@ -567,8 +568,8 @@
     "visibilityUpdateError": "De zichtbaarheid van de leden kon niet worden bijgewerkt.",
     "canvasInitError": "Het canvas kon niet worden geïnitialiseerd.",
     "cropGenerateError": "De uitsnede kon niet worden gemaakt.",
-    "avatarReadError": "Avatar: de afbeelding kon niet worden gelezen.",
-    "coverReadError": "Omslag: de afbeelding kon niet worden gelezen.",
+    "avatarReadError": "De avatarafbeelding kon niet worden gelezen.",
+    "coverReadError": "De omslagafbeelding kon niet worden gelezen.",
     "descriptionMinLength": "De beschrijving moet minstens 10 tekens hebben.",
     "ageMinInvalid": "Ongeldige minimumleeftijd (18–99).",
     "ageMaxInvalid": "Ongeldige maximumleeftijd (18–99).",
@@ -633,7 +634,8 @@
     "categoryUpdated": "Categorie bijgewerkt.",
     "tagsUpdated": "Tags bijgewerkt.",
     "inviteLoadError": "Fout bij het laden van de uitnodiging.",
-    "inviteUseError": "De uitnodiging kon niet worden gebruikt."
+    "inviteUseError": "De uitnodiging kon niet worden gebruikt.",
+    "actionInviteToMod": "Uitnodigen om te modereren"
   },
   "profile": {
     "ariaChangeAvatar": "Profielfoto wijzigen",
@@ -1625,7 +1627,7 @@
     "errorRequestRefund": "De terugbetaling kon niet worden aangevraagd.",
     "errorRequestReschedule": "Opnieuw inplannen kon niet worden aangevraagd.",
     "selectDateTimeError": "Kies dag, maand, jaar, uur en minuut.",
-    "scheduleConflictError": "Dat tijdslot is al bezet. Kies een ander beschikbaar tijdstip.",
+    "scheduleConflictError": "Dat tijdstip is bezet, kies een ander beschikbaar tijdstip.",
     "rescheduleNotificationTitle": "Sessie opnieuw ingepland",
     "scheduledDateLabel": "Geplande datum",
     "cardExperiencesWith": "Ervaringen met {name}",
@@ -1984,7 +1986,7 @@
     "premiumPostPreviewPriceDescUser": "De creator bepaalt hoeveel het kost om de post te ontgrendelen.",
     "mergeDonationSupportDesc": "Draag het bedrag bij dat je wilt om de creator je steun te tonen.",
     "addSampleAriaLabel": "Voorbeeld toevoegen",
-    "addSampleHint": "Neem een voorbeeld op zodat kopers zien wat ze krijgen",
+    "addSampleHint": "Neem een voorbeeld op zodat kopers zien wat ze krijgen. Je hebt er minstens één nodig om de ervaring aan te zetten, en je kunt er maximaal drie uploaden.",
     "priceInvalidGreetings": "Ongeldige prijs voor groeten.",
     "priceInvalidAdvice": "Ongeldige prijs voor adviezen.",
     "priceInvalidMeetGreet": "Ongeldige prijs voor Tijd met jou.",
@@ -2038,7 +2040,11 @@
     "sampleSharedGreeting": "Je voorbeeldgroet is gedeeld!",
     "sampleSharedAdvice": "Je voorbeeldadvies is gedeeld!",
     "recordAnotherSample": "Nog een opnemen",
-    "finishSamples": "Klaar"
+    "finishSamples": "Klaar",
+    "deleteSample": "Verwijderen",
+    "confirmDeleteSampleTitle": "Weet je zeker dat je dit voorbeeld wilt verwijderen?",
+    "confirmDeleteSampleBody": "Het verdwijnt uit je profiel en je stories. Dit kan niet ongedaan worden gemaakt.",
+    "sampleRequiredToActivate": "Neem minstens één voorbeeld op voordat je deze ervaring aanzet."
   },
   "live": {
     "accessTicket": "Toegangsticket",
@@ -2096,7 +2102,7 @@
     "endSession": "Sessie beëindigen",
     "free": "Gratis",
     "goToLive": "Naar de live",
-    "invalidContext": "Ongeldige context. De bestemming van de live kon niet worden bepaald.",
+    "invalidContext": "Er kon niet worden bepaald waar de livestream naartoe gaat.",
     "invalidDateTime": "Ongeldige datum en tijd",
     "liveAlt": "Live",
     "liveEnded": "De live is afgelopen",
@@ -2532,9 +2538,9 @@
       "errInvalidLastName": "Ongeldige achternaam (1–40 tekens).",
       "errInvalidName": "Ongeldige voornaam (1–40 tekens).",
       "errEmailInUse": "Dit e-mailadres is al geregistreerd.",
-      "errRegistrationFailed": "De registratie kon niet worden voltooid. Probeer het opnieuw.",
+      "errRegistrationFailed": "De registratie kon niet worden voltooid, probeer het opnieuw.",
       "errWeakPassword": "Het wachtwoord moet minstens 6 tekens hebben.",
-      "errPasswordWeak": "Gebruik minstens 10 tekens, met een hoofdletter, kleine letter, cijfer en symbool."
+      "errPasswordWeak": "Het wachtwoord moet minstens 10 tekens hebben, met een hoofdletter, kleine letter, cijfer en symbool."
     },
     "resetPassword": {
       "title": "Wachtwoord herstellen",
@@ -2714,7 +2720,7 @@
     "deletedPost": "Het bericht is verwijderd.",
     "serviceNotEnabled": "Deze dienst is niet ingeschakeld.",
     "futureDateRequired": "De datum moet in de toekomst liggen.",
-    "internalError": "Er is iets misgegaan. Probeer het opnieuw.",
+    "internalError": "Er is iets misgegaan, probeer het opnieuw.",
     "countryNotAvailable": "Betalen is voorlopig niet beschikbaar in jouw land.",
     "cardCountryNotAvailable": "We kunnen voorlopig geen kaart uit dat land belasten."
   },
