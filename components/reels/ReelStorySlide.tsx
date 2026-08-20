@@ -33,6 +33,20 @@ import FollowCreatorButton from "@/components/social/FollowCreatorButton";
 import { PLAY_COUNT_THRESHOLD, recordStoryPlay } from "@/lib/stories/storyPlays";
 import ScrubBar from "./ScrubBar";
 
+/**
+ * Aire bajo los botones de la última fila, en píxeles.
+ *
+ * Antes eran 8px fijos. Con el safe-area inferior a cero en toda la plataforma,
+ * esos 8px son literalmente lo que separa un botón del canto de la pantalla, y
+ * los controles se leen como si se salieran por abajo.
+ *
+ * Se SUMA a lo que llegue en `safeBottom` (en el reel, el alto de la barra
+ * inferior), no lo sustituye: en el reel los botones tienen que quedar por
+ * encima de la barra Y además respirar.
+ */
+const BOTTOM_BREATHING_PX = 20;
+
+
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const FONT = "inherit";
 /** Segundos reproducidos para contar la historia como vista. */
@@ -446,7 +460,13 @@ export default function ReelStorySlide({
   const avatarSz = compact ? 40 : 54;
   const avatarInset = compact ? 5 : 6;
   const profileHref = creator?.handle ? `/u/${creator.handle}` : null;
-  const btnPadBottom = typeof safeBottom === "string" ? `max(8px, ${safeBottom})` : "8px";
+  // Aire por debajo de los botones. Con `safeBottom` numérico (historias en el
+  // visor de círculos) no hay barra que esquivar y basta con el aire; con string
+  // (el reel, que pasa el alto real del nav) se suma al hueco de la barra.
+  const btnPadBottom =
+    typeof safeBottom === "string"
+      ? `calc(${safeBottom} + ${BOTTOM_BREATHING_PX}px)`
+      : `${safeBottom + BOTTOM_BREATHING_PX}px`;
 
   const avatarRing = (
     <div style={{ position: "relative", width: avatarSz, height: avatarSz, flexShrink: 0 }}>

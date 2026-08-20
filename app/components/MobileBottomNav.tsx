@@ -33,129 +33,176 @@ type MobileNavItem = {
   iconKey?: NavIconKey;
 };
 
+/* ─── Iconos del nav ─────────────────────────────────────────────────────────
+ *
+ * Se rediseñaron como CONJUNTO, no uno a uno. Antes cada icono había nacido por
+ * su cuenta y no compartían nada: la casa medía 16 de alto, el marco de reels 18,
+ * la cartera 18 de ancho y el globo 17, así que a simple vista unos pesaban más
+ * que otros aunque el lienzo fuese el mismo.
+ *
+ * Las tres reglas que ahora comparten TODOS:
+ *
+ *   1. Caja óptica de 16.8 × 16.8, centrada en el lienzo de 24. Es decir, todos
+ *      viven entre 3.6 y 20.4 en los dos ejes. Ese es el motivo real de que se
+ *      vean del mismo tamaño; el `width` del svg nunca lo fue.
+ *   2. Trazo de 1.8, con extremos y uniones redondeados. El 2 de antes se veía
+ *      tosco a este tamaño y comía el detalle interior.
+ *   3. Radios de esquina generosos —entre 3 y 4.6— para que la familia se lea
+ *      redondeada y no a medio camino entre recta y curva.
+ *
+ * La versión rellena repite la MISMA silueta con `fill`, en vez de dibujar otra
+ * forma. Así el paso de inactivo a activo no cambia de icono, solo lo llena.
+ */
+
+const NAV_ICON = {
+  width: 30,
+  height: 30,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "#ffffff",
+  strokeWidth: 1.8,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  "aria-hidden": true,
+} as const;
+
+/** Casa: tejado, cuerpo y una puerta de arco. */
+const HOME_ROOF = "M3.6 10.9 12 4.2l8.4 6.7";
+const HOME_BODY = "M5.9 9.6v8.9a1.9 1.9 0 0 0 1.9 1.9h8.4a1.9 1.9 0 0 0 1.9-1.9V9.6";
+const HOME_DOOR = "M9.8 20.4v-4.2a2.2 2.2 0 0 1 4.4 0v4.2";
+
 function NavHomeIcon() {
   return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3.5 11.2 12 4l8.5 7.2" />
-      <path d="M5.8 10.2V20h12.4v-9.8" />
-      <path d="M9.5 20v-5.8h5V20" />
+    <svg {...NAV_ICON}>
+      <path d={HOME_ROOF} />
+      <path d={HOME_BODY} />
+      <path d={HOME_DOOR} />
     </svg>
   );
 }
 
 function NavHomeIconFilled() {
   return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path fill="white" d="M3.5 11.2 12 4l8.5 7.2" />
-      <path fill="white" d="M5.8 10.2V20h12.4v-9.8" />
-      <path fill="#000000" d="M9.5 20v-5.8h5V20" />
+    <svg {...NAV_ICON}>
+      {/* Tejado y cuerpo en una sola silueta rellena; la puerta se recorta en
+          negativo para que siga leyéndose como casa y no como un pentágono. */}
+      <path
+        fill="white"
+        stroke="white"
+        d="M12 3.6 2.9 10.9a1 1 0 0 0 .7 1.5v6.1a2.9 2.9 0 0 0 2.9 2.9h11a2.9 2.9 0 0 0 2.9-2.9v-6.1a1 1 0 0 0 .7-1.5Z"
+      />
+      <path d={HOME_DOOR} stroke="#000000" fill="none" />
     </svg>
   );
 }
 
-// Historias: un marco vertical con el triángulo de reproducir. Vertical, para
-// que se lea como video a pantalla completa y no como una galería.
+/** Reels: un cuadro con la flecha de reproducir dentro. */
 function NavReelsIcon() {
   return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="5" y="3" width="14" height="18" rx="3.2" />
-      <path d="M10.6 8.9v6.2l5-3.1z" />
+    <svg {...NAV_ICON}>
+      <rect x="3.6" y="3.6" width="16.8" height="16.8" rx="4.6" />
+      <path d="M10.4 9.1 15.6 12l-5.2 2.9z" />
     </svg>
   );
 }
 
 function NavReelsIconFilled() {
   return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="5" y="3" width="14" height="18" rx="3.2" fill="white" />
-      <path d="M10.6 8.9v6.2l5-3.1z" fill="#000000" stroke="#000000" />
+    <svg {...NAV_ICON}>
+      <rect x="3.6" y="3.6" width="16.8" height="16.8" rx="4.6" fill="white" />
+      <path d="M10.4 9.1 15.6 12l-5.2 2.9z" fill="#000000" stroke="#000000" />
     </svg>
   );
 }
 
-function NavWalletIcon() {
-  return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" />
-      <rect x="3" y="7" width="18" height="12" rx="2.5" />
-      <path d="M16 12.5h3" />
-    </svg>
-  );
-}
+/** Mensajes: globo de conversación con la cola abajo a la izquierda. */
+const MESSAGES_BUBBLE =
+  "M12 3.6c-4.6 0-8.4 3.1-8.4 6.9 0 1.9.9 3.6 2.4 4.8l-.9 4a.6.6 0 0 0 .9.6l4.1-2.2c.6.1 1.2.1 1.9.1 4.6 0 8.4-3.1 8.4-6.9S16.6 3.6 12 3.6Z";
 
-function NavWalletIconFilled() {
-  return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path fill="white" stroke="white" d="M5 5h12a2 2 0 0 1 2 2H3a2 2 0 0 1 2-2Z" />
-      <rect x="3" y="7" width="18" height="12" rx="2.5" fill="white" stroke="white" />
-      <path fill="#000000" stroke="none" d="M16.4 11.4a2.3 2.3 0 0 0 0 4.6H21v-4.6Z" />
-    </svg>
-  );
-}
-
-function NavBellIcon() {
-  return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M6 8a6 6 0 0 1 12 0c0 6 3 8 3 8H3s3-2 3-8" />
-      <path d="M10.3 20a1.94 1.94 0 0 0 3.4 0" />
-    </svg>
-  );
-}
-
-function NavBellIconFilled() {
-  return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path fill="white" d="M6 8a6 6 0 0 1 12 0c0 6 3 8 3 8H3s3-2 3-8Z" />
-      <path d="M10.3 20a1.94 1.94 0 0 0 3.4 0" />
-    </svg>
-  );
-}
-
-function NavGroupsIcon() {
-  return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="6.5" r="3.2" />
-      <circle cx="6.5" cy="16" r="3.2" />
-      <circle cx="17.5" cy="16" r="3.2" />
-      <path d="M9.4 8.8L8.8 13" strokeWidth={1.5} />
-      <path d="M14.6 8.8L15.2 13" strokeWidth={1.5} />
-      <path d="M9.7 16H14.3" strokeWidth={1.5} />
-    </svg>
-  );
-}
-
-/**
- * Mensajes: mismo globo de conversación que identifica al DM en el resto del
- * producto, redibujado con el trazo de 30px de este nav.
- */
 function NavMessagesIcon() {
   return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M20.5 12.2C20.5 16.1 16.7 19.2 12 19.2C11 19.2 10.1 19.1 9.2 18.9L4.6 20.4L5.7 16.6C4.4 15.4 3.5 13.9 3.5 12.2C3.5 8.3 7.3 5.2 12 5.2C16.7 5.2 20.5 8.3 20.5 12.2Z" />
+    <svg {...NAV_ICON}>
+      <path d={MESSAGES_BUBBLE} />
     </svg>
   );
 }
 
 function NavMessagesIconFilled() {
   return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path
-        d="M20.5 12.2C20.5 16.1 16.7 19.2 12 19.2C11 19.2 10.1 19.1 9.2 18.9L4.6 20.4L5.7 16.6C4.4 15.4 3.5 13.9 3.5 12.2C3.5 8.3 7.3 5.2 12 5.2C16.7 5.2 20.5 8.3 20.5 12.2Z"
-        fill="white"
-      />
+    <svg {...NAV_ICON}>
+      <path d={MESSAGES_BUBBLE} fill="white" stroke="white" />
+    </svg>
+  );
+}
+
+/** Campana: cuerpo y badajo. */
+const BELL_BODY =
+  "M12 3.6a5.9 5.9 0 0 0-5.9 5.9c0 5-2.1 6.4-2.1 6.4h16s-2.1-1.4-2.1-6.4A5.9 5.9 0 0 0 12 3.6Z";
+const BELL_CLAPPER = "M10.2 19a2 2 0 0 0 3.6 0";
+
+function NavBellIcon() {
+  return (
+    <svg {...NAV_ICON}>
+      <path d={BELL_BODY} />
+      <path d={BELL_CLAPPER} />
+    </svg>
+  );
+}
+
+function NavBellIconFilled() {
+  return (
+    <svg {...NAV_ICON}>
+      <path d={BELL_BODY} fill="white" stroke="white" />
+      <path d={BELL_CLAPPER} />
+    </svg>
+  );
+}
+
+/** Cartera: cuerpo y el botón del cierre a la derecha. */
+function NavWalletIcon() {
+  return (
+    <svg {...NAV_ICON}>
+      <rect x="3.6" y="6.2" width="16.8" height="14.2" rx="3.4" />
+      <path d="M3.6 9.7h16.8" />
+      <path d="M16.3 15.1h1.6" />
+    </svg>
+  );
+}
+
+function NavWalletIconFilled() {
+  return (
+    <svg {...NAV_ICON}>
+      <rect x="3.6" y="6.2" width="16.8" height="14.2" rx="3.4" fill="white" stroke="white" />
+      <path d="M3.6 9.7h16.8" stroke="#000000" />
+      <path d="M16.3 15.1h1.6" stroke="#000000" />
+    </svg>
+  );
+}
+
+/** Comunidades: tres personas en triángulo. */
+const GROUPS_TOP = "M12 3.6a2.9 2.9 0 1 1 0 5.8 2.9 2.9 0 0 1 0-5.8Z";
+const GROUPS_LEFT = "M6.5 11.7a2.9 2.9 0 1 1 0 5.8 2.9 2.9 0 0 1 0-5.8Z";
+const GROUPS_RIGHT = "M17.5 11.7a2.9 2.9 0 1 1 0 5.8 2.9 2.9 0 0 1 0-5.8Z";
+const GROUPS_LINKS = "M9.5 9.4 8.2 11.9M14.5 9.4l1.3 2.5M9.4 17.2h5.2";
+
+function NavGroupsIcon() {
+  return (
+    <svg {...NAV_ICON}>
+      <path d={GROUPS_TOP} />
+      <path d={GROUPS_LEFT} />
+      <path d={GROUPS_RIGHT} />
+      <path d={GROUPS_LINKS} strokeWidth={1.4} />
     </svg>
   );
 }
 
 function NavGroupsIconFilled() {
   return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="6.5" r="3.2" fill="white" />
-      <circle cx="6.5" cy="16" r="3.2" fill="white" />
-      <circle cx="17.5" cy="16" r="3.2" fill="white" />
-      <path d="M9.4 8.8L8.8 13" strokeWidth={1.5} />
-      <path d="M14.6 8.8L15.2 13" strokeWidth={1.5} />
-      <path d="M9.7 16H14.3" strokeWidth={1.5} />
+    <svg {...NAV_ICON}>
+      <path d={GROUPS_TOP} fill="white" stroke="white" />
+      <path d={GROUPS_LEFT} fill="white" stroke="white" />
+      <path d={GROUPS_RIGHT} fill="white" stroke="white" />
+      <path d={GROUPS_LINKS} strokeWidth={1.4} />
     </svg>
   );
 }
@@ -206,6 +253,15 @@ function ProfileAvatarIcon({
     </span>
   );
 }
+
+/**
+ * Cuánto encoge la píldora al bajar el scroll o tras cinco segundos quieta.
+ *
+ * Uniforme y suave a propósito: la idea es que ceda protagonismo mientras lees,
+ * no que desaparezca. Con el 0.75 de antes —que solo aplastaba en vertical— una
+ * píldora se deformaría y perdería su forma redonda.
+ */
+const NAV_SHRUNK_SCALE = 0.88;
 
 export default function MobileBottomNav({
   showWallet = false,
@@ -258,7 +314,7 @@ export default function MobileBottomNav({
 
   const startIdleTimer = useCallback(() => {
     cancelIdleTimer();
-    idleTimerRef.current = setTimeout(() => setNavScale(0.75), 5000);
+    idleTimerRef.current = setTimeout(() => setNavScale(NAV_SHRUNK_SCALE), 5000);
   }, [cancelIdleTimer]);
 
   const expandNav = useCallback(() => {
@@ -276,7 +332,7 @@ export default function MobileBottomNav({
       if (Math.abs(dy) < 2) return;
       if (dy > 0) {
         cancelIdleTimer();
-        setNavScale(0.75);
+        setNavScale(NAV_SHRUNK_SCALE);
       } else {
         setNavScale(1);
         startIdleTimer();
@@ -475,18 +531,56 @@ export default function MobileBottomNav({
           z-index: 9999;
           display: none;
           width: 100%;
-          transform: translateZ(0);
-          -webkit-transform: translateZ(0);
-          backface-visibility: hidden;
-          -webkit-backface-visibility: hidden;
+          /* El aire alrededor de la píldora va como PADDING del contenedor, no
+             como margen de la píldora: el alto de este contenedor es lo que se
+             publica en --vb-bottom-nav-h, y un margen se colapsaría fuera de esa
+             medida dejando el clearance del contenido corto. */
+          padding: 0 12px calc(18px + var(--vb-safe-bottom, 0px));
+          box-sizing: border-box;
+          /* SIN transform 3D aquí. Un translateZ forma una RAIZ DE BACKDROP, y
+             entonces el desenfoque de la píldora no tiene nada que difuminar:
+             el fondo translúcido se veía plano, sin cristal. La promoción a
+             capa la sigue dando el propio transform de la píldora, que se anima
+             al encoger. */
           pointer-events: none;
           view-transition-name: mobile-nav;
         }
 
+        /* La píldora flotante. No toca ningún canto: se apoya sobre el contenido,
+           que se ve difuminado por detrás. */
         .navShell {
           width: 100%;
           pointer-events: auto;
-          background: #000000;
+          box-sizing: border-box;
+          border-radius: 30px;
+          /* Cristal: base translúcida + un degradado de luz encima. El
+             degradado es lo que le da relieve — arriba entra la luz y abajo se
+             apaga—, y sin él un fondo translúcido se ve como una lámina plana. */
+          background:
+            linear-gradient(
+              180deg,
+              rgba(255, 255, 255, 0.11) 0%,
+              rgba(255, 255, 255, 0.03) 42%,
+              rgba(0, 0, 0, 0.10) 100%
+            ),
+            rgba(22, 22, 28, 0.52);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          /* El volumen sale de cuatro capas: filo de luz arriba, sombra propia
+             abajo (las dos por dentro, son el grosor del cristal) y dos sombras
+             fuera, una corta y pegada y otra larga y difusa, que es lo que
+             separa la píldora del contenido y la hace flotar. */
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.20),
+            inset 0 -1px 0 rgba(0, 0, 0, 0.45),
+            0 6px 14px rgba(0, 0, 0, 0.34),
+            0 22px 48px rgba(0, 0, 0, 0.52);
+          backdrop-filter: blur(26px) saturate(180%);
+          -webkit-backdrop-filter: blur(26px) saturate(180%);
+          /* SIN overflow:hidden. Los globos de aviso se dibujan fuera de su
+             icono (top:-5px, inset-inline-end:-8px) y en el primer y el ultimo
+             elemento caerian justo sobre el borde: recortarlos los partiria por
+             la mitad. Los hijos no tienen fondo, asi que no hay nada que la
+             curva del borde necesite recortar. */
         }
 
         .nav {
@@ -494,9 +588,10 @@ export default function MobileBottomNav({
           display: grid;
           grid-template-columns: repeat(var(--mobile-nav-count), minmax(0, 1fr));
           align-items: center;
-          /* La variable del safe-area inferior vale 0 en toda la plataforma: la barra apoya en el canto. Se deja en el calc para no tener que volver aquí si algún día se reactiva. */
-          padding: 8px 6px calc(8px + var(--vb-safe-bottom, 0px));
-          background: #000000;
+          /* Sin fondo propio: el de la píldora es el que se ve. El safe-area ya
+             lo reserva el contenedor. */
+          padding: 5px 6px;
+          background: transparent;
           box-sizing: border-box;
           transform: translateZ(0);
           -webkit-transform: translateZ(0);
@@ -544,7 +639,9 @@ export default function MobileBottomNav({
           font-weight: 800;
           line-height: 16px;
           text-align: center;
-          box-shadow: 0 0 0 2px #000000;
+          /* Aro al tono del cristal y semitransparente: uno opaco se recortaba
+             como un disco oscuro sobre el fondo translúcido. */
+          box-shadow: 0 0 0 2px rgba(22, 22, 28, 0.55);
           box-sizing: border-box;
         }
 
@@ -556,7 +653,7 @@ export default function MobileBottomNav({
           height: 9px;
           border-radius: 999px;
           background: #ff3b30;
-          box-shadow: 0 0 0 2px #000000;
+          box-shadow: 0 0 0 2px rgba(22, 22, 28, 0.55);
         }
 
         @keyframes navPop {
@@ -602,10 +699,15 @@ export default function MobileBottomNav({
           además se encoge al hacer scroll, así que copiarlo como número fijo
           siempre acaba desfasado. */}
       <nav ref={navRef} className="wrap" data-vibra-bottom-nav="" aria-label={t("mobileNavLabel")}>
+        {/* Un único `scale` UNIFORME, no uno vertical con otro horizontal que lo
+            compense. Antes la barra era un rectángulo a todo lo ancho y aplastarla
+            en vertical no se notaba; una píldora sí: los extremos redondeados se
+            vuelven óvalos y el borde cambia de grosor. Escalando por igual, encoge
+            entera y conserva su forma. */}
         <div
           className="navShell"
           style={{
-            transform: `scaleY(${navScale})`,
+            transform: `scale(${navScale})`,
             transformOrigin: "bottom center",
             transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
           }}
@@ -614,9 +716,6 @@ export default function MobileBottomNav({
             className="nav"
             style={{
               "--mobile-nav-count": nav.length,
-              transform: `translateZ(0) scaleX(${Math.sqrt(navScale)})`,
-              transformOrigin: "center",
-              transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
             } as React.CSSProperties}
           >
             {nav.map((item, idx) => {

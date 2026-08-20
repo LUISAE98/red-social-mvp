@@ -446,7 +446,7 @@
     "settingsLabel": "Settings",
     "subscriptionOnlyPrivate": "Monthly subscription can only be used in private or hidden communities.",
     "subscriptionNotActive": "This community does not have an active subscription.",
-    "subscriptionProcessed": "✅ Subscription processed. You are now part of the community.",
+    "subscriptionProcessed": "Subscription processed. You are now part of the community.",
     "subscriptionSubmitError": "Could not complete the subscription.",
     "communityPaused": "This community is paused, you cannot join right now.",
     "ownCommunityGreeting": "You cannot request greetings in your own community.",

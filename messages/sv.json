@@ -446,7 +446,7 @@
     "settingsLabel": "Inställningar",
     "subscriptionOnlyPrivate": "Månadsprenumeration kan bara användas i privata eller dolda communities.",
     "subscriptionNotActive": "Den här communityn har ingen aktiv prenumeration.",
-    "subscriptionProcessed": "✅ Prenumerationen är behandlad. Du är nu med i communityn.",
+    "subscriptionProcessed": "Prenumerationen är behandlad. Du är nu med i communityn.",
     "subscriptionSubmitError": "Det gick inte att slutföra prenumerationen.",
     "communityPaused": "Den här communityn är pausad, du kan inte gå med just nu.",
     "ownCommunityGreeting": "Du kan inte begära hälsningar i din egen community.",

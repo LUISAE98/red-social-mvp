@@ -2528,10 +2528,12 @@ export default function ConversationThread({
           insetInlineEnd: 0,
           bottom: 0,
           background: "transparent",
-          // En celular el hueco de abajo lo pone SOLO el safe-area. Antes se le
-          // sumaban 12px y el campo quedaba flotando visiblemente alto.
+          // El hueco de abajo era SOLO el safe-area, y con el safe-area a cero
+          // en toda la plataforma el campo quedaba pegado al canto de la
+          // pantalla. Ahora lleva su propio aire y le suma el safe-area si algún
+          // día vuelve.
           padding: safeAreaBottom
-            ? "10px 14px var(--vb-safe-bottom, 0px)"
+            ? "10px 14px calc(16px + var(--vb-safe-bottom, 0px))"
             : "12px 14px",
           display: "grid",
           gap: 8,

@@ -446,7 +446,7 @@
     "settingsLabel": "設定",
     "subscriptionOnlyPrivate": "月額サブスクリプションは限定公開または非公開のコミュニティでのみ利用できます。",
     "subscriptionNotActive": "このコミュニティに有効なサブスクリプションはありません。",
-    "subscriptionProcessed": "✅ サブスクリプションを処理しました。これでコミュニティの一員です。",
+    "subscriptionProcessed": "サブスクリプションを処理しました。これでコミュニティの一員です。",
     "subscriptionSubmitError": "サブスクリプションを完了できませんでした。",
     "communityPaused": "このコミュニティは停止中です、現在は参加できません。",
     "ownCommunityGreeting": "自分のコミュニティでビデオメッセージを注文することはできません。",

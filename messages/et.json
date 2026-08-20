@@ -446,7 +446,7 @@
     "settingsLabel": "Seaded",
     "subscriptionOnlyPrivate": "Kuutellimust saab kasutada ainult privaatsetes või peidetud kogukondades.",
     "subscriptionNotActive": "Sellel kogukonnal pole aktiivset tellimust.",
-    "subscriptionProcessed": "✅ Tellimus töödeldud. Nüüd oled kogukonna osa.",
+    "subscriptionProcessed": "Tellimus töödeldud. Nüüd oled kogukonna osa.",
     "subscriptionSubmitError": "Tellimust ei õnnestunud lõpule viia.",
     "communityPaused": "See kogukond on peatatud, praegu sa liituda ei saa.",
     "ownCommunityGreeting": "Oma kogukonnas sa tervitusi tellida ei saa.",

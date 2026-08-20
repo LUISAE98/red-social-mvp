@@ -71,6 +71,12 @@ export default function ChatDock({
    * despliega la pestaña: sin esto, ir al perfil la minimizaría de paso.
    */
   function handleOpenProfile(e: React.MouseEvent) {
+    // ⚠️ Minimizada, la cabecera ENTERA sirve para volver a abrir la pestaña, y
+    // este botón lleva `flex: 1`, o sea que ocupa todo el ancho libre. Si aquí
+    // se navegara al perfil no quedaría ni un punto donde pulsar para
+    // restaurarla: el clic se lo comía el nombre y la pestaña no volvía a
+    // abrirse nunca. Estando plegada se deja burbujear para que despliegue.
+    if (minimized) return;
     if (!profile?.handle) return;
     e.stopPropagation();
     router.push(`/u/${profile.handle}`);
@@ -178,7 +184,10 @@ export default function ChatDock({
         {/* A la IZQUIERDA del avatar. Se para la propagación para que abrir el
             menú no minimice también la pestaña. */}
         {otherUid ? (
-          <span onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex" }}>
+          <span
+            onClick={(e) => { if (!minimized) e.stopPropagation(); }}
+            style={{ display: "inline-flex" }}
+          >
             <ProfileMoreMenu
               viewerUid={selfUid}
               profileUid={otherUid}
@@ -272,7 +281,7 @@ export default function ChatDock({
         <button
           type="button"
           onClick={handleOpenProfile}
-          disabled={!profile?.handle}
+          disabled={!minimized && !profile?.handle}
           style={{
             flex: 1,
             minWidth: 0,

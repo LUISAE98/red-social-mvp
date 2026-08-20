@@ -446,7 +446,7 @@
     "settingsLabel": "Paramètres",
     "subscriptionOnlyPrivate": "L'abonnement mensuel n'est possible que dans les communautés privées ou masquées.",
     "subscriptionNotActive": "Cette communauté n'a pas d'abonnement actif.",
-    "subscriptionProcessed": "✅ Abonnement traité. Tu fais maintenant partie de la communauté.",
+    "subscriptionProcessed": "Abonnement traité. Tu fais maintenant partie de la communauté.",
     "subscriptionSubmitError": "Impossible de finaliser l'abonnement.",
     "communityPaused": "Cette communauté est en pause, tu ne peux pas la rejoindre pour le moment.",
     "ownCommunityGreeting": "Tu ne peux pas demander de dédicaces dans ta propre communauté.",

@@ -446,7 +446,7 @@
     "settingsLabel": "الإعدادات",
     "subscriptionOnlyPrivate": "لا يمكن استخدام الاشتراك الشهري إلا في المجتمعات الخاصة أو المخفية.",
     "subscriptionNotActive": "لا يوجد اشتراك نشط في هذا المجتمع.",
-    "subscriptionProcessed": "✅ تمت معالجة الاشتراك. أنت الآن جزء من المجتمع.",
+    "subscriptionProcessed": "تمت معالجة الاشتراك. أنت الآن جزء من المجتمع.",
     "subscriptionSubmitError": "تعذّر إتمام الاشتراك.",
     "communityPaused": "هذا المجتمع متوقف مؤقتًا، لا يمكنك الانضمام الآن.",
     "ownCommunityGreeting": "لا يمكنك طلب فيديو تهنئة في مجتمعك أنت.",

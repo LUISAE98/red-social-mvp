@@ -598,6 +598,166 @@ lo que se le cobra se calculan por caminos distintos y nada los reconcilia. Hoy 
 porque el modal espeja la regla de país del backend, pero es un espejo que hay que mantener
 a mano. Decidir: cablearla o borrarla.
 
+## 8-bis. Las siete experiencias, de extremo a extremo (auditoría 2026-08-20)
+
+Estado tras probar las siete en modo prueba. **Este apartado repite a propósito** lo que ya
+está en apartados anteriores: es la referencia autónoma para el contrato con el creador y
+para los documentos legales, y tiene que poder leerse sin saltar a otras secciones.
+
+### 8-bis.1 Lo que comparten las siete
+
+Todas pasan por el MISMO cálculo. No hay una sola excepción, y eso se comprueba de forma
+mecánica: `composeCharge` + `applyCharmRounding` + el importe exacto en la moneda del
+comprador.
+
+El precio se construye siempre en este orden:
+
+| Paso | Qué añade | Quién lo paga |
+|---|---|---|
+| 1. Precio del creador | La base que él fija, **en USD** | — |
+| 2. Cargo fijo | **+ 0.40 USD** | El comprador |
+| 3. Conversión de divisa | **+ 2%** sobre lo anterior, solo si el comprador NO paga en USD | El comprador |
+| 4. Impuesto del país del comprador | Según la tabla de 147 jurisdicciones | El comprador |
+| 5. Redondeo comercial | El total sube al `,99` de su moneda | El comprador |
+
+**El creador cobra el 75% de su base** (paso 1), siempre, exacto. Ni el cargo fijo, ni la
+conversión, ni el impuesto, ni el redondeo le tocan un céntimo — ni a favor ni en contra.
+El 25% restante de la base, más el cargo fijo y el sobrante del redondeo, es de Vibra; el
+2% cubre lo que Stripe cobra por convertir; el impuesto se entera íntegro al fisco.
+
+Ese reparto sale de un único punto del código (`netFromGross`), así que no puede
+divergir entre servicios.
+
+**Moneda.** El creador fija su precio en USD. Al comprador se le cobra **en la suya**, la que
+decide su país fiscal. Vibra liquida en **USD**. El interruptor de moneda de la interfaz
+solo cambia lo que se ve: la moneda del cobro la impone el servidor con la IP del request y
+el país emisor de la tarjeta, para que nadie pueda elegirse una jurisdicción sin impuesto.
+
+**Lo mostrado es lo cobrado.** La tarjeta del servicio y la pasarela enseñan el mismo total,
+y es el que llega a Stripe. En las cuatro experiencias con retención, además, al teclear la
+tarjeta se le PREGUNTA al servidor el precio autoritativo y se corrige en pantalla antes de
+pagar — porque el país de la tarjeta puede cambiar la moneda, y eso el navegador no lo sabe.
+
+
+### 8-bis.2 Las que RETIENEN el dinero (saludo · consejo · sesión exclusiva · tiempo contigo)
+
+Son las cuatro experiencias que un creador **entrega**, y por eso el dinero no se cobra hasta
+que entrega. Es la decisión de producto más importante de todo el cobro.
+
+```
+1. El creador activa y fija su precio         → en USD
+2. El comprador solicita                      → todavía NO existe la experiencia
+3. Se AUTORIZA el cargo (retención)           → el banco reserva, no cobra
+4. El creador acepta o rechaza
+5. Graba / atiende y entrega                  → AQUÍ se cobra de verdad
+6. El comprador la recibe
+```
+
+**Nadie paga por algo que no recibió.** Si el creador rechaza, la retención se cancela: no hay
+cargo, no hay comisión, no hay nada que devolver.
+
+Dos relojes de seguridad:
+
+| Reloj | Qué hace |
+|---|---|
+| **Día 6** (`HOLD_CAPTURE_DAYS`) | Captura de respaldo antes de que la retención caduque en el banco |
+| **Día 60** (`DELIVERY_WINDOW_DAYS`) | Si cobró y nunca entregó, se rechaza sola |
+
+⚠️ **La tasa de cambio NO se fija en estas cuatro.** Stripe no admite fijar cotización con
+captura manual —es restricción suya, no decisión nuestra— así que convierte a su cambio al
+liquidar. Entre autorizar y capturar pueden pasar hasta 6 días y ese riesgo lo absorbe el
+colchón del 2%. El comprador no se ve afectado: su importe y su moneda quedan fijados al
+autorizar y es exactamente lo que ve.
+
+Mínimos: **3 USD** saludo y consejo · **9 USD** sesión exclusiva y tiempo contigo.
+
+### 8-bis.3 Las de cobro INMEDIATO (donación en perfil y en comunidad)
+
+No hay nada que entregar, así que se cobra al instante y la tasa **sí** se fija.
+
+El comprador teclea el importe **en su moneda** y lo que teclea es el total que paga: de ahí
+se despeja hacia atrás el impuesto, la conversión y el cargo fijo hasta la base en USD, que
+es lo único que el servidor entiende. También hay cuatro montos sugeridos que el creador
+configura.
+
+Perfil y comunidad son **el mismo componente** con las mismas reglas; no son dos
+implementaciones que puedan separarse.
+
+Mínimo: **3 USD** por aportación, el mismo que valida el servidor al cobrar.
+
+### 8-bis.4 La RECURRENTE (suscripción mensual a una comunidad)
+
+La única que se repite sola, y la única que usa Stripe Billing.
+
+```
+1. El creador activa la suscripción y fija la cuota mensual   → en USD
+2. Vibra crea UN producto genérico en Stripe (una sola vez)
+3. Al suscribirse se crea la suscripción con su precio ya fijado
+4. Stripe cobra solo cada mes; un webhook renueva el acceso
+```
+
+**El precio se fija al crear la suscripción y rige todas las renovaciones.** No se
+re-cotiza cada mes.
+
+⚠️ Por eso el 2% de conversión es aquí **más** necesario que en ningún otro sitio: no se puede
+fijar la tasa en un cobro recurrente, así que Stripe convierte a su cambio **en cada
+renovación**, mes tras mes, durante toda la vida de la suscripción.
+
+Solo comunidades **privadas u ocultas** pueden cobrar suscripción: una comunidad pública no,
+y la regla de base de datos lo impide, no solo la interfaz. En las ocultas hace falta además
+una invitación válida, y su cupo se **reserva antes de cobrar** — si no, dos personas con el
+último cupo pagaban las dos y entraban las dos.
+
+Mínimo: **1.50 USD** al mes.
+
+
+### 8-bis.5 Tabla de las siete
+
+| Experiencia | Cobro | Tasa fijada | Mínimo | Tipo en el ledger |
+|---|---|---|---|---|
+| Saludo | Retención → al entregar | ❌ | 3 USD | `greeting` |
+| Consejo | Retención → al entregar | ❌ | 3 USD | `advice` |
+| Sesión exclusiva | Retención → al entregar | ❌ | 9 USD | `exclusive_session` |
+| Tiempo contigo | Retención → al entregar | ❌ | 9 USD | `live_session` |
+| Donación en perfil | Inmediato | ✅ | 3 USD | `profile_donation` |
+| Donación en comunidad | Inmediato | ✅ | 3 USD | `profile_donation` |
+| Suscripción mensual | Recurrente | ❌ (recurrente) | 1.50 USD | `subscription` |
+
+### 8-bis.6 Estado de la integración con Stripe, hoy
+
+| Pieza | Estado |
+|---|---|
+| Cuenta | Vibra On, LLC (EE. UU.) — `acct_1U46R37tY0CtRg4D` |
+| Modo | **Prueba.** El corte a real sigue pendiente |
+| Cobros | 10 caminos, todos por el mismo cálculo (verificado de forma mecánica) |
+| Retenciones | Autorizar y capturar, con respaldo a 6 días |
+| Billing | Suscripciones por API; **no hubo que habilitar nada** |
+| Tasas de cambio | Stripe FX Quotes · las 78 monedas con tasa · refresco cada 15 min |
+| Impuestos | 147 jurisdicciones, 50 cobran · las 21 altas hechas |
+| Webhooks | Llegan y materializan compras, retenciones y renovaciones |
+| Devoluciones | Crédito y efectivo — **sin auditar todavía** |
+| **Retiros al creador** | 🔴 **NO EXISTEN.** Y Stripe tiene las transferencias suspendidas |
+
+**Lo que falta para producción**, en orden:
+
+1. 🔴 **Retiros.** No hay forma de que el creador cobre. Es el hueco grande.
+2. 🔴 **Tarea vencida en Stripe** que mantiene las transferencias suspendidas.
+3. 🔴 **Confirmación por escrito** de que una plataforma estadounidense puede pagar a
+   creadores en México. El soporte dijo que sí; la documentación dice otra cosa.
+4. 🟡 **Devoluciones**, sin auditar de extremo a extremo.
+5. 🟡 **Corte a modo real**: claves `sk_live`/`pk_live`, destino de webhook nuevo y
+   redespliegue.
+6. 🟡 En la suscripción, el país fiscal **no se recalcula con la tarjeta** (`TODO fase 2`);
+   en las otras seis sí.
+7. 🟡 En las cuatro con retención, el `paymentIntent` guarda un `fxQuoteId` que **ya no se
+   usó** para liquidar. Como evidencia es engañosa: hay que dejar de estamparlo o marcarlo
+   antes de citar ese campo en ningún documento.
+
+**Conclusión.** El cobro está listo: las siete experiencias cobran bien, en la moneda
+correcta, con el impuesto correcto y enseñando lo que van a cobrar. Lo que **no** está listo
+es el otro lado del circuito: **el dinero entra y todavía no hay por dónde salga hacia el
+creador.** Hasta que existan los retiros, esto no puede operar en real.
+
 ## 9. Dependencias para operar en vivo
 
 | Qué | Estado | Bloquea |
