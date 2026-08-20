@@ -81,19 +81,33 @@ function NavHomeIcon() {
   );
 }
 
+/** Silueta cerrada de la casa, para la versión rellena. */
+const HOME_FILL = "M12 3.9 20.1 10.6V18.5a1.9 1.9 0 0 1-1.9 1.9H5.8a1.9 1.9 0 0 1-1.9-1.9V10.6Z";
+
 function NavHomeIconFilled() {
   return (
     <svg {...NAV_ICON}>
-      {/* Una sola silueta con la puerta como SUBTRAZADO. Con `evenodd` eso
-          recorta un hueco de verdad y se ve la barra a través; rellenarlo de
-          negro dejaba una mancha oscura sobre un fondo translúcido. */}
-      <path
-        fill="white"
-        stroke="none"
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M12 3.9 20.1 10.6V18.5a1.9 1.9 0 0 1-1.9 1.9H5.8a1.9 1.9 0 0 1-1.9-1.9V10.6ZM10.2 20.4v-4a1.8 1.8 0 0 1 3.6 0v4Z"
-      />
+      {/* El MISMO icono, invertido. En vez de pintar el detalle interior encima
+          del relleno —que obligaba a darle un color y por eso salía negro—, se
+          recorta con una máscara: lo que ahí va en negro no se dibuja nunca, solo
+          marca dónde NO pintar. Así la puerta es un hueco transparente y se ve
+          la barra a través, exactamente igual que en la versión de trazo. */}
+      <mask id="vibraNavHomeMask" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+        <rect x="0" y="0" width="24" height="24" fill="#fff" />
+        <path
+          d={HOME_DOOR}
+          fill="none"
+          stroke="#000"
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </mask>
+      <g mask="url(#vibraNavHomeMask)">
+        <path d={HOME_FILL} fill="#fff" stroke="#fff" />
+        {/* Devuelve el alero, que en la silueta cerrada se perdía. */}
+        <path d={HOME_ROOF} fill="none" stroke="#fff" />
+      </g>
     </svg>
   );
 }
@@ -174,14 +188,27 @@ function NavWalletIcon() {
 function NavWalletIconFilled() {
   return (
     <svg {...NAV_ICON}>
-      {/* Mismo recurso que la casa: el bolsillo de la tarjeta es un hueco
-          recortado, no un trazo negro encima del relleno. */}
-      <path
-        fill="white"
-        stroke="none"
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M7 4.9h10a3.4 3.4 0 0 1 3.4 3.4v7.4a3.4 3.4 0 0 1-3.4 3.4H7a3.4 3.4 0 0 1-3.4-3.4V8.3A3.4 3.4 0 0 1 7 4.9ZM15.8 10.2h4.6v3.6h-4.6a1.8 1.8 0 0 1 0-3.6Z"
+      {/* Mismo recurso que la casa: la costura y el botón del cierre se recortan
+          con máscara, así que quedan transparentes en vez de negros. */}
+      <mask id="vibraNavWalletMask" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+        <rect x="0" y="0" width="24" height="24" fill="#fff" />
+        <path
+          d="M3.6 8.4h16.8M16.3 13.6h1.6"
+          fill="none"
+          stroke="#000"
+          strokeWidth={1.8}
+          strokeLinecap="round"
+        />
+      </mask>
+      <rect
+        x="3.6"
+        y="4.9"
+        width="16.8"
+        height="14.2"
+        rx="3.4"
+        fill="#fff"
+        stroke="#fff"
+        mask="url(#vibraNavWalletMask)"
       />
     </svg>
   );
