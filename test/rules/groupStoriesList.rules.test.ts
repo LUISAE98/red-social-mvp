@@ -95,3 +95,32 @@ describe("stories: la consulta por comunidad", () => {
     await assertFails(listarHistorias(db));
   });
 });
+
+// El DUEÑO de una comunidad privada viendo su propio carrusel. `canReadGroupContent`
+// encadena isGroupPublic → isMember → isOwner → isModerator, y cada una consulta otra
+// colección. En un `list` eso se evalúa POR DOCUMENTO y comparte el tope de expresiones
+// de la consulta entera: con pocas historias cabe, con muchas revienta y se deniega TODO.
+describe("el dueño de una comunidad privada", () => {
+  for (const n of [3, 10, 20, 40]) {
+    it(`ve sus historias con ${n} en la comunidad`, async () => {
+      await seedGroupWithStories("private", n);
+      const db = testEnv.authenticatedContext(OWNER).firestore();
+      await assertSucceeds(listarHistorias(db));
+    });
+  }
+});
+
+// El caso REAL que falla en producción: una comunidad privada SIN ninguna historia.
+// El carrusel se suscribe igual al abrir la comunidad.
+describe("comunidad privada VACÍA (0 historias)", () => {
+  it("el dueño puede consultar aunque no haya ninguna", async () => {
+    await seedGroupWithStories("private", 0);
+    const db = testEnv.authenticatedContext(OWNER).firestore();
+    await assertSucceeds(listarHistorias(db));
+  });
+  it("un miembro también", async () => {
+    await seedGroupWithStories("private", 0);
+    const db = testEnv.authenticatedContext(MEMBER).firestore();
+    await assertSucceeds(listarHistorias(db));
+  });
+});

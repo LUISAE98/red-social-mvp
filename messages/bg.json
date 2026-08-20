@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "сертификата",
     "fiscalKey": "ключа",
     "fiscalInvoicePdf": "PDF на фактурата ти",
-    "fiscalInvoiceXml": "XML на фактурата ти"
+    "fiscalInvoiceXml": "XML на фактурата ти",
+    "approxAmount": "Около {amount}"
   },
   "services": {
     "confirmLabel": "Потвърди",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Напиши го с думите на този, който би ти го поръчал, не с твоите. Например «това е за сестра ми Ана, в събота става на 30 и те следи отначало. Ще ми е приятно да я поздравиш по име и да ѝ кажеш да се престраши да участва тази година».",
     "sampleRequestHintAdvice": "Напиши го с думите на този, който би ти го поръчал, не с твоите. Например «току-що завърших и се колебая дали да приема първата предложена работа, или да изчакам нещо по-добро. Искам да знам как ти реши това в началото».",
     "uploadSample": "Качване на мострата",
-    "samplePublished": "Мострата е публикувана"
+    "samplePublished": "Мострата е публикувана",
+    "donationReceiveLegend": "Получаваш <amount>{net}</amount>",
+    "sampleSharedGreeting": "Примерният ти поздрав вече е споделен!",
+    "sampleSharedAdvice": "Примерният ти съвет вече е споделен!",
+    "recordAnotherSample": "Запиши още един",
+    "finishSamples": "Готово"
   },
   "live": {
     "accessTicket": "Билет за достъп",

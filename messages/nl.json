@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "het certificaat",
     "fiscalKey": "de sleutel",
     "fiscalInvoicePdf": "de PDF van je factuur",
-    "fiscalInvoiceXml": "de XML van je factuur"
+    "fiscalInvoiceXml": "de XML van je factuur",
+    "approxAmount": "Ca. {amount}"
   },
   "services": {
     "confirmLabel": "Bevestigen",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Schrijf het met de woorden van degene die het zou vragen, niet met die van jou. Bijvoorbeeld «het is voor mijn zus Ana, ze wordt zaterdag 30 en volgt je vanaf het begin. Ik zou het geweldig vinden als je haar bij naam feliciteert en zegt dat ze dit jaar de wedstrijd aandurft».",
     "sampleRequestHintAdvice": "Schrijf het met de woorden van degene die het zou vragen, niet met die van jou. Bijvoorbeeld «ik ben net afgestudeerd en twijfel tussen de eerste baan aannemen of wachten op iets beters. Ik zou graag weten hoe jij dat beslist hebt toen je begon».",
     "uploadSample": "Voorbeeld uploaden",
-    "samplePublished": "Voorbeeld gepubliceerd"
+    "samplePublished": "Voorbeeld gepubliceerd",
+    "donationReceiveLegend": "Jij ontvangt <amount>{net}</amount>",
+    "sampleSharedGreeting": "Je voorbeeldgroet is gedeeld!",
+    "sampleSharedAdvice": "Je voorbeeldadvies is gedeeld!",
+    "recordAnotherSample": "Nog een opnemen",
+    "finishSamples": "Klaar"
   },
   "live": {
     "accessTicket": "Toegangsticket",

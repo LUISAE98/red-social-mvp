@@ -4,6 +4,8 @@ import React, { useMemo, useState } from "react";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletRates";
 import { LocalPriceHint } from "./serviceConfigKit";
 import { useTranslations } from "next-intl";
+import SampleAvatars from "./SampleAvatars";
+import { useGreetingSamples } from "@/lib/greetings/useGreetingSamples";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { SERVICE_MIN_PRICE_USD, FIXED_SERVICE_FEE_LABEL, FIXED_SERVICE_FEE_NOTE, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
@@ -134,6 +136,11 @@ type Props = {
    * el panel sigue funcionando igual donde todavía no se haya conectado.
    */
   onAddSample?: () => void;
+
+  /** Dueño de las muestras. Sin esto la fila no se consulta. */
+  sampleCreatorId?: string | null;
+  /** Comunidad a la que pertenecen, o null si son del perfil. */
+  sampleGroupId?: string | null;
 };
 
 type OverlayMode = null | "activate" | "edit";
@@ -157,9 +164,17 @@ export default function Consejos({
   publishSuccess,
   onSaveDraft,
   onAddSample,
+  sampleCreatorId,
+  sampleGroupId = null,
 }: Props) {
   const tServices = useTranslations("services");
   const tCommon = useTranslations("common");
+  const { samples } = useGreetingSamples({
+    creatorId: sampleCreatorId,
+    type: "consejo",
+    groupId: sampleGroupId,
+    enabled: !!sampleCreatorId,
+  });
   const { currency: displayCurrency } = usePriceFormat();
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
@@ -269,6 +284,14 @@ export default function Consejos({
     if (!draft.consejo.enabled) return null;
 
     return (
+      <>
+      {/* Las muestras ya grabadas, encima de "Modificar". Es donde el creador
+          mira su servicio, así que es donde tiene sentido ver qué enseña. */}
+      {samples.length > 0 && (
+        <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 14 }}>
+          <SampleAvatars samples={samples} size={44} />
+        </div>
+      )}
       <div
         style={{
           display: "flex",
@@ -325,6 +348,7 @@ export default function Consejos({
           ) : null}
         </div>
       </div>
+      </>
     );
   }
 
@@ -498,51 +522,16 @@ export default function Consejos({
 
         {/* Muestras: el creador graba ejemplos para que su vitrina no esté en
             cero y el comprador vea qué va a recibir. */}
-        <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 8,
-              marginTop: 18,
-            }}
-          >
-            <button
-              type="button"
-              onClick={onAddSample}
-              aria-label={tServices("addSampleAriaLabel")}
-              title={tServices("addSampleAriaLabel")}
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: "50%",
-                border: "none",
-                background: "rgba(255,255,255,0.10)",
-                color: "rgba(255,255,255,0.72)",
-                fontSize: 28,
-                fontWeight: 300,
-                lineHeight: 1,
-                display: "grid",
-                placeItems: "center",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                WebkitTapHighlightColor: "transparent",
-                transition: "background 160ms ease",
-              }}
-            >
-              +
-            </button>
-
-            <span
-              style={{
-                ...subtleStyle,
-                fontSize: 11.5,
-                textAlign: "center",
-                maxWidth: 260,
-              }}
-            >
-              {tServices("addSampleHint")}
-            </span>
+        <div style={{ marginTop: 18 }}>
+            {/* Las muestras ya grabadas, en fila, y el "+" al final mientras
+                queden huecos. Antes solo estaba el "+" y el creador no tenía
+                forma de ver qué había subido ya. */}
+            <SampleAvatars
+              samples={samples}
+              onAdd={onAddSample}
+              showHint
+              hintStyle={subtleStyle}
+            />
           </div>
         </>
         )}

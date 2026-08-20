@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "an teastas",
     "fiscalKey": "an eochair",
     "fiscalInvoicePdf": "PDF do shonraisc",
-    "fiscalInvoiceXml": "XML do shonraisc"
+    "fiscalInvoiceXml": "XML do shonraisc",
+    "approxAmount": "Timpeall {amount}"
   },
   "services": {
     "confirmLabel": "Deimhnigh",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Scríobh é i bhfocail an duine a d'iarrfadh ort é, ní i do chuid féin. Mar shampla «tá sé do mo dheirfiúr Ana, beidh sí 30 Dé Sathairn agus tá sí do do leanúint ón tús. Ba bhreá liom go gcuirfeá comhghairdeas uirthi as a hainm agus go n-inseofá di dul san iomaíocht i mbliana».",
     "sampleRequestHintAdvice": "Scríobh é i bhfocail an duine a d'iarrfadh ort é, ní i do chuid féin. Mar shampla «tá mo chéim críochnaithe agam agus tá mé idir dhá chomhairle faoin gcéad phost a ghlacadh nó fanacht le ceann níos fearr. Ba mhaith liom a fháil amach conas a shocraigh tusa é sin ag an tús».",
     "uploadSample": "Uaslódáil an sampla",
-    "samplePublished": "Sampla foilsithe"
+    "samplePublished": "Sampla foilsithe",
+    "donationReceiveLegend": "Faigheann tú <amount>{net}</amount>",
+    "sampleSharedGreeting": "Tá do bheannacht shamplach roinnte!",
+    "sampleSharedAdvice": "Tá do chomhairle shamplach roinnte!",
+    "recordAnotherSample": "Taifead ceann eile",
+    "finishSamples": "Críochnaigh"
   },
   "live": {
     "accessTicket": "Ticéad rochtana",

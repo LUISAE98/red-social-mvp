@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "le certificat",
     "fiscalKey": "la clé",
     "fiscalInvoicePdf": "le PDF de ta facture",
-    "fiscalInvoiceXml": "le XML de ta facture"
+    "fiscalInvoiceXml": "le XML de ta facture",
+    "approxAmount": "Environ {amount}"
   },
   "services": {
     "confirmLabel": "Confirmer",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Écris-le avec les mots de la personne qui te le demanderait, pas les tiens. Par exemple «c'est pour ma sœur Ana, elle a 30 ans samedi et te suit depuis le début. J'adorerais que tu la félicites par son prénom et que tu lui dises de se lancer en compétition cette année».",
     "sampleRequestHintAdvice": "Écris-le avec les mots de la personne qui te le demanderait, pas les tiens. Par exemple «je viens de finir mes études et j'hésite entre accepter le premier poste qu'on me propose ou attendre mieux. J'aimerais savoir comment tu as tranché quand tu débutais».",
     "uploadSample": "Publier l'exemple",
-    "samplePublished": "Exemple publié"
+    "samplePublished": "Exemple publié",
+    "donationReceiveLegend": "Tu reçois <amount>{net}</amount>",
+    "sampleSharedGreeting": "Ton message d'exemple est partagé !",
+    "sampleSharedAdvice": "Ton conseil d'exemple est partagé !",
+    "recordAnotherSample": "En enregistrer un autre",
+    "finishSamples": "Terminer"
   },
   "live": {
     "accessTicket": "Billet d'accès",

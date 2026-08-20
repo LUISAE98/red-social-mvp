@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "potrdilo",
     "fiscalKey": "ključ",
     "fiscalInvoicePdf": "PDF svojega računa",
-    "fiscalInvoiceXml": "XML svojega računa"
+    "fiscalInvoiceXml": "XML svojega računa",
+    "approxAmount": "Približno {amount}"
   },
   "services": {
     "confirmLabel": "Potrdi",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Napiši to z besedami tistega, ki bi ga naročil, ne s svojimi. Na primer «to je za mojo sestro Ano, v soboto dopolni 30 in te spremlja od začetka. Zelo bi mi bilo všeč, če bi ji čestital po imenu in ji rekel, naj si letos upa tekmovati».",
     "sampleRequestHintAdvice": "Napiši to z besedami tistega, ki bi ga naročil, ne s svojimi. Na primer «pravkar sem končal študij in omahujem med tem, da sprejmem prvo ponujeno službo ali počakam na kaj boljšega. Zanima me, kako si se ti odločil na začetku».",
     "uploadSample": "Naloži vzorec",
-    "samplePublished": "Vzorec objavljen"
+    "samplePublished": "Vzorec objavljen",
+    "donationReceiveLegend": "Prejmeš <amount>{net}</amount>",
+    "sampleSharedGreeting": "Tvoj vzorčni pozdrav je deljen!",
+    "sampleSharedAdvice": "Tvoj vzorčni nasvet je deljen!",
+    "recordAnotherSample": "Posnemi še enega",
+    "finishSamples": "Končaj"
   },
   "live": {
     "accessTicket": "Vstopnica",

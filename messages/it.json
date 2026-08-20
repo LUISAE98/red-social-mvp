@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "il certificato",
     "fiscalKey": "la chiave",
     "fiscalInvoicePdf": "il PDF della tua fattura",
-    "fiscalInvoiceXml": "l'XML della tua fattura"
+    "fiscalInvoiceXml": "l'XML della tua fattura",
+    "approxAmount": "Circa {amount}"
   },
   "services": {
     "confirmLabel": "Conferma",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Scrivilo con le parole di chi te lo chiederebbe, non con le tue. Per esempio «è per mia sorella Ana, sabato compie 30 anni e ti segue dall'inizio. Mi piacerebbe che le facessi gli auguri per nome e le dicessi di buttarsi in gara quest'anno».",
     "sampleRequestHintAdvice": "Scrivilo con le parole di chi te lo chiederebbe, non con le tue. Per esempio «ho appena finito l'università e sono indeciso tra accettare il primo lavoro che mi offrono o aspettare qualcosa di meglio. Vorrei sapere come hai deciso tu quando iniziavi».",
     "uploadSample": "Carica l'esempio",
-    "samplePublished": "Esempio pubblicato"
+    "samplePublished": "Esempio pubblicato",
+    "donationReceiveLegend": "Ricevi <amount>{net}</amount>",
+    "sampleSharedGreeting": "Il tuo saluto di esempio è condiviso!",
+    "sampleSharedAdvice": "Il tuo consiglio di esempio è condiviso!",
+    "recordAnotherSample": "Registrane un altro",
+    "finishSamples": "Fine"
   },
   "live": {
     "accessTicket": "Biglietto d'accesso",

@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "das Zertifikat",
     "fiscalKey": "den Schlüssel",
     "fiscalInvoicePdf": "die PDF deiner Rechnung",
-    "fiscalInvoiceXml": "die XML deiner Rechnung"
+    "fiscalInvoiceXml": "die XML deiner Rechnung",
+    "approxAmount": "Ca. {amount}"
   },
   "services": {
     "confirmLabel": "Bestätigen",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Schreib es mit den Worten der Person, die es bestellen würde, nicht mit deinen. Zum Beispiel «es ist für meine Schwester Anna, sie wird am Samstag 30 und folgt dir von Anfang an. Ich würde mich freuen, wenn du ihr namentlich gratulierst und ihr sagst, sie soll sich dieses Jahr trauen mitzumachen».",
     "sampleRequestHintAdvice": "Schreib es mit den Worten der Person, die es bestellen würde, nicht mit deinen. Zum Beispiel «ich bin gerade mit dem Studium fertig und schwanke, ob ich den ersten Job annehme oder auf etwas Besseres warte. Mich würde interessieren, wie du das am Anfang entschieden hast».",
     "uploadSample": "Beispiel hochladen",
-    "samplePublished": "Beispiel veröffentlicht"
+    "samplePublished": "Beispiel veröffentlicht",
+    "donationReceiveLegend": "Du erhältst <amount>{net}</amount>",
+    "sampleSharedGreeting": "Dein Beispielgruß ist geteilt!",
+    "sampleSharedAdvice": "Dein Beispielrat ist geteilt!",
+    "recordAnotherSample": "Noch einen aufnehmen",
+    "finishSamples": "Fertig"
   },
   "live": {
     "accessTicket": "Zugangsticket",

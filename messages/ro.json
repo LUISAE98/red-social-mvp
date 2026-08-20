@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "certificatul",
     "fiscalKey": "cheia",
     "fiscalInvoicePdf": "PDF-ul facturii tale",
-    "fiscalInvoiceXml": "XML-ul facturii tale"
+    "fiscalInvoiceXml": "XML-ul facturii tale",
+    "approxAmount": "Aprox. {amount}"
   },
   "services": {
     "confirmLabel": "Confirmă",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Scrie-o cu vorbele celui care ți-ar cere-o, nu cu ale tale. De exemplu «este pentru sora mea Ana, sâmbătă împlinește 30 de ani și te urmărește de la început. Mi-ar plăcea să o feliciți pe nume și să îi spui să îndrăznească să concureze anul acesta».",
     "sampleRequestHintAdvice": "Scrie-o cu vorbele celui care ți-ar cere-o, nu cu ale tale. De exemplu «tocmai am terminat facultatea și ezit între a accepta primul job oferit sau a aștepta ceva mai bun. Aș vrea să știu cum ai hotărât tu asta la început».",
     "uploadSample": "Încarcă mostra",
-    "samplePublished": "Mostră publicată"
+    "samplePublished": "Mostră publicată",
+    "donationReceiveLegend": "Primești <amount>{net}</amount>",
+    "sampleSharedGreeting": "Salutul tău de mostră este publicat!",
+    "sampleSharedAdvice": "Sfatul tău de mostră este publicat!",
+    "recordAnotherSample": "Mai înregistrează unul",
+    "finishSamples": "Termină"
   },
   "live": {
     "accessTicket": "Bilet de acces",

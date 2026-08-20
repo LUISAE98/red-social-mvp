@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "el certificat",
     "fiscalKey": "la clau",
     "fiscalInvoicePdf": "el PDF de la teva factura",
-    "fiscalInvoiceXml": "l'XML de la teva factura"
+    "fiscalInvoiceXml": "l'XML de la teva factura",
+    "approxAmount": "Aprox. {amount}"
   },
   "services": {
     "confirmLabel": "Confirma",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Escriu-ho amb les paraules de qui te la demanaria, no amb les teves. Per exemple «és per a la meva germana Anna, diumenge fa 30 anys i et segueix des del principi. M'encantaria que la felicitessis pel seu nom i li diguessis que s'animi a competir aquest any».",
     "sampleRequestHintAdvice": "Escriu-ho amb les paraules de qui te la demanaria, no amb les teves. Per exemple «acabo de acabar la carrera i dubto entre acceptar la primera feina que m'ofereixen o esperar-ne una de millor. M'agradaria saber com ho vas decidir tu quan començaves».",
     "uploadSample": "Puja la mostra",
-    "samplePublished": "Mostra publicada"
+    "samplePublished": "Mostra publicada",
+    "donationReceiveLegend": "Reps <amount>{net}</amount>",
+    "sampleSharedGreeting": "La teva salutació de mostra ja està compartida!",
+    "sampleSharedAdvice": "El teu consell de mostra ja està compartit!",
+    "recordAnotherSample": "Grava'n un altre",
+    "finishSamples": "Acabar"
   },
   "live": {
     "accessTicket": "Entrada d'accés",

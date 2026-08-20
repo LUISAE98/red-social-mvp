@@ -297,7 +297,8 @@ export const createGroupSubscription = onCall(
  */
 export async function cancelGroupSubscriptionImmediately(
   groupId: string,
-  uid: string
+  uid: string,
+  motivo: "ban" | "moderator_grant" = "ban"
 ): Promise<void> {
   try {
     const ref = db.collection("groupSubscriptions").doc(`${groupId}_${uid}`);
@@ -324,7 +325,14 @@ export async function cancelGroupSubscriptionImmediately(
       {
         cancelAtPeriodEnd: false,
         status: "cancelled",
-        cancelledByBan: true,
+        // `active: false` es OBLIGATORIO, no cosmético: el cron diario
+        // `expireGroupSubscriptions` busca `active == true` con el acceso
+        // vencido y BORRA la membresía. Sin apagarlo, cancelar aquí dejaba una
+        // bomba de relojería que echaba a la persona al vencer su periodo.
+        active: false,
+        endedAt: admin.firestore.FieldValue.serverTimestamp(),
+        cancelledByBan: motivo === "ban",
+        cancelledReason: motivo,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
       { merge: true }

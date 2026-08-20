@@ -91,6 +91,9 @@ export default function ProfileServicesTab({
   // La solicitud inventada. Hasta que no está escrita no se abre el grabador:
   // sin ella el panel no tendría qué enseñar en pantalla mientras grabas.
   const [sampleDraft, setSampleDraft] = useState<SampleRequestDraft | null>(null);
+  // Cambia con cada "grabar uno más" para REMONTAR el grabador. Sin esto se
+  // quedaba con la muestra anterior ya enviada y no volvía a la cámara.
+  const [sampleRun, setSampleRun] = useState(0);
 
   const lastHydratedProfileIdRef = useRef<string | null>(null);
   const skipHydrationWhileSavingRef = useRef(false);
@@ -658,6 +661,7 @@ export default function ProfileServicesTab({
         OverlayModalComponent={SaludoOverlay}
         publishSuccess={publishSuccessConfig}
         onAddSample={() => setSampleType("saludo")}
+        sampleCreatorId={profileUserId}
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
@@ -680,6 +684,7 @@ export default function ProfileServicesTab({
         OverlayModalComponent={ConsejoOverlay}
         publishSuccess={publishSuccessConfig}
         onAddSample={() => setSampleType("consejo")}
+        sampleCreatorId={profileUserId}
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
@@ -777,7 +782,9 @@ export default function ProfileServicesTab({
 
       {sampleType ? (
         <GreetingReviewOverlay
+          key={`sample-${sampleType}-${sampleRun}`}
           sampleMode
+          onRecordAnother={() => { setSampleDraft(null); setSampleRun((n) => n + 1); }}
           // Se abre DESDE el panel de configurar, que está en 999999. Sin subirlo
           // el grabador quedaba detrás.
           zIndex={1000000}

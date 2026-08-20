@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "sertifikatı",
     "fiscalKey": "açarı",
     "fiscalInvoicePdf": "fakturanın PDF faylını",
-    "fiscalInvoiceXml": "fakturanın XML faylını"
+    "fiscalInvoiceXml": "fakturanın XML faylını",
+    "approxAmount": "Təxminən {amount}"
   },
   "services": {
     "confirmLabel": "Təsdiqlə",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Səndən istəyəcək şəxsin sözləri ilə yaz, öz sözlərinlə yox. Məsələn «bu bacım Ana üçündür, şənbə günü 30 yaşı olur və səni lap əvvəldən izləyir. Adını çəkib təbrik etməyini və bu il yarışmağa ruhlandırmağını istərdim».",
     "sampleRequestHintAdvice": "Səndən istəyəcək şəxsin sözləri ilə yaz, öz sözlərinlə yox. Məsələn «təzəcə universiteti bitirmişəm və ilk təklif olunan işi qəbul etməklə daha yaxşısını gözləmək arasında qalmışam. Sən başlayanda bunu necə həll etdiyini bilmək istərdim».",
     "uploadSample": "Nümunəni yüklə",
-    "samplePublished": "Nümunə dərc olundu"
+    "samplePublished": "Nümunə dərc olundu",
+    "donationReceiveLegend": "Sən <amount>{net}</amount> alırsan",
+    "sampleSharedGreeting": "Nümunə salamın paylaşıldı!",
+    "sampleSharedAdvice": "Nümunə məsləhətin paylaşıldı!",
+    "recordAnotherSample": "Daha bir dənə çək",
+    "finishSamples": "Bitir"
   },
   "live": {
     "accessTicket": "Giriş bileti",

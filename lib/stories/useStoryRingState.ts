@@ -31,7 +31,11 @@ export function useStoryRingState(
     if (entityType === "profile") {
       return subscribeToCreatorStories(entityId, setStories);
     }
-    return subscribeToGroupStories(entityId, setStories);
+    // ⚠️ SOLO las públicamente legibles. Este aro se pinta en carruseles, búsquedas y
+    // barras laterales, para comunidades de las que quien mira no es miembro: pedir las
+    // privadas ahí es una denegación garantizada, y un `onSnapshot` denegado queda MUERTO.
+    // Dentro de la comunidad el carrusel sí las pide todas, porque allí ya hay permiso.
+    return subscribeToGroupStories(entityId, setStories, { soloPublicas: true });
   }, [entityId, entityType]);
 
   useEffect(() => {

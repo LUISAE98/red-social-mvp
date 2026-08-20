@@ -834,15 +834,11 @@ export default function SimuladorBotones() {
           aviso: "Cambia el idioma de verdad",
         },
         {
-          id: "idioma-portada",
-          boton: (
-            <CajaPortada>
-              <LanguageSwitcher variant="cover-corner" />
-            </CajaPortada>
-          ),
-          ubicacion: "Esquina de la portada del perfil",
-          archivo: "app/components/LanguageSwitcher.tsx — variant cover-corner",
-          hace: "El mismo selector, posicionado en absoluto sobre la portada. La caja morada es el contenedor que necesita, no parte del botón.",
+          id: "idioma-ajustes",
+          boton: <LanguageSwitcher variant="settings" />,
+          ubicacion: "Configuración del menú del creador (celular)",
+          archivo: "app/components/LanguageSwitcher.tsx — variant settings",
+          hace: "Solo el \"Ver\" morado de la fila; abre la misma lista de idiomas. La etiqueta y el idioma actual los pinta la fila que lo envuelve.",
           aviso: "Cambia el idioma de verdad",
         },
         {
@@ -851,6 +847,14 @@ export default function SimuladorBotones() {
           ubicacion: "Cabecera y wallet",
           archivo: "app/components/CurrencySwitcher.tsx — variant desktop",
           hace: "Abre la lista de monedas y fija la que se usa para mostrar todos los precios.",
+          aviso: "Cambia la moneda de verdad",
+        },
+        {
+          id: "moneda-ajustes",
+          boton: <CurrencySwitcher variant="settings" />,
+          ubicacion: "Configuración del menú del creador (celular)",
+          archivo: "app/components/CurrencySwitcher.tsx — variant settings",
+          hace: "Solo el \"Ver\" morado de la fila; abre la misma lista de monedas.",
           aviso: "Cambia la moneda de verdad",
         },
         {

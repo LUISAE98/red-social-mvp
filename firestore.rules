@@ -252,7 +252,20 @@ service cloud.firestore {
       && (!("prefixes" in search) || search.prefixes is list)
       && (!("isActive" in search) || search.isActive is bool)
       && (!("profileSearchable" in search) || search.profileSearchable is bool)
-      && (!("updatedAt" in search) || search.updatedAt is timestamp)
+      // ⚠️ ACEPTA NÚMERO O TIMESTAMP, y no es dejadez.
+      //
+      // `groupSearchIndex` copia aquí el `updatedAt` del grupo, y ese campo llega unas veces
+      // como Timestamp y otras como epoch en milisegundos según qué camino lo escribió.
+      // Exigir solo `timestamp` no protegía nada —es metadato, no control de acceso— y en
+      // cambio DEJABA EL DOCUMENTO MUERTO: con un número guardado, la regla se evalúa en
+      // CADA update (el índice viaja siempre en `request.resource.data`), así que el dueño
+      // no podía tocar ni la descripción de su propia comunidad. 4 de 10 estaban así.
+      && (
+        !("updatedAt" in search)
+        || search.updatedAt == null
+        || search.updatedAt is timestamp
+        || (search.updatedAt is number && search.updatedAt >= 0)
+      )
       && (!("version" in search) || search.version == 1)
     );
 }
@@ -1672,6 +1685,18 @@ function canWriteGroupComment(groupId) {
       return value in ["keep_members_free", "remove_all_members"];
     }
 
+// ⚠️ ADELGAZADA A PROPÓSITO (2026-08-20). Ver el comentario de coste en `isValidGroupUpdate`.
+//
+// Antes comprobaba el tipo de LOS DIEZ campos del mapa, uno por uno. Eso son ~30
+// expresiones que, sumadas al resto de la regla, pasaban el tope de 1000 de Firestore:
+// cualquier cambio en `monetization` se denegaba por COSTE, no por contenido. El síntoma
+// era «Missing or insufficient permissions» al activar la suscripción de una comunidad.
+//
+// Lo que se conserva es lo que DECIDE COMPORTAMIENTO: las tres políticas de transición,
+// que el backend lee para saber qué hacer con los miembros existentes. El resto
+// —marcas de tiempo, quién lo cambió, precios previos— es EVIDENCIA: la escribe el
+// servidor, nadie la lee para autorizar nada, y comprobar su tipo aquí costaba el
+// documento entero.
 function validMonetizationTransitions(transitions) {
   return transitions == null
     || (
@@ -1693,44 +1718,6 @@ function validMonetizationTransitions(transitions) {
           "keep_legacy_price",
           "require_resubscribe_new_price"
         ]
-      )
-      && (
-        !("previousSubscriptionPriceMonthly" in transitions)
-        || validNonNegativeNumberOrNull(transitions.previousSubscriptionPriceMonthly)
-      )
-      && (
-        !("nextSubscriptionPriceMonthly" in transitions)
-        || validNonNegativeNumberOrNull(transitions.nextSubscriptionPriceMonthly)
-      )
-      && (
-        !("subscriptionPriceChangeCurrency" in transitions)
-        || transitions.subscriptionPriceChangeCurrency == null
-        || validCurrency(transitions.subscriptionPriceChangeCurrency)
-      )
-      && (
-        !("lastMonetizationChangeAt" in transitions)
-        || transitions.lastMonetizationChangeAt == null
-        || transitions.lastMonetizationChangeAt is timestamp
-      )
-      && (
-        !("lastMonetizationChangeBy" in transitions)
-        || transitions.lastMonetizationChangeBy == null
-        || transitions.lastMonetizationChangeBy is string
-      )
-      && (
-        !("lastAppliedTransitionKey" in transitions)
-        || transitions.lastAppliedTransitionKey == null
-        || transitions.lastAppliedTransitionKey is string
-      )
-      && (
-        !("lastAppliedTransitionAt" in transitions)
-        || transitions.lastAppliedTransitionAt == null
-        || transitions.lastAppliedTransitionAt is timestamp
-      )
-      && (
-        !("lastAppliedTransitionBy" in transitions)
-        || transitions.lastAppliedTransitionBy == null
-        || transitions.lastAppliedTransitionBy is string
       )
     );
 }
@@ -1784,28 +1771,29 @@ function validMonetizationTransitions(transitions) {
         && validSubscriptionVisibilityPolicy(data);
     }
 
+    // ⚠️ ADELGAZADA A PROPÓSITO (2026-08-20), por el tope de 1000 expresiones.
+    //
+    // Se conserva el tipo de lo que OTRAS REGLAS leen para autorizar —`subscriptionsEnabled`
+    // e `isPaid` gobiernan el acceso a la comunidad, y los precios y monedas viajan al
+    // cobro—. Se sueltan las ocho banderas de funcionalidad (`paidPostsEnabled`,
+    // `adviceEnabled`, …): son interruptores de interfaz que nadie consulta para dar
+    // permiso, y comprobar su tipo aquí costaba que no se pudiera guardar NADA.
+    //
+    // ⚠️ `validSubscriptionVisibilityPolicy` ya NO se llama aquí: `isValidGroupUpdate` la
+    // llama al final para todas las actualizaciones. Estaba evaluándose dos veces.
     function validMonetizationForUpdate(data) {
       return !("monetization" in data)
         || data.monetization == null
         || (
           data.monetization is map
           && (!("isPaid" in data.monetization) || data.monetization.isPaid is bool)
-          && (!("priceMonthly" in data.monetization) || validNonNegativeNumberOrNull(data.monetization.priceMonthly))
-          && (!("currency" in data.monetization) || data.monetization.currency == null || validCurrency(data.monetization.currency))
           && (!("subscriptionsEnabled" in data.monetization) || data.monetization.subscriptionsEnabled is bool)
+          && (!("priceMonthly" in data.monetization) || validNonNegativeNumberOrNull(data.monetization.priceMonthly))
           && (!("subscriptionPriceMonthly" in data.monetization) || validNonNegativeNumberOrNull(data.monetization.subscriptionPriceMonthly))
+          && (!("currency" in data.monetization) || data.monetization.currency == null || validCurrency(data.monetization.currency))
           && (!("subscriptionCurrency" in data.monetization) || data.monetization.subscriptionCurrency == null || validCurrency(data.monetization.subscriptionCurrency))
-          && (!("paidPostsEnabled" in data.monetization) || data.monetization.paidPostsEnabled is bool)
-          && (!("paidLivesEnabled" in data.monetization) || data.monetization.paidLivesEnabled is bool)
-          && (!("paidVodEnabled" in data.monetization) || data.monetization.paidVodEnabled is bool)
-          && (!("paidLiveCommentsEnabled" in data.monetization) || data.monetization.paidLiveCommentsEnabled is bool)
-          && (!("greetingsEnabled" in data.monetization) || data.monetization.greetingsEnabled is bool)
-          && (!("adviceEnabled" in data.monetization) || data.monetization.adviceEnabled is bool)
-          && (!("customClassEnabled" in data.monetization) || data.monetization.customClassEnabled is bool)
-          && (!("digitalMeetGreetEnabled" in data.monetization) || data.monetization.digitalMeetGreetEnabled is bool)
           && (!("transitions" in data.monetization) || validMonetizationTransitions(data.monetization.transitions))
-        )
-        && validSubscriptionVisibilityPolicy(data);
+        );
     }
 
     function validSettingsForCreate(data) {
@@ -1882,7 +1870,14 @@ function validMonetizationTransitions(transitions) {
 )
       && (!("discoverable" in search) || search.discoverable is bool)
       && (!("isActive" in search) || search.isActive is bool)
-      && (!("updatedAt" in search) || search.updatedAt is timestamp)
+      // ⚠️ Número o timestamp: ver la nota en `validUserSearchIndex`. Un número guardado
+      // aquí dejaba el documento MUERTO — su dueño no podía actualizarlo por ningún campo.
+      && (
+        !("updatedAt" in search)
+        || search.updatedAt == null
+        || search.updatedAt is timestamp
+        || (search.updatedAt is number && search.updatedAt >= 0)
+      )
       && (!("version" in search) || search.version == 1)
     );
 }
@@ -1976,7 +1971,14 @@ function validPostSearchIndex(search) {
       && (!("isDeleted" in search) || search.isDeleted == request.resource.data.isDeleted)
 
       && (!("createdAt" in search) || search.createdAt is timestamp)
-      && (!("updatedAt" in search) || search.updatedAt is timestamp)
+      // ⚠️ Número o timestamp: ver la nota en `validUserSearchIndex`. Un número guardado
+      // aquí dejaba el documento MUERTO — su dueño no podía actualizarlo por ningún campo.
+      && (
+        !("updatedAt" in search)
+        || search.updatedAt == null
+        || search.updatedAt is timestamp
+        || (search.updatedAt is number && search.updatedAt >= 0)
+      )
 
       && (!("version" in search) || search.version == 1)
     );

@@ -633,7 +633,8 @@
     "categoryUpdated": "Categoría actualizada.",
     "tagsUpdated": "Tags actualizadas.",
     "inviteLoadError": "Error cargando la invitación.",
-    "inviteUseError": "No se pudo usar la invitación."
+    "inviteUseError": "No se pudo usar la invitación.",
+    "actionInviteToMod": "Invitar a moderar"
   },
   "profile": {
     "ariaChangeAvatar": "Cambiar foto de perfil",
@@ -1483,7 +1484,8 @@
     "fiscalCertificate": "el certificado",
     "fiscalKey": "la llave",
     "fiscalInvoicePdf": "el PDF de tu factura",
-    "fiscalInvoiceXml": "el XML de tu factura"
+    "fiscalInvoiceXml": "el XML de tu factura",
+    "approxAmount": "Aprox. {amount}"
   },
   "services": {
     "confirmLabel": "Confirmar",
@@ -2033,7 +2035,11 @@
     "sampleRequestHintGreeting": "Escríbelo con las palabras de quien te lo pediría, no con las tuyas. Por ejemplo «es para mi hermana Ana, el sábado cumple 30 y te sigue desde el principio. Me encantaría que la felicites por su nombre y le digas que se anime a competir este año».",
     "sampleRequestHintAdvice": "Escríbelo con las palabras de quien te lo pediría, no con las tuyas. Por ejemplo «acabo de terminar la carrera y dudo entre aceptar el primer trabajo que me ofrecen o esperar algo mejor. Me gustaría saber cómo lo decidiste tú cuando empezabas».",
     "uploadSample": "Subir muestra",
-    "samplePublished": "Muestra publicada"
+    "samplePublished": "Muestra publicada",
+    "sampleSharedGreeting": "¡Tu saludo muestra ya está compartido!",
+    "sampleSharedAdvice": "¡Tu consejo muestra ya está compartido!",
+    "recordAnotherSample": "Grabar uno más",
+    "finishSamples": "Terminar"
   },
   "live": {
     "accessTicket": "Ticket de acceso",

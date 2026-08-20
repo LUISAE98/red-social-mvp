@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "sertifikat",
     "fiscalKey": "ključ",
     "fiscalInvoicePdf": "PDF svoje fakture",
-    "fiscalInvoiceXml": "XML svoje fakture"
+    "fiscalInvoiceXml": "XML svoje fakture",
+    "approxAmount": "Отприлике {amount}"
   },
   "services": {
     "confirmLabel": "Potvrdi",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Напиши то речима оног ко би ти то наручио, не својим. На пример «ово је за моју сестру Ану, у суботу пуни 30 и прати те од почетка. Волела бих да јој честиташ именом и кажеш јој да се ове године усуди да се такмичи».",
     "sampleRequestHintAdvice": "Напиши то речима оног ко би ти то наручио, не својим. На пример «управо сам завршио факултет и колебам се између првог понуђеног посла и чекања нечег бољег. Занима ме како си ти то одлучио на почетку».",
     "uploadSample": "Отпреми пример",
-    "samplePublished": "Пример објављен"
+    "samplePublished": "Пример објављен",
+    "donationReceiveLegend": "Добијаш <amount>{net}</amount>",
+    "sampleSharedGreeting": "Твој пример поздрава је подељен!",
+    "sampleSharedAdvice": "Твој пример савета је подељен!",
+    "recordAnotherSample": "Сними још један",
+    "finishSamples": "Заврши"
   },
   "live": {
     "accessTicket": "Ulaznica",

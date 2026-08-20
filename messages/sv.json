@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "certifikatet",
     "fiscalKey": "nyckeln",
     "fiscalInvoicePdf": "PDF:en för din faktura",
-    "fiscalInvoiceXml": "XML:en för din faktura"
+    "fiscalInvoiceXml": "XML:en för din faktura",
+    "approxAmount": "Ca {amount}"
   },
   "services": {
     "confirmLabel": "Bekräfta",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Skriv det med orden från den som skulle beställa det, inte dina egna. Till exempel «det är till min syster Anna, hon fyller 30 på lördag och har följt dig från början. Jag skulle älska om du gratulerade henne vid namn och sa att hon ska våga tävla i år».",
     "sampleRequestHintAdvice": "Skriv det med orden från den som skulle beställa det, inte dina egna. Till exempel «jag har precis pluggat klart och tvekar mellan att ta det första jobbet jag blir erbjuden eller vänta på något bättre. Jag skulle vilja veta hur du avgjorde det när du började».",
     "uploadSample": "Ladda upp provet",
-    "samplePublished": "Provet publicerat"
+    "samplePublished": "Provet publicerat",
+    "donationReceiveLegend": "Du får <amount>{net}</amount>",
+    "sampleSharedGreeting": "Din exempelhälsning är delad!",
+    "sampleSharedAdvice": "Ditt exempelråd är delat!",
+    "recordAnotherSample": "Spela in en till",
+    "finishSamples": "Slutför"
   },
   "live": {
     "accessTicket": "Inträdesbiljett",

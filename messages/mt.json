@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "iċ-ċertifikat",
     "fiscalKey": "iċ-ċavetta",
     "fiscalInvoicePdf": "il-PDF tal-fattura tiegħek",
-    "fiscalInvoiceXml": "l-XML tal-fattura tiegħek"
+    "fiscalInvoiceXml": "l-XML tal-fattura tiegħek",
+    "approxAmount": "Madwar {amount}"
   },
   "services": {
     "confirmLabel": "Ikkonferma",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Iktbu bil-kliem ta' min jitolbok, mhux bi kliemek. Pereżempju «hija għal oħti Ana, is-Sibt tagħlaq 30 u ilha ssegwik mill-bidu. Nixtieq li tawguralha b'isimha u tgħidilha biex din is-sena tazzarda tikkompeti».",
     "sampleRequestHintAdvice": "Iktbu bil-kliem ta' min jitolbok, mhux bi kliemek. Pereżempju «għadni kif spiċċajt l-istudji u qed nitħabat bejn li naċċetta l-ewwel xogħol offrut jew nistenna xi ħaġa aħjar. Nixtieq inkun naf kif iddeċidejt int fil-bidu».",
     "uploadSample": "Tella l-kampjun",
-    "samplePublished": "Kampjun ippubblikat"
+    "samplePublished": "Kampjun ippubblikat",
+    "donationReceiveLegend": "Tirċievi <amount>{net}</amount>",
+    "sampleSharedGreeting": "It-tislima ta' eżempju tiegħek inqasmet!",
+    "sampleSharedAdvice": "Il-parir ta' eżempju tiegħek inqasam!",
+    "recordAnotherSample": "Irrekordja ieħor",
+    "finishSamples": "Lesti"
   },
   "live": {
     "accessTicket": "Biljett ta' aċċess",

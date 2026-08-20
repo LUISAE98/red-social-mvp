@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "ใบรับรอง",
     "fiscalKey": "คีย์",
     "fiscalInvoicePdf": "PDF ของใบกำกับ",
-    "fiscalInvoiceXml": "XML ของใบกำกับ"
+    "fiscalInvoiceXml": "XML ของใบกำกับ",
+    "approxAmount": "ประมาณ {amount}"
   },
   "services": {
     "confirmLabel": "ยืนยัน",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "เขียนด้วยคำของคนที่จะขอ ไม่ใช่คำของคุณเอง ตัวอย่างเช่น «อันนี้ให้น้องสาวชื่ออานาค่ะ วันเสาร์เธอจะอายุครบ 30 และติดตามคุณมาตั้งแต่แรก อยากให้เรียกชื่อเธอแล้วอวยพร พร้อมบอกให้เธอกล้าลงแข่งในปีนี้»",
     "sampleRequestHintAdvice": "เขียนด้วยคำของคนที่จะขอ ไม่ใช่คำของคุณเอง ตัวอย่างเช่น «ผมเพิ่งเรียนจบและลังเลว่าจะรับงานแรกที่ได้รับข้อเสนอ หรือรอสิ่งที่ดีกว่า อยากรู้ว่าตอนคุณเริ่มต้นคุณตัดสินใจอย่างไร»",
     "uploadSample": "อัปโหลดตัวอย่าง",
-    "samplePublished": "เผยแพร่ตัวอย่างแล้ว"
+    "samplePublished": "เผยแพร่ตัวอย่างแล้ว",
+    "donationReceiveLegend": "คุณจะได้รับ <amount>{net}</amount>",
+    "sampleSharedGreeting": "แชร์คำทักทายตัวอย่างของคุณแล้ว!",
+    "sampleSharedAdvice": "แชร์คำแนะนำตัวอย่างของคุณแล้ว!",
+    "recordAnotherSample": "บันทึกอีกหนึ่งรายการ",
+    "finishSamples": "เสร็จสิ้น"
   },
   "live": {
     "accessTicket": "ตั๋วเข้าชม",

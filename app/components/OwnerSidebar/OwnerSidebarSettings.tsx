@@ -45,6 +45,11 @@ import { DEFAULT_MESSAGE_POLICY, isMessagePolicy, type MessagePolicy } from "@/l
 import { usePushNotifications } from "@/lib/hooks/usePushNotifications";
 import type { ToastType } from "@/lib/hooks/useVibraToast";
 import { SidebarSettingsIcon } from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
+import LanguageSwitcher from "@/app/components/LanguageSwitcher";
+import CurrencySwitcher from "@/app/components/CurrencySwitcher";
+import { useCurrency } from "@/app/components/CurrencyProvider";
+import { readyLocaleMeta } from "@/i18n/locales";
+import { currencyLabel } from "@/lib/currency/format";
 
 /**
  * Estilo del botón de cerrar sesión. Vive aquí, junto al resto del vocabulario
@@ -117,6 +122,7 @@ export default function OwnerSidebarSettings({
   const tCommon = useTranslations("common");
   const tProfile = useTranslations("profile");
   const locale = useLocale();
+  const { currency } = useCurrency();
 
   const [open, setOpen] = useState(false);
   // Una vez abierto, el listener se queda: volver a plegar el módulo no debe
@@ -416,6 +422,13 @@ export default function OwnerSidebarSettings({
     WebkitTapHighlightColor: "transparent",
     fontFamily: "inherit",
   };
+
+  // Idioma y moneda actuales para la columna del valor. Salen de las mismas
+  // fuentes que consultan los selectores —el catálogo de locales servidos y el
+  // proveedor de moneda—, así que no hay una segunda tabla que mantener.
+  const currentLanguageName =
+    readyLocaleMeta().find((m) => m.code === locale)?.name ?? locale;
+  const currentCurrencyName = `${currency} · ${currencyLabel(currency, locale)}`;
 
   const row: CSSProperties = {
     display: "grid",
@@ -752,6 +765,33 @@ export default function OwnerSidebarSettings({
                 <div style={labelStyle}>{tProfile("creationDateFieldLabel")}</div>
                 <div style={valueStyle}>{resolvedCreatedAt}</div>
               </div>
+            </div>
+
+            {/* Idioma y moneda.
+
+                Vivían en la esquina de la portada del perfil, en dos burbujas
+                sobre la foto. Un ajuste de la aplicación no es parte del perfil
+                de nadie, y ahí solo los encontraba quien pasara por su propia
+                portada. Aquí van con el formato del resto de la lista: nombre,
+                valor actual y un "Ver" que abre el MISMO panel de siempre.
+
+                En laptop no cambia nada: siguen en la cabecera. */}
+            <div className="sidebar-setting-row" style={row}>
+              <div style={{ minWidth: 0 }}>
+                <div style={labelStyle}>{tCommon("changeLanguage")}</div>
+                <div style={valueStyle}>{currentLanguageName}</div>
+              </div>
+
+              <LanguageSwitcher variant="settings" />
+            </div>
+
+            <div className="sidebar-setting-row" style={row}>
+              <div style={{ minWidth: 0 }}>
+                <div style={labelStyle}>{tCommon("changeCurrency")}</div>
+                <div style={valueStyle}>{currentCurrencyName}</div>
+              </div>
+
+              <CurrencySwitcher variant="settings" />
             </div>
 
             {/* Cuentas bloqueadas */}

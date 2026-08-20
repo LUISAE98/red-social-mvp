@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "certyfikat",
     "fiscalKey": "klucz",
     "fiscalInvoicePdf": "PDF swojej faktury",
-    "fiscalInvoiceXml": "XML swojej faktury"
+    "fiscalInvoiceXml": "XML swojej faktury",
+    "approxAmount": "Ok. {amount}"
   },
   "services": {
     "confirmLabel": "Potwierdź",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Napisz to słowami osoby, która by o to poprosiła, nie swoimi. Na przykład «to dla mojej siostry Ani, w sobotę kończy 30 lat i śledzi cię od początku. Chciałabym, żebyś pogratulował jej po imieniu i powiedział, żeby odważyła się w tym roku wystartować».",
     "sampleRequestHintAdvice": "Napisz to słowami osoby, która by o to poprosiła, nie swoimi. Na przykład «właśnie skończyłem studia i waham się, czy przyjąć pierwszą propozycję pracy, czy poczekać na coś lepszego. Chciałbym wiedzieć, jak ty to rozstrzygnąłeś na początku».",
     "uploadSample": "Prześlij próbkę",
-    "samplePublished": "Próbka opublikowana"
+    "samplePublished": "Próbka opublikowana",
+    "donationReceiveLegend": "Otrzymujesz <amount>{net}</amount>",
+    "sampleSharedGreeting": "Twoje przykładowe pozdrowienie jest udostępnione!",
+    "sampleSharedAdvice": "Twoja przykładowa porada jest udostępniona!",
+    "recordAnotherSample": "Nagraj jeszcze jedno",
+    "finishSamples": "Zakończ"
   },
   "live": {
     "accessTicket": "Bilet wstępu",

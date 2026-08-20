@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "a tanúsítványt",
     "fiscalKey": "a kulcsot",
     "fiscalInvoicePdf": "a számlád PDF-jét",
-    "fiscalInvoiceXml": "a számlád XML-jét"
+    "fiscalInvoiceXml": "a számlád XML-jét",
+    "approxAmount": "Kb. {amount}"
   },
   "services": {
     "confirmLabel": "Megerősítés",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Írd meg annak a szavaival, aki kérné, ne a sajátjaiddal. Például «a nővéremnek, Annának lesz, szombaton lesz 30 és az elejétől követ téged. Örülnék, ha néven köszöntenéd és biztatnád, hogy idén merjen versenyezni».",
     "sampleRequestHintAdvice": "Írd meg annak a szavaival, aki kérné, ne a sajátjaiddal. Például «most végeztem az egyetemen és nem tudom, elfogadjam-e az első felkínált állást vagy várjak valami jobbra. Érdekelne, te hogyan döntötted el ezt a kezdetekkor».",
     "uploadSample": "Minta feltöltése",
-    "samplePublished": "Minta közzétéve"
+    "samplePublished": "Minta közzétéve",
+    "donationReceiveLegend": "Te kapsz <amount>{net}</amount>",
+    "sampleSharedGreeting": "A mintaköszöntőd meg van osztva!",
+    "sampleSharedAdvice": "A mintatanácsod meg van osztva!",
+    "recordAnotherSample": "Veszek fel még egyet",
+    "finishSamples": "Befejezés"
   },
   "live": {
     "accessTicket": "Belépőjegy",

@@ -23,6 +23,56 @@ type MemberStatus =
   | string
   | null;
 
+/**
+ * Deja pasar al creador y a los moderadores de la comunidad.
+ *
+ * Los links de invitación son la única puerta de entrada a una comunidad
+ * OCULTA —no sale en búsquedas ni se puede pedir acceso—, así que quien modera
+ * necesita poder repartirlos; si no, cada alta depende de que el creador esté
+ * disponible.
+ *
+ * Se comprueba contra el documento de miembro, nunca contra lo que diga el
+ * cliente. Un moderador expulsado o baneado pierde el permiso aunque su
+ * documento conserve el rol.
+ */
+async function asegurarCreadorOModerador(
+  groupRef: FirebaseFirestore.DocumentReference,
+  groupData: { ownerId?: string } | undefined,
+  callerUid: string
+): Promise<"owner" | "mod"> {
+  if (groupData?.ownerId === callerUid) return "owner";
+
+  const memberSnap = await groupRef.collection("members").doc(callerUid).get();
+  if (!memberSnap.exists) {
+    throw new HttpsError(
+      "permission-denied",
+      "Solo el creador o un moderador pueden realizar esta acción."
+    );
+  }
+
+  const memberData = memberSnap.data() as Record<string, unknown>;
+  const rawRole = memberData?.roleInGroup ?? memberData?.role;
+  const role = typeof rawRole === "string" ? rawRole.trim().toLowerCase() : "";
+  const rawStatus = memberData?.status;
+  const status = typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
+
+  const esModerador = role === "mod" || role === "moderator";
+  const apartado =
+    status === "banned" ||
+    status === "removed" ||
+    status === "kicked" ||
+    status === "expelled";
+
+  if (!esModerador || apartado) {
+    throw new HttpsError(
+      "permission-denied",
+      "Solo el creador o un moderador pueden realizar esta acción."
+    );
+  }
+
+  return "mod";
+}
+
 function normalizeToken(raw: unknown) {
   return String(raw ?? "")
     .trim()
@@ -191,12 +241,7 @@ export const createInviteLink = onCall(async (request) => {
     name?: string;
   };
 
-  if (groupData?.ownerId !== callerUid) {
-    throw new HttpsError(
-      "permission-denied",
-      "Solo el creador puede generar links."
-    );
-  }
+  await asegurarCreadorOModerador(groupRef, groupData, callerUid);
 
   if (groupData?.isActive !== true) {
     throw new HttpsError(
@@ -837,9 +882,11 @@ export const revokeInviteLink = onCall(async (request) => {
   if (!groupSnap.exists) {
     throw new HttpsError("not-found", "Comunidad no existe.");
   }
-  if ((groupSnap.data() as { ownerId?: string })?.ownerId !== callerUid) {
-    throw new HttpsError("permission-denied", "Solo el creador puede matar links.");
-  }
+  await asegurarCreadorOModerador(
+    groupRef,
+    groupSnap.data() as { ownerId?: string },
+    callerUid
+  );
 
   const inviteRef = groupRef.collection("inviteLinks").doc(inviteLinkId);
   const inviteSnap = await inviteRef.get();
@@ -882,12 +929,11 @@ export const listInviteLinks = onCall(async (request) => {
   if (!groupSnap.exists) {
     throw new HttpsError("not-found", "Comunidad no existe.");
   }
-  if ((groupSnap.data() as { ownerId?: string })?.ownerId !== callerUid) {
-    throw new HttpsError(
-      "permission-denied",
-      "Solo el creador puede ver los links."
-    );
-  }
+  await asegurarCreadorOModerador(
+    groupRef,
+    groupSnap.data() as { ownerId?: string },
+    callerUid
+  );
 
   const nowMs = Date.now();
   const snap = await groupRef

@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "憑證",
     "fiscalKey": "金鑰",
     "fiscalInvoicePdf": "發票的 PDF",
-    "fiscalInvoiceXml": "發票的 XML"
+    "fiscalInvoiceXml": "發票的 XML",
+    "approxAmount": "約 {amount}"
   },
   "services": {
     "confirmLabel": "確認",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "用委託人的說法寫,不要用你自己的。例如「這是要送給我妹妹安娜的,她星期六滿三十歲,從一開始就在追蹤你。希望你叫出她的名字祝賀,並鼓勵她今年勇敢去比賽」。",
     "sampleRequestHintAdvice": "用委託人的說法寫,不要用你自己的。例如「我剛畢業,正在猶豫要接下第一份工作,還是再等更好的機會。想知道你剛起步時是怎麼決定的」。",
     "uploadSample": "上傳範例",
-    "samplePublished": "範例已發布"
+    "samplePublished": "範例已發布",
+    "donationReceiveLegend": "你會收到 <amount>{net}</amount>",
+    "sampleSharedGreeting": "你的範例問候已經分享了!",
+    "sampleSharedAdvice": "你的範例建議已經分享了!",
+    "recordAnotherSample": "再錄一則",
+    "finishSamples": "完成"
   },
   "live": {
     "accessTicket": "觀看門票",

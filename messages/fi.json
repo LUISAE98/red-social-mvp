@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "varmenteen",
     "fiscalKey": "avaimen",
     "fiscalInvoicePdf": "laskusi PDF:n",
-    "fiscalInvoiceXml": "laskusi XML:n"
+    "fiscalInvoiceXml": "laskusi XML:n",
+    "approxAmount": "Noin {amount}"
   },
   "services": {
     "confirmLabel": "Vahvista",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Kirjoita se tilaajan sanoin, älä omin. Esimerkiksi «tämä on siskolleni Annalle, hän täyttää lauantaina 30 ja on seurannut sinua alusta asti. Toivoisin että onnittelet häntä nimeltä ja kannustat häntä kilpailemaan tänä vuonna».",
     "sampleRequestHintAdvice": "Kirjoita se tilaajan sanoin, älä omin. Esimerkiksi «valmistuin juuri ja epäröin otanko ensimmäisen tarjotun työn vai odotanko parempaa. Haluaisin tietää miten sinä ratkaisit tämän alkuvaiheessa».",
     "uploadSample": "Lataa näyte",
-    "samplePublished": "Näyte julkaistu"
+    "samplePublished": "Näyte julkaistu",
+    "donationReceiveLegend": "Saat <amount>{net}</amount>",
+    "sampleSharedGreeting": "Näytetervehdyksesi on jaettu!",
+    "sampleSharedAdvice": "Näyteneuvosi on jaettu!",
+    "recordAnotherSample": "Kuvaa vielä yksi",
+    "finishSamples": "Valmis"
   },
   "live": {
     "accessTicket": "Pääsylippu",

@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "証明書",
     "fiscalKey": "キー",
     "fiscalInvoicePdf": "請求書のPDF",
-    "fiscalInvoiceXml": "請求書のXML"
+    "fiscalInvoiceXml": "請求書のXML",
+    "approxAmount": "約 {amount}"
   },
   "services": {
     "confirmLabel": "確定",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "自分の言葉ではなく、頼む人の言葉で書いてください。たとえば「妹のアナへのものです。土曜日に30歳になります。最初からあなたを応援しています。名前を呼んでお祝いして、今年こそ大会に出るように励ましてほしいです」。",
     "sampleRequestHintAdvice": "自分の言葉ではなく、頼む人の言葉で書いてください。たとえば「大学を出たばかりで、最初に来た内定を受けるか、もっと良い話を待つか迷っています。あなたが駆け出しの頃どう決めたのか知りたいです」。",
     "uploadSample": "サンプルをアップロード",
-    "samplePublished": "サンプルを公開しました"
+    "samplePublished": "サンプルを公開しました",
+    "donationReceiveLegend": "受け取るのは <amount>{net}</amount>",
+    "sampleSharedGreeting": "サンプルのあいさつを公開しました!",
+    "sampleSharedAdvice": "サンプルのアドバイスを公開しました!",
+    "recordAnotherSample": "もう一つ録画する",
+    "finishSamples": "終了"
   },
   "live": {
     "accessTicket": "アクセスチケット",

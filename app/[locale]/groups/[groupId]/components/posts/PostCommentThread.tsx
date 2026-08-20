@@ -134,15 +134,6 @@ export default function PostCommentThread({
   const [editReplyMentions, setEditReplyMentions] = useState<Record<string, CommentMention[]>>({});
   const [savingEditReplyId, setSavingEditReplyId] = useState<string | null>(null);
 
-  // Detect mobile for portal layout
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    function check() { setIsMobile(window.innerWidth < 768); }
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
   // Escape to close menus
   useEffect(() => {
     if (!commentMenuOpen) return;
@@ -555,16 +546,6 @@ export default function PostCommentThread({
                   </span>
                 )}
 
-                <TextButton tone="mute" size="sm" style={{ margin: 0, fontFamily: fontStack, textAlign: "start" }} onClick={() => setShowExactCommentDate((prev) => !prev)} title={formatExactDate(comment.createdAt, tCommon)} aria-label={ showExactCommentDate ? tPosts("showRelativeCommentDate") : tPosts("showExactCommentDate") }>
-                  {showExactCommentDate
-                    ? formatExactDate(comment.createdAt, tCommon)
-                    : formatRelativeDate(comment.createdAt, tCommon)}
-                  {(localCommentEditedAt ?? comment.editedAt) ? (
-                    <span style={{ opacity: 0.45, fontStyle: "italic", marginInlineStart: 2 }}>
-                      {" "}{tPosts("editedSuffix")}
-                    </span>
-                  ) : null}
-                </TextButton>
               </div>
 
               {editingComment ? (
@@ -684,6 +665,22 @@ export default function PostCommentThread({
                 {tPosts("moreOptions")}
               </TextButton>
             )}
+
+            {/* La fecha cierra la fila de acciones, detrás de "Más opciones".
+                Antes iba pegada al nombre, donde competía con él por el ancho y
+                partía el renglón en cuanto el nombre era largo. Aquí abajo cabe
+                sin empujar nada y sigue alternando entre "hace 3 h" y la fecha
+                exacta al pulsarla. */}
+            <TextButton tone="mute" size="sm" style={{ margin: 0, fontFamily: fontStack, textAlign: "start" }} onClick={() => setShowExactCommentDate((prev) => !prev)} title={formatExactDate(comment.createdAt, tCommon)} aria-label={ showExactCommentDate ? tPosts("showRelativeCommentDate") : tPosts("showExactCommentDate") }>
+              {showExactCommentDate
+                ? formatExactDate(comment.createdAt, tCommon)
+                : formatRelativeDate(comment.createdAt, tCommon, intlLocale(locale))}
+              {(localCommentEditedAt ?? comment.editedAt) ? (
+                <span style={{ opacity: 0.45, fontStyle: "italic", marginInlineStart: 2 }}>
+                  {" "}{tPosts("editedSuffix")}
+                </span>
+              ) : null}
+            </TextButton>
           </div>
 
           {/* Reply box — botones (adjuntar + enviar) DENTRO del propio campo. */}
@@ -826,16 +823,6 @@ export default function PostCommentThread({
                           </span>
                         )}
 
-                        <TextButton tone="mute" size="sm" style={{ margin: 0, fontFamily: fontStack, textAlign: "start" }} onClick={() => setExactReplyDates((prev) => ({ ...prev, [reply.id]: !prev[reply.id] }))} title={formatExactDate(reply.createdAt, tCommon)} aria-label={ exactReplyDates[reply.id] ? tPosts("showRelativeReplyDate") : tPosts("showExactReplyDate") }>
-                          {exactReplyDates[reply.id]
-                            ? formatExactDate(reply.createdAt, tCommon)
-                            : formatRelativeDate(reply.createdAt, tCommon)}
-                          {reply.editedAt ? (
-                            <span style={{ opacity: 0.45, fontStyle: "italic", marginInlineStart: 2 }}>
-                              {" "}{tPosts("editedSuffix")}
-                            </span>
-                          ) : null}
-                        </TextButton>
                       </div>
 
                       {editingReplyId === reply.id ? (
@@ -920,7 +907,7 @@ export default function PostCommentThread({
                       )}
 
                       {/* Reply action row */}
-                      <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                         {canCommentOnPosts && (
                           <TextButton tone="mute" size="sm" style={{ fontFamily: fontStack }} onClick={() => { setReplyBoxOpen(true); setReplyText(`@${replyAuthor.authorName} `); }}>
                             {tPosts("reply")}
@@ -932,6 +919,18 @@ export default function PostCommentThread({
                             {tPosts("moreOptions")}
                           </TextButton>
                         )}
+
+                        {/* Misma colocación que en el comentario. */}
+                        <TextButton tone="mute" size="sm" style={{ margin: 0, fontFamily: fontStack, textAlign: "start" }} onClick={() => setExactReplyDates((prev) => ({ ...prev, [reply.id]: !prev[reply.id] }))} title={formatExactDate(reply.createdAt, tCommon)} aria-label={ exactReplyDates[reply.id] ? tPosts("showRelativeReplyDate") : tPosts("showExactReplyDate") }>
+                          {exactReplyDates[reply.id]
+                            ? formatExactDate(reply.createdAt, tCommon)
+                            : formatRelativeDate(reply.createdAt, tCommon, intlLocale(locale))}
+                          {reply.editedAt ? (
+                            <span style={{ opacity: 0.45, fontStyle: "italic", marginInlineStart: 2 }}>
+                              {" "}{tPosts("editedSuffix")}
+                            </span>
+                          ) : null}
+                        </TextButton>
                       </div>
                     </div>
 
@@ -945,7 +944,6 @@ export default function PostCommentThread({
                         isModerator={isModerator}
                         canModerateGroupAuthor={canModerateGroupAuthor}
                         canUseGroupMemberBlock={canUseGroupMemberBlock}
-                        isMobile={isMobile}
                         editingReplyId={editingReplyId}
                         deletingReplyId={deletingReplyId}
                         onClose={() => setReplyActionsMenuOpenId(null)}
@@ -984,7 +982,6 @@ export default function PostCommentThread({
           isPostAuthor={isPostAuthor}
           canModerateGroupAuthor={canModerateGroupAuthor}
           canUseGroupMemberBlock={canUseGroupMemberBlock}
-          isMobile={isMobile}
           editingComment={editingComment}
           deletingCommentId={deletingCommentId}
           onClose={() => setCommentMenuOpen(false)}

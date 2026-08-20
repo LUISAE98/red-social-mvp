@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "الشهادة",
     "fiscalKey": "المفتاح",
     "fiscalInvoicePdf": "ملف PDF لفاتورتك",
-    "fiscalInvoiceXml": "ملف XML لفاتورتك"
+    "fiscalInvoiceXml": "ملف XML لفاتورتك",
+    "approxAmount": "حوالي {amount}"
   },
   "services": {
     "confirmLabel": "تأكيد",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "اكتبه بكلمات من سيطلبه منك، لا بكلماتك. مثلاً «هذه لأختي آنا، تبلغ الثلاثين يوم السبت وتتابعك منذ البداية. أتمنى أن تهنئها باسمها وتشجعها على المنافسة هذا العام».",
     "sampleRequestHintAdvice": "اكتبه بكلمات من سيطلبه منك، لا بكلماتك. مثلاً «أنهيت دراستي للتو وأتردد بين قبول أول عمل يُعرض عليّ أو انتظار شيء أفضل. أود أن أعرف كيف قررت أنت في بداياتك».",
     "uploadSample": "رفع النموذج",
-    "samplePublished": "تم نشر النموذج"
+    "samplePublished": "تم نشر النموذج",
+    "donationReceiveLegend": "تحصل على <amount>{net}</amount>",
+    "sampleSharedGreeting": "تم نشر تحيتك النموذجية!",
+    "sampleSharedAdvice": "تمت مشاركة نصيحتك النموذجية!",
+    "recordAnotherSample": "تسجيل واحدة أخرى",
+    "finishSamples": "إنهاء"
   },
   "live": {
     "accessTicket": "تذكرة دخول",

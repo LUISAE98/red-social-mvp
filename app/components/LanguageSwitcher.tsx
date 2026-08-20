@@ -8,6 +8,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 import { readyLocaleMeta } from "@/i18n/locales";
+import { TextButton } from "@/components/ui/TextButton";
 
 // Solo los idiomas SERVIDOS, derivados de i18n/locales.ts. Ofrecer en el selector
 // uno sin archivo de traducción rompería la app al elegirlo.
@@ -15,7 +16,7 @@ const LOCALES: { code: Locale; label: string; name: string }[] = readyLocaleMeta
   (m) => ({ code: m.code as Locale, label: m.label, name: m.name })
 );
 
-type Variant = "desktop" | "mobile-bubble" | "cover-corner";
+type Variant = "desktop" | "mobile-bubble" | "settings";
 
 const ANIM_CSS = `
   @keyframes vbSwFadeIn { from { opacity: 0 } to { opacity: 1 } }
@@ -220,6 +221,31 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
     />
   );
 
+/**
+ * Fila de Configuración (celular).
+ *
+ * Solo el "Ver" morado: la etiqueta y el valor actual los pinta la fila que lo
+ * envuelve, en `OwnerSidebarSettings`, con el mismo formato que "Cuentas
+ * bloqueadas" o "Sesiones activas". Aquí vive únicamente el disparador y el
+ * panel que abre, que es el mismo de siempre.
+ */
+  if (variant === "settings") {
+    return (
+      <>
+        <TextButton
+          tone="brand"
+          size="sm"
+          style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }}
+          onClick={handleOpen}
+          aria-label={tCommon("changeLanguage")}
+        >
+          {tCommon("viewLabel")}
+        </TextButton>
+        {overlay}
+      </>
+    );
+  }
+
   if (variant === "mobile-bubble") {
     return (
       <>
@@ -262,49 +288,6 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
               textShadow: "0 1px 3px rgba(0,0,0,0.6)",
               opacity: open ? 0.75 : 1,
               transition: "opacity 140ms ease",
-            }}
-          >
-            {label}
-          </button>
-        </div>
-        {overlay}
-      </>
-    );
-  }
-
-  if (variant === "cover-corner") {
-    return (
-      <>
-        <style>{`.vb-lang-corner{display:none}@media(max-width:900px){.vb-lang-corner{display:block}}`}</style>
-        <div
-          className="vb-lang-corner"
-          style={{ position: "absolute", top: 14, insetInlineEnd: 14, zIndex: 40 }}
-        >
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); if (open) { handleClose(); } else { handleOpen(); } }}
-            title={tCommon("changeLanguage")}
-            aria-label={tCommon("changeLanguage")}
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
-              border: "none",
-              color: "#a855f7",
-              fontSize: 11,
-              fontWeight: 600,
-              fontFamily: "inherit",
-              letterSpacing: "0.04em",
-              cursor: "pointer",
-              opacity: 0.85,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(255,255,255,0.02), 0 12px 24px rgba(0,0,0,0.5)",
-              backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
             }}
           >
             {label}

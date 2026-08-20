@@ -29,7 +29,6 @@ type Props = {
   onDonate?: () => void;
   onClick?: () => void;
   suggestedAmounts?: number[] | null;
-  currency?: string | null;
   /** Creador que recibe la donación y comprador que la hace (para persistirla). */
   creatorId?: string | null;
   buyerId?: string | null;
@@ -54,7 +53,6 @@ export default function DonationFeedBanner({
   message, playbackId, creatorName, profilePhoto, profileHandle,
   donationMode, goalLabel,
   expanded, onClose, onClick,
-  currency,
   suggestedAmounts,
   creatorId, buyerId, groupId, groupName, viewerIsCreator,
 }: Props) {

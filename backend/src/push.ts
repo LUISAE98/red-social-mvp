@@ -71,8 +71,8 @@ export async function sendPushToUser(
       // Mismo icono que sirve el service worker del navegador
       // (public/firebase-messaging-sw.js). Si se cambia el kit de favicons hay
       // que tocar los dos, o la notificacion pide un archivo que ya no existe.
-      icon: payload.icon ?? "/favicons/android-chrome-192x192.png?v=2",
-      badge: "/favicons/android-chrome-192x192.png?v=2",
+      icon: payload.icon ?? "/favicons/android-chrome-192x192.png?v=3",
+      badge: "/favicons/android-chrome-192x192.png?v=3",
       ...(payload.image ? { image: payload.image } : {}),
     },
   });

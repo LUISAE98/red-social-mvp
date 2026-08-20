@@ -615,6 +615,13 @@ dejar el cutover a live como último paso.
 
 ## 10. Frentes abiertos
 
+🟡 **La donación en un LIVE no tiene mínimo.** El banner del feed pasa `minBaseAmount` y el
+modal lo valida; el de live no lo pasa, y `createLiveDonationStripeIntent` tampoco lo
+comprueba en el servidor. Hoy se puede intentar donar un céntimo: por debajo del mínimo de
+Stripe, así que el cobro falla con un error crudo en vez de avisar antes. Anotado el
+2026-08-19 para cuando se revise el flujo de live; **no se toca ahora a propósito**, el live
+es un frente aparte.
+
 🔴 **¿Puede una plataforma US pagar a creadores en México?** El soporte dijo que sí, self-serve,
 pero **contradice la documentación**, que limita los payouts transfronterizos a US·UK·EEE·CA·CH.
 La respuesta parecía del asistente automático. **Confirmar con un humano por escrito.**

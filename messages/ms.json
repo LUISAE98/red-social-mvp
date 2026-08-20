@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "sijil",
     "fiscalKey": "kunci",
     "fiscalInvoicePdf": "PDF invois kamu",
-    "fiscalInvoiceXml": "XML invois kamu"
+    "fiscalInvoiceXml": "XML invois kamu",
+    "approxAmount": "Kira-kira {amount}"
   },
   "services": {
     "confirmLabel": "Sahkan",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Tulis dengan perkataan orang yang akan memintanya, bukan perkataan anda. Contohnya «ini untuk kakak saya Ana, dia genap 30 pada Sabtu dan mengikuti anda sejak awal. Saya harap anda menyebut namanya dan menyuruhnya berani bertanding tahun ini».",
     "sampleRequestHintAdvice": "Tulis dengan perkataan orang yang akan memintanya, bukan perkataan anda. Contohnya «saya baru habis belajar dan teragak-agak sama ada menerima kerja pertama yang ditawarkan atau menunggu yang lebih baik. Saya ingin tahu bagaimana anda memutuskannya ketika mula-mula dulu».",
     "uploadSample": "Muat naik sampel",
-    "samplePublished": "Sampel diterbitkan"
+    "samplePublished": "Sampel diterbitkan",
+    "donationReceiveLegend": "Anda menerima <amount>{net}</amount>",
+    "sampleSharedGreeting": "Ucapan sampel anda telah dikongsi!",
+    "sampleSharedAdvice": "Nasihat sampel anda telah dikongsi!",
+    "recordAnotherSample": "Rakam satu lagi",
+    "finishSamples": "Selesai"
   },
   "live": {
     "accessTicket": "Tiket akses",

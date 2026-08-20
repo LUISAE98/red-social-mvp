@@ -15,8 +15,9 @@ import {
   type DisplayCurrency,
 } from "@/lib/currency/catalog";
 import { currencyLabel } from "@/lib/currency/format";
+import { TextButton } from "@/components/ui/TextButton";
 
-type Variant = "desktop" | "mobile-bubble" | "cover-corner";
+type Variant = "desktop" | "mobile-bubble" | "settings";
 
 const ANIM_CSS = `
   @keyframes vbSwFadeIn { from { opacity: 0 } to { opacity: 1 } }
@@ -245,6 +246,31 @@ export default function CurrencySwitcher({
     />
   );
 
+/**
+ * Fila de Configuración (celular).
+ *
+ * Solo el "Ver" morado: la etiqueta y el valor actual los pinta la fila que lo
+ * envuelve, en `OwnerSidebarSettings`, con el mismo formato que "Cuentas
+ * bloqueadas" o "Sesiones activas". Aquí vive únicamente el disparador y el
+ * panel que abre, que es el mismo de siempre.
+ */
+  if (variant === "settings") {
+    return (
+      <>
+        <TextButton
+          tone="brand"
+          size="sm"
+          style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }}
+          onClick={handleOpen}
+          aria-label={tCommon("changeCurrency")}
+        >
+          {tCommon("viewLabel")}
+        </TextButton>
+        {overlay}
+      </>
+    );
+  }
+
   if (variant === "mobile-bubble") {
     return (
       <>
@@ -287,52 +313,6 @@ export default function CurrencySwitcher({
               textShadow: "0 1px 3px rgba(0,0,0,0.6)",
               opacity: open ? 0.75 : 1,
               transition: "opacity 140ms ease",
-            }}
-          >
-            {label}
-          </button>
-        </div>
-        {overlay}
-      </>
-    );
-  }
-
-  if (variant === "cover-corner") {
-    return (
-      <>
-        <style>{`.vb-cur-corner{display:none}@media(max-width:900px){.vb-cur-corner{display:block}}`}</style>
-        <div
-          className="vb-cur-corner"
-          style={{ position: "absolute", top: 14, insetInlineEnd: 54, zIndex: 40 }}
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (open) { handleClose(); } else { handleOpen(); }
-            }}
-            title={tCommon("changeCurrency")}
-            aria-label={tCommon("changeCurrency")}
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
-              border: "none",
-              color: "#a855f7",
-              fontSize: 9.5,
-              fontWeight: 600,
-              fontFamily: "inherit",
-              letterSpacing: "0.02em",
-              cursor: "pointer",
-              opacity: 0.85,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(255,255,255,0.02), 0 12px 24px rgba(0,0,0,0.5)",
-              backdropFilter: "blur(10px)",
-              WebkitBackdropFilter: "blur(10px)",
             }}
           >
             {label}

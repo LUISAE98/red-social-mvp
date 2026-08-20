@@ -296,14 +296,39 @@ export function subscribeToCreatorStories(
 }
 
 // Stories belonging to a community/group (source = "group")
+/**
+ * Historias de una comunidad.
+ *
+ * ⚠️ `soloPublicas` NO es un filtro estético, es lo que hace la consulta LEGIBLE.
+ *
+ * La regla de lectura tiene tres ramas y solo la primera —`searchable == true`— se resuelve
+ * sin consultar otras colecciones. Si no se fija en la consulta, TODA historia cae a
+ * `canReadGroupContent`, que comprueba pertenencia; y a quien no sea miembro de esa
+ * comunidad se le deniega la consulta ENTERA.
+ *
+ * Eso es exactamente lo que pasaba con el aro de historias: se pinta en carruseles, búsquedas
+ * y barras laterales para comunidades de las que el visitante no es miembro, y cada una
+ * soltaba un "Missing or insufficient permissions" en consola.
+ *
+ * Con `soloPublicas` se ven las historias públicamente legibles y cuesta CERO lecturas de
+ * reglas. Dentro de la comunidad, donde ya se comprobó el acceso, se pasa `false` para ver
+ * también las de una comunidad cerrada.
+ */
 export function subscribeToGroupStories(
   groupId: string,
   callback: (stories: StoryDoc[]) => void,
+  opciones: { soloPublicas?: boolean } = {},
 ): () => void {
-  const q = query(
-    collection(db, "stories"),
-    where("groupId", "==", groupId),
-  );
+  const q = opciones.soloPublicas
+    ? query(
+        collection(db, "stories"),
+        where("groupId", "==", groupId),
+        where("searchable", "==", true),
+      )
+    : query(
+        collection(db, "stories"),
+        where("groupId", "==", groupId),
+      );
   return onSnapshot(
     q,
     async (snap) => {

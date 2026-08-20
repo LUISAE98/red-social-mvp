@@ -22,7 +22,6 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import { useTranslations } from "next-intl";
@@ -31,6 +30,7 @@ import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import FollowStateButton from "@/components/profile/FollowStateButton";
 import RailHeader from "./RailHeader";
+import { useDragScroll } from "@/lib/hooks/useDragScroll";
 
 /** Compara ignorando mayúsculas y acentos: "Diseno" encuentra "Diseño". */
 function normalizeForSearch(value: string): string {
@@ -286,82 +286,20 @@ export default function CommunityRail({
       return Math.min(current + PAGE_SIZE, items.length);
     });
   }, [items.length]);
-  // Estado del arrastre en un ref, no en useState: se actualiza en cada
-  // pointermove y re-renderizar la tira sesenta veces por segundo la haría
-  // trepidar.
-  const dragRef = useRef({ active: false, startX: 0, startScroll: 0, moved: 0 });
-
   /**
-   * Arrastrar con el cursor (solo ratón).
+   * Arrastrar la tira con el ratón para recorrerla.
    *
-   * En celular no se toca nada: el navegador ya da scroll táctil con inercia, y
-   * secuestrar el gesto lo empeoraría. Por eso se descarta todo lo que no sea
-   * `pointerType === "mouse"`.
+   * Va por el hook compartido y no por una copia local. La copia que vivía aquí
+   * pedía `setPointerCapture` ya en el `pointerdown`, y con el puntero capturado
+   * desde el principio el navegador dispara el `click` sobre la TIRA en vez de
+   * sobre la tarjeta: en laptop, pulsar una comunidad o un perfil no abría nada.
+   * El hook captura solo cuando el arrastre empieza de verdad, así que las dos
+   * cosas conviven.
+   *
+   * Ampliar la tanda mientras arrastras lo cubre el `onScroll` de la tira: mover
+   * `scrollLeft` a mano también dispara el evento de scroll.
    */
-  function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    if (e.pointerType !== "mouse") return;
-
-    const el = scrollerRef.current;
-    if (!el) return;
-
-    // 🚨 NO llamar a preventDefault() aquí. Cancela los eventos de ratón que el
-    // navegador sintetiza después del pointerdown, incluido el `click`, y las
-    // tarjetas dejan de navegar. El arrastre nativo de la imagen ya lo frenan
-    // el `onDragStart` de la tira y el `-webkit-user-drag: none` del CSS.
-
-    dragRef.current = {
-      active: true,
-      startX: e.clientX,
-      startScroll: el.scrollLeft,
-      moved: 0,
-    };
-
-    // Captura el puntero para que el arrastre siga aunque el cursor se salga
-    // de la tira.
-    el.setPointerCapture(e.pointerId);
-  }
-
-  function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
-    const drag = dragRef.current;
-    if (!drag.active) return;
-
-    const el = scrollerRef.current;
-    if (!el) return;
-
-    const dx = e.clientX - drag.startX;
-    drag.moved = Math.max(drag.moved, Math.abs(dx));
-
-    // Delta relativo al scroll inicial: funciona igual en RTL, donde el signo de
-    // scrollLeft cambia según el navegador.
-    el.scrollLeft = drag.startScroll - dx;
-
-    // Amplía mientras arrastras, no solo al soltar: si la tanda se acabara a
-    // media pasada, la tira frenaría en seco contra el final.
-    maybeLoadMore();
-  }
-
-  function handlePointerEnd(e: ReactPointerEvent<HTMLDivElement>) {
-    const drag = dragRef.current;
-    if (!drag.active) return;
-
-    drag.active = false;
-
-    const el = scrollerRef.current;
-    if (el?.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
-  }
-
-  /**
-   * Un arrastre no debe abrir la comunidad sobre la que soltaste. El click llega
-   * después del pointerup, así que aquí ya sabemos cuánto se movió: si pasó el
-   * umbral, se traga el click. Por debajo de 5px se considera clic normal, para
-   * no castigar el temblor de la mano.
-   */
-  function handleClickCapture(e: React.MouseEvent<HTMLDivElement>) {
-    if (dragRef.current.moved > 5) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }
+  const dragScroll = useDragScroll(scrollerRef);
 
   // Con lista vacía y sin carga en curso el rail no existe: un encabezado
   // solitario sobre un hueco no informa de nada.
@@ -644,17 +582,10 @@ export default function CommunityRail({
         ref={scrollerRef}
         className="communityRailScroller"
         style={scrollerStyle}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerEnd}
-        onPointerCancel={handlePointerEnd}
-        onClickCapture={handleClickCapture}
+        {...dragScroll}
         // Cubre el deslizamiento táctil y la rueda del trackpad, que no pasan
         // por los manejadores de puntero.
         onScroll={maybeLoadMore}
-        // Red de seguridad para Firefox, que puede lanzar el arrastre nativo
-        // pese al preventDefault del pointerdown.
-        onDragStart={(e) => e.preventDefault()}
       >
         {loading && items.length === 0
           ? // Skeletons con la base canónica de vibra_style.md: la clase global

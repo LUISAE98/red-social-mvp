@@ -6,13 +6,16 @@ import { Switch } from "@/components/services/config/serviceConfigKit";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import ConfirmPanel from "@/components/ui/ConfirmPanel";
 import { createGreetingSampleUpload } from "@/lib/greetings/greetingSamples";
+import { useExchangeRates } from "@/lib/currency/rates";
+import { convertToAnchor } from "@/lib/currency/format";
+import { ANCHOR_CURRENCY } from "@/lib/currency/catalog";
 import { useCfError } from "@/lib/i18n/cfError";
 import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import Link from "next/link";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { createGreetingMuxUpload } from "@/lib/greetings/greetingRequests";
 import { addStoryFromGreeting, deleteStory, subscribeToStoryByGreeting } from "@/lib/stories/storyService";
@@ -99,6 +102,8 @@ type Props = {
    * y no hay nada que rechazar, porque no hay comprador al otro lado.
    */
   sampleMode?: boolean;
+  /** Volver a empezar el flujo de muestra, desde el panel del contexto. */
+  onRecordAnother?: () => void;
   /**
    * Capa del overlay. Por omisión 10050, que basta cuando se abre desde el
    * sidebar o notificaciones. Al abrirlo DESDE otro panel —el de configurar
@@ -125,6 +130,7 @@ export default function GreetingReviewOverlay({
   buyerSourceAvatar,
   readOnly = false,
   sampleMode = false,
+  onRecordAnother,
   zIndex = 10050,
 }: Props) {
   const tCommon = useTranslations("common");
@@ -132,9 +138,25 @@ export default function GreetingReviewOverlay({
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
-  const { format: formatMoney } = usePriceFormat();
+  // La ganancia del creador se liquida en USD, así que ese es el número que
+  // manda. La moneda del que mira solo sirve de referencia, y por eso usa
+  // `formatPlain` (tasa pelada) y no `format`, que es el precio de comprador
+  // con su margen de conversión.
+  const { formatAnchor, formatPlain, currency: viewerCurrency } = usePriceFormat();
+  const exchangeRates = useExchangeRates();
+
+  /** De la moneda en que se cobró, a USD. Si no hay tasa se devuelve el monto
+   *  tal cual antes que inventar una cifra. */
+  const toUsd = useCallback((amount: number, from: string): number => {
+    if (!from || from === ANCHOR_CURRENCY) return amount;
+    const usd = convertToAnchor(amount, from as DisplayCurrency, exchangeRates.rates);
+    return usd ?? amount;
+  }, [exchangeRates]);
   const [mounted, setMounted] = useState(false);
-  const [earningFormatted, setEarningFormatted] = useState<string | null>(null);
+  /** Neto del creador, SIEMPRE en USD. Antes se guardaba ya formateado y en la
+   *  moneda de la oferta, lo que además hacía que la suma final de varios
+   *  encargos mezclara monedas y se mostrara como si todo fuese USD. */
+  const [earningUsd, setEarningUsd] = useState<number | null>(null);
   const [sourceInfo, setSourceInfo] = useState<{ name: string; photoURL: string | null } | null>(null);
   const [viewState, setViewState] = useState<ViewState>(viewMode ? "camera" : "review");
   const [recordPhase, setRecordPhase] = useState<RecordPhase>("preview");
@@ -159,7 +181,6 @@ export default function GreetingReviewOverlay({
   const [uploadSucceeded, setUploadSucceeded] = useState(false);
   const [completedEarningsNet, setCompletedEarningsNet] = useState<number[]>([]);
   const [slideState, setSlideState] = useState<"idle" | "exit" | "enter">("idle");
-  const [earningNet, setEarningNet] = useState<number | null>(null);
 
   // Story state — reset per item
   const [storyAdded, setStoryAdded] = useState(false);
@@ -314,8 +335,7 @@ export default function GreetingReviewOverlay({
 
   // Fetch earning + source info from Firestore — re-runs when cycling to next item
   useEffect(() => {
-    setEarningFormatted(null);
-    setEarningNet(null);
+    setEarningUsd(null);
     setSourceInfo(null);
     const req = items[currentIndex]?.data;
     if (!req) return;
@@ -332,8 +352,7 @@ export default function GreetingReviewOverlay({
     if (snapshot != null) {
       const snapNet = snapshot * WALLET_NET_RATE;
       const snapCur = (typeof req.currency === "string" && req.currency) || "MXN";
-      setEarningNet(snapNet);
-      setEarningFormatted(formatMoney(snapNet, { baseCurrency: snapCur as DisplayCurrency, code: true }));
+      setEarningUsd(toUsd(snapNet, snapCur));
     }
 
     const source = req.source ?? "group";
@@ -376,10 +395,9 @@ export default function GreetingReviewOverlay({
       if (rawPrice == null || rawPrice <= 0) return;
       const net = rawPrice * WALLET_NET_RATE;
       const cur = typeof offering.currency === "string" ? offering.currency : "MXN";
-      setEarningNet(net);
-      setEarningFormatted(formatMoney(net, { baseCurrency: cur as DisplayCurrency, code: true }));
+      setEarningUsd(toUsd(net, cur));
     }).catch(() => {});
-  }, [currentIndex, items, formatMoney]);
+  }, [currentIndex, items, toUsd]);
 
   // Attach stream to video element after camera activates
   useEffect(() => {
@@ -507,6 +525,49 @@ export default function GreetingReviewOverlay({
     return null;
   }
 
+  /**
+   * Publica una muestra recién subida como historia del creador.
+   *
+   * Espera al playbackId escuchando el documento de la muestra, porque cuando
+   * la subida termina Mux todavía está procesando y una historia sin playbackId
+   * no se puede reproducir. Si a los dos minutos no llegó, se abandona en
+   * silencio: la muestra ya existe y el creador puede publicarla luego desde el
+   * rail, así que insistir aquí no aporta nada.
+   */
+  const publishSampleStory = (sampleId: string) => {
+    const type = req.type === "consejo" ? "consejo" : "saludo";
+    const ref = doc(db, "greetingSamples", sampleId);
+    let done = false;
+
+    const stop = onSnapshot(ref, (snap) => {
+      if (done) return;
+      const playbackId = snap.get("muxPlaybackId");
+      if (typeof playbackId !== "string" || !playbackId) return;
+      done = true;
+      stop();
+      void addStoryFromGreeting({
+        creatorId: req.creatorId,
+        greetingCreatorId: req.creatorId,
+        instructions: req.instructions ?? "",
+        type,
+        muxPlaybackId: playbackId,
+        thumbnailUrl: `https://image.mux.com/${playbackId}/thumbnail.jpg?time=0`,
+        videoDuration: typeof snap.get("videoDuration") === "number" ? snap.get("videoDuration") : null,
+        // La historia se cuelga del id de la MUESTRA. La regla solo exige que
+        // sea un texto no vacío, y así queda trazada a su origen.
+        greetingRequestId: sampleId,
+        source: req.groupId ? "group" : "profile",
+        groupId: req.groupId ?? null,
+      }).catch((err) => {
+        console.error("[publishSampleStory]", err);
+      });
+    }, (err) => {
+      console.error("[publishSampleStory] snapshot", err);
+    });
+
+    window.setTimeout(() => { if (!done) { done = true; stop(); } }, 120_000);
+  };
+
   const handleSendGreeting = async () => {
     const blob = uploadBlobRef.current;
     if (!blob) return;
@@ -517,7 +578,7 @@ export default function GreetingReviewOverlay({
 
     try {
       // La muestra no toca la solicitud ni el cobro: tiene su propio circuito.
-      const { uploadUrl } = sampleMode
+      const uploadTarget = sampleMode
         ? await createGreetingSampleUpload({
             type: req.type === "consejo" ? "consejo" : "saludo",
             source: req.groupId ? "group" : "profile",
@@ -526,6 +587,11 @@ export default function GreetingReviewOverlay({
             context: req.instructions || undefined,
           })
         : await createGreetingMuxUpload({ greetingRequestId: currentItem.id });
+      const { uploadUrl } = uploadTarget;
+      const sampleId =
+        "sampleId" in uploadTarget && typeof uploadTarget.sampleId === "string"
+          ? uploadTarget.sampleId
+          : null;
 
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -546,7 +612,8 @@ export default function GreetingReviewOverlay({
       streamRef.current = null;
       setIsUploading(false);
       setUploadProgress(0);
-      setCompletedEarningsNet((prev) => [...prev, earningNet ?? 0]);
+      // Una muestra no se le vende a nadie, así que no suma al total liberado.
+      if (!sampleMode) setCompletedEarningsNet((prev) => [...prev, earningUsd ?? 0]);
       setUploadSucceeded(true);
 
       // Solo en laptop, donde el aviso de enviado vive sobre el video. La
@@ -569,6 +636,16 @@ export default function GreetingReviewOverlay({
         if ((req.type === "saludo" || req.type === "consejo") && req.allowCreatorStory !== false) {
           void handleAddToStory();
         }
+      }
+
+      // La muestra se publica sola en historias, por el mismo camino que un
+      // encargo real: addStoryFromGreeting desde el cliente. Lo único que
+      // cambia es que hay que ESPERAR al playbackId, porque Mux todavía está
+      // procesando cuando la subida termina y una historia sin él no se puede
+      // reproducir. El aviso de "ya está compartido" queda en pantalla mientras
+      // tanto, así que hay tiempo de sobra.
+      if (sampleMode && sampleId) {
+        void publishSampleStory(sampleId);
       }
     } catch (e: unknown) {
       setUploadError((e instanceof Error ? cfError(e) : null) ?? tCommon("generalError"));
@@ -1438,35 +1515,65 @@ export default function GreetingReviewOverlay({
 
   const divider = <div style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />;
 
-  /** La ganancia, ahora bajo la línea que separa al comprador del contenido.
-   *  La cifra va en UN SOLO renglón siempre. Hay monedas que dan cifras muy
-   *  largas —el peso colombiano, el dong o la rupia no usan decimales y llegan
-   *  a siete dígitos—, así que el cuerpo baja por tramos según lo que ocupe el
-   *  texto ya formateado. Es la única forma de que no parta: el CSS no sabe
-   *  cuánto mide una cadena. */
-  const earningSize =
-    earningFormatted == null ? 22
-      : earningFormatted.length > 19 ? 15
-      : earningFormatted.length > 15 ? 18
-      : earningFormatted.length > 12 ? 20
-      : 22;
+  /** El texto de la ganancia en las DOS monedas. La de arriba es USD, que es en
+   *  lo que se liquida y por tanto lo que el creador va a cobrar de verdad. La
+   *  de abajo es una referencia en la moneda del que mira, y solo aparece si es
+   *  distinta, porque en una cuenta en dólares repetir la cifra no aporta nada.
+   *
+   *  La referencia usa `formatPlain`, la tasa pelada, y NO `format`, que añade
+   *  el margen de conversión del comprador. Ese margen no lo paga el creador, y
+   *  meterlo aquí daría un número que no coincide con lo que verá en su wallet. */
+  const formatEarning = (usdAmount: number) => {
+    const usd = formatAnchor(usdAmount, { code: true });
+    const local = viewerCurrency === ANCHOR_CURRENCY
+      ? null
+      : formatPlain(usdAmount, { baseCurrency: ANCHOR_CURRENCY, code: true });
+    return { usd, local };
+  };
 
-  const earningRow = (earningFormatted && !sampleMode && !buyerViewMode) ? (
-    <div style={{ display: "grid", gap: 5, justifyItems: "start", minWidth: 0 }}>
-      <span style={{ color: "#86efac", fontWeight: 500, fontSize: 11, letterSpacing: "0.01em", lineHeight: 1 }}>
-        {tWallet("yourEarning")}
-      </span>
-      <span style={{
-        color: "#86efac", fontWeight: 700, fontSize: earningSize,
-        letterSpacing: "-0.03em", lineHeight: 1.1,
-        whiteSpace: "nowrap",
-        // Las cifras del mismo ancho evitan que el número baile al actualizarse.
-        fontVariantNumeric: "tabular-nums",
-      }}>
-        {earningFormatted}
-      </span>
-    </div>
-  ) : null;
+  /** El cuerpo baja por tramos según lo que ocupe la cifra ya formateada. Hay
+   *  monedas que dan números larguísimos y el CSS no sabe cuánto mide un texto,
+   *  así que es la única forma de garantizar que no parta en dos renglones. */
+  const earningSizeFor = (text: string) =>
+    text.length > 19 ? 15 : text.length > 15 ? 18 : text.length > 12 ? 20 : 22;
+
+  /** Las dos líneas de dinero en verde, para reusarlas en la ganancia del
+   *  encargo y en el total liberado al terminar la lista. */
+  const renderMoney = (usdAmount: number, opts: { label?: string; big?: number } = {}) => {
+    const { usd, local } = formatEarning(usdAmount);
+    const size = opts.big ?? earningSizeFor(usd);
+    return (
+      <div style={{ display: "grid", gap: 4, justifyItems: "start", minWidth: 0 }}>
+        {opts.label && (
+          <span style={{ color: "#86efac", fontWeight: 500, fontSize: 11, letterSpacing: "0.01em", lineHeight: 1 }}>
+            {opts.label}
+          </span>
+        )}
+        <span style={{
+          color: "#86efac", fontWeight: 700, fontSize: size,
+          letterSpacing: "-0.03em", lineHeight: 1.1,
+          whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums",
+        }}>
+          {usd}
+        </span>
+        {local && (
+          // Deliberadamente más pequeña que la de arriba: es una referencia, no
+          // la cantidad que se cobra.
+          <span style={{
+            color: "rgba(134,239,172,0.72)", fontWeight: 500,
+            fontSize: Math.max(11, Math.round(size * 0.55)),
+            lineHeight: 1.2, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums",
+          }}>
+            {tWallet("approxAmount", { amount: local })}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const earningRow = (earningUsd != null && !sampleMode && !buyerViewMode)
+    ? renderMoney(earningUsd, { label: tWallet("yourEarning") })
+    : null;
 
   const infoSection = (
     <>
@@ -1634,23 +1741,56 @@ export default function GreetingReviewOverlay({
                         letterSpacing: "-0.02em", lineHeight: 1.2, textAlign: "center",
                         textShadow: "0 2px 12px rgba(0,0,0,0.6)",
                       }}>
-                        {successIsLast ? tServices("sentAllToday") : successLabel}
+                        {sampleMode
+                          ? (req.type === "consejo" ? tServices("sampleSharedAdvice") : tServices("sampleSharedGreeting"))
+                          : successIsLast ? tServices("sentAllToday") : successLabel}
                       </span>
 
-                      {/* Al terminar la lista no queda nada que decidir: fuera el
-                          switch y fuera el botón, y en su lugar lo ganado. */}
-                      {successIsLast ? (
-                        successTotalEarned > 0 && (
-                          <span style={{
-                            color: "#4ade80", fontWeight: 700, fontSize: 22,
-                            letterSpacing: "-0.02em", lineHeight: 1.2, textAlign: "center",
-                            textShadow: "0 2px 12px rgba(0,0,0,0.6)",
-                          }}>
-                            {tServices("releasedAmount", {
-                              amount: formatMoney(successTotalEarned, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
-                            })}
-                          </span>
-                        )
+                      {/* En una muestra no hay dinero ni siguiente encargo: solo
+                          decidir si se graba otra o se termina. */}
+                      {sampleMode ? (
+                        <div style={{ display: "flex", alignItems: "stretch", gap: 10 }}>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleAnimatedClose(); }}
+                            style={{ ...videoActionButton, background: "rgba(75,85,99,0.62)", filter: "none" }}
+                          >
+                            {tServices("finishSamples")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onRecordAnother?.(); }}
+                            style={{ ...videoActionButton, background: "#3b82f6", filter: "none" }}
+                          >
+                            {tServices("recordAnotherSample")}
+                          </button>
+                        </div>
+                      ) : successIsLast ? (
+                        successTotalEarned > 0 && (() => {
+                          const { usd, local } = formatEarning(successTotalEarned);
+                          return (
+                            <div style={{ display: "grid", gap: 4, justifyItems: "center" }}>
+                              <span style={{
+                                color: "#4ade80", fontWeight: 700, fontSize: 22,
+                                letterSpacing: "-0.02em", lineHeight: 1.2, textAlign: "center",
+                                textShadow: "0 2px 12px rgba(0,0,0,0.6)",
+                                whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums",
+                              }}>
+                                {tServices("releasedAmount", { amount: usd })}
+                              </span>
+                              {local && (
+                                <span style={{
+                                  color: "rgba(74,222,128,0.72)", fontWeight: 500, fontSize: 13,
+                                  lineHeight: 1.2, textAlign: "center",
+                                  textShadow: "0 2px 10px rgba(0,0,0,0.6)",
+                                  whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums",
+                                }}>
+                                  {tWallet("approxAmount", { amount: local })}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()
                       ) : (
                         <>
                           {/* El switch solo existe si el comprador autorizó que

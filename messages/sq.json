@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "certifikatën",
     "fiscalKey": "çelësin",
     "fiscalInvoicePdf": "PDF-në e faturës sate",
-    "fiscalInvoiceXml": "XML-në e faturës sate"
+    "fiscalInvoiceXml": "XML-në e faturës sate",
+    "approxAmount": "Rreth {amount}"
   },
   "services": {
     "confirmLabel": "Konfirmo",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Shkruaje me fjalët e atij që do të ta kërkonte, jo me të tuat. Për shembull «është për motrën time Anën, të shtunën mbush 30 vjeç dhe të ndjek që në fillim. Do të doja ta uroje me emër dhe t'i thoshe të guxojë të garojë këtë vit».",
     "sampleRequestHintAdvice": "Shkruaje me fjalët e atij që do të ta kërkonte, jo me të tuat. Për shembull «sapo mbarova studimet dhe jam mes pranimit të punës së parë që më ofrohet ose pritjes për diçka më të mirë. Do të doja të dija si e vendose ti këtë kur po filloje».",
     "uploadSample": "Ngarko mostrën",
-    "samplePublished": "Mostra u publikua"
+    "samplePublished": "Mostra u publikua",
+    "donationReceiveLegend": "Ti merr <amount>{net}</amount>",
+    "sampleSharedGreeting": "Përshëndetja jote shembull u nda!",
+    "sampleSharedAdvice": "Këshilla jote shembull u nda!",
+    "recordAnotherSample": "Regjistro edhe një",
+    "finishSamples": "Përfundo"
   },
   "live": {
     "accessTicket": "Biletë hyrjeje",

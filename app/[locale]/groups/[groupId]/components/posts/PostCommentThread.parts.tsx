@@ -95,7 +95,6 @@ export const fontStack =
 export const ACTIONS_MENU_STYLES = `
   @keyframes vbCmtMenuFadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes vbCmtMenuScaleIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
-  @keyframes vbCmtMenuSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 `;
 
 export function getInitials(name: string) {
@@ -133,7 +132,28 @@ export function formatExactDate(value?: { toDate?: () => Date } | null, t?: TFun
   }
 }
 
-export function formatRelativeDate(value?: { toDate?: () => Date } | null, t?: TFunc) {
+/**
+ * Pone en mayúscula la primera letra.
+ *
+ * Se hace aquí y no en los 47 archivos de idioma porque la misma cadena
+ * ("hace 3 h") se usa suelta —como etiqueta— y no dentro de una frase, así que
+ * la mayúscula es de presentación, no del texto.
+ *
+ * Con `toLocaleUpperCase` y el idioma en curso: en turco la i pasa a İ, no a I.
+ * En los alfabetos sin caja (árabe, japonés, chino) no cambia nada.
+ */
+function capitalizar(text: string, locale?: string): string {
+  if (!text) return text;
+  const primera = text.charAt(0);
+  const arriba = locale ? primera.toLocaleUpperCase(locale) : primera.toLocaleUpperCase();
+  return arriba + text.slice(1);
+}
+
+export function formatRelativeDate(
+  value?: { toDate?: () => Date } | null,
+  t?: TFunc,
+  locale?: string
+) {
   const date = getDateFromTimestamp(value);
   const now = t ? t("dateNow") : "Ahora mismo";
 
@@ -149,6 +169,7 @@ export function formatRelativeDate(value?: { toDate?: () => Date } | null, t?: T
   const diffYears = Math.floor(diffDays / 365);
 
   if (!t) {
+    // Respaldo sin traductor: mismas mayúsculas que la rama de arriba.
     if (diffSeconds < 30) return "Ahora mismo";
     if (diffSeconds < 60) return `hace ${diffSeconds} segundos`;
     if (diffMinutes === 1) return "hace 1 minuto";
@@ -165,14 +186,17 @@ export function formatRelativeDate(value?: { toDate?: () => Date } | null, t?: T
     return `hace ${diffYears} años`;
   }
 
-  if (diffSeconds < 30) return now;
-  if (diffSeconds < 60) return t("dateSecondsAgo", { count: diffSeconds });
-  if (diffMinutes < 60) return t("dateMinutesAgo", { count: diffMinutes });
-  if (diffHours < 24) return t("dateHoursAgo", { count: diffHours });
-  if (diffDays < 7) return t("dateDaysAgo", { count: diffDays });
-  if (diffWeeks < 5) return t("dateWeeksAgo", { count: diffWeeks });
-  if (diffMonths < 12) return t("dateMonthsAgo", { count: diffMonths });
-  return t("dateYearsAgo", { count: diffYears });
+  const texto =
+    diffSeconds < 30 ? now
+    : diffSeconds < 60 ? t("dateSecondsAgo", { count: diffSeconds })
+    : diffMinutes < 60 ? t("dateMinutesAgo", { count: diffMinutes })
+    : diffHours < 24 ? t("dateHoursAgo", { count: diffHours })
+    : diffDays < 7 ? t("dateDaysAgo", { count: diffDays })
+    : diffWeeks < 5 ? t("dateWeeksAgo", { count: diffWeeks })
+    : diffMonths < 12 ? t("dateMonthsAgo", { count: diffMonths })
+    : t("dateYearsAgo", { count: diffYears });
+
+  return capitalizar(texto, locale);
 }
 
 export function getAuthorInfo(entity: {
@@ -298,12 +322,17 @@ export function Avatar({
 }
 
 /** Shared portal panel for comment or reply actions (desktop + mobile). */
+/**
+ * Menú de acciones de un comentario o de una respuesta.
+ *
+ * Una sola presentación en los dos tamaños: la caja centrada de laptop. Antes
+ * en celular subía como hoja desde abajo, con su propio punto de corte (768px)
+ * que además no era el del resto de la aplicación.
+ */
 export function ActionsPortal({
-  isMobile,
   onClose,
   children,
 }: {
-  isMobile: boolean;
   onClose: () => void;
   children: React.ReactNode;
 }) {
@@ -327,76 +356,37 @@ export function ActionsPortal({
         onClick={onClose}
       />
 
-      {isMobile ? (
-        /* Mobile: bottom sheet */
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 2147481101,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none",
+        }}
+      >
         <div
           role="menu"
           style={{
-            position: "fixed",
-            bottom: 0,
-            insetInlineStart: 0,
-            insetInlineEnd: 0,
-            zIndex: 2147481101,
-            background: "#111",
-            borderStartStartRadius: 20,
-            borderStartEndRadius: 20,
+            pointerEvents: "auto",
+            width: "min(280px, 90vw)",
+            background: "rgba(16,16,16,0.98)",
+            borderRadius: 14,
             border: "1px solid rgba(255,255,255,0.10)",
-            borderBottom: "none",
-            paddingTop: 12,
-            paddingBottom: "calc(var(--vb-safe-bottom, 0px) + 20px)",
+            padding: 0,
             display: "grid",
             gap: 0,
             overflow: "hidden",
-            boxShadow: "0 -12px 40px rgba(0,0,0,0.50)",
-            animation: "vbCmtMenuSlideUp 0.30s ease",
+            boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
+            backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+            animation: "vbCmtMenuScaleIn 0.18s ease",
           }}
         >
-          {/* Handle pill */}
-          <div
-            style={{
-              width: 38,
-              height: 4,
-              borderRadius: 2,
-              background: "rgba(255,255,255,0.18)",
-              margin: "0 auto 12px",
-            }}
-          />
           {children}
         </div>
-      ) : (
-        /* Desktop: centered modal */
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 2147481101,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            role="menu"
-            style={{
-              pointerEvents: "auto",
-              width: "min(280px, 90vw)",
-              background: "rgba(16,16,16,0.98)",
-              borderRadius: 14,
-              border: "1px solid rgba(255,255,255,0.10)",
-              padding: 0,
-              display: "grid",
-              gap: 0,
-              overflow: "hidden",
-              boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
-              backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
-              animation: "vbCmtMenuScaleIn 0.18s ease",
-            }}
-          >
-            {children}
-          </div>
-        </div>
-      )}
+      </div>
     </>,
     document.body,
   );
@@ -467,7 +457,6 @@ export function ReplyActionsPortal({
   isModerator,
   canModerateGroupAuthor,
   canUseGroupMemberBlock,
-  isMobile,
   editingReplyId,
   deletingReplyId,
   onClose,
@@ -485,7 +474,6 @@ export function ReplyActionsPortal({
   isModerator: boolean;
   canModerateGroupAuthor: boolean;
   canUseGroupMemberBlock: boolean;
-  isMobile: boolean;
   editingReplyId: string | null;
   deletingReplyId: string | null;
   onClose: () => void;
@@ -720,7 +708,7 @@ export function ReplyActionsPortal({
 
   return (
     <>
-      <ActionsPortal isMobile={isMobile} onClose={onClose}>
+      <ActionsPortal onClose={onClose}>
         {items}
       </ActionsPortal>
 
@@ -761,7 +749,6 @@ export function CommentActionsPortal({
   isPostAuthor,
   canModerateGroupAuthor,
   canUseGroupMemberBlock,
-  isMobile,
   editingComment,
   deletingCommentId,
   onClose,
@@ -780,7 +767,6 @@ export function CommentActionsPortal({
   isPostAuthor: boolean;
   canModerateGroupAuthor: boolean;
   canUseGroupMemberBlock: boolean;
-  isMobile: boolean;
   editingComment: boolean;
   deletingCommentId: string | null;
   onClose: () => void;
@@ -1014,7 +1000,7 @@ export function CommentActionsPortal({
 
   return (
     <>
-      <ActionsPortal isMobile={isMobile} onClose={onClose}>
+      <ActionsPortal onClose={onClose}>
         {items}
       </ActionsPortal>
 

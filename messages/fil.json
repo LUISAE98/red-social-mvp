@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "ang certificate",
     "fiscalKey": "ang key",
     "fiscalInvoicePdf": "ang PDF ng invoice mo",
-    "fiscalInvoiceXml": "ang XML ng invoice mo"
+    "fiscalInvoiceXml": "ang XML ng invoice mo",
+    "approxAmount": "Humigit-kumulang {amount}"
   },
   "services": {
     "confirmLabel": "Kumpirmahin",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Isulat ito sa salita ng hihiling sa iyo, hindi sa sarili mo. Halimbawa «para ito sa kapatid kong si Ana, mag-30 siya sa Sabado at sinusubaybayan ka niya mula pa sa simula. Gusto ko sana batiin mo siya sa pangalan at sabihin mong lumaban siya ngayong taon».",
     "sampleRequestHintAdvice": "Isulat ito sa salita ng hihiling sa iyo, hindi sa sarili mo. Halimbawa «katatapos ko lang ng pag-aaral at nag-aalinlangan ako kung tatanggapin ko ang unang trabahong inaalok o maghihintay ng mas maganda. Gusto kong malaman kung paano mo ito naipasya noong nagsisimula ka pa lang».",
     "uploadSample": "I-upload ang sample",
-    "samplePublished": "Nailathala ang sample"
+    "samplePublished": "Nailathala ang sample",
+    "donationReceiveLegend": "Matatanggap mo ang <amount>{net}</amount>",
+    "sampleSharedGreeting": "Naibahagi na ang sample mong pagbati!",
+    "sampleSharedAdvice": "Naibahagi na ang sample mong payo!",
+    "recordAnotherSample": "Mag-record pa ng isa",
+    "finishSamples": "Tapusin"
   },
   "live": {
     "accessTicket": "Access ticket",

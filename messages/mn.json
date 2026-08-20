@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "гэрчилгээг",
     "fiscalKey": "түлхүүрийг",
     "fiscalInvoicePdf": "нэхэмжлэхийн PDF-ийг",
-    "fiscalInvoiceXml": "нэхэмжлэхийн XML-ийг"
+    "fiscalInvoiceXml": "нэхэмжлэхийн XML-ийг",
+    "approxAmount": "Ойролцоогоор {amount}"
   },
   "services": {
     "confirmLabel": "Баталгаажуулах",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Өөрийн үг биш, захиалагчийн үгээр бич. Жишээ нь «энэ бол миний эгч Ана-д зориулсан юм, бямба гарагт 30 нас хүрнэ, эхнээс нь чамайг дагадаг. Нэрээр нь дуудаж баяр хүргээд, энэ жил тэмцээнд орохыг зоригжуулаач».",
     "sampleRequestHintAdvice": "Өөрийн үг биш, захиалагчийн үгээр бич. Жишээ нь «би дөнгөж сургуулиа төгсөөд, эхний санал болгосон ажлыг авах уу эсвэл илүү сайныг хүлээх үү гэж эргэлзэж байна. Чи эхэлж байхдаа үүнийг яаж шийдсэнийг мэдмээр байна».",
     "uploadSample": "Жишээг байршуулах",
-    "samplePublished": "Жишээг нийтэллээ"
+    "samplePublished": "Жишээг нийтэллээ",
+    "donationReceiveLegend": "Та <amount>{net}</amount> авна",
+    "sampleSharedGreeting": "Таны жишээ мэндчилгээг хуваалцлаа!",
+    "sampleSharedAdvice": "Таны жишээ зөвлөгөөг хуваалцлаа!",
+    "recordAnotherSample": "Дахиад нэгийг бичих",
+    "finishSamples": "Дуусгах"
   },
   "live": {
     "accessTicket": "Хандах тасалбар",

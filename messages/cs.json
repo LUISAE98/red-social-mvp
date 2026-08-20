@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "certifikát",
     "fiscalKey": "klíč",
     "fiscalInvoicePdf": "PDF své faktury",
-    "fiscalInvoiceXml": "XML své faktury"
+    "fiscalInvoiceXml": "XML své faktury",
+    "approxAmount": "Přibližně {amount}"
   },
   "services": {
     "confirmLabel": "Potvrdit",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Napiš to slovy toho, kdo by ti to zadal, ne svými. Například «je to pro moji sestru Anu, v sobotu jí bude 30 a sleduje tě od začátku. Byla bych ráda, kdybys jí popřál jménem a řekl jí, ať se letos odváží soutěžit».",
     "sampleRequestHintAdvice": "Napiš to slovy toho, kdo by ti to zadal, ne svými. Například «právě jsem dokončil školu a váhám, jestli vzít první nabídnutou práci, nebo počkat na lepší. Zajímá mě, jak ses rozhodl ty na začátku».",
     "uploadSample": "Nahrát ukázku",
-    "samplePublished": "Ukázka zveřejněna"
+    "samplePublished": "Ukázka zveřejněna",
+    "donationReceiveLegend": "Dostaneš <amount>{net}</amount>",
+    "sampleSharedGreeting": "Tvůj ukázkový pozdrav je sdílený!",
+    "sampleSharedAdvice": "Tvá ukázková rada je sdílená!",
+    "recordAnotherSample": "Natočit další",
+    "finishSamples": "Hotovo"
   },
   "live": {
     "accessTicket": "Vstupenka",

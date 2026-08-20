@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "sertifikayı",
     "fiscalKey": "anahtarı",
     "fiscalInvoicePdf": "faturanın PDF dosyasını",
-    "fiscalInvoiceXml": "faturanın XML dosyasını"
+    "fiscalInvoiceXml": "faturanın XML dosyasını",
+    "approxAmount": "Yaklaşık {amount}"
   },
   "services": {
     "confirmLabel": "Onayla",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Senden isteyecek kişinin sözleriyle yaz, kendi sözlerinle değil. Örneğin «bu kız kardeşim Ana için, cumartesi 30 yaşına giriyor ve seni ilk günden beri takip ediyor. Adını söyleyip kutlamanı ve bu yıl yarışmaya cesaret etmesini söylemeni çok isterim».",
     "sampleRequestHintAdvice": "Senden isteyecek kişinin sözleriyle yaz, kendi sözlerinle değil. Örneğin «okulu yeni bitirdim ve ilk gelen işi kabul etmekle daha iyisini beklemek arasında kaldım. Sen başlarken bunu nasıl karara bağladın merak ediyorum».",
     "uploadSample": "Örneği yükle",
-    "samplePublished": "Örnek yayınlandı"
+    "samplePublished": "Örnek yayınlandı",
+    "donationReceiveLegend": "Sen <amount>{net}</amount> alırsın",
+    "sampleSharedGreeting": "Örnek selamın paylaşıldı!",
+    "sampleSharedAdvice": "Örnek tavsiyen paylaşıldı!",
+    "recordAnotherSample": "Bir tane daha çek",
+    "finishSamples": "Bitir"
   },
   "live": {
     "accessTicket": "Giriş bileti",

@@ -1021,7 +1021,6 @@ const shellStyle: CSSProperties = {
             onClose={onDonationClose}
             onDonate={onDonationPay}
             suggestedAmounts={donation?.suggestedAmounts ?? null}
-            currency={donation?.currency ?? null}
             creatorId={profileUid}
             buyerId={viewerUid}
           />

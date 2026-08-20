@@ -20,6 +20,8 @@ import {
   notifyModeratorInvite,
   notifyModeratorInviteResponse,
 } from "./notifications";
+import { cancelGroupSubscriptionImmediately } from "./payments/stripe/groupSubscriptionStripe";
+import { stripeSecretKey } from "./payments/stripe/stripeClient";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -189,7 +191,7 @@ export const inviteGroupModerator = onCall({ region: REGION }, async (request) =
 
 /** EL INVITADO acepta o rechaza. Aceptar = entra a la comunidad ya como moderador. */
 export const respondGroupModeratorInvite = onCall(
-  { region: REGION },
+  { region: REGION, secrets: [stripeSecretKey] },
   async (request) => {
     const callerUid = request.auth?.uid;
     if (!callerUid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -354,6 +356,25 @@ export const respondGroupModeratorInvite = onCall(
         { merge: true }
       );
     });
+
+    /**
+     * Moderar no se paga.
+     *
+     * Quien ya estaba suscrito pasa a acceder por su rol (accessType
+     * "moderator_grant", que no exige suscripción), así que seguir cobrándole
+     * sería cobrar por algo que ya tiene gratis. Se corta al aceptar.
+     *
+     * Va DESPUÉS de la transacción y sin await bloqueante del resultado: habla
+     * con Stripe por red y una transacción de Firestore no puede depender de
+     * eso. El helper es best-effort y ya registra sus propios fallos; si Stripe
+     * no responde, el ascenso sigue siendo válido y el cobro se revisa a mano.
+     *
+     * No se devuelve el dinero de los días ya pagados: la persona no pierde
+     * acceso —lo conserva como moderadora—, así que no hay servicio sin prestar.
+     */
+    if (accept) {
+      await cancelGroupSubscriptionImmediately(groupId, callerUid, "moderator_grant");
+    }
 
     // Avisar a quien invitó, en ambos casos.
     if (invitedBy) {

@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "chứng chỉ",
     "fiscalKey": "khóa",
     "fiscalInvoicePdf": "PDF hóa đơn của bạn",
-    "fiscalInvoiceXml": "XML hóa đơn của bạn"
+    "fiscalInvoiceXml": "XML hóa đơn của bạn",
+    "approxAmount": "Khoảng {amount}"
   },
   "services": {
     "confirmLabel": "Xác nhận",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Hãy viết bằng lời của người sẽ đặt, không phải lời của bạn. Ví dụ «cái này dành cho em gái tôi tên Ana, thứ Bảy này tròn 30 tuổi và theo dõi bạn từ những ngày đầu. Tôi rất mong bạn gọi tên chúc mừng và nói em ấy hãy mạnh dạn thi đấu năm nay».",
     "sampleRequestHintAdvice": "Hãy viết bằng lời của người sẽ đặt, không phải lời của bạn. Ví dụ «tôi vừa tốt nghiệp và đang phân vân giữa nhận công việc đầu tiên được mời hay chờ cơ hội tốt hơn. Tôi muốn biết hồi mới bắt đầu bạn đã quyết định thế nào».",
     "uploadSample": "Tải lên mẫu",
-    "samplePublished": "Đã đăng mẫu"
+    "samplePublished": "Đã đăng mẫu",
+    "donationReceiveLegend": "Bạn nhận được <amount>{net}</amount>",
+    "sampleSharedGreeting": "Lời chào mẫu của bạn đã được chia sẻ!",
+    "sampleSharedAdvice": "Lời khuyên mẫu của bạn đã được chia sẻ!",
+    "recordAnotherSample": "Quay thêm một cái nữa",
+    "finishSamples": "Kết thúc"
   },
   "live": {
     "accessTicket": "Vé vào cửa",

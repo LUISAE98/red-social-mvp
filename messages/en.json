@@ -633,7 +633,8 @@
     "categoryUpdated": "Category updated.",
     "tagsUpdated": "Tags updated.",
     "inviteLoadError": "Error loading the invitation.",
-    "inviteUseError": "Could not use the invitation."
+    "inviteUseError": "Could not use the invitation.",
+    "actionInviteToMod": "Invite to moderate"
   },
   "profile": {
     "ariaChangeAvatar": "Change profile photo",
@@ -1483,7 +1484,8 @@
     "fiscalCertificate": "the certificate",
     "fiscalKey": "the key",
     "fiscalInvoicePdf": "the PDF of your invoice",
-    "fiscalInvoiceXml": "the XML of your invoice"
+    "fiscalInvoiceXml": "the XML of your invoice",
+    "approxAmount": "Approx. {amount}"
   },
   "services": {
     "confirmLabel": "Confirm",
@@ -2033,7 +2035,11 @@
     "sampleRequestHintGreeting": "Write it in the words of the person who would ask you, not your own. For example «it is for my sister Ana, she turns 30 on Saturday and has followed you from day one. I would love you to congratulate her by name and tell her to go for the competition this year».",
     "sampleRequestHintAdvice": "Write it in the words of the person who would ask you, not your own. For example «I have just finished my degree and I am torn between taking the first job I am offered or waiting for something better. I would like to know how you decided this when you were starting out».",
     "uploadSample": "Upload sample",
-    "samplePublished": "Sample published"
+    "samplePublished": "Sample published",
+    "sampleSharedGreeting": "Your sample greeting is now shared!",
+    "sampleSharedAdvice": "Your sample advice is now shared!",
+    "recordAnotherSample": "Record one more",
+    "finishSamples": "Finish"
   },
   "live": {
     "accessTicket": "Access ticket",

@@ -142,9 +142,42 @@ export async function patchMembershipExpiry(groupId: string, uid: string, until:
 }
 
 /** Da de baja el acceso: borra la membresía (dispara onGroupSubscriptionChurn). */
+/**
+ * Da de baja la membresía cuando se acaba la suscripción que la sostenía.
+ *
+ * ⚠️ NO toca a quien está por otra vía. Un moderador o alguien con acceso
+ * heredado no depende de pagar: si su suscripción vieja caduca, borrarle la
+ * membresía lo echa de la comunidad y le quita el rol sin que nadie lo decida.
+ * Pasaba con quien pagaba y luego aceptaba moderar — su documento de
+ * suscripción seguía vivo y el cron lo expulsaba al vencer el periodo.
+ */
+const ACCESOS_QUE_NO_DEPENDEN_DEL_PAGO = new Set([
+  "moderator_grant",
+  "legacy_free",
+]);
+
 export async function deactivateSubscribedMembership(groupId: string, uid: string): Promise<void> {
+  const memberRef = db.doc(`groups/${groupId}/members/${uid}`);
+  const memberSnap = await memberRef.get();
+
+  if (memberSnap.exists) {
+    const m = memberSnap.data() ?? {};
+    const rol = String(m.roleInGroup ?? m.role ?? "").trim().toLowerCase();
+    const acceso = String(m.accessType ?? "").trim().toLowerCase();
+
+    if (rol === "owner" || rol === "mod" || rol === "moderator" || ACCESOS_QUE_NO_DEPENDEN_DEL_PAGO.has(acceso)) {
+      logger.info("deactivateSubscribedMembership: se conserva la membresía", {
+        groupId,
+        uid,
+        rol,
+        acceso,
+      });
+      return;
+    }
+  }
+
   await Promise.all([
-    db.doc(`groups/${groupId}/members/${uid}`).delete(),
+    memberRef.delete(),
     db.doc(`users/${uid}/groupMemberships/${groupId}`).delete(),
   ]);
 }

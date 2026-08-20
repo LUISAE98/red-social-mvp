@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "인증서",
     "fiscalKey": "키",
     "fiscalInvoicePdf": "청구서 PDF",
-    "fiscalInvoiceXml": "청구서 XML"
+    "fiscalInvoiceXml": "청구서 XML",
+    "approxAmount": "약 {amount}"
   },
   "services": {
     "confirmLabel": "확인",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "당신의 말이 아니라 부탁하는 사람의 말로 적어 주세요. 예를 들어 「제 동생 아나에게 줄 거예요. 토요일에 서른이 되고 처음부터 당신을 응원했어요. 이름을 불러 축하해 주고, 올해는 꼭 대회에 나가보라고 말해 주세요」처럼요.",
     "sampleRequestHintAdvice": "당신의 말이 아니라 부탁하는 사람의 말로 적어 주세요. 예를 들어 「막 졸업했는데 처음 받은 일자리를 받아들일지 더 좋은 기회를 기다릴지 고민이에요. 당신은 시작할 때 이걸 어떻게 정했는지 알고 싶어요」처럼요.",
     "uploadSample": "샘플 업로드",
-    "samplePublished": "샘플을 공개했어요"
+    "samplePublished": "샘플을 공개했어요",
+    "donationReceiveLegend": "받는 금액은 <amount>{net}</amount>",
+    "sampleSharedGreeting": "샘플 인사를 공개했어요!",
+    "sampleSharedAdvice": "샘플 조언을 공개했어요!",
+    "recordAnotherSample": "하나 더 녹화하기",
+    "finishSamples": "마치기"
   },
   "live": {
     "accessTicket": "입장 티켓",

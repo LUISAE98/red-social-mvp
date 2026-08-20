@@ -27,11 +27,11 @@ import {
   banGroupMember,
   demoteGroupAdminToMember,
   muteGroupMember,
-  promoteGroupMemberToAdmin,
   removeGroupMember,
   unbanGroupMember,
   unmuteGroupMember,
 } from "../../../../../lib/groups/groupModeration";
+import { inviteGroupModerator } from "@/lib/groups/moderatorInvites";
 import GroupJoinRequestsSection from "./GroupJoinRequestsSection";
 import GroupModeratorInvitePanel from "./GroupModeratorInvitePanel";
 // Switch canónico compartido con la configuración de servicios (perfil ⇄ comunidad).
@@ -91,7 +91,7 @@ export default function GroupMembersTab({
   }
 
   function localizedActionLabel(action: MemberAction): string {
-    if (action === "promote_to_mod") return tGroups("actionPromoteToMod");
+    if (action === "promote_to_mod") return tGroups("actionInviteToMod");
     if (action === "demote_to_member") return tGroups("actionDemoteToMember");
     if (action === "mute") return tGroups("mute");
     if (action === "unmute") return tGroups("unmute");
@@ -422,7 +422,10 @@ export default function GroupMembersTab({
 
     try {
       if (action === "promote_to_mod") {
-        await promoteGroupMemberToAdmin(groupId, targetUserId);
+        /* Se INVITA, no se asciende: moderar es un encargo, y nadie debería
+           amanecer con responsabilidades que no aceptó. El ascenso real lo
+           hace respondGroupModeratorInvite cuando la persona dice que sí. */
+        await inviteGroupModerator(groupId, targetUserId);
       } else if (action === "demote_to_member") {
         await demoteGroupAdminToMember(groupId, targetUserId);
       } else if (action === "unmute") {
@@ -436,7 +439,11 @@ export default function GroupMembersTab({
       }
 
       const displayName = localizedMemberName(member);
-      setActionMessage(tGroups("actionApplied", { action: localizedActionLabel(action), name: displayName }));
+      setActionMessage(
+        action === "promote_to_mod"
+          ? tGroups("inviteModeratorSent")
+          : tGroups("actionApplied", { action: localizedActionLabel(action), name: displayName })
+      );
       setOpenMenuForUid(null);
     } catch (e: unknown) {
       console.error(e);
@@ -703,19 +710,18 @@ export default function GroupMembersTab({
     textOverflow: "ellipsis",
   };
 
-  const mobileMetaRowStyle: CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    minWidth: 0,
-    flexWrap: "wrap",
-  };
-
-  // En laptop el estado ocupa un ANCHO FIJO. El texto varía mucho de largo
-  // ("Activo" vs "Muteado, restan 12 días") y, al ir todo alineado a la derecha,
-  // eso movía la línea vertical de fila en fila. Con ancho fijo, la línea cae
-  // siempre en el mismo punto y la columna se lee limpia.
-  const STATUS_COLUMN_WIDTH = 168;
+  // El estado ocupa un ANCHO FIJO, en los dos tamaños. El texto varía mucho de
+  // largo ("Activo" vs "Muteado, restan 12 días") y, al ir todo alineado a la
+  // derecha, eso movía la línea vertical de fila en fila. Con ancho fijo, la
+  // línea cae siempre en el mismo punto y la columna se lee limpia; lo que no
+  // quepa se recorta con puntos suspensivos en vez de empujar nada.
+  //
+  // En celular la fila es la MISMA que en laptop, solo que apretada. Antes el
+  // estado y el rol bajaban a una segunda línea dentro de la columna del
+  // nombre, y como el rol arrastraba su ancho mínimo de la versión de laptop,
+  // "Activo" y "Miembro" quedaban a distinta altura y separados por un hueco
+  // que no correspondía a ninguna columna.
+  const STATUS_COLUMN_WIDTH = isMobile ? 70 : 168;
 
   const statusWrap: CSSProperties = {
     display: "inline-flex",
@@ -726,7 +732,8 @@ export default function GroupMembersTab({
     lineHeight: 1,
     whiteSpace: "nowrap",
     minWidth: 0,
-    ...(isMobile ? {} : { width: STATUS_COLUMN_WIDTH, flexShrink: 0 }),
+    width: STATUS_COLUMN_WIDTH,
+    flexShrink: 0,
   };
 
   // El texto del estado se recorta si no cabe, en vez de empujar la línea.
@@ -737,10 +744,10 @@ export default function GroupMembersTab({
     whiteSpace: "nowrap",
   };
 
-  const desktopRightMetaWrap: CSSProperties = {
+  const rightMetaWrap: CSSProperties = {
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: isMobile ? 6 : 10,
     justifySelf: "end",
     overflow: "visible",
     position: "relative",
@@ -754,7 +761,7 @@ export default function GroupMembersTab({
 
   // El rol es texto, no una píldora.
   const roleBadge: CSSProperties = {
-    minWidth: isMobile ? 86 : 104,
+    minWidth: isMobile ? 54 : 104,
     textAlign: "end",
     padding: 0,
     fontSize: isMobile ? 9.5 : 11.5,
@@ -919,7 +926,10 @@ export default function GroupMembersTab({
                 : `${avatarSize}px minmax(0, 1fr) auto`,
               gap: isMobile ? 8 : 12,
               alignItems: "center",
-              padding: isMobile ? "6px 0" : "8px 0",
+              paddingBlock: isMobile ? 6 : 8,
+              // Mismo aire lateral que la fila real: si no, la lista salta al
+              // cambiar el esqueleto por el contenido.
+              paddingInlineEnd: isMobile ? 8 : 0,
             }}
           >
             {showMenuColumn && <span />}
@@ -1114,7 +1124,11 @@ export default function GroupMembersTab({
                     : "42px minmax(0, 1fr) auto",
                 gap: isMobile ? 8 : 12,
                 alignItems: "center",
-                padding: isMobile ? "6px 0" : "8px 0",
+                paddingBlock: isMobile ? 6 : 8,
+                // El rol es la última columna y se quedaba pegado al canto de
+                // la pantalla. Solo se separa por ese lado; el de la izquierda
+                // ya lo da el contenedor.
+                paddingInlineEnd: isMobile ? 8 : 0,
                 overflow: "visible",
               };
 
@@ -1176,38 +1190,18 @@ export default function GroupMembersTab({
                       <div style={handleStyle}>@{member.handle}</div>
                     ) : null}
 
-                    {canSeeStatus && isMobile && (
-                      <div style={mobileMetaRowStyle}>
-                        <div style={statusWrap}>
-                          <span
-                            aria-hidden="true"
-                            style={{
-                              width: 7,
-                              height: 7,
-                              borderRadius: "50%",
-                              background: dotColor,
-                              display: "inline-block",
-                              flexShrink: 0,
-                            }}
-                          />
-                          <span>{statusText}</span>
-                        </div>
-
-                        <div style={roleBadge}>{roleText}</div>
-                      </div>
-                    )}
                   </div>
 
-                  <div style={desktopRightMetaWrap}>
-                    {canSeeStatus && !isMobile && (
+                  <div style={rightMetaWrap}>
+                    {canSeeStatus && (
                       <>
                         <div style={dividerStyle} />
-                        <div style={statusWrap}>
+                        <div style={statusWrap} title={statusText}>
                           <span
                             aria-hidden="true"
                             style={{
-                              width: 8,
-                              height: 8,
+                              width: isMobile ? 7 : 8,
+                              height: isMobile ? 7 : 8,
                               borderRadius: "50%",
                               background: dotColor,
                               display: "inline-block",
@@ -1219,7 +1213,7 @@ export default function GroupMembersTab({
                       </>
                     )}
 
-                    {!isMobile && <div style={roleBadge}>{roleText}</div>}
+                    <div style={roleBadge}>{roleText}</div>
                   </div>
                 </div>
               );

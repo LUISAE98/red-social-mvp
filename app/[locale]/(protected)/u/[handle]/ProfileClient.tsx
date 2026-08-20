@@ -2189,11 +2189,14 @@ const res = (await createExclusiveSessionRequest({
 
   {isOwner && (
     <>
-    <CurrencySwitcher variant="cover-corner" />
-    <LanguageSwitcher variant="cover-corner" />
-    {/* Lupa + copiar perfil (owner). En móvil se corre a la izquierda para no
-        encimar los switchers de moneda/idioma. */}
-    <style>{`.profile-owner-cover-actions{inset-inline-end:14px}@media(max-width:900px){.profile-owner-cover-actions{inset-inline-end:96px}}`}</style>
+    {/* Los selectores de moneda e idioma ya no viven aquí. En celular pasaron
+        a Configuración, dentro del menú del avatar, con el mismo formato que
+        "Cuentas bloqueadas"; en laptop siguen en la cabecera. La portada del
+        perfil no es sitio para ajustes de la aplicación.
+
+        Con ellos fuera, la lupa y el copiar ya no tienen que apartarse en
+        móvil: vuelven al mismo canto en los dos tamaños. */}
+    <style>{`.profile-owner-cover-actions{inset-inline-end:14px}`}</style>
     <div
       className="profile-owner-cover-actions"
       style={{

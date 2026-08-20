@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "o certificado",
     "fiscalKey": "a chave",
     "fiscalInvoicePdf": "o PDF da tua fatura",
-    "fiscalInvoiceXml": "o XML da tua fatura"
+    "fiscalInvoiceXml": "o XML da tua fatura",
+    "approxAmount": "Aprox. {amount}"
   },
   "services": {
     "confirmLabel": "Confirmar",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Escreve com as palavras de quem faria o pedido, não com as tuas. Por exemplo «é para a minha irmã Ana, faz 30 no sábado e segue-te desde o início. Adorava que a felicitasses pelo nome e lhe dissesses para ganhar coragem e competir este ano».",
     "sampleRequestHintAdvice": "Escreve com as palavras de quem faria o pedido, não com as tuas. Por exemplo «acabei o curso agora e estou dividido entre aceitar o primeiro emprego que me oferecem ou esperar por algo melhor. Gostava de saber como decidiste isso quando começaste».",
     "uploadSample": "Carregar amostra",
-    "samplePublished": "Amostra publicada"
+    "samplePublished": "Amostra publicada",
+    "donationReceiveLegend": "Recebes <amount>{net}</amount>",
+    "sampleSharedGreeting": "A tua saudação de amostra já está partilhada!",
+    "sampleSharedAdvice": "O teu conselho de amostra já está partilhado!",
+    "recordAnotherSample": "Gravar mais um",
+    "finishSamples": "Concluir"
   },
   "live": {
     "accessTicket": "Bilhete de acesso",

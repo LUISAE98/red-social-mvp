@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "sertifikātu",
     "fiscalKey": "atslēgu",
     "fiscalInvoicePdf": "sava rēķina PDF",
-    "fiscalInvoiceXml": "sava rēķina XML"
+    "fiscalInvoiceXml": "sava rēķina XML",
+    "approxAmount": "Aptuveni {amount}"
   },
   "services": {
     "confirmLabel": "Apstiprināt",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Uzraksti to tā cilvēka vārdiem, kurš to lūgtu, nevis saviem. Piemēram «tas ir manai māsai Annai, sestdien viņai paliek 30 un viņa tev seko no paša sākuma. Man ļoti patiktu, ja apsveiktu viņu vārdā un pateiktu, lai šogad uzdrošinās startēt».",
     "sampleRequestHintAdvice": "Uzraksti to tā cilvēka vārdiem, kurš to lūgtu, nevis saviem. Piemēram «tikko pabeidzu studijas un šaubos, vai pieņemt pirmo piedāvāto darbu, vai gaidīt ko labāku. Gribētu zināt, kā tu to izlēmi pašā sākumā».",
     "uploadSample": "Augšupielādēt paraugu",
-    "samplePublished": "Paraugs publicēts"
+    "samplePublished": "Paraugs publicēts",
+    "donationReceiveLegend": "Tu saņem <amount>{net}</amount>",
+    "sampleSharedGreeting": "Tavs parauga sveiciens ir kopīgots!",
+    "sampleSharedAdvice": "Tavs parauga padoms ir kopīgots!",
+    "recordAnotherSample": "Ierakstīt vēl vienu",
+    "finishSamples": "Pabeigt"
   },
   "live": {
     "accessTicket": "Piekļuves biļete",

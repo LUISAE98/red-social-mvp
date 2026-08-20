@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "sertifikatą",
     "fiscalKey": "raktą",
     "fiscalInvoicePdf": "sąskaitos PDF",
-    "fiscalInvoiceXml": "sąskaitos XML"
+    "fiscalInvoiceXml": "sąskaitos XML",
+    "approxAmount": "Apie {amount}"
   },
   "services": {
     "confirmLabel": "Patvirtinti",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Parašyk to žmogaus žodžiais, kuris tavęs prašytų, ne savo. Pavyzdžiui «tai mano seseriai Anai, šeštadienį jai sukanka 30 ir seka tave nuo pat pradžių. Norėčiau, kad pasveikintum ją vardu ir paragintum šiemet drąsiai varžytis».",
     "sampleRequestHintAdvice": "Parašyk to žmogaus žodžiais, kuris tavęs prašytų, ne savo. Pavyzdžiui «ką tik baigiau studijas ir dvejoju, ar priimti pirmą pasiūlytą darbą, ar palaukti geresnio. Norėčiau sužinoti, kaip tu tai nusprendei pradžioje».",
     "uploadSample": "Įkelti pavyzdį",
-    "samplePublished": "Pavyzdys paskelbtas"
+    "samplePublished": "Pavyzdys paskelbtas",
+    "donationReceiveLegend": "Gauni <amount>{net}</amount>",
+    "sampleSharedGreeting": "Tavo pavyzdinis sveikinimas jau bendrinamas!",
+    "sampleSharedAdvice": "Tavo pavyzdinis patarimas jau bendrinamas!",
+    "recordAnotherSample": "Įrašyti dar vieną",
+    "finishSamples": "Baigti"
   },
   "live": {
     "accessTicket": "Prieigos bilietas",

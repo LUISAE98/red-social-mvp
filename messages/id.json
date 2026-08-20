@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "sertifikat",
     "fiscalKey": "kunci",
     "fiscalInvoicePdf": "PDF fakturmu",
-    "fiscalInvoiceXml": "XML fakturmu"
+    "fiscalInvoiceXml": "XML fakturmu",
+    "approxAmount": "Sekitar {amount}"
   },
   "services": {
     "confirmLabel": "Konfirmasi",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Tulis dengan kata-kata orang yang akan memintanya, bukan katamu. Misalnya «ini untuk kakakku Ana, dia berulang tahun ke-30 hari Sabtu dan mengikutimu sejak awal. Aku ingin kamu menyebut namanya dan bilang supaya dia berani ikut lomba tahun ini».",
     "sampleRequestHintAdvice": "Tulis dengan kata-kata orang yang akan memintanya, bukan katamu. Misalnya «aku baru lulus kuliah dan ragu antara menerima tawaran kerja pertama atau menunggu yang lebih baik. Aku ingin tahu bagaimana kamu memutuskannya saat baru mulai».",
     "uploadSample": "Unggah contoh",
-    "samplePublished": "Contoh diterbitkan"
+    "samplePublished": "Contoh diterbitkan",
+    "donationReceiveLegend": "Kamu menerima <amount>{net}</amount>",
+    "sampleSharedGreeting": "Contoh salammu sudah dibagikan!",
+    "sampleSharedAdvice": "Contoh saranmu sudah dibagikan!",
+    "recordAnotherSample": "Rekam satu lagi",
+    "finishSamples": "Selesai"
   },
   "live": {
     "accessTicket": "Tiket akses",

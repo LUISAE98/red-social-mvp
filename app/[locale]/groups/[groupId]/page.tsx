@@ -13,6 +13,7 @@ import {
   useRef,
   useState,
   useCallback,
+  type CSSProperties,
 } from "react";
 import { motion } from "framer-motion";
 import { createPortal } from "react-dom";
@@ -1735,15 +1736,30 @@ const groupVisualUi = {
   coverHeight: "clamp(240px, 38vw, 360px)",
   avatarSize: mobileRefreshEnabled ? "clamp(146px, 31.2vw, 286px)" : "clamp(112px, 24vw, 220px)",
   avatarOffsetTop: mobileRefreshEnabled ? "calc(clamp(146px, 31.2vw, 286px) / -2)" : "calc(clamp(112px, 24vw, 220px) / -2)",
-  // El hueco bajo el avatar solo tiene que dar cabida al "Editar" cuando la
-  // comunidad es tuya; a quien visita no le sobra espacio muerto.
-  contentTopPadding: mobileRefreshEnabled
-    ? `calc((clamp(146px, 31.2vw, 286px) / 2) + ${isOwner ? 40 : 22}px)`
-    : `calc((clamp(112px, 24vw, 220px) / 2) + ${isOwner ? 36 : 22}px)`,
   liveDotOuter: mobileRefreshEnabled ? "clamp(18px, 3.8vw, 30px)" : "clamp(14px, 2.8vw, 24px)",
   liveDotInner: mobileRefreshEnabled ? "clamp(10px, 2.1vw, 16px)" : "clamp(8px, 1.6vw, 13px)",
   liveDotShell: mobileRefreshEnabled ? "clamp(22px, 4.8vw, 34px)" : "clamp(18px, 3.6vw, 28px)",
 };
+
+/**
+ * Hueco que queda bajo el avatar antes de que empiece el nombre.
+ *
+ * Solo hace falta cuando la comunidad es TUYA: ahí, colgando del avatar, va el
+ * "Editar" en posición absoluta, y si nadie le reserva sitio cae encima del
+ * título. La hoja de estilos tenía escritos a mano los 22px del visitante en
+ * las dos ramas, así que al dueño le faltaban justo los que ocupa ese texto.
+ *
+ * Va como variable y no como `paddingTop` en línea para que el punto de corte
+ * siga decidiéndolo el CSS: `mobileRefreshEnabled` arranca en `false` y se
+ * ajusta en un efecto, así que un valor calculado en JS pintaría el móvil con
+ * la medida de laptop hasta que hidrata.
+ *
+ * Mismos números que el perfil (ver `avatarBottomReserve` en ProfileClient).
+ */
+const avatarReserveVars = {
+  "--vb-avatar-reserve": isOwner ? "36px" : "22px",
+  "--vb-avatar-reserve-mobile": isOwner ? "40px" : "22px",
+} as CSSProperties;
 
 const groupHeaderCardStyle = {
   ...cardStyle,
@@ -2036,7 +2052,7 @@ const avatarNode = (
 }
 
 .group-header-copy {
-  padding-top: calc((clamp(112px, 24vw, 220px) / 2) + 22px);
+  padding-top: calc((clamp(112px, 24vw, 220px) / 2) + var(--vb-avatar-reserve, 22px));
   position: relative;
   z-index: 1;
   min-height: 110px;
@@ -2044,7 +2060,7 @@ const avatarNode = (
 }
 @media (max-width: 768px) {
   .group-header-copy {
-    padding-top: calc((clamp(146px, 31.2vw, 286px) / 2) + 22px);
+    padding-top: calc((clamp(146px, 31.2vw, 286px) / 2) + var(--vb-avatar-reserve-mobile, 22px));
   }
 }
             .group-meta {
@@ -2203,7 +2219,7 @@ const avatarNode = (
               <div className="group-content">
                 {avatarNode}
 
-                <div className="group-header-copy">
+                <div className="group-header-copy" style={avatarReserveVars}>
                   <div className="group-meta">
                     <h1 style={{ ...titleStyle, margin: 0 }}>
                       {group.name ?? ""}
@@ -2481,7 +2497,7 @@ const avatarNode = (
 }
 
 .group-header-copy {
-  padding-top: calc((clamp(112px, 24vw, 220px) / 2) + 22px);
+  padding-top: calc((clamp(112px, 24vw, 220px) / 2) + var(--vb-avatar-reserve, 22px));
   position: relative;
   z-index: 1;
   min-height: 110px;
@@ -2489,7 +2505,7 @@ const avatarNode = (
 }
 @media (max-width: 768px) {
   .group-header-copy {
-    padding-top: calc((clamp(146px, 31.2vw, 286px) / 2) + 22px);
+    padding-top: calc((clamp(146px, 31.2vw, 286px) / 2) + var(--vb-avatar-reserve-mobile, 22px));
   }
 }
 
@@ -2689,7 +2705,11 @@ const avatarNode = (
                 />
               )}
 
-              {!coverSearchOpen && isOwner && group.visibility === "hidden" && (
+              {/* Los links son la única puerta a una comunidad oculta, así que
+                  también los reparte quien modera: si no, cada alta depende de
+                  que el creador esté disponible. El permiso real lo comprueba
+                  `asegurarCreadorOModerador` en el backend. */}
+              {!coverSearchOpen && (isOwner || isModerator) && group.visibility === "hidden" && (
                 <div
                   style={{
                     position: "absolute",
@@ -2784,7 +2804,7 @@ const avatarNode = (
             <div className="group-content">
               {avatarNode}
 
-              <div className="group-header-copy">
+              <div className="group-header-copy" style={avatarReserveVars}>
                 <div className="group-meta">
                   <h1 style={{ ...titleStyle, margin: 0 }}>
                     {group.name ?? ""}
@@ -3000,7 +3020,6 @@ const avatarNode = (
             onClick={normalizedCurrentDonation.playbackId ? () => setGroupDonationViewerOpen(true) : undefined}
             onClose={() => setGroupDonationViewerOpen(false)}
             suggestedAmounts={normalizedCurrentDonation.suggestedAmounts ?? null}
-            currency={normalizedCurrentDonation.currency ?? null}
             creatorId={group?.ownerId ?? null}
             buyerId={user?.uid ?? null}
             groupId={normalizedCurrentDonation.sourceScope === "group" ? groupId : null}

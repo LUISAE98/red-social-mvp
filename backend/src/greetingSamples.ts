@@ -44,7 +44,7 @@ const MAX_CONTEXT_LENGTH = 500;
  * que se factura y se almacena para siempre. Sin tope, un creador puede subir
  * cien videos gratis por servicio.
  */
-const MAX_SAMPLES_PER_SERVICE = 5;
+const MAX_SAMPLES_PER_SERVICE = 3;
 
 function assertString(value: unknown, field: string, max: number): string {
   if (typeof value !== "string" || !value.trim()) {

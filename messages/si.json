@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "සහතිකය",
     "fiscalKey": "යතුර",
     "fiscalInvoicePdf": "ඔබේ ඉන්වොයිසියේ PDF",
-    "fiscalInvoiceXml": "ඔබේ ඉන්වොයිසියේ XML"
+    "fiscalInvoiceXml": "ඔබේ ඉන්වොයිසියේ XML",
+    "approxAmount": "ආසන්න වශයෙන් {amount}"
   },
   "services": {
     "confirmLabel": "තහවුරු කරන්න",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "ඔබේ වචන නොව, ඉල්ලන පුද්ගලයාගේ වචනවලින් ලියන්න. උදාහරණයක් ලෙස «මේක මගේ නංගි අනාට. සෙනසුරාදා ඇයට 30 පිරෙනවා, මුල ඉඳන්ම ඔබව අනුගමනය කරනවා. ඇගේ නමින් සුබ පතලා, මේ අවුරුද්දේ තරගයට ඉදිරිපත් වෙන්න කියලා කියන්න».",
     "sampleRequestHintAdvice": "ඔබේ වචන නොව, ඉල්ලන පුද්ගලයාගේ වචනවලින් ලියන්න. උදාහරණයක් ලෙස «මම දැන් උපාධිය අවසන් කළා. මුලින්ම ලැබුණු රැකියාව ගන්නද, හොඳ එකක් එනකම් බලාගෙන ඉන්නද කියලා දෙගිඩියාවෙන් ඉන්නේ. ඔබ පටන් ගන්නකොට මේක තීරණය කළේ කොහොමද කියලා දැනගන්න ඕන».",
     "uploadSample": "නියැදිය උඩුගත කරන්න",
-    "samplePublished": "නියැදිය ප්‍රකාශිතයි"
+    "samplePublished": "නියැදිය ප්‍රකාශිතයි",
+    "donationReceiveLegend": "ඔබට ලැබෙන්නේ <amount>{net}</amount>",
+    "sampleSharedGreeting": "ඔබේ නියැදි සුබපැතුම බෙදාගෙන ඇත!",
+    "sampleSharedAdvice": "ඔබේ නියැදි උපදෙස බෙදාගෙන ඇත!",
+    "recordAnotherSample": "තව එකක් පටිගත කරන්න",
+    "finishSamples": "අවසන් කරන්න"
   },
   "live": {
     "accessTicket": "ප්‍රවේශ ප්‍රවේශපත්‍රය",

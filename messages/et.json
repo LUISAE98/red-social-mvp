@@ -1483,7 +1483,8 @@
     "fiscalCertificate": "sertifikaadi",
     "fiscalKey": "võtme",
     "fiscalInvoicePdf": "oma arve PDF-i",
-    "fiscalInvoiceXml": "oma arve XML-i"
+    "fiscalInvoiceXml": "oma arve XML-i",
+    "approxAmount": "Umbes {amount}"
   },
   "services": {
     "confirmLabel": "Kinnita",
@@ -2032,7 +2033,12 @@
     "sampleRequestHintGreeting": "Kirjuta see tellija sõnadega, mitte enda omadega. Näiteks «see on mu õele Annale, laupäeval saab ta 30 ja on sind algusest peale jälginud. Mulle meeldiks, kui õnnitleksid teda nimepidi ja ütleksid, et ta julgeks tänavu võistelda».",
     "sampleRequestHintAdvice": "Kirjuta see tellija sõnadega, mitte enda omadega. Näiteks «lõpetasin just kooli ja kõhklen, kas võtta esimene pakutud töö või oodata paremat. Tahaksin teada, kuidas sina selle alguses otsustasid».",
     "uploadSample": "Laadi näidis üles",
-    "samplePublished": "Näidis avaldatud"
+    "samplePublished": "Näidis avaldatud",
+    "donationReceiveLegend": "Sina saad <amount>{net}</amount>",
+    "sampleSharedGreeting": "Sinu näidistervitus on jagatud!",
+    "sampleSharedAdvice": "Sinu näidisnõuanne on jagatud!",
+    "recordAnotherSample": "Salvesta veel üks",
+    "finishSamples": "Lõpeta"
   },
   "live": {
     "accessTicket": "Ligipääsupilet",

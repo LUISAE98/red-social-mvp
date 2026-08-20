@@ -22,12 +22,28 @@ const SENALES: RegExp[] = [
   /\bError:\s.*\bError:\s/,          // errores anidados
 ];
 
+/**
+ * Códigos crudos de Firebase que a veces llegan como mensaje entero.
+ *
+ * Cuando una callable falla antes de ejecutarse, el SDK lanza un error cuyo
+ * `message` es literalmente el código —"internal", "unavailable"— y el `catch`
+ * del producto lo pinta tal cual. Son cortos y sin señales técnicas, así que
+ * el resto del filtro los dejaba pasar.
+ */
+const CODIGOS_CRUDOS = new Set([
+  "internal", "unknown", "unavailable", "cancelled", "aborted", "data-loss",
+  "deadline-exceeded", "resource-exhausted", "unauthenticated", "not-found",
+  "permission-denied", "failed-precondition", "invalid-argument",
+  "already-exists", "out-of-range", "unimplemented",
+]);
+
 /** Un mensaje para leer no ocupa un párrafo ni trae saltos de línea. */
 const LARGO_MAXIMO = 220;
 
 export function esMensajeTecnico(texto: string): boolean {
   const t = texto.trim();
   if (!t) return false;
+  if (CODIGOS_CRUDOS.has(t.toLowerCase().replace(/^functions\//, ""))) return true;
   if (t.length > LARGO_MAXIMO) return true;
   if (/\n/.test(t)) return true;
   return SENALES.some((re) => re.test(t));
