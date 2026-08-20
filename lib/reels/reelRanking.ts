@@ -123,12 +123,18 @@ export function scoreStory({ story, taste, nowMs, interest = 0 }: ScoreInput): n
 }
 
 /**
- * Ordena por puntuación dejando DETRÁS lo ya visto.
+ * Ordena por puntuación DESCARTANDO lo ya visto.
  *
- * Con el histórico completo, excluir lo visto vaciaría el feed a los pocos días.
- * Y no penalizarlo lo haría repetir siempre las mismas. El punto medio es
- * empujarlo al final, y dentro de esa cola, lo visto hace más tiempo primero:
- * si vuelve a aparecer, que sea lo que menos recuerdas.
+ * ⚠️ Antes lo visto no se descartaba, se empujaba al final. La idea era que con
+ * el histórico completo excluirlo vaciaría el feed, pero en la práctica el
+ * resultado era peor: seguía apareciendo, y encima la cabeza del feed —lo de
+ * quien sigues— arrastraba las mismas historias vistas cada vez que se abría el
+ * reel. Se sentía como que el feed premiaba lo ya visto.
+ *
+ * Un video visto no vuelve. Si eso deja el feed corto, la respuesta es traer más
+ * material, no reciclar el que la persona ya se sabe.
+ *
+ * Vista = dos segundos de reproducción; lo marca el propio slide.
  */
 export function rankStories(
   stories: StoryDoc[],
@@ -138,24 +144,17 @@ export function rankStories(
   interestOf?: (story: StoryDoc) => number,
 ): StoryDoc[] {
   const fresh: Array<{ story: StoryDoc; score: number }> = [];
-  const seen: Array<{ story: StoryDoc; viewedAt: number }> = [];
 
   for (const story of stories) {
-    const seenAt = viewedAt.get(story.id);
-    if (seenAt === undefined) {
-      fresh.push({
-        story,
-        score: scoreStory({ story, taste, nowMs, interest: interestOf?.(story) ?? 0 }),
-      });
-    } else {
-      seen.push({ story, viewedAt: seenAt });
-    }
+    if (viewedAt.has(story.id)) continue;
+    fresh.push({
+      story,
+      score: scoreStory({ story, taste, nowMs, interest: interestOf?.(story) ?? 0 }),
+    });
   }
 
   fresh.sort((a, b) => b.score - a.score);
-  seen.sort((a, b) => a.viewedAt - b.viewedAt);
-
-  return [...fresh.map((e) => e.story), ...seen.map((e) => e.story)];
+  return fresh.map((e) => e.story);
 }
 
 /**

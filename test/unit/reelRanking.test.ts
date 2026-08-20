@@ -49,26 +49,27 @@ const NO_TASTE = new Map<CanonicalGroupCategory, number>();
 const NO_VIEWS = new Map<string, number>();
 
 describe("rankStories", () => {
-  it("deja lo ya visto detrás de todo lo no visto", () => {
+  // Estas dos afirmaban que lo visto iba al FINAL, no que desapareciera. Era el
+  // comportamiento real y era el fallo: seguia saliendo una y otra vez.
+  it("descarta lo ya visto por muy popular que sea", () => {
     const stories = [story("visto", { views: 9999 }), story("nuevo", { views: 0 })];
     const viewed = new Map([["visto", NOW - DAY_MS]]);
 
     const out = rankStories(stories, NO_TASTE, viewed, NOW).map((s) => s.id);
 
-    // "visto" gana por popularidad, pero haberla visto pesa más.
-    expect(out).toEqual(["nuevo", "visto"]);
+    expect(out).toEqual(["nuevo"]);
   });
 
-  it("dentro de lo ya visto, primero lo que viste hace más tiempo", () => {
+  it("si ya se vio todo, no devuelve nada que reciclar", () => {
     const stories = [story("reciente"), story("antiguo")];
     const viewed = new Map([
       ["reciente", NOW - DAY_MS],
       ["antiguo", NOW - 40 * DAY_MS],
     ]);
 
-    const out = rankStories(stories, NO_TASTE, viewed, NOW).map((s) => s.id);
+    const out = rankStories(stories, NO_TASTE, viewed, NOW);
 
-    expect(out).toEqual(["antiguo", "reciente"]);
+    expect(out).toEqual([]);
   });
 
   // Esta prueba afirmaba lo contrario: que la vieja y muy vista iba primero. Era
