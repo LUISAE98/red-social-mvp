@@ -67,6 +67,7 @@
     "settings": "설정",
     "seeAllFollowing": "전체 보기",
     "seeAllCommunities": "전체 보기",
+    "seeAllExperiences": "전체 보기",
     "reels": "스토리"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "메시지 보내기",
     "sendGreeting": "축하 영상 보내기",
     "downloadingProgress": "처리 중 {progress}%...",
-    "downloadVideo": "↓ 영상 다운로드",
+    "downloadVideo": "영상 다운로드",
     "successAdvice": "조언을 보냈습니다!",
     "successMessage": "메시지를 보냈습니다!",
     "successGreeting": "축하 영상을 보냈습니다!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "이 요청을 거절할까요?",
     "confirmRejectBody": "구매자의 결제가 취소되고 요청이 목록에서 사라져요. 되돌릴 수 없어요.",
     "sampleRequestTitle": "구매자가 된 것처럼 요청을 적어요",
-    "sampleRequestHint": "당신의 말이 아니라 부탁하는 사람의 말로 적어 주세요. 「아나에게 인사할게요」가 아니라 「아나에게 보낼 인사가 필요해요, 서른이 돼요」처럼요. 녹화 중 화면에 표시돼요."
+    "sampleRequestHintGreeting": "당신의 말이 아니라 부탁하는 사람의 말로 적어 주세요. 예를 들어 「제 동생 아나에게 줄 거예요. 토요일에 서른이 되고 처음부터 당신을 응원했어요. 이름을 불러 축하해 주고, 올해는 꼭 대회에 나가보라고 말해 주세요」처럼요.",
+    "sampleRequestHintAdvice": "당신의 말이 아니라 부탁하는 사람의 말로 적어 주세요. 예를 들어 「막 졸업했는데 처음 받은 일자리를 받아들일지 더 좋은 기회를 기다릴지 고민이에요. 당신은 시작할 때 이걸 어떻게 정했는지 알고 싶어요」처럼요.",
+    "uploadSample": "샘플 업로드",
+    "samplePublished": "샘플을 공개했어요"
   },
   "live": {
     "accessTicket": "입장 티켓",

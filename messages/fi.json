@@ -67,6 +67,7 @@
     "settings": "Asetukset",
     "seeAllFollowing": "Näytä kaikki",
     "seeAllCommunities": "Näytä kaikki",
+    "seeAllExperiences": "Näytä kaikki",
     "reels": "Tarinat"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Lähetä viesti",
     "sendGreeting": "Lähetä tervehdys",
     "downloadingProgress": "Käsitellään {progress} %...",
-    "downloadVideo": "↓ Lataa video",
+    "downloadVideo": "Lataa video",
     "successAdvice": "Neuvo lähetetty!",
     "successMessage": "Viesti lähetetty!",
     "successGreeting": "Tervehdys lähetetty!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Haluatko varmasti hylätä tämän tilauksen?",
     "confirmRejectBody": "Ostajan maksu perutaan ja tilaus poistuu listaltasi. Tätä ei voi peruuttaa.",
     "sampleRequestTitle": "Kirjoita tilaus kuin olisit ostaja",
-    "sampleRequestHint": "Käytä tilaajan sanoja, älä omiasi. Kirjoita «haluan tervehdyksen Annalle, hän täyttää 30» eikä «tervehdin Annaa». Tämän näet ruudulla kuvatessasi."
+    "sampleRequestHintGreeting": "Kirjoita se tilaajan sanoin, älä omin. Esimerkiksi «tämä on siskolleni Annalle, hän täyttää lauantaina 30 ja on seurannut sinua alusta asti. Toivoisin että onnittelet häntä nimeltä ja kannustat häntä kilpailemaan tänä vuonna».",
+    "sampleRequestHintAdvice": "Kirjoita se tilaajan sanoin, älä omin. Esimerkiksi «valmistuin juuri ja epäröin otanko ensimmäisen tarjotun työn vai odotanko parempaa. Haluaisin tietää miten sinä ratkaisit tämän alkuvaiheessa».",
+    "uploadSample": "Lataa näyte",
+    "samplePublished": "Näyte julkaistu"
   },
   "live": {
     "accessTicket": "Pääsylippu",

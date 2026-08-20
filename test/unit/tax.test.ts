@@ -653,7 +653,8 @@ describe("Asia-Pacífico y Medio Oriente", () => {
 
   // 🚫 Los que siguen fuera, cada uno por su motivo:
   //   RU · BY · CU  sanciones (Stripe no opera)
-  //   IL            decisión de Luis
+  //   IL            inestabilidad política + exige representante fiscal residente
+  //                 (Luis, 2026-08-10; razones detalladas el 2026-08-19)
   //   IN            representante fiscal obligatorio + UPI inaccesible desde México
   //   BH            representante fiscal obligatorio
   //   OM            sin confirmar si exige representante

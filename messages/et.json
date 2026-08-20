@@ -67,6 +67,7 @@
     "settings": "Seaded",
     "seeAllFollowing": "Vaata kõiki",
     "seeAllCommunities": "Vaata kõiki",
+    "seeAllExperiences": "Vaata kõiki",
     "reels": "Lood"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Saada sõnum",
     "sendGreeting": "Saada tervitus",
     "downloadingProgress": "Töötlen {progress}%...",
-    "downloadVideo": "↓ Laadi video alla",
+    "downloadVideo": "Laadi video alla",
     "successAdvice": "Nõuanne saadetud!",
     "successMessage": "Sõnum saadetud!",
     "successGreeting": "Tervitus saadetud!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Kas soovid selle tellimuse tagasi lükata?",
     "confirmRejectBody": "Ostja makse tühistatakse ja tellimus kaob su nimekirjast. Seda ei saa tagasi võtta.",
     "sampleRequestTitle": "Kirjuta tellimus, nagu oleksid ostja",
-    "sampleRequestHint": "Kasuta selle inimese sõnu, kes seda tellib, mitte enda omi. «Tervitan Annat» asemel kirjuta «tahan tervitust Annale, ta saab 30». Seda näed salvestamise ajal ekraanil."
+    "sampleRequestHintGreeting": "Kirjuta see tellija sõnadega, mitte enda omadega. Näiteks «see on mu õele Annale, laupäeval saab ta 30 ja on sind algusest peale jälginud. Mulle meeldiks, kui õnnitleksid teda nimepidi ja ütleksid, et ta julgeks tänavu võistelda».",
+    "sampleRequestHintAdvice": "Kirjuta see tellija sõnadega, mitte enda omadega. Näiteks «lõpetasin just kooli ja kõhklen, kas võtta esimene pakutud töö või oodata paremat. Tahaksin teada, kuidas sina selle alguses otsustasid».",
+    "uploadSample": "Laadi näidis üles",
+    "samplePublished": "Näidis avaldatud"
   },
   "live": {
     "accessTicket": "Ligipääsupilet",

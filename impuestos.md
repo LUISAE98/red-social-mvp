@@ -906,7 +906,7 @@ Australia, Nueva Zelanda y Filipinas son mercados donde el inglés es natural. V
 |---|---|
 | 🇮🇳 India · 🇸🇦 Arabia Saudita · 🇰🇷 Corea del Sur · 🇻🇳 Vietnam · 🇧🇭 Baréin · 🇴🇲 Omán · 🇦🇪 EAU | Umbral **cero**: alta desde la venta 1. Baréin además exige representante fiscal |
 | 🇷🇺 Rusia · 🇧🇾 Bielorrusia · 🇨🇺 Cuba | Sanciones — Stripe no opera |
-| 🇮🇱 Israel | Excluido por decisión del usuario (2026-08-10) |
+| 🇮🇱 Israel | **Dos motivos, cualquiera basta** (Luis, 2026-08-10; razones detalladas 2026-08-19): 1) inestabilidad política — un régimen de alta y declaración continua asume que el país opera igual dentro de un año; 2) exige **representante fiscal residente**, que Vibra no tiene (mismo motivo que Macedonia del Norte y Suiza) |
 
 Hay un test que verifica que estos sigan fuera.
 

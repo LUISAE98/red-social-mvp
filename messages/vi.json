@@ -67,6 +67,7 @@
     "settings": "Cài đặt",
     "seeAllFollowing": "Xem tất cả",
     "seeAllCommunities": "Xem tất cả",
+    "seeAllExperiences": "Xem tất cả",
     "reels": "Câu chuyện"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Gửi tin nhắn",
     "sendGreeting": "Gửi video chúc mừng",
     "downloadingProgress": "Đang xử lý {progress}%...",
-    "downloadVideo": "↓ Tải video xuống",
+    "downloadVideo": "Tải video xuống",
     "successAdvice": "Đã gửi lời khuyên!",
     "successMessage": "Đã gửi tin nhắn!",
     "successGreeting": "Đã gửi video chúc mừng!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Bạn chắc chắn muốn từ chối yêu cầu này?",
     "confirmRejectBody": "Khoản thanh toán của người mua sẽ bị hủy và yêu cầu sẽ biến mất khỏi danh sách của bạn. Không thể hoàn tác.",
     "sampleRequestTitle": "Viết yêu cầu như thể bạn là người mua",
-    "sampleRequestHint": "Dùng lời của người sẽ đặt, không phải lời của bạn. Thay vì «tôi sẽ chào Ana», hãy viết «tôi muốn một lời chào cho Ana, cô ấy tròn 30». Đây là những gì bạn sẽ thấy trên màn hình khi quay."
+    "sampleRequestHintGreeting": "Hãy viết bằng lời của người sẽ đặt, không phải lời của bạn. Ví dụ «cái này dành cho em gái tôi tên Ana, thứ Bảy này tròn 30 tuổi và theo dõi bạn từ những ngày đầu. Tôi rất mong bạn gọi tên chúc mừng và nói em ấy hãy mạnh dạn thi đấu năm nay».",
+    "sampleRequestHintAdvice": "Hãy viết bằng lời của người sẽ đặt, không phải lời của bạn. Ví dụ «tôi vừa tốt nghiệp và đang phân vân giữa nhận công việc đầu tiên được mời hay chờ cơ hội tốt hơn. Tôi muốn biết hồi mới bắt đầu bạn đã quyết định thế nào».",
+    "uploadSample": "Tải lên mẫu",
+    "samplePublished": "Đã đăng mẫu"
   },
   "live": {
     "accessTicket": "Vé vào cửa",

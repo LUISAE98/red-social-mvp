@@ -22,6 +22,7 @@ import { useBuyerExperiencesSeen } from "@/lib/experiences/useBuyerExperiencesSe
 import { useBuyerExperienceActivity } from "@/lib/experiences/useBuyerExperienceActivity";
 import { computeCategoryLatest, isCategoryNew } from "@/lib/experiences/experienceActivity";
 import { useMyExperiences } from "@/lib/experiences/useMyExperiences";
+import { greetingsCardStyles } from "@/components/experiences/greetingsCardStyles";
 import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
 import { useBuyerCashout } from "@/lib/wallet/useBuyerCashout";
 import { requestCashout, dismissCashoutNotice } from "@/lib/wallet/cashout";
@@ -86,22 +87,7 @@ const CHECK_ICON = (
   </IconChip>
 );
 
-// Subset de `styles` que consume OwnerSidebarGreetings (replicado del sidebar, sin
-// dependencia de isMobile). El data-layer es autocontenido (useMyExperiences).
-const fontStack = "inherit";
-const styles: Record<string, CSSProperties> = {
-  input: { padding: "8px 10px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", color: "#fff", outline: "none", fontSize: 12, fontFamily: fontStack, boxSizing: "border-box", height: 42 },
-  buttonSecondary: { padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.05)", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: fontStack, lineHeight: 1.1 },
-  buttonPrimary: { padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.18)", background: "#fff", color: "#000", fontSize: 13, fontWeight: 700, lineHeight: 1.1, cursor: "pointer", fontFamily: fontStack },
-  message: { padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "#fff", fontSize: 12, lineHeight: 1.35 },
-  sectionTitle: { fontSize: 11, fontWeight: 550, color: "rgba(254,254,254,0.22)", textTransform: "none", letterSpacing: 0.65 },
-  sectionHeaderRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "4px 2px 2px" },
-  createInlineButton: { minHeight: 24, padding: "0 9px", borderRadius: 9, border: "2.5px solid rgba(168,85,247,0.75)", background: "transparent", color: "rgba(168,85,247,0.92)", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 11, fontWeight: 700, fontFamily: fontStack, lineHeight: 1, cursor: "pointer", opacity: 0.85 },
-  card: { padding: "10px 12px", borderRadius: 12, background: "#000", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 18px 44px rgba(0,0,0,0.34)" },
-  subtle: { fontSize: 11, color: "rgba(255,255,255,0.56)", lineHeight: 1.3 },
-  sectionPanel: { padding: "10px", borderRadius: 12, border: "none", background: "rgba(90,41,174,0.14)", boxShadow: "none", display: "grid", gap: 8 },
-  miniItem: { borderRadius: 12, border: "none", background: "transparent", boxShadow: "none", padding: 9, display: "grid", gap: 7, width: "100%", boxSizing: "border-box", minWidth: 0 },
-};
+const styles = greetingsCardStyles;
 
 export default function ExperienciasPage() {
   const tCommon = useTranslations("common");

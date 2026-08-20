@@ -67,6 +67,7 @@
     "settings": "Issettjar",
     "seeAllFollowing": "Ara kollha",
     "seeAllCommunities": "Ara kollha",
+    "seeAllExperiences": "Ara kollha",
     "reels": "Stejjer"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Ibgħat messaġġ",
     "sendGreeting": "Ibgħat it-tislima",
     "downloadingProgress": "Qed jiġi pproċessat {progress}%...",
-    "downloadVideo": "↓ Niżżel il-vidjo",
+    "downloadVideo": "Niżżel il-vidjo",
     "successAdvice": "Parir mibgħut!",
     "successMessage": "Messaġġ mibgħut!",
     "successGreeting": "Tislima mibgħuta!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Żgur li trid tirrifjuta din l-ordni?",
     "confirmRejectBody": "Il-ħlas tax-xerrej jiġi kkanċellat u l-ordni tisparixxi mil-lista tiegħek. Ma tistax terġa' lura.",
     "sampleRequestTitle": "Ikteb it-talba bħallikieku int ix-xerrej",
-    "sampleRequestHint": "Uża l-kliem ta' min jitolbok, mhux tiegħek. Minflok «se nsellem lil Ana», ikteb «irrid tislima għal Ana, qed tagħlaq 30». Dan hu li tara fuq l-iskrin waqt ir-reġistrazzjoni."
+    "sampleRequestHintGreeting": "Iktbu bil-kliem ta' min jitolbok, mhux bi kliemek. Pereżempju «hija għal oħti Ana, is-Sibt tagħlaq 30 u ilha ssegwik mill-bidu. Nixtieq li tawguralha b'isimha u tgħidilha biex din is-sena tazzarda tikkompeti».",
+    "sampleRequestHintAdvice": "Iktbu bil-kliem ta' min jitolbok, mhux bi kliemek. Pereżempju «għadni kif spiċċajt l-istudji u qed nitħabat bejn li naċċetta l-ewwel xogħol offrut jew nistenna xi ħaġa aħjar. Nixtieq inkun naf kif iddeċidejt int fil-bidu».",
+    "uploadSample": "Tella l-kampjun",
+    "samplePublished": "Kampjun ippubblikat"
   },
   "live": {
     "accessTicket": "Biljett ta' aċċess",

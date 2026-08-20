@@ -67,6 +67,7 @@
     "settings": "Nastavitve",
     "seeAllFollowing": "Prikaži vsa",
     "seeAllCommunities": "Prikaži vsa",
+    "seeAllExperiences": "Prikaži vsa",
     "reels": "Zgodbe"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Pošlji sporočilo",
     "sendGreeting": "Pošlji posvetilo",
     "downloadingProgress": "Obdelava {progress} %...",
-    "downloadVideo": "↓ Prenesi video",
+    "downloadVideo": "Prenesi video",
     "successAdvice": "Nasvet je poslan!",
     "successMessage": "Sporočilo je poslano!",
     "successGreeting": "Posvetilo je poslano!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Si prepričan, da želiš zavrniti to naročilo?",
     "confirmRejectBody": "Plačilo kupca bo preklicano in naročilo bo izginilo s tvojega seznama. Tega ni mogoče razveljaviti.",
     "sampleRequestTitle": "Napiši naročilo, kot da si kupec",
-    "sampleRequestHint": "Uporabi besede tistega, ki bi ga naročil, ne svojih. Namesto «pozdravil bom Ano» napiši «želim pozdrav za Ano, dopolnjuje 30». To boš videl na zaslonu med snemanjem."
+    "sampleRequestHintGreeting": "Napiši to z besedami tistega, ki bi ga naročil, ne s svojimi. Na primer «to je za mojo sestro Ano, v soboto dopolni 30 in te spremlja od začetka. Zelo bi mi bilo všeč, če bi ji čestital po imenu in ji rekel, naj si letos upa tekmovati».",
+    "sampleRequestHintAdvice": "Napiši to z besedami tistega, ki bi ga naročil, ne s svojimi. Na primer «pravkar sem končal študij in omahujem med tem, da sprejmem prvo ponujeno službo ali počakam na kaj boljšega. Zanima me, kako si se ti odločil na začetku».",
+    "uploadSample": "Naloži vzorec",
+    "samplePublished": "Vzorec objavljen"
   },
   "live": {
     "accessTicket": "Vstopnica",

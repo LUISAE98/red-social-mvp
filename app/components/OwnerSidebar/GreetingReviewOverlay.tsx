@@ -163,6 +163,8 @@ export default function GreetingReviewOverlay({
 
   // Story state — reset per item
   const [storyAdded, setStoryAdded] = useState(false);
+  /** Lo que el creador acaba de pedir, mientras Firestore no lo confirma. */
+  const [optimisticStoryOn, setOptimisticStoryOn] = useState<boolean | null>(null);
   const [addingStory, setAddingStory] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
   const { toast: overlayToast, showToast: showOverlayToast } = useVibraToast();
@@ -199,6 +201,9 @@ export default function GreetingReviewOverlay({
 
   // Cierre animado del panel de laptop
   const [panelClosing, setPanelClosing] = useState(false);
+  /** Cuánto ha bajado el dedo. Mismo gesto que el visor de historias. */
+  const [dragY, setDragY] = useState(0);
+  const dragStartYRef = useRef<number | null>(null);
   const closeTimerRef = useRef<number | null>(null);
 
   useEffect(() => () => {
@@ -252,7 +257,6 @@ export default function GreetingReviewOverlay({
   // Mobile camera split-panel
   const [mobilePanelHeight, setMobilePanelHeight] = useState(200);
   const [mobilePanelDragging, setMobilePanelDragging] = useState(false);
-  const panelDragStartRef = useRef({ y: 0, height: 0 });
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -983,6 +987,23 @@ export default function GreetingReviewOverlay({
   /** Cierra el panel de laptop dejando correr antes la animación de salida.
    *  Sirve tanto al tache como al clic fuera. Si ya se está cerrando no vuelve
    *  a entrar, para no encadenar temporizadores con dobles clics. */
+  const handleDragStart = (e: React.TouchEvent) => {
+    dragStartYRef.current = e.touches[0]?.clientY ?? null;
+  };
+  const handleDragMove = (e: React.TouchEvent) => {
+    const start = dragStartYRef.current;
+    if (start === null) return;
+    const dy = (e.touches[0]?.clientY ?? start) - start;
+    // Solo hacia abajo: hacia arriba el gesto es de la hoja de datos.
+    if (dy > 0) setDragY(dy);
+  };
+  const handleDragEnd = () => {
+    const dy = dragY;
+    dragStartYRef.current = null;
+    if (dy > 110) { handleClose(); return; }
+    setDragY(0);
+  };
+
   const handleAnimatedClose = () => {
     if (closeTimerRef.current !== null) return;
     setPanelClosing(true);
@@ -1014,6 +1035,13 @@ export default function GreetingReviewOverlay({
     if (!playbackId || downloading) return;
     // Video crudo de Mux — solo se usa como último recurso si el render falla.
     const mp4Url = `https://stream.mux.com/${playbackId}/high.mp4`;
+    // El MISMO archivo, pero pidiéndole a Mux que lo sirva como adjunto. Sin el
+    // parámetro `download` la respuesta va con Content-Disposition: inline y el
+    // navegador se limita a reproducirlo, que es de donde salía la pestaña nueva
+    // con el video en vez de una descarga.
+    const mp4DownloadUrl = `${mp4Url}?download=${encodeURIComponent(
+      `${req.type === "consejo" ? "consejo" : "saludo"}-vibra`
+    )}`;
 
     setDownloading(true);
     setDownloadProgress(0);
@@ -1082,11 +1110,13 @@ export default function GreetingReviewOverlay({
       window.location.href = signedUrl;
 
     } catch (err) {
-      // Último recurso si el render falla (blip de red, egress caído): abrir el
-      // video plano de Mux — SIN el diseño viejo, que ya no existe.
+      // Último recurso si el render falla (blip de red, egress caído): el video
+      // plano de Mux, SIN intro ni salida. Se DESCARGA, no se abre en otra
+      // pestaña: abrirla dejaba al comprador con un reproductor a pelo y sin
+      // archivo, que es peor que un video sin adornos.
       console.error("[handleDownload] animated render failed:", err);
       setUploadError(tCommon("errorUpdateRequest"));
-      window.open(mp4Url, "_blank");
+      window.location.href = mp4DownloadUrl;
     } finally {
       setDownloading(false);
       setDownloadProgress(0);
@@ -1190,123 +1220,12 @@ export default function GreetingReviewOverlay({
   // ─── Shared sub-sections ────────────────────────────────────────────────────
   // Success state helpers — used inside camera panels when uploadSucceeded
   const successIsLast = currentIndex >= items.length - 1;
-  const successCompletedCount = completedEarningsNet.length;
   const successTotalEarned = completedEarningsNet.reduce((a, b) => a + b, 0);
-  const successLabel = req.type === "consejo" ? tServices("successAdvice") : tServices("successGreeting");
+  const successLabel = sampleMode
+    ? tServices("samplePublished")
+    : req.type === "consejo" ? tServices("successAdvice") : tServices("successGreeting");
 
   // Success content — shown inline in the panel below the info section
-  const successContent = (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-      <style>{`
-        @keyframes vibraSuccessPop {
-          0%   { transform: scale(0.3); opacity: 0; }
-          65%  { transform: scale(1.12); opacity: 1; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        @keyframes vibraCheckDraw {
-          0%   { stroke-dashoffset: 32; opacity: 0; }
-          30%  { opacity: 1; }
-          100% { stroke-dashoffset: 0; opacity: 1; }
-        }
-      `}</style>
-      {/* Solid green circle with white checkmark */}
-      <div style={{
-        width: 48, height: 48, borderRadius: "50%",
-        background: "#22c55e",
-        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-        animation: "vibraSuccessPop 0.45s cubic-bezier(0.4,0,0.2,1) both",
-      }}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M5 12L10 17L19 8"
-            stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-            strokeDasharray="32" strokeDashoffset="0"
-            style={{ animation: "vibraCheckDraw 0.5s 0.25s ease both" }}
-          />
-        </svg>
-      </div>
-      <span style={{ color: "#fff", fontWeight: 700, fontSize: 14, letterSpacing: "-0.02em", lineHeight: 1.2, textAlign: "center" }}>
-        {successLabel}
-      </span>
-      {/* Earnings + completion — only shown on the very last item */}
-      {successIsLast && successTotalEarned > 0 && (
-        <span style={{ color: "#86efac", fontWeight: 600, fontSize: 12, lineHeight: 1.5, textAlign: "center" }}>
-          {`Grabaste ${successCompletedCount} ${successCompletedCount === 1 ? "saludo o consejo" : "saludos y consejos"} y ganaste ${formatMoney(successTotalEarned, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}`}
-        </span>
-      )}
-      {successIsLast && (
-        <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 12, lineHeight: 1.5, textAlign: "center" }}>
-          Terminaste todos tus saludos y consejos pendientes
-        </span>
-      )}
-      <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-        {/* Add to story — only for saludos/consejos */}
-        {(req.type === "saludo" || req.type === "consejo") && !viewMode && !buyerViewMode && (
-          req.allowCreatorStory !== false ? (
-            <button
-              type="button"
-              onClick={handleAddToStory}
-              disabled={addingStory || storyAdded}
-              style={{
-                width: "100%", height: 42, borderRadius: 12,
-                border: storyAdded
-                  ? "1px solid rgba(168,85,247,0.4)"
-                  : "1px solid rgba(168,85,247,0.6)",
-                background: storyAdded
-                  ? "rgba(168,85,247,0.12)"
-                  : "rgba(168,85,247,0.18)",
-                color: storyAdded ? "#c084fc" : "#d8b4fe",
-                fontWeight: 700, fontSize: 14,
-                cursor: addingStory || storyAdded ? "default" : "pointer",
-                fontFamily: fontStack,
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                transition: "background 200ms ease, color 200ms ease",
-                opacity: addingStory ? 0.7 : 1,
-              }}
-            >
-              <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
-                {storyAdded ? "✓" : "◎"}
-              </span>
-              {addingStory
-                ? tServices("adding")
-                : storyAdded
-                  ? tServices("addedToStory")
-                  : tServices("addToStory")}
-            </button>
-          ) : (
-            <div style={{
-              width: "100%", borderRadius: 12, padding: "10px 14px",
-              border: "1px solid rgba(255,255,255,0.08)",
-              background: "rgba(255,255,255,0.04)",
-              display: "flex", alignItems: "center", gap: 8, boxSizing: "border-box",
-            }}>
-              <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>🔒</span>
-              <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 12, lineHeight: 1.4, fontFamily: fontStack }}>
-                {req.type === "consejo" ? tServices("buyerNoStoryPermissionAdvice") : tServices("buyerNoStoryPermissionGreeting")}
-              </span>
-            </div>
-          )
-        )}
-        {!successIsLast && (
-          <button type="button" onClick={handleNextGreeting} style={{
-            width: "100%", height: 42, borderRadius: 12,
-            border: "1px solid rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.15)",
-            color: "#93c5fd", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: fontStack,
-          }}>
-            Revisar el siguiente
-          </button>
-        )}
-        <button type="button" onClick={handleClose} style={{
-          width: "100%", height: 38, borderRadius: 10,
-          border: "none", background: "transparent",
-          color: "rgba(255,255,255,0.38)", fontWeight: 500, fontSize: 13,
-          cursor: "pointer", fontFamily: fontStack,
-        }}>
-          {successIsLast ? tCommon("closeLabel") : tCommon("cancel")}
-        </button>
-      </div>
-    </div>
-  );
 
   const typeWord = req.type === "consejo" ? "consejo" : "saludo";
   // Profile source: name is always "Tu perfil", photo comes from buyers[creatorId] (already loaded)
@@ -1524,7 +1443,7 @@ export default function GreetingReviewOverlay({
       : earningFormatted.length > 12 ? 20
       : 22;
 
-  const earningRow = (earningFormatted && !sampleMode) ? (
+  const earningRow = (earningFormatted && !sampleMode && !buyerViewMode) ? (
     <div style={{ display: "grid", gap: 5, justifyItems: "start", minWidth: 0 }}>
       <span style={{ color: "#86efac", fontWeight: 500, fontSize: 11, letterSpacing: "0.01em", lineHeight: 1 }}>
         {tWallet("yourEarning")}
@@ -1611,18 +1530,6 @@ export default function GreetingReviewOverlay({
     </>
   );
 
-  // Barra de progreso de la subida. Solo la usa celular: en laptop el porcentaje
-  // ya va dentro del propio botón de enviar y repetirlo abajo sobraba.
-  const uploadProgressBlock = recordPhase === "done" && isUploading ? (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${uploadProgress}%`, background: "linear-gradient(90deg, #22c55e, #86efac)", borderRadius: 2, transition: "width 200ms ease" }} />
-      </div>
-      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", textAlign: "center", fontFamily: fontStack }}>
-        {uploadProgress < 100 ? tServices("uploadingProgress", { progress: uploadProgress }) : tServices("processing")}
-      </span>
-    </div>
-  ) : null;
 
   // Ficha del archivo elegido. Esta sí se queda en el panel en las dos ramas.
   const recordFileChip = recordPhase === "done" ? (
@@ -1642,16 +1549,13 @@ export default function GreetingReviewOverlay({
     </>
   ) : null;
 
-  const recordStatus = (
-    <>
-      {uploadProgressBlock}
-      {recordFileChip}
-    </>
-  );
 
   /** Etiqueta del botón de envío, con el progreso encima mientras sube. */
   const sendLabel = isUploading
     ? (uploadProgress < 100 ? tServices("uploadingProgress", { progress: uploadProgress }) : tServices("processing"))
+    // Una muestra no se le envía a nadie, se publica. Llamarlo "enviar saludo"
+    // sugeriría que hay un comprador esperándolo al otro lado.
+    : sampleMode ? tServices("uploadSample")
     : req.type === "consejo" ? tServices("sendAdvice") : tServices("sendGreeting");
 
   const repeatLabel = wasUploadedRef.current ? tCommon("changeFile") : tServices("recordAgain");
@@ -1663,7 +1567,9 @@ export default function GreetingReviewOverlay({
    *  el de subir video pregrabado; solo cambia el fondo. */
   const videoActionsDisabled = busy || isUploading;
   const videoActionButton: React.CSSProperties = {
-    padding: "11px 18px", borderRadius: 10, border: "none",
+    // Misma medida que el primitivo Button en talla media, que es la de los
+    // botones de cancelar y continuar del panel de contexto.
+    padding: "10px 16px", borderRadius: 12, border: "none",
     // Centrado explícito: al estirarse en la rejilla, el texto de un <button>
     // no se recentra solo con el alto que le sobra.
     display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -1782,6 +1688,26 @@ export default function GreetingReviewOverlay({
 
   /** Rechazar cancela el cobro retenido al comprador, así que pasa por el panel
    *  de confirmación de la casa en lugar de dispararse con un solo toque. */
+  // La verdad la manda la suscripción; la intención solo manda mientras no
+  // coincidan. En cuanto coinciden, el valor optimista deja de contar solo, sin
+  // necesidad de limpiarlo desde un efecto.
+  const storyReallyOn = existingStory !== null;
+  const storyOnForBuyer =
+    optimisticStoryOn === null || optimisticStoryOn === storyReallyOn
+      ? storyReallyOn
+      : optimisticStoryOn;
+  const storyToggleBusy =
+    addingStory ||
+    removingStory ||
+    (optimisticStoryOn !== null && optimisticStoryOn !== storyReallyOn);
+
+  const handleBuyerStoryToggle = (next: boolean) => {
+    if (storyToggleBusy) return;
+    setOptimisticStoryOn(next);
+    if (next) void handleAddToStoryAsBuyer();
+    else void handleRemoveFromStory();
+  };
+
   const rejectConfirmPanel = (
     <ConfirmPanel
       open={confirmRejectOpen}
@@ -1800,37 +1726,7 @@ export default function GreetingReviewOverlay({
 
   // Los botones apilados a lo ancho del panel lateral. Es lo que sigue usando
   // celular; en laptop se pintan aparte, sobre el video y en fila.
-  const recordActions = recordPhase === "done" ? (
-    <>
-      <button type="button" onClick={handleRepeat} disabled={busy || isUploading} style={{
-        width: "100%", height: 38, borderRadius: 10,
-        border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)",
-        color: (busy || isUploading) ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.65)",
-        fontWeight: 600, fontSize: 13,
-        cursor: (busy || isUploading) ? "not-allowed" : "pointer", fontFamily: fontStack,
-      }}>
-        {repeatLabel}
-      </button>
-      <button type="button" onClick={handleSendGreeting} disabled={busy || isUploading} style={{
-        width: "100%", height: 42, borderRadius: 10,
-        border: "1px solid rgba(34,197,94,0.3)",
-        background: (busy || isUploading) ? "rgba(34,197,94,0.08)" : "rgba(34,197,94,0.2)",
-        color: (busy || isUploading) ? "rgba(134,239,172,0.45)" : "#86efac",
-        fontWeight: 700, fontSize: 14,
-        cursor: (busy || isUploading) ? "not-allowed" : "pointer",
-        fontFamily: fontStack,
-      }}>
-        {sendLabel}
-      </button>
-    </>
-  ) : null;
 
-  const recordControls = recordPhase === "done" ? (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {recordStatus}
-      {recordActions}
-    </div>
-  ) : null;
 
   // Button overlaid on the camera zone
   //
@@ -2394,277 +2290,194 @@ export default function GreetingReviewOverlay({
     );
   }
 
-  // ─── MOBILE CAMERA VIEW ──────────────────────────────────────────────────────
-  if (viewState === "camera" && isMobile) {
-    const MIN_H = 130;
-    const MAX_H = Math.round(window.innerHeight * 0.65);
-
-    const handlePanelTouchStart = (e: React.TouchEvent) => {
-      const touch = e.touches[0];
-      panelDragStartRef.current = { y: touch.clientY, height: mobilePanelHeight };
-      setMobilePanelDragging(true);
-    };
-    const handlePanelTouchMove = (e: React.TouchEvent) => {
-      const touch = e.touches[0];
-      const delta = panelDragStartRef.current.y - touch.clientY; // positive = dragging up = panel grows
-      const next = Math.max(MIN_H, Math.min(MAX_H, panelDragStartRef.current.height + delta));
-      setMobilePanelHeight(next);
-    };
-    const handlePanelTouchEnd = () => setMobilePanelDragging(false);
+  // ─── MOBILE CAMERA VIEW — VISOR ──────────────────────────────────────────────
+  //
+  // Ver un saludo ya entregado, con el mismo lenguaje que el panel de grabación:
+  // video a pantalla completa, ficha plegada al pie que sube con la flecha y
+  // botonera fija sobre un difuminado que crece con ella.
+  if (viewState === "camera" && isMobile && (viewMode || buyerViewMode)) {
+    const SHEET_H = "min(62dvh, 520px)";
+    const BTN_W = "min(88vw, 380px)";
 
     return createPortal(
-      <div style={{ position: "fixed", inset: 0, zIndex, fontFamily: fontStack }}>
+      <div
+        onTouchStart={handleDragStart}
+        onTouchMove={handleDragMove}
+        onTouchEnd={handleDragEnd}
+        style={{
+          position: "fixed", inset: 0, zIndex,
+          background: `rgba(0,0,0,${1 - Math.min(1, dragY / 400)})`,
+          overflow: "hidden", fontFamily: fontStack,
+          transform: `translateY(${dragY}px)`,
+          opacity: 1 - Math.min(1, dragY / 320),
+          transition: dragY > 0 ? "none" : "transform 300ms ease, opacity 300ms ease",
+        }}
+      >
+        {viewMp4Url ? (
+          <div style={{ position: "absolute", inset: 0 }}>
+            <video
+              ref={playbackVideoRef}
+              src={viewMp4Url}
+              poster={viewThumbnailUrl ?? undefined}
+              autoPlay playsInline
+              disablePictureInPicture
+              onContextMenu={(e) => e.preventDefault()}
+              onLoadedMetadata={(e) => { const d = e.currentTarget.duration; setVpDuration(Number.isFinite(d) && d > 0 ? d : 0); setVpReady(true); }}
+              onLoadedData={() => setVpReady(true)}
+              onTimeUpdate={(e) => setVpCurrentTime(e.currentTarget.currentTime)}
+              onPlay={() => { setVpPlaying(true); scheduleVPChromeHide(); }}
+              onPause={() => { setVpPlaying(false); showVPChrome(); }}
+              onEnded={() => { setVpPlaying(false); showVPChrome(); }}
+              style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
+            />
+            {vpControlsOverlay}
+          </div>
+        ) : (
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
+            {tCommon("generalError")}
+          </div>
+        )}
 
-        {/* ── Camera / playback area — fills from top to panel ── */}
+        {/* Cerrar, arriba a la izquierda y respetando la muesca. */}
         <div style={{
-          position: "absolute", top: 0, insetInlineStart: 0, insetInlineEnd: 0,
-          bottom: mobilePanelHeight,
-          background: "#000", overflow: "hidden",
-          borderRadius: "16px 16px 24px 24px",
-          paddingTop: "env(safe-area-inset-top, 0px)",
+          position: "absolute", zIndex: 8,
+          top: "max(14px, env(safe-area-inset-top))", insetInlineStart: 8,
         }}>
-          {(viewMode || buyerViewMode) ? (
-            viewMp4Url ? (
-              <div style={{ position: "relative", width: "100%", height: "100%" }}>
-                <video
-                  ref={playbackVideoRef}
-                  src={viewMp4Url}
-                  poster={viewThumbnailUrl ?? undefined}
-                  autoPlay playsInline
-                  disablePictureInPicture
-                  onContextMenu={(e) => e.preventDefault()}
-                  onLoadedMetadata={(e) => { const d = e.currentTarget.duration; setVpDuration(Number.isFinite(d) && d > 0 ? d : 0); setVpReady(true); }}
-                  onLoadedData={() => setVpReady(true)}
-                  onTimeUpdate={(e) => setVpCurrentTime(e.currentTarget.currentTime)}
-                  onPlay={() => { setVpPlaying(true); scheduleVPChromeHide(); }}
-                  onPause={() => { setVpPlaying(false); showVPChrome(); }}
-                  onEnded={() => { setVpPlaying(false); showVPChrome(); }}
-                  style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
+          <IconButton
+            label={tCommon("closeAriaLabel")}
+            size="md" tone="bare" shape="square"
+            style={{ boxShadow: "none" }}
+            onClick={handleClose}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </IconButton>
+        </div>
+
+        {/* Pie: ficha plegable y acciones, en la misma columna. */}
+        <div style={{
+          position: "absolute", insetInlineStart: 0, insetInlineEnd: 0,
+          // La franja del scrubber mide unos 47. El pie se apoya justo encima
+          // y recorta su relleno inferior, que ahí ya no hace falta.
+          bottom: vpChromeVisible ? 47 : 0,
+          zIndex: 6,
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+          paddingInline: 16, paddingTop: 72,
+          paddingBottom: vpChromeVisible ? 10 : "calc(18px + var(--vb-safe-bottom, 0px))",
+          boxSizing: "border-box",
+          background: "linear-gradient(to top, rgba(0,0,0,0.92) 42%, rgba(0,0,0,0))",
+          transition: "bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), padding-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+        }}>
+          <div style={{
+            width: "100%",
+            display: "grid",
+            gridTemplateRows: mobileInfoOpen ? "1fr" : "0fr",
+            opacity: mobileInfoOpen ? 1 : 0,
+            transition: "grid-template-rows 320ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms ease",
+          }}>
+            <div style={{ minHeight: 0, overflow: "hidden" }}>
+              <div style={{
+                maxHeight: SHEET_H, overflowY: "auto",
+                display: "flex", flexDirection: "column", gap: 14,
+                paddingBottom: 4,
+                ...slideStyleVertical,
+              }}>
+                {buyerStoryCard}
+                {divider}
+                {earningRow}
+                {infoSection}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setMobileInfoOpen((prev) => !prev)}
+            aria-expanded={mobileInfoOpen}
+            aria-label={mobileInfoOpen ? tCommon("hide") : tCommon("show")}
+            style={{
+              background: "transparent", border: "none", padding: "4px 16px",
+              color: "rgba(255,255,255,0.78)", cursor: "pointer", lineHeight: 0,
+            }}
+          >
+            <svg
+              width="24" height="24" viewBox="0 0 24 24" fill="none"
+              style={{
+                transform: `rotate(${mobileInfoOpen ? 180 : 0}deg)`,
+                transition: "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)",
+              }}
+            >
+              <path d="M6 15L12 8L18 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          {buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "flex-end",
+              gap: 12, width: BTN_W,
+            }}>
+              <span style={{ color: "rgba(255,255,255,0.88)", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em" }}>
+                {tServices("addToMyStory")}
+              </span>
+              <Switch
+                checked={storyOnForBuyer}
+                disabled={storyToggleBusy}
+                label={tServices("addToMyStory")}
+                onChange={handleBuyerStoryToggle}
+              />
+            </div>
+          )}
+
+          {buyerViewMode && viewMp4Url && (
+            <button
+              type="button"
+              onClick={handleDownload}
+              disabled={downloading}
+              style={{
+                ...videoActionButton,
+                width: BTN_W, background: "#3b82f6", gap: 8,
+                cursor: downloading ? "not-allowed" : "pointer",
+              }}
+            >
+              {downloading ? tServices("downloadingProgress", { progress: downloadProgress }) : tServices("downloadVideo")}
+            </button>
+          )}
+
+          {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
+            req.allowCreatorStory !== false ? (
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                gap: 12, width: BTN_W,
+              }}>
+                <span style={{ color: "rgba(255,255,255,0.88)", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em" }}>
+                  {shareLabel}
+                </span>
+                <Switch
+                  checked={existingStory !== null}
+                  disabled={addingStory || removingStory}
+                  label={shareLabel}
+                  onChange={(next) => {
+                    if (next) void handleAddToStory();
+                    else void handleRemoveFromStory();
+                  }}
                 />
-                {vpControlsOverlay}
               </div>
             ) : (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, height: "100%" }}>
-                Video no disponible
+              <div style={{
+                width: BTN_W, borderRadius: 12, padding: "10px 14px",
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(0,0,0,0.5)",
+                display: "flex", alignItems: "center", gap: 8, boxSizing: "border-box",
+              }}>
+                <span aria-hidden="true">🔒</span>
+                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
+                  {req.type === "consejo" ? tServices("buyerNoStoryPermissionAdvice") : tServices("buyerNoStoryPermissionGreeting")}
+                </span>
               </div>
             )
-          ) : (
-            <>
-              {/* Live webcam */}
-              <video
-                ref={videoRef}
-                autoPlay muted playsInline
-                disablePictureInPicture
-                onContextMenu={(e) => e.preventDefault()}
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: recordPhase === "done" ? "none" : "block" }}
-              />
-              {/* Playback */}
-              {recordPhase === "done" && recordedBlobUrl && (
-                <div style={{ position: "relative", width: "100%", height: "100%" }}>
-                  <video
-                    ref={playbackVideoRef}
-                    src={recordedBlobUrl}
-                    playsInline
-                    disablePictureInPicture
-                    onContextMenu={(e) => e.preventDefault()}
-                    onLoadedMetadata={(e) => fixPreviewDuration(e.currentTarget)}
-                    onLoadedData={() => setVpReady(true)}
-                    onTimeUpdate={(e) => setVpCurrentTime(e.currentTarget.currentTime)}
-                    onPlay={() => setVpPlaying(true)}
-                    onPause={() => setVpPlaying(false)}
-                    onEnded={() => setVpPlaying(false)}
-                    style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
-                  />
-                  {vpControlsOverlay}
-                </div>
-              )}
-              {/* Timer */}
-              {recordPhase === "recording" && (
-                <div style={{
-                  position: "absolute", top: "calc(16px + env(safe-area-inset-top, 0px))",
-                  left: "50%", transform: "translateX(-50%)",
-                  background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "4px 14px",
-                  display: "flex", alignItems: "center", gap: 7,
-                  color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: fontStack,
-                }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block" }} />
-                  {formatTime(recordingSeconds)}
-                </div>
-              )}
-              {recordPhase !== "done" && renderSourceChip(
-                recordPhase === "recording" ? 54 : 16
-              )}
-              {recordPhase === "recording" && getRecordingMessage(recordingSeconds, req.type) && (
-                <div style={{
-                  position: "absolute", bottom: 110, left: "50%", transform: "translateX(-50%)",
-                  background: "rgba(0,0,0,0.62)", borderRadius: 20, padding: "5px 14px",
-                  color: "#fff", fontWeight: 500, fontSize: 12, fontFamily: fontStack,
-                  whiteSpace: "nowrap", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
-                }}>
-                  {getRecordingMessage(recordingSeconds, req.type)}
-                </div>
-              )}
-              {recordPhase !== "done" && renderCameraRecordButton(28)}
-            </>
           )}
         </div>
-
-        {/* ── Draggable panel ── */}
-        <div style={{
-          position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0,
-          height: mobilePanelHeight,
-          borderRadius: "20px 20px 0 0",
-          background: "linear-gradient(145deg, rgb(6,3,12) 0%, rgb(10,5,20) 100%)",
-          border: "1px solid rgba(168,85,255,0.15)",
-          borderBottom: "none",
-          boxShadow: "0 -8px 24px rgba(0,0,0,0.5)",
-          overflow: "hidden",
-          transition: mobilePanelDragging ? "none" : "height 120ms ease",
-          boxSizing: "border-box",
-        }}>
-          {/* Drag handle — handle bar + buyer row with slide */}
-          <div
-            onTouchStart={handlePanelTouchStart}
-            onTouchMove={handlePanelTouchMove}
-            onTouchEnd={handlePanelTouchEnd}
-            style={{ padding: "10px 16px 12px", touchAction: "none", userSelect: "none", display: "flex", flexDirection: "column", gap: 12 }}
-          >
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.22)", margin: "0 auto" }} />
-            <div style={slideStyle}>{buyerRow}</div>
-          </div>
-
-          {/* Scrollable content */}
-          <div style={{ overflowY: "auto", padding: "0 16px", paddingBottom: "calc(14px + var(--vb-safe-bottom, 0px))", display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, ...slideStyle }}>
-              {divider}
-              {infoSection}
-              {divider}
-            </div>
-            {(viewMode || buyerViewMode) ? (
-              <>
-                {buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={existingStory ? handleRemoveFromStory : handleAddToStoryAsBuyer}
-                      disabled={addingStory || removingStory}
-                      style={{
-                        width: "100%", height: 42, borderRadius: 12,
-                        border: existingStory
-                          ? "1px solid rgba(239,68,68,0.35)"
-                          : "1px solid rgba(168,85,247,0.6)",
-                        background: existingStory
-                          ? "rgba(239,68,68,0.1)"
-                          : "rgba(168,85,247,0.18)",
-                        color: existingStory ? "#fca5a5" : "#d8b4fe",
-                        fontWeight: 700, fontSize: 14,
-                        cursor: (addingStory || removingStory) ? "default" : "pointer",
-                        fontFamily: fontStack,
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                        opacity: (addingStory || removingStory) ? 0.7 : 1,
-                        transition: "background 200ms ease, color 200ms ease",
-                      }}
-                    >
-                      <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
-                        {existingStory ? "✕" : "◎"}
-                      </span>
-                      {removingStory ? tServices("removing") : addingStory ? tServices("adding") : existingStory ? tServices("removeFromMyStory") : tServices("addToMyStory")}
-                    </button>
-                  </>
-                )}
-                {buyerViewMode && viewMp4Url && (
-                  <button
-                    type="button"
-                    onClick={handleDownload}
-                    disabled={downloading}
-                    style={{
-                      display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      width: "100%", height: 42, borderRadius: 12,
-                      border: "1px solid rgba(255,255,255,0.10)",
-                      background: downloading ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)",
-                      color: downloading ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.75)",
-                      fontWeight: 600, fontSize: 13, cursor: downloading ? "default" : "pointer",
-                      fontFamily: fontStack, boxSizing: "border-box",
-                    }}
-                  >
-                    {downloading ? tServices("downloadingProgress", { progress: downloadProgress }) : tServices("downloadVideo")}
-                  </button>
-                )}
-                {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
-                  req.allowCreatorStory !== false ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={existingStory ? handleRemoveFromStory : handleAddToStory}
-                        disabled={addingStory || removingStory}
-                        style={{
-                          width: "100%", height: 42, borderRadius: 12,
-                          border: existingStory
-                            ? "1px solid rgba(239,68,68,0.35)"
-                            : "1px solid rgba(168,85,247,0.6)",
-                          background: existingStory
-                            ? "rgba(239,68,68,0.1)"
-                            : "rgba(168,85,247,0.18)",
-                          color: existingStory ? "#fca5a5" : "#d8b4fe",
-                          fontWeight: 700, fontSize: 14,
-                          cursor: (addingStory || removingStory) ? "default" : "pointer",
-                          fontFamily: fontStack,
-                          display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                          opacity: (addingStory || removingStory) ? 0.7 : 1,
-                          transition: "background 200ms ease, color 200ms ease",
-                        }}
-                      >
-                        <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
-                          {existingStory ? "✕" : "◎"}
-                        </span>
-                        {removingStory ? tServices("removing") : addingStory ? tServices("adding") : existingStory ? tServices("removeStory") : tServices("addToStory")}
-                      </button>
-                    </>
-                  ) : (
-                    <div style={{ borderRadius: 12, padding: "10px 14px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8 }}>
-                      <span>🔒</span>
-                      <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 12, fontFamily: fontStack }}>
-                        {req.type === "consejo" ? tServices("buyerNoStoryPermissionAdvice") : tServices("buyerNoStoryPermissionGreeting")}
-                      </span>
-                    </div>
-                  )
-                )}
-                <button type="button" onClick={handleClose} style={{
-                  width: "100%", height: 42, borderRadius: 12,
-                  border: "none", background: "transparent",
-                  color: "rgba(255,255,255,0.45)", fontWeight: 500, fontSize: 13,
-                  cursor: "pointer", fontFamily: fontStack,
-                }}>
-                  {tCommon("close")}
-                </button>
-              </>
-            ) : uploadSucceeded ? successContent : (
-              <>
-                {recordControls}
-                {recordPhase === "preview" && (
-                  <button type="button" onClick={() => { setUploadError(null); fileInputRef.current?.click(); }} style={{
-                    width: "100%", height: 38, borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
-                    color: "rgba(255,255,255,0.5)", fontWeight: 500, fontSize: 13,
-                    cursor: "pointer", fontFamily: fontStack,
-                  }}>
-                    {tServices("uploadVideo")}
-                  </button>
-                )}
-                <button type="button" onClick={stopCamera} style={{
-                  width: "100%", height: 38, borderRadius: 10,
-                  border: "none", background: "transparent",
-                  color: "rgba(255,255,255,0.3)", fontWeight: 500, fontSize: 13,
-                  cursor: "pointer", fontFamily: fontStack,
-                }}>
-                  {tCommon("cancel")}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {fileInput}
       </div>,
       document.body
     );
@@ -2860,61 +2673,59 @@ export default function GreetingReviewOverlay({
           display: "flex",
           flexDirection: "column",
           gap: 16,
-          overflowY: "auto",
-          overflowX: "hidden",
-          // El contenido arranca arriba; lo que sobra queda abajo.
+          // El panel ya NO rueda entero: rueda solo su zona central.
+          overflow: "hidden",
           justifyContent: "flex-start",
           padding: 20,
           boxSizing: "border-box",
         }}
           onClick={(e) => e.stopPropagation()}
         >
-            {/* El hueco de la derecha es para la flecha, que vive en otra capa.
-                Reservarlo aquí evita que el nombre se le meta debajo. */}
+            {/* Avatar y línea, clavados arriba. Antes se iban con el desplazamiento
+                y el creador perdía de vista de quién era el encargo justo cuando
+                bajaba a leer el contexto. El hueco de la derecha es para la
+                flecha, que vive en otra capa. */}
             <div style={{ flexShrink: 0, paddingInlineEnd: 30, minWidth: 0, ...slideStyle }}>
               {buyerStoryCard}
             </div>
+            <div style={{ flexShrink: 0 }}>{divider}</div>
 
+            {/* La zona que rueda arranca DEBAJO de la línea. El colchón de abajo
+                la separa de la barra de tiempo del reproductor, que aparece y
+                desaparece sobre el video. */}
             <div style={{
+              flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden",
               display: "flex", flexDirection: "column", gap: 16, minWidth: 0,
+              paddingBottom: vpChromeVisible ? 56 : 8,
+              transition: "padding-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
               ...slideStyle,
             }}>
-              {divider}
               {earningRow}
               {infoSection}
             </div>
 
-            <div style={{ marginTop: "auto", paddingTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{
+              flexShrink: 0, paddingTop: 8,
+              display: "flex", flexDirection: "column", gap: 8,
+              // Se aparta de la barra de tiempo cuando el reproductor la enseña.
+              paddingBottom: vpChromeVisible ? 48 : 0,
+              transition: "padding-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+            }}>
               {(viewMode || buyerViewMode) ? (
                 <>
                   {buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
                     <>
-                      <button
-                        type="button"
-                        onClick={existingStory ? handleRemoveFromStory : handleAddToStoryAsBuyer}
-                        disabled={addingStory || removingStory}
-                        style={{
-                          width: "100%", height: 38, borderRadius: 10,
-                          border: existingStory
-                            ? "1px solid rgba(239,68,68,0.35)"
-                            : "1px solid rgba(168,85,247,0.6)",
-                          background: existingStory
-                            ? "rgba(239,68,68,0.1)"
-                            : "rgba(168,85,247,0.18)",
-                          color: existingStory ? "#fca5a5" : "#d8b4fe",
-                          fontWeight: 700, fontSize: 13,
-                          cursor: (addingStory || removingStory) ? "default" : "pointer",
-                          fontFamily: fontStack,
-                          display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                          opacity: (addingStory || removingStory) ? 0.7 : 1,
-                          transition: "background 200ms ease, color 200ms ease",
-                        }}
-                      >
-                        <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>
-                          {existingStory ? "✕" : "◎"}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "2px 0" }}>
+                        <span style={{ color: "rgba(255,255,255,0.88)", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em" }}>
+                          {tServices("addToMyStory")}
                         </span>
-                        {removingStory ? tServices("removing") : addingStory ? tServices("adding") : existingStory ? tServices("removeFromMyStory") : tServices("addToMyStory")}
-                      </button>
+                        <Switch
+                          checked={storyOnForBuyer}
+                          disabled={storyToggleBusy}
+                          label={tServices("addToMyStory")}
+                          onChange={handleBuyerStoryToggle}
+                        />
+                      </div>
                     </>
                   )}
                   {buyerViewMode && viewMp4Url && (
@@ -2923,13 +2734,11 @@ export default function GreetingReviewOverlay({
                       onClick={handleDownload}
                       disabled={downloading}
                       style={{
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                        width: "100%", height: 38, borderRadius: 10,
-                        border: "1px solid rgba(255,255,255,0.10)",
-                        background: downloading ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)",
-                        color: downloading ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.75)",
-                        fontWeight: 600, fontSize: 13, cursor: downloading ? "default" : "pointer",
-                        fontFamily: fontStack, boxSizing: "border-box",
+                        ...videoActionButton,
+                        width: "100%",
+                        background: "#3b82f6",
+                        gap: 8,
+                        cursor: downloading ? "not-allowed" : "pointer",
                       }}
                     >
                       {downloading ? tServices("downloadingProgress", { progress: downloadProgress }) : tServices("downloadVideo")}
@@ -2974,14 +2783,6 @@ export default function GreetingReviewOverlay({
                       </div>
                     )
                   )}
-                  <button type="button" onClick={handleAnimatedClose} style={{
-                    width: "100%", height: 38, borderRadius: 10,
-                    border: "none", background: "transparent",
-                    color: "rgba(255,255,255,0.38)", fontWeight: 500, fontSize: 13,
-                    cursor: "pointer", fontFamily: fontStack,
-                  }}>
-                    {tCommon("close")}
-                  </button>
                 </>
               ) : uploadSucceeded ? null : (
                 // El aviso de enviado y el porcentaje ya no viven aquí: el

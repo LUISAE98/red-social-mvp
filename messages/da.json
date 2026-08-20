@@ -67,6 +67,7 @@
     "settings": "Indstillinger",
     "seeAllFollowing": "Se alle",
     "seeAllCommunities": "Se alle",
+    "seeAllExperiences": "Se alle",
     "reels": "Historier"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Send beskeden",
     "sendGreeting": "Send hilsenen",
     "downloadingProgress": "Behandler {progress} %...",
-    "downloadVideo": "↓ Hent videoen",
+    "downloadVideo": "Hent videoen",
     "successAdvice": "Rådet er sendt!",
     "successMessage": "Beskeden er sendt!",
     "successGreeting": "Hilsenen er sendt!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Er du sikker på, at du vil afvise denne bestilling?",
     "confirmRejectBody": "Købers betaling annulleres, og bestillingen forsvinder fra din liste. Det kan ikke fortrydes.",
     "sampleRequestTitle": "Skriv bestillingen som var du køberen",
-    "sampleRequestHint": "Brug ordene fra den, der ville bestille den, ikke dine egne. I stedet for «jeg hilser på Anna», skriv «jeg vil have en hilsen til Anna, hun fylder 30». Det er det du ser på skærmen mens du optager."
+    "sampleRequestHintGreeting": "Skriv det med ordene fra den, der ville bestille det, ikke dine egne. For eksempel «det er til min søster Anna, hun fylder 30 på lørdag og har fulgt dig fra begyndelsen. Jeg vil elske, hvis du ønsker hende tillykke ved navn og siger, at hun skal turde konkurrere i år».",
+    "sampleRequestHintAdvice": "Skriv det med ordene fra den, der ville bestille det, ikke dine egne. For eksempel «jeg er lige blevet færdig med studiet og er i tvivl om jeg skal tage det første job jeg bliver tilbudt eller vente på noget bedre. Jeg vil gerne vide, hvordan du selv afgjorde det i starten».",
+    "uploadSample": "Upload prøven",
+    "samplePublished": "Prøven er offentliggjort"
   },
   "live": {
     "accessTicket": "Adgangsbillet",

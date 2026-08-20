@@ -48,7 +48,7 @@ export default function SampleRequestPanel({
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "4px 0 8px" }}>
         <p style={{ margin: 0, color: "rgba(255,255,255,0.5)", fontSize: 13, lineHeight: 1.5 }}>
-          {tServices("sampleRequestHint")}
+          {type === "consejo" ? tServices("sampleRequestHintAdvice") : tServices("sampleRequestHintGreeting")}
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -64,13 +64,15 @@ export default function SampleRequestPanel({
         </div>
 
         <div style={{ display: "flex", gap: 10 }}>
-          <Button variant="secondary" onClick={onCancel} style={{ flex: 1 }}>
+          <Button variant="secondary" onClick={onCancel} style={{ flex: 1, fontWeight: 600, letterSpacing: "-0.01em" }}>
             {tCommon("cancel")}
           </Button>
           <Button
             onClick={() => onSubmit({ instructions: instructions.trim() })}
             disabled={!ready}
-            style={{ flex: 1 }}
+            // El mismo degradado que el botón de enviar del grabador: es el
+            // mismo gesto, avanzar con lo que acabas de escribir.
+            style={{ flex: 1, background: "linear-gradient(135deg, #ec4899, #9333ea)", color: "#fff", fontWeight: 600, letterSpacing: "-0.01em" }}
           >
             {tCommon("continue")}
           </Button>

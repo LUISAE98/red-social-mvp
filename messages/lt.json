@@ -67,6 +67,7 @@
     "settings": "Nustatymai",
     "seeAllFollowing": "Rodyti visas",
     "seeAllCommunities": "Rodyti visus",
+    "seeAllExperiences": "Rodyti visus",
     "reels": "Istorijos"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Siųsti žinutę",
     "sendGreeting": "Siųsti sveikinimą",
     "downloadingProgress": "Apdorojama {progress} %...",
-    "downloadVideo": "↓ Atsisiųsti vaizdo įrašą",
+    "downloadVideo": "Atsisiųsti vaizdo įrašą",
     "successAdvice": "Patarimas išsiųstas!",
     "successMessage": "Žinutė išsiųsta!",
     "successGreeting": "Sveikinimas išsiųstas!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Ar tikrai nori atmesti šį užsakymą?",
     "confirmRejectBody": "Pirkėjo mokėjimas bus atšauktas, o užsakymas dings iš tavo sąrašo. To nebus galima atšaukti.",
     "sampleRequestTitle": "Parašyk užsakymą taip, tarsi būtum pirkėjas",
-    "sampleRequestHint": "Naudok to, kas tavęs prašytų, žodžius, ne savo. Vietoj «pasveikinsiu Aną» rašyk «noriu sveikinimo Anai, jai sukanka 30». Tai matysi ekrane filmuodamas."
+    "sampleRequestHintGreeting": "Parašyk to žmogaus žodžiais, kuris tavęs prašytų, ne savo. Pavyzdžiui «tai mano seseriai Anai, šeštadienį jai sukanka 30 ir seka tave nuo pat pradžių. Norėčiau, kad pasveikintum ją vardu ir paragintum šiemet drąsiai varžytis».",
+    "sampleRequestHintAdvice": "Parašyk to žmogaus žodžiais, kuris tavęs prašytų, ne savo. Pavyzdžiui «ką tik baigiau studijas ir dvejoju, ar priimti pirmą pasiūlytą darbą, ar palaukti geresnio. Norėčiau sužinoti, kaip tu tai nusprendei pradžioje».",
+    "uploadSample": "Įkelti pavyzdį",
+    "samplePublished": "Pavyzdys paskelbtas"
   },
   "live": {
     "accessTicket": "Prieigos bilietas",

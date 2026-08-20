@@ -67,6 +67,7 @@
     "settings": "Pengaturan",
     "seeAllFollowing": "Lihat semua",
     "seeAllCommunities": "Lihat semua",
+    "seeAllExperiences": "Lihat semua",
     "reels": "Cerita"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Kirim pesan",
     "sendGreeting": "Kirim video ucapan",
     "downloadingProgress": "Memproses {progress}%...",
-    "downloadVideo": "↓ Unduh video",
+    "downloadVideo": "Unduh video",
     "successAdvice": "Saran terkirim!",
     "successMessage": "Pesan terkirim!",
     "successGreeting": "Video ucapan terkirim!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Yakin ingin menolak pesanan ini?",
     "confirmRejectBody": "Pembayaran pembeli akan dibatalkan dan pesanan hilang dari daftarmu. Tidak bisa dibatalkan.",
     "sampleRequestTitle": "Tulis permintaan seolah kamu pembelinya",
-    "sampleRequestHint": "Pakai kata-kata orang yang memintanya, bukan katamu. Alih-alih «aku akan menyapa Ana», tulis «aku mau salam untuk Ana, dia berulang tahun ke-30». Ini yang akan kamu lihat di layar saat merekam."
+    "sampleRequestHintGreeting": "Tulis dengan kata-kata orang yang akan memintanya, bukan katamu. Misalnya «ini untuk kakakku Ana, dia berulang tahun ke-30 hari Sabtu dan mengikutimu sejak awal. Aku ingin kamu menyebut namanya dan bilang supaya dia berani ikut lomba tahun ini».",
+    "sampleRequestHintAdvice": "Tulis dengan kata-kata orang yang akan memintanya, bukan katamu. Misalnya «aku baru lulus kuliah dan ragu antara menerima tawaran kerja pertama atau menunggu yang lebih baik. Aku ingin tahu bagaimana kamu memutuskannya saat baru mulai».",
+    "uploadSample": "Unggah contoh",
+    "samplePublished": "Contoh diterbitkan"
   },
   "live": {
     "accessTicket": "Tiket akses",

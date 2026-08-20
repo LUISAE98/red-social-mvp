@@ -67,6 +67,7 @@
     "settings": "Einstellungen",
     "seeAllFollowing": "Alle ansehen",
     "seeAllCommunities": "Alle ansehen",
+    "seeAllExperiences": "Alle ansehen",
     "reels": "Storys"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Nachricht senden",
     "sendGreeting": "Gruß senden",
     "downloadingProgress": "Wird verarbeitet {progress} % …",
-    "downloadVideo": "↓ Video herunterladen",
+    "downloadVideo": "Video herunterladen",
     "successAdvice": "Ratschlag gesendet!",
     "successMessage": "Nachricht gesendet!",
     "successGreeting": "Gruß gesendet!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Willst du diese Bestellung wirklich ablehnen?",
     "confirmRejectBody": "Die Zahlung des Käufers wird storniert und die Bestellung verschwindet aus deiner Liste. Das lässt sich nicht rückgängig machen.",
     "sampleRequestTitle": "Schreib die Anfrage, als wärst du der Käufer",
-    "sampleRequestHint": "Nimm die Worte der Person, die sie stellen würde, nicht deine. Statt «ich grüße Anna» schreib «ich möchte einen Gruß für Anna, sie wird 30». Genau das siehst du beim Aufnehmen auf dem Bildschirm."
+    "sampleRequestHintGreeting": "Schreib es mit den Worten der Person, die es bestellen würde, nicht mit deinen. Zum Beispiel «es ist für meine Schwester Anna, sie wird am Samstag 30 und folgt dir von Anfang an. Ich würde mich freuen, wenn du ihr namentlich gratulierst und ihr sagst, sie soll sich dieses Jahr trauen mitzumachen».",
+    "sampleRequestHintAdvice": "Schreib es mit den Worten der Person, die es bestellen würde, nicht mit deinen. Zum Beispiel «ich bin gerade mit dem Studium fertig und schwanke, ob ich den ersten Job annehme oder auf etwas Besseres warte. Mich würde interessieren, wie du das am Anfang entschieden hast».",
+    "uploadSample": "Beispiel hochladen",
+    "samplePublished": "Beispiel veröffentlicht"
   },
   "live": {
     "accessTicket": "Zugangsticket",

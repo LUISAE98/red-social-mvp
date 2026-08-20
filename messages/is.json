@@ -67,6 +67,7 @@
     "settings": "Stillingar",
     "seeAllFollowing": "Sjá allt",
     "seeAllCommunities": "Skoða allt",
+    "seeAllExperiences": "Skoða allt",
     "reels": "Sögur"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Senda skilaboð",
     "sendGreeting": "Senda kveðju",
     "downloadingProgress": "Vinn úr {progress}%...",
-    "downloadVideo": "↓ Sækja myndband",
+    "downloadVideo": "Sækja myndband",
     "successAdvice": "Ráð send!",
     "successMessage": "Skilaboð send!",
     "successGreeting": "Kveðja send!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Viltu örugglega hafna þessari pöntun?",
     "confirmRejectBody": "Greiðsla kaupandans verður felld niður og pöntunin hverfur af listanum þínum. Þessu verður ekki snúið við.",
     "sampleRequestTitle": "Skrifaðu beiðnina eins og þú værir kaupandinn",
-    "sampleRequestHint": "Notaðu orð þess sem myndi biðja þig, ekki þín eigin. Í stað «ég ætla að heilsa Önnu» skrifaðu «mig langar í kveðju til Önnu, hún verður 30». Þetta sérðu á skjánum meðan þú tekur upp."
+    "sampleRequestHintGreeting": "Skrifaðu það með orðum þess sem myndi biðja um það, ekki þínum eigin. Til dæmis «þetta er fyrir systur mína Önnu, hún verður 30 á laugardaginn og hefur fylgt þér frá byrjun. Mér þætti vænt um ef þú óskaðir henni til hamingju með nafni og hvattir hana til að keppa í ár».",
+    "sampleRequestHintAdvice": "Skrifaðu það með orðum þess sem myndi biðja um það, ekki þínum eigin. Til dæmis «ég er nýbúinn í námi og er tvístígandi hvort ég eigi að taka fyrsta starfið sem býðst eða bíða eftir einhverju betra. Mig langar að vita hvernig þú ákvaðst þetta í byrjun».",
+    "uploadSample": "Hlaða upp sýnishorni",
+    "samplePublished": "Sýnishorn birt"
   },
   "live": {
     "accessTicket": "Aðgangsmiði",

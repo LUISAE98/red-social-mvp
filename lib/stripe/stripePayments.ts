@@ -163,3 +163,34 @@ export async function cancelGroupSubscriptionStripe(groupId: string): Promise<{ 
   const res = await fn({ groupId });
   return res.data;
 }
+
+/**
+ * Re-cotiza un pago YA CREADO con el país emisor de la tarjeta y devuelve el desglose
+ * AUTORITATIVO en la moneda del comprador. Es lo que hace que lo mostrado y lo cobrado sean
+ * el mismo número aunque la tarjeta sea de otro país que la IP.
+ *
+ * Solo aplica a los servicios que crean el pago antes de cobrar (saludo, consejo, sesión,
+ * tiempo contigo). Si falla, la pasarela se queda con su cálculo local y el cobro sigue.
+ */
+export type RepriceResult = {
+  changed: boolean;
+  country: string;
+  displayCurrency: string;
+  display: {
+    currency: string;
+    subtotal: number;
+    tax: number;
+    total: number;
+    taxName: string;
+    taxRate: number;
+  };
+};
+
+export async function repriceStripeIntentForCard(input: {
+  externalReference: string;
+  paymentMethodId: string;
+}): Promise<RepriceResult> {
+  const fn = httpsCallable<typeof input, RepriceResult>(functions, "repriceStripeIntentForCard");
+  const res = await fn(input);
+  return res.data;
+}

@@ -67,6 +67,7 @@
     "settings": "設定",
     "seeAllFollowing": "查看全部",
     "seeAllCommunities": "查看全部",
+    "seeAllExperiences": "查看全部",
     "reels": "限時動態"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "傳送訊息",
     "sendGreeting": "送出影片祝福",
     "downloadingProgress": "處理中 {progress}%...",
-    "downloadVideo": "↓ 下載影片",
+    "downloadVideo": "下載影片",
     "successAdvice": "專屬建議已送出！",
     "successMessage": "訊息已送出！",
     "successGreeting": "影片祝福已送出！",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "確定要拒絕這筆委託嗎?",
     "confirmRejectBody": "買家的付款會被取消,委託也會從你的清單中消失,而且無法復原。",
     "sampleRequestTitle": "用買家的身分寫下委託",
-    "sampleRequestHint": "用委託人的說法,不要用你自己的。不要寫「我要跟安娜打招呼」,要寫「我想要一段給安娜的問候,她要滿三十歲了」。錄影時畫面上看到的就是這些。"
+    "sampleRequestHintGreeting": "用委託人的說法寫,不要用你自己的。例如「這是要送給我妹妹安娜的,她星期六滿三十歲,從一開始就在追蹤你。希望你叫出她的名字祝賀,並鼓勵她今年勇敢去比賽」。",
+    "sampleRequestHintAdvice": "用委託人的說法寫,不要用你自己的。例如「我剛畢業,正在猶豫要接下第一份工作,還是再等更好的機會。想知道你剛起步時是怎麼決定的」。",
+    "uploadSample": "上傳範例",
+    "samplePublished": "範例已發布"
   },
   "live": {
     "accessTicket": "觀看門票",

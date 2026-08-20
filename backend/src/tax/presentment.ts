@@ -99,17 +99,18 @@ async function tasaDestino(
 
 export async function applyCharmRounding(
   c: ChargeComposition
-): Promise<{ charge: ChargeComposition; quote: FxQuote | null }> {
+): Promise<{ charge: ChargeComposition; quote: FxQuote | null; displayAmount: number | null }> {
   const target = c.displayCurrency.toUpperCase();
 
   if (target === SETTLEMENT_CURRENCY) {
-    return { charge: recomposeWithCharged(c, roundCharm(c.chargedAmount, SETTLEMENT_CURRENCY)), quote: null };
+    const redondeado = roundCharm(c.chargedAmount, SETTLEMENT_CURRENCY);
+    return { charge: recomposeWithCharged(c, redondeado), quote: null, displayAmount: redondeado };
   }
 
   const t = await tasaDestino(target);
   if (!t) {
     logger.warn("applyCharmRounding: sin tasa, no se redondea", { target });
-    return { charge: c, quote: null };
+    return { charge: c, quote: null, displayAmount: null };
   }
 
   const local = c.chargedAmount * t.porUnidadLiquidacion;
@@ -118,8 +119,11 @@ export async function applyCharmRounding(
 
   // El viaje de ida y vuelta puede devolver un céntimo MENOS por el redondeo de la
   // conversión. Cobrar de menos por redondear sería justo lo contrario de lo que se busca.
-  if (deVuelta < c.chargedAmount) return { charge: c, quote: t.quote };
-  return { charge: recomposeWithCharged(c, deVuelta), quote: t.quote };
+  if (deVuelta < c.chargedAmount) return { charge: c, quote: t.quote, displayAmount: null };
+  // `localCharm` ES el precio que ve el comprador (…,99). Se devuelve para poder cobrar
+  // EXACTAMENTE eso: reconvertirlo desde la moneda de liquidación devolvía un par de
+  // céntimos de más (411.99 mostrado → 412.01 cobrado) y rompía el precio comercial.
+  return { charge: recomposeWithCharged(c, deVuelta), quote: t.quote, displayAmount: localCharm };
 }
 
 /**
@@ -137,7 +141,11 @@ export async function applyCharmRounding(
  */
 export async function resolvePresentment(
   chargedSettlement: number,
-  presentmentCurrency: string
+  presentmentCurrency: string,
+  /** Importe EXACTO en la moneda del comprador (el precio comercial ya redondeado). Solo
+   *  se usa cuando lo que se cobra es el total íntegro; con saldo a favor de por medio lo
+   *  que llega es un residuo y no debe redondearse. */
+  exactDisplayAmount?: number | null
 ): Promise<Presentment> {
   const target = presentmentCurrency.toUpperCase();
 
@@ -179,7 +187,9 @@ export async function resolvePresentment(
   //      (total − crédito), que no es un precio sino un residuo; subirlo hacía que
   //      crédito + tarjeta sumaran MÁS que el total que el comprador aceptó.
   // El precio ya viene limpio desde el total; esto solo convierte con la precisión de la moneda.
-  const amount = roundToCurrencyPrecision(converted, target);
+  const amount = exactDisplayAmount != null && exactDisplayAmount > 0
+    ? exactDisplayAmount
+    : roundToCurrencyPrecision(converted, target);
 
   // La precisión de la moneda mueve el monto unos céntimos; se recalcula el equivalente en la
   // de liquidación para que la conciliación cuadre con lo que de verdad se cobró.

@@ -18,9 +18,32 @@ const CURRENCY_COOKIE = "vibra_currency";
 const COUNTRY_COOKIE = "vibra_country";
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
+/**
+ * País simulado para DESARROLLO LOCAL.
+ *
+ * En local no existe `x-vercel-ip-country` —esa cabecera la pone Vercel—, así que sin esto
+ * el navegador se queda SIEMPRE sin cookie de país y `useBuyerCountry` cae a México. Efecto:
+ * en localhost el desglose siempre enseña IVA mexicano aunque estés con una IP de otro país,
+ * mientras el backend (que sí ve la IP real del request) cobra lo correcto. Ver un precio y
+ * que se cobre otro es justo lo que no puede pasar, y probar los otros 146 países era
+ * imposible sin desplegar.
+ *
+ * Uso: `?pais=US` una vez; queda en la cookie hasta que se cambie con otro `?pais=`.
+ *
+ * 🔒 SOLO fuera de producción. Es únicamente para MOSTRAR: el país fiscal del cobro lo
+ *    resuelve el servidor con la IP del request y el país emisor de la tarjeta, así que ni
+ *    aquí ni en producción el cliente puede elegirse un país sin impuesto para pagar menos.
+ */
+function paisSimuladoEnDesarrollo(request: NextRequest): string | null {
+  if (process.env.NODE_ENV === "production") return null;
+  const v = request.nextUrl.searchParams.get("pais")?.toUpperCase();
+  return v && /^[A-Z]{2}$/.test(v) ? v : null;
+}
+
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const rawCountry = request.headers.get("x-vercel-ip-country");
+  const rawCountry =
+    paisSimuladoEnDesarrollo(request) ?? request.headers.get("x-vercel-ip-country");
   // Vercel manda la subdivisión ISO 3166-2 aparte. Se aplica antes de nada para que
   // Canarias, Ceuta y Melilla no se traten como España: tributan distinto.
   const country = applySubdivisionOverride(
@@ -61,7 +84,11 @@ export default function middleware(request: NextRequest) {
 
   // Moneda de visualización por defecto según el país (solo en la primera visita;
   // una elección manual persiste en su propia cookie y no se sobrescribe).
-  if (!request.cookies.has(CURRENCY_COOKIE) && country) {
+  // ⚠️ Con `?pais=` en desarrollo SÍ se sobrescribe: si no, al simular otro país se
+  //    quedaría la moneda de la primera visita y el desglose saldría mezclado —
+  //    justo la incoherencia que se está intentando reproducir.
+  const paisSimulado = paisSimuladoEnDesarrollo(request);
+  if ((!request.cookies.has(CURRENCY_COOKIE) || paisSimulado) && country) {
     response.cookies.set(CURRENCY_COOKIE, displayCurrencyForCountry(country), {
       maxAge: ONE_YEAR,
       path: "/",

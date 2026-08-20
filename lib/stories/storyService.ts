@@ -322,18 +322,28 @@ export function subscribeToStoryByGreeting(
   callback: (story: StoryDoc | null) => void,
   filterCreatorId?: string,
 ): () => void {
-  const q = query(
-    collection(db, "stories"),
-    where("greetingRequestId", "==", greetingRequestId),
-  );
+  // ⚠️ El filtro por dueño va FIJADO en la consulta, no aplicado después.
+  // Filtrándolo en el cliente, la consulta devolvía también la historia de la
+  // otra parte —el creador publica la suya, el comprador la suya— y las reglas
+  // se evalúan documento a documento: en cuanto uno no era legible, Firestore
+  // denegaba la consulta ENTERA y la suscripción moría con "Missing or
+  // insufficient permissions". El síntoma era el switch de historias, que nunca
+  // llegaba a saber si la historia existía.
+  const q = filterCreatorId
+    ? query(
+        collection(db, "stories"),
+        where("greetingRequestId", "==", greetingRequestId),
+        where("creatorId", "==", filterCreatorId),
+      )
+    : query(
+        collection(db, "stories"),
+        where("greetingRequestId", "==", greetingRequestId),
+      );
   return onSnapshot(
     q,
     (snap) => {
       const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as StoryDoc);
-      const filtered = filterCreatorId
-        ? docs.filter((s) => s.creatorId === filterCreatorId)
-        : docs;
-      callback(filtered.length > 0 ? (filtered[0] ?? null) : null);
+      callback(docs.length > 0 ? (docs[0] ?? null) : null);
     },
     (err) => console.error("[subscribeToStoryByGreeting]", err),
   );

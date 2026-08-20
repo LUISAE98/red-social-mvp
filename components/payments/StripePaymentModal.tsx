@@ -16,7 +16,10 @@ import { useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { repriceStripeIntentForCard } from "@/lib/stripe/stripePayments";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { formatCurrency } from "@/lib/currency/format";
+import type { DisplayCurrency } from "@/lib/currency/catalog";
 import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
 import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -34,6 +37,21 @@ type Props = {
   amount: number | null; // monto base (sin IVA), en la moneda `amountCurrency`
   /** Moneda del `amount`. Default: la de liquidación (USD). "MXN" queda para leer datos previos al corte. */
   amountCurrency?: "USD" | "MXN";
+
+  /**
+   * Referencia del pago (`greetingRequest__{id}`, `exclusiveSessionRequest__{id}`, …).
+   *
+   * Con ella, al leer la tarjeta se le PIDE AL SERVIDOR el precio autoritativo en vez de
+   * recalcularlo aquí. Importa porque el espejo del cliente sabe cambiar el impuesto según
+   * el país de la tarjeta, pero NO la moneda: con IP de EE. UU. y tarjeta mexicana enseñaba
+   * dólares con IVA del 16%, mientras el backend cobraba en pesos. Sin moneda correcta no
+   * hay forma de que lo mostrado sea lo cobrado.
+   *
+   * Solo la tienen los servicios que crean el pago ANTES de cobrar (saludo, consejo, sesión,
+   * tiempo contigo). En el resto no existe todavía el documento del pago y se sigue con el
+   * cálculo local.
+   */
+  externalReference?: string | null;
   /** Crea el PaymentIntent y devuelve su client_secret. `taxCountry` = país fiscal del comprador (por IP).
    *  Si `savedPaymentMethodId` viene, el cobro es "un clic" off-session (sin CVV): se confirma
    *  server-side y la respuesta trae `status` ("succeeded" = cobrado). */
@@ -117,6 +135,7 @@ export default function StripePaymentModal({
   open,
   amount,
   amountCurrency = "USD",
+  externalReference = null,
   createIntent,
   amountEditable = false,
   donationPresets,
@@ -308,6 +327,49 @@ export default function StripePaymentModal({
     // `cardName` tampoco: solo viaja en billing_details y re-tokenizaba en cada tecla.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardComplete, cardPm]);
+
+  // ── Precio AUTORITATIVO: lo dice el servidor, no se adivina aquí ──────────
+  //
+  // Se pide en cuanto hay `pm_...`, que es cuando el servidor puede leer el país emisor.
+  // Devuelve moneda, subtotal, impuesto y total ya compuestos: exactamente lo que se va a
+  // cobrar. Mientras viaja, los skeletons ya están puestos (`readingCard`).
+  //
+  // Si falla NO se rompe el pago: se queda el cálculo local y el cobro sigue su curso. Es
+  // una mejora de exactitud, no una dependencia.
+  const [precioServidor, setPrecioServidor] = useState<{
+    currency: string; base: number; tax: number; total: number; taxName: string; rate: number;
+  } | null>(null);
+  const [pidiendoPrecio, setPidiendoPrecio] = useState(false);
+
+  useEffect(() => {
+    if (!open) { setPrecioServidor(null); return; }
+  }, [open]);
+
+  useEffect(() => {
+    const pmId = cardPm?.id;
+    if (!externalReference || !pmId) return;
+    let cancelado = false;
+    setPidiendoPrecio(true);
+    (async () => {
+      try {
+        const r = await repriceStripeIntentForCard({ externalReference, paymentMethodId: pmId });
+        if (cancelado || !r) return;
+        setPrecioServidor({
+          currency: r.display.currency,
+          base: r.display.subtotal,
+          tax: r.display.tax,
+          total: r.display.total,
+          taxName: r.display.taxName,
+          rate: r.display.taxRate,
+        });
+      } catch {
+        // Se queda el cálculo local. No se le enseña un error al comprador por esto.
+      } finally {
+        if (!cancelado) setPidiendoPrecio(false);
+      }
+    })();
+    return () => { cancelado = true; };
+  }, [externalReference, cardPm]);
 
   // País que MANDA para el precio mostrado. Espeja la regla del backend
   // (backend/src/tax/resolveCountry.ts): gana la tarjeta, salvo que la IP sea de México
@@ -875,9 +937,37 @@ export default function StripePaymentModal({
   const totalLabel = chargedBase != null ? pf.format(chargedBase, { baseCurrency: amountCurrency, code: true }) : priceLabel ?? "";
   // El desglose se calcula con el país EFECTIVO: la IP al abrir, y el de la tarjeta en cuanto
   // se lee. Así el precio en pantalla coincide con lo que el backend va a cobrar.
-  const taxed = chargedBase != null
+  // Se formatea con la moneda que dijo el SERVIDOR. Usar la del visor aquí sería el mismo
+  // fallo de antes: cifras de una moneda con la etiqueta de otra.
+  const fmtServidor = (n: number) =>
+    formatCurrency(n, (precioServidor?.currency ?? pf.currency) as DisplayCurrency, pf.locale, { code: true });
+
+  const taxedLocal = chargedBase != null
     ? pf.formatWithTax(chargedBase, { baseCurrency: amountCurrency, taxCountryOverride: effectiveCountry })
     : null;
+
+  // ⚠️ MANDA EL SERVIDOR. El cálculo local es una estimación mientras no hay tarjeta; en
+  // cuanto la hay, lo que se pinta es lo que el backend va a cobrar —incluida la MONEDA,
+  // que el espejo local no sabe cambiar. Si la llamada falla, `precioServidor` se queda en
+  // null y se sigue con la estimación: nunca se bloquea el pago por esto.
+  const taxed = precioServidor
+    ? {
+        applies: precioServidor.rate > 0,
+        rate: precioServidor.rate,
+        taxName: precioServidor.taxName,
+        currency: precioServidor.currency,
+        base: fmtServidor(precioServidor.base),
+        tax: fmtServidor(precioServidor.tax),
+        total: fmtServidor(precioServidor.total),
+      }
+    : taxedLocal;
+
+  // ⚠️ El total SIEMPRE sale de `taxed.total`, que es el redondeado comercial — el MISMO
+  // cálculo que la tarjeta del servicio y que el backend al cobrar. Antes, cuando el país
+  // no llevaba impuesto (EE. UU.), esta pasarela caía a `totalLabel`, que es el importe
+  // CRUDO: la tarjeta decía 40.99, la pasarela 40.40 y el cargo era 40.99. Tres números
+  // para un solo precio.
+  const totalMostrado = taxed ? `${taxed.total} ${taxed.currency}` : totalLabel;
 
   /** Barra gris del skeleton mientras se lee el BIN de la tarjeta. */
   const priceSkeleton = (w: number) => (
@@ -976,10 +1066,16 @@ export default function StripePaymentModal({
               })}
             </div>
           )}
-          {taxed?.applies && chosenAmount != null && (
+          {/* Sin impuesto (p. ej. EE. UU.) también se enseña el total: es donde entra el cargo
+              fijo y el redondeo comercial, y sin esta línea el donante no veía cuánto paga. */}
+          {taxed != null && chosenAmount != null && (
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e6e8ec", display: "grid", gap: 5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{tWallet("paySubtotal")}</span><span>{readingCard ? priceSkeleton(58) : <>{taxed.base} {taxed.currency}</>}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{taxed.taxName} ({Math.round(taxed.rate * 100)}%)</span><span>{readingCard ? priceSkeleton(46) : <>{taxed.tax} {taxed.currency}</>}</span></div>
+              {taxed.applies && (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{tWallet("paySubtotal")}</span><span>{(readingCard || pidiendoPrecio) ? priceSkeleton(58) : <>{taxed.base} {taxed.currency}</>}</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{taxed.taxName} ({Math.round(taxed.rate * 100)}%)</span><span>{(readingCard || pidiendoPrecio) ? priceSkeleton(46) : <>{taxed.tax} {taxed.currency}</>}</span></div>
+                </>
+              )}
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}><span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{tWallet("payTotalDue")}</span><span style={{ fontSize: 16, fontWeight: 600, color: "#3a3f4a" }}>{taxed.total} {taxed.currency}</span></div>
               <div style={{ display: "grid", gridTemplateRows: useCredit && creditApplied > 0 ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
                 <div style={{ overflow: "hidden", opacity: useCredit && creditApplied > 0 ? 1 : 0, transition: "opacity 240ms ease" }}>
@@ -997,11 +1093,11 @@ export default function StripePaymentModal({
           <div style={{ height: 1, background: "#e6e8ec" }} />
           {taxed?.applies ? (
             <div style={{ display: "grid", gap: 6 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{tWallet("paySubtotal")}</span><span>{readingCard ? priceSkeleton(58) : <>{taxed.base} {taxed.currency}</>}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{taxed.taxName} ({Math.round(taxed.rate * 100)}%)</span><span>{readingCard ? priceSkeleton(46) : <>{taxed.tax} {taxed.currency}</>}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{tWallet("paySubtotal")}</span><span>{(readingCard || pidiendoPrecio) ? priceSkeleton(58) : <>{taxed.base} {taxed.currency}</>}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{taxed.taxName} ({Math.round(taxed.rate * 100)}%)</span><span>{(readingCard || pidiendoPrecio) ? priceSkeleton(46) : <>{taxed.tax} {taxed.currency}</>}</span></div>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{pricePeriodLabel ? "Cobro mensual" : "Total a pagar"}</span>
-                <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{readingCard ? priceSkeleton(78) : <>{taxed.total} {taxed.currency}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}</>}</span>
+                <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{(readingCard || pidiendoPrecio) ? priceSkeleton(78) : <>{taxed.total} {taxed.currency}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}</>}</span>
               </div>
               <div style={{ display: "grid", gridTemplateRows: useCredit && creditApplied > 0 ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
                 <div style={{ overflow: "hidden", opacity: useCredit && creditApplied > 0 ? 1 : 0, transition: "opacity 240ms ease" }}>
@@ -1015,7 +1111,7 @@ export default function StripePaymentModal({
           ) : (
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
               <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{pricePeriodLabel ? "Cobro mensual" : "Total a pagar"}</span>
-              <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{readingCard ? priceSkeleton(78) : <>{totalLabel}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}</>}</span>
+              <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{(readingCard || pidiendoPrecio) ? priceSkeleton(78) : <>{totalMostrado}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}</>}</span>
             </div>
           )}
         </>

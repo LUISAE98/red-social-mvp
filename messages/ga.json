@@ -67,6 +67,7 @@
     "settings": "Socruithe",
     "seeAllFollowing": "Féach orthu uile",
     "seeAllCommunities": "Féach orthu uile",
+    "seeAllExperiences": "Féach orthu uile",
     "reels": "Scéalta"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Seol teachtaireacht",
     "sendGreeting": "Seol an bheannacht",
     "downloadingProgress": "Á phróiseáil {progress}%...",
-    "downloadVideo": "↓ Íoslódáil an físeán",
+    "downloadVideo": "Íoslódáil an físeán",
     "successAdvice": "Comhairle seolta!",
     "successMessage": "Teachtaireacht seolta!",
     "successGreeting": "Beannacht seolta!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "An bhfuil tú cinnte gur mian leat an t-ordú seo a dhiúltú?",
     "confirmRejectBody": "Cuirfear íocaíocht an cheannaitheora ar ceal agus imeoidh an t-ordú de do liosta. Ní féidir é seo a chur ar ais.",
     "sampleRequestTitle": "Scríobh an t-iarratas amhail is gur tusa an ceannaitheoir",
-    "sampleRequestHint": "Bain úsáid as focail an duine a d'iarrfadh ort é, ní do chuid féin. In áit «beannóidh mé d'Ana», scríobh «teastaíonn beannacht uaim d'Ana, tá sí 30». Sin a fheicfidh tú ar an scáileán agus tú ag taifeadadh."
+    "sampleRequestHintGreeting": "Scríobh é i bhfocail an duine a d'iarrfadh ort é, ní i do chuid féin. Mar shampla «tá sé do mo dheirfiúr Ana, beidh sí 30 Dé Sathairn agus tá sí do do leanúint ón tús. Ba bhreá liom go gcuirfeá comhghairdeas uirthi as a hainm agus go n-inseofá di dul san iomaíocht i mbliana».",
+    "sampleRequestHintAdvice": "Scríobh é i bhfocail an duine a d'iarrfadh ort é, ní i do chuid féin. Mar shampla «tá mo chéim críochnaithe agam agus tá mé idir dhá chomhairle faoin gcéad phost a ghlacadh nó fanacht le ceann níos fearr. Ba mhaith liom a fháil amach conas a shocraigh tusa é sin ag an tús».",
+    "uploadSample": "Uaslódáil an sampla",
+    "samplePublished": "Sampla foilsithe"
   },
   "live": {
     "accessTicket": "Ticéad rochtana",

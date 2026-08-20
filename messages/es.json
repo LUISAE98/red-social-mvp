@@ -67,6 +67,7 @@
     "settings": "Configuración",
     "seeAllFollowing": "Ver todos",
     "seeAllCommunities": "Ver todas",
+    "seeAllExperiences": "Ver todas",
     "reels": "Historias"
   },
   "common": {
@@ -1565,7 +1566,7 @@
     "sendMessage": "Enviar mensaje",
     "sendGreeting": "Enviar saludo",
     "downloadingProgress": "Procesando {progress}%...",
-    "downloadVideo": "↓ Descargar video",
+    "downloadVideo": "Descargar video",
     "successAdvice": "¡Consejo enviado!",
     "successMessage": "¡Mensaje enviado!",
     "successGreeting": "¡Saludo enviado!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "¿Seguro que quieres rechazar este encargo?",
     "confirmRejectBody": "Se cancelará el cobro al comprador y el encargo desaparecerá de tu lista. No se puede deshacer.",
     "sampleRequestTitle": "Escribe la solicitud como si fueras el comprador",
-    "sampleRequestHint": "Usa las palabras de quien te la pediría, no las tuyas. En vez de «voy a saludar a Ana», escribe «quiero un saludo para Ana, cumple 30». Es lo que verás en pantalla mientras grabas."
+    "sampleRequestHintGreeting": "Escríbelo con las palabras de quien te lo pediría, no con las tuyas. Por ejemplo «es para mi hermana Ana, el sábado cumple 30 y te sigue desde el principio. Me encantaría que la felicites por su nombre y le digas que se anime a competir este año».",
+    "sampleRequestHintAdvice": "Escríbelo con las palabras de quien te lo pediría, no con las tuyas. Por ejemplo «acabo de terminar la carrera y dudo entre aceptar el primer trabajo que me ofrecen o esperar algo mejor. Me gustaría saber cómo lo decidiste tú cuando empezabas».",
+    "uploadSample": "Subir muestra",
+    "samplePublished": "Muestra publicada"
   },
   "live": {
     "accessTicket": "Ticket de acceso",

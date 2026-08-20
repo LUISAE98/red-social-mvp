@@ -67,6 +67,7 @@
     "settings": "Mga setting",
     "seeAllFollowing": "Tingnan lahat",
     "seeAllCommunities": "Tingnan lahat",
+    "seeAllExperiences": "Tingnan lahat",
     "reels": "Mga Kuwento"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Ipadala ang mensahe",
     "sendGreeting": "Ipadala ang pagbati",
     "downloadingProgress": "Pinoproseso {progress}%...",
-    "downloadVideo": "↓ I-download ang video",
+    "downloadVideo": "I-download ang video",
     "successAdvice": "Naipadala ang payo!",
     "successMessage": "Naipadala ang mensahe!",
     "successGreeting": "Naipadala ang pagbati!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Sigurado kang tatanggihan ang order na ito?",
     "confirmRejectBody": "Kakanselahin ang bayad ng bumili at mawawala ang order sa listahan mo. Hindi na ito maibabalik.",
     "sampleRequestTitle": "Isulat ang hiling na parang ikaw ang bumibili",
-    "sampleRequestHint": "Gamitin ang salita ng hihiling sa iyo, hindi ang sarili mo. Sa halip na «babatiin ko si Ana», isulat «gusto ko ng bati para kay Ana, mag-30 na siya». Ito ang makikita mo sa screen habang nagre-record."
+    "sampleRequestHintGreeting": "Isulat ito sa salita ng hihiling sa iyo, hindi sa sarili mo. Halimbawa «para ito sa kapatid kong si Ana, mag-30 siya sa Sabado at sinusubaybayan ka niya mula pa sa simula. Gusto ko sana batiin mo siya sa pangalan at sabihin mong lumaban siya ngayong taon».",
+    "sampleRequestHintAdvice": "Isulat ito sa salita ng hihiling sa iyo, hindi sa sarili mo. Halimbawa «katatapos ko lang ng pag-aaral at nag-aalinlangan ako kung tatanggapin ko ang unang trabahong inaalok o maghihintay ng mas maganda. Gusto kong malaman kung paano mo ito naipasya noong nagsisimula ka pa lang».",
+    "uploadSample": "I-upload ang sample",
+    "samplePublished": "Nailathala ang sample"
   },
   "live": {
     "accessTicket": "Access ticket",

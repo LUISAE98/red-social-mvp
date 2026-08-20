@@ -67,6 +67,7 @@
     "settings": "Beállítások",
     "seeAllFollowing": "Összes megtekintése",
     "seeAllCommunities": "Összes megtekintése",
+    "seeAllExperiences": "Összes megtekintése",
     "reels": "Történetek"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Üzenet küldése",
     "sendGreeting": "Videóüzenet küldése",
     "downloadingProgress": "Feldolgozás {progress} %…",
-    "downloadVideo": "↓ Videó letöltése",
+    "downloadVideo": "Videó letöltése",
     "successAdvice": "Tanács elküldve!",
     "successMessage": "Üzenet elküldve!",
     "successGreeting": "Videóüzenet elküldve!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Biztosan elutasítod ezt a megrendelést?",
     "confirmRejectBody": "A vásárló fizetése törlődik, és a megrendelés eltűnik a listádról. Ez nem vonható vissza.",
     "sampleRequestTitle": "Írd meg a kérést úgy, mintha te lennél a vásárló",
-    "sampleRequestHint": "A megrendelő szavait használd, ne a sajátjaidat. «Köszöntöm Annát» helyett írd azt, hogy «szeretnék egy köszöntőt Annának, 30 éves lesz». Ezt fogod látni a képernyőn felvétel közben."
+    "sampleRequestHintGreeting": "Írd meg annak a szavaival, aki kérné, ne a sajátjaiddal. Például «a nővéremnek, Annának lesz, szombaton lesz 30 és az elejétől követ téged. Örülnék, ha néven köszöntenéd és biztatnád, hogy idén merjen versenyezni».",
+    "sampleRequestHintAdvice": "Írd meg annak a szavaival, aki kérné, ne a sajátjaiddal. Például «most végeztem az egyetemen és nem tudom, elfogadjam-e az első felkínált állást vagy várjak valami jobbra. Érdekelne, te hogyan döntötted el ezt a kezdetekkor».",
+    "uploadSample": "Minta feltöltése",
+    "samplePublished": "Minta közzétéve"
   },
   "live": {
     "accessTicket": "Belépőjegy",

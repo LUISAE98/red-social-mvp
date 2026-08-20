@@ -6,6 +6,7 @@ import {
   convertToAnchor,
   roundNice,
   buyerPrice,
+  roundCharm,
   formatCurrency,
   FX_BUFFER,
 } from "@/lib/currency/format";
@@ -210,5 +211,36 @@ describe("formatCurrency · código ISO sin duplicar", () => {
         expect(out.match(new RegExp(cur, "g"))?.length ?? 0, `${cur}/${loc}`).toBeLessThanOrEqual(1);
       }
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UN PRECIO, UN NÚMERO.
+//
+// La tarjeta del servicio, la pasarela y el cargo tienen que enseñar lo mismo. Se rompió
+// justo donde no había impuesto: la pasarela caía al importe CRUDO (40.40) mientras la
+// tarjeta y el cargo usaban el redondeado comercial (40.99). Tres números para un precio.
+//
+// La regla que fijan estas pruebas: el total del comprador es SIEMPRE `roundCharm`, lleve
+// impuesto o no. `roundCharm` es el mismo cálculo del backend (hay paridad probada aparte).
+// ─────────────────────────────────────────────────────────────────────────────
+describe("el total del comprador no depende de si hay impuesto", () => {
+  it("sin impuesto sigue redondeando: 40.40 USD → 40.99, nunca 40.40", () => {
+    expect(roundCharm(40.4, "USD")).toBe(40.99);
+  });
+
+  it("el cargo fijo NO es el total: 40 + 0.40 se cobra como 40.99", () => {
+    const base = 40;
+    const conCargo = base + 0.4;
+    const total = roundCharm(conCargo, "USD");
+    expect(total).toBeGreaterThan(conCargo); // el redondeo sube, nunca baja
+    expect(Math.round(total * 100) % 100).toBe(99);
+  });
+
+  it("da lo mismo con impuesto y sin él: los dos terminan en ,99", () => {
+    const conIva = roundCharm(40.4 * 1.16, "USD"); // como si fuera México
+    const sinIva = roundCharm(40.4, "USD");
+    for (const t of [conIva, sinIva]) expect(Math.round(t * 100) % 100).toBe(99);
+    expect(conIva).toBeGreaterThan(sinIva);
   });
 });

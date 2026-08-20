@@ -67,6 +67,7 @@
     "settings": "Instellingen",
     "seeAllFollowing": "Alles bekijken",
     "seeAllCommunities": "Alles bekijken",
+    "seeAllExperiences": "Alles bekijken",
     "reels": "Verhalen"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Bericht versturen",
     "sendGreeting": "Videoboodschap versturen",
     "downloadingProgress": "Verwerken {progress} %…",
-    "downloadVideo": "↓ Video downloaden",
+    "downloadVideo": "Video downloaden",
     "successAdvice": "Advies verstuurd!",
     "successMessage": "Bericht verstuurd!",
     "successGreeting": "Videoboodschap verstuurd!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Weet je zeker dat je deze opdracht wilt weigeren?",
     "confirmRejectBody": "De betaling van de koper wordt geannuleerd en de opdracht verdwijnt uit je lijst. Dit kan niet ongedaan worden gemaakt.",
     "sampleRequestTitle": "Schrijf het verzoek alsof jij de koper bent",
-    "sampleRequestHint": "Gebruik de woorden van degene die het zou vragen, niet die van jou. In plaats van «ik ga Ana groeten», schrijf «ik wil een groet voor Ana, ze wordt 30». Dit zie je op het scherm tijdens de opname."
+    "sampleRequestHintGreeting": "Schrijf het met de woorden van degene die het zou vragen, niet met die van jou. Bijvoorbeeld «het is voor mijn zus Ana, ze wordt zaterdag 30 en volgt je vanaf het begin. Ik zou het geweldig vinden als je haar bij naam feliciteert en zegt dat ze dit jaar de wedstrijd aandurft».",
+    "sampleRequestHintAdvice": "Schrijf het met de woorden van degene die het zou vragen, niet met die van jou. Bijvoorbeeld «ik ben net afgestudeerd en twijfel tussen de eerste baan aannemen of wachten op iets beters. Ik zou graag weten hoe jij dat beslist hebt toen je begon».",
+    "uploadSample": "Voorbeeld uploaden",
+    "samplePublished": "Voorbeeld gepubliceerd"
   },
   "live": {
     "accessTicket": "Toegangsticket",

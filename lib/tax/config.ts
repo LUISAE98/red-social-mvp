@@ -610,6 +610,11 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   //       impuesto. Decisión de Luis, 2026-08-11.
   //    ⚠️ Si NO se registra, los bancos e intermediarios retienen y enteran mensualmente.
   //       Es la vía del incumplimiento, no una alternativa (mismo patrón que Perú).
+  // 🚫 NO se integró, a propósito (decisión de Luis, 2026-08-19):
+  //    · 🇮🇱 Israel — inestabilidad política (un régimen de alta y declaración continua
+  //      asume que el país opera igual dentro de un año) y exige REPRESENTANTE FISCAL
+  //      residente, que Vibra no tiene. Mismo motivo que Macedonia del Norte y Suiza.
+  //    ⚠️ Sin fila, la venta a Israel se RECHAZA. Es deliberado.
   KR: platformCollects("VAT", 0.10, "KRW", KR_NTS_REGISTERED),      // Corea del Sur
   VN: platformCollects("VAT", 0.10, "VND", VN_GDT_REGISTERED),      // Vietnam
   AE: platformCollects("VAT", 0.05, "AED", AE_FTA_REGISTERED),      // Emiratos Árabes Unidos

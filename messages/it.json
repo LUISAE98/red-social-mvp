@@ -67,6 +67,7 @@
     "settings": "Impostazioni",
     "seeAllFollowing": "Vedi tutti",
     "seeAllCommunities": "Vedi tutte",
+    "seeAllExperiences": "Vedi tutte",
     "reels": "Storie"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Invia il messaggio",
     "sendGreeting": "Invia la dedica",
     "downloadingProgress": "Elaborazione {progress} %…",
-    "downloadVideo": "↓ Scarica il video",
+    "downloadVideo": "Scarica il video",
     "successAdvice": "Consiglio inviato!",
     "successMessage": "Messaggio inviato!",
     "successGreeting": "Dedica inviata!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Vuoi davvero rifiutare questa richiesta?",
     "confirmRejectBody": "Il pagamento dell'acquirente verrà annullato e la richiesta sparirà dalla tua lista. Non si può annullare.",
     "sampleRequestTitle": "Scrivi la richiesta come se fossi l'acquirente",
-    "sampleRequestHint": "Usa le parole di chi te la farebbe, non le tue. Invece di «saluterò Ana», scrivi «voglio un saluto per Ana, compie 30 anni». È quello che vedrai sullo schermo mentre registri."
+    "sampleRequestHintGreeting": "Scrivilo con le parole di chi te lo chiederebbe, non con le tue. Per esempio «è per mia sorella Ana, sabato compie 30 anni e ti segue dall'inizio. Mi piacerebbe che le facessi gli auguri per nome e le dicessi di buttarsi in gara quest'anno».",
+    "sampleRequestHintAdvice": "Scrivilo con le parole di chi te lo chiederebbe, non con le tue. Per esempio «ho appena finito l'università e sono indeciso tra accettare il primo lavoro che mi offrono o aspettare qualcosa di meglio. Vorrei sapere come hai deciso tu quando iniziavi».",
+    "uploadSample": "Carica l'esempio",
+    "samplePublished": "Esempio pubblicato"
   },
   "live": {
     "accessTicket": "Biglietto d'accesso",

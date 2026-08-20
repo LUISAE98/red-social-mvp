@@ -67,6 +67,7 @@
     "settings": "Definições",
     "seeAllFollowing": "Ver todas",
     "seeAllCommunities": "Ver todas",
+    "seeAllExperiences": "Ver todas",
     "reels": "Histórias"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Enviar mensagem",
     "sendGreeting": "Enviar dedicatória",
     "downloadingProgress": "A processar {progress}%...",
-    "downloadVideo": "↓ Transferir vídeo",
+    "downloadVideo": "Transferir vídeo",
     "successAdvice": "Conselho enviado!",
     "successMessage": "Mensagem enviada!",
     "successGreeting": "Dedicatória enviada!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Tens a certeza de que queres recusar esta encomenda?",
     "confirmRejectBody": "A cobrança ao comprador será cancelada e a encomenda sairá da tua lista. Não é possível desfazer.",
     "sampleRequestTitle": "Escreve o pedido como se fosses o comprador",
-    "sampleRequestHint": "Usa as palavras de quem to faria, não as tuas. Em vez de «vou cumprimentar a Ana», escreve «quero uma saudação para a Ana, faz 30 anos». É o que vais ver no ecrã enquanto gravas."
+    "sampleRequestHintGreeting": "Escreve com as palavras de quem faria o pedido, não com as tuas. Por exemplo «é para a minha irmã Ana, faz 30 no sábado e segue-te desde o início. Adorava que a felicitasses pelo nome e lhe dissesses para ganhar coragem e competir este ano».",
+    "sampleRequestHintAdvice": "Escreve com as palavras de quem faria o pedido, não com as tuas. Por exemplo «acabei o curso agora e estou dividido entre aceitar o primeiro emprego que me oferecem ou esperar por algo melhor. Gostava de saber como decidiste isso quando começaste».",
+    "uploadSample": "Carregar amostra",
+    "samplePublished": "Amostra publicada"
   },
   "live": {
     "accessTicket": "Bilhete de acesso",

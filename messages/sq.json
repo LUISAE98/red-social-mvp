@@ -67,6 +67,7 @@
     "settings": "Cilësimet",
     "seeAllFollowing": "Shiko të gjitha",
     "seeAllCommunities": "Shiko të gjitha",
+    "seeAllExperiences": "Shiko të gjitha",
     "reels": "Histori"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Dërgo mesazhin",
     "sendGreeting": "Dërgo urimin",
     "downloadingProgress": "Duke përpunuar {progress}%...",
-    "downloadVideo": "↓ Shkarko videon",
+    "downloadVideo": "Shkarko videon",
     "successAdvice": "Këshilla u dërgua!",
     "successMessage": "Mesazhi u dërgua!",
     "successGreeting": "Urimi u dërgua!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Je i sigurt që do ta refuzosh këtë porosi?",
     "confirmRejectBody": "Pagesa e blerësit do të anulohet dhe porosia do të zhduket nga lista jote. Nuk mund të zhbëhet.",
     "sampleRequestTitle": "Shkruaj kërkesën sikur të ishe blerësi",
-    "sampleRequestHint": "Përdor fjalët e atij që do ta kërkonte, jo të tuat. Në vend të «do ta përshëndes Anën», shkruaj «dua një përshëndetje për Anën, mbush 30». Kjo është ajo që do të shohësh në ekran ndërsa regjistron."
+    "sampleRequestHintGreeting": "Shkruaje me fjalët e atij që do të ta kërkonte, jo me të tuat. Për shembull «është për motrën time Anën, të shtunën mbush 30 vjeç dhe të ndjek që në fillim. Do të doja ta uroje me emër dhe t'i thoshe të guxojë të garojë këtë vit».",
+    "sampleRequestHintAdvice": "Shkruaje me fjalët e atij që do të ta kërkonte, jo me të tuat. Për shembull «sapo mbarova studimet dhe jam mes pranimit të punës së parë që më ofrohet ose pritjes për diçka më të mirë. Do të doja të dija si e vendose ti këtë kur po filloje».",
+    "uploadSample": "Ngarko mostrën",
+    "samplePublished": "Mostra u publikua"
   },
   "live": {
     "accessTicket": "Biletë hyrjeje",

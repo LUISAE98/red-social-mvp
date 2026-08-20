@@ -550,6 +550,54 @@ sigue guardando `fxQuoteId` como evidencia, pero esa cotización YA NO se usó p
 Hay que dejar de estamparla ahí o marcarla como no aplicada antes de citar ese campo en
 ningún documento.
 
+### 2026-08-19 — El precio mostrado no era el cobrado (2 céntimos)
+
+Detectado al verificar por qué una compra «exitosa» no aparecía en el panel de Stripe.
+No aparecía porque **era una autorización, no un cobro** (`pi_3U6JH17tY0CtRg4D0y1MvNXw`,
+`status: authorized`): las retenciones viven en «No capturados» y solo pasan a «Pagos» al
+capturarse. Eso funcionaba bien. Pero al revisar los importes salió otra cosa:
+
+| | Mostrado | Cobrado |
+|---|---|---|
+| Saludo de $20 USD | 411.99 MXN | **412.01 MXN** |
+| Saludo de $40 USD | 815.99 MXN | **816.01 MXN** |
+
+El total se redondea a precio comercial (…,99) en la moneda del comprador, pero el importe
+canónico se guarda en la de liquidación. Reconvertirlo para cobrar hacía un viaje de ida y
+vuelta que devolvía céntimos de más. Sistemático y siempre hacia arriba.
+
+`applyCharmRounding` ahora devuelve el importe comercial y se cobra ese, tal cual. ⚠️ Solo
+cuando NO hubo saldo a favor: con crédito de por medio lo que se cobra es un residuo, no un
+precio, y forzarle el …,99 haría que crédito + tarjeta sumaran más de lo aceptado.
+
+Fijado con pruebas en `backend/test/presentmentCharm.pure.test.ts`.
+
+### 2026-08-19 — Por qué en local el desglose siempre enseña IVA mexicano
+
+Reportado como «pago 46.99 con IVA mexicano desde una IP de EE. UU. y a Stripe caen 40.99».
+Son dos cosas y solo una es un fallo:
+
+**El cobro fue CORRECTO.** El backend resuelve el país fiscal con la IP del request y el
+país emisor de la tarjeta, vio Estados Unidos, y cobró 40 + 0.40 → 40.99 sin impuesto ni
+cargo de conversión. Exacto.
+
+**Lo que se MOSTRABA no.** El desglose del navegador sale de la cookie `vibra_country`, que
+escribe el middleware desde `x-vercel-ip-country`. Esa cabecera **la pone Vercel y en local
+no existe**, así que no hay cookie y `useBuyerCountry` cae a su fallback, que es México.
+Resultado: en localhost SIEMPRE se ve IVA del 16%, con cualquier IP.
+
+En producción no ocurre —la cabecera siempre está— pero hacía imposible probar en local los
+otros 146 países. Se añadió `?pais=XX`, **solo fuera de producción**, que simula el país y
+refresca también la moneda. No afecta al cobro: el país fiscal sigue resolviéndose en el
+servidor, así que nadie puede elegirse un país sin impuesto para pagar menos.
+
+⚠️ **Hallazgo aparte, sin resolver**: `repriceStripeIntentForCard` está desplegada y **no la
+llama NADIE en el frontend**. Es la pieza que, al leer la tarjeta, le pide al servidor el
+total autoritativo y corrige lo mostrado antes de pagar. Sin ella, lo que ve el comprador y
+lo que se le cobra se calculan por caminos distintos y nada los reconcilia. Hoy coinciden
+porque el modal espeja la regla de país del backend, pero es un espejo que hay que mantener
+a mano. Decidir: cablearla o borrarla.
+
 ## 9. Dependencias para operar en vivo
 
 | Qué | Estado | Bloquea |

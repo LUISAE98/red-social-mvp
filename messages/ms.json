@@ -67,6 +67,7 @@
     "settings": "Tetapan",
     "seeAllFollowing": "Lihat semua",
     "seeAllCommunities": "Lihat semua",
+    "seeAllExperiences": "Lihat semua",
     "reels": "Cerita"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Hantar mesej",
     "sendGreeting": "Hantar video ucapan",
     "downloadingProgress": "Memproses {progress}%...",
-    "downloadVideo": "↓ Muat turun video",
+    "downloadVideo": "Muat turun video",
     "successAdvice": "Nasihat dihantar!",
     "successMessage": "Mesej dihantar!",
     "successGreeting": "Video ucapan dihantar!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Pasti mahu menolak tempahan ini?",
     "confirmRejectBody": "Bayaran pembeli akan dibatalkan dan tempahan hilang dari senarai anda. Tidak boleh dibatalkan.",
     "sampleRequestTitle": "Tulis permintaan seolah-olah anda pembeli",
-    "sampleRequestHint": "Guna perkataan orang yang akan meminta, bukan perkataan anda. Daripada «saya akan menyapa Ana», tulis «saya mahu ucapan untuk Ana, dia genap 30». Inilah yang akan anda lihat pada skrin semasa merakam."
+    "sampleRequestHintGreeting": "Tulis dengan perkataan orang yang akan memintanya, bukan perkataan anda. Contohnya «ini untuk kakak saya Ana, dia genap 30 pada Sabtu dan mengikuti anda sejak awal. Saya harap anda menyebut namanya dan menyuruhnya berani bertanding tahun ini».",
+    "sampleRequestHintAdvice": "Tulis dengan perkataan orang yang akan memintanya, bukan perkataan anda. Contohnya «saya baru habis belajar dan teragak-agak sama ada menerima kerja pertama yang ditawarkan atau menunggu yang lebih baik. Saya ingin tahu bagaimana anda memutuskannya ketika mula-mula dulu».",
+    "uploadSample": "Muat naik sampel",
+    "samplePublished": "Sampel diterbitkan"
   },
   "live": {
     "accessTicket": "Tiket akses",

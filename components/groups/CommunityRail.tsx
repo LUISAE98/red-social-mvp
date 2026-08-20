@@ -30,6 +30,7 @@ import { useTranslations } from "next-intl";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import FollowStateButton from "@/components/profile/FollowStateButton";
+import RailHeader from "./RailHeader";
 
 /** Compara ignorando mayúsculas y acentos: "Diseno" encuentra "Diseño". */
 function normalizeForSearch(value: string): string {
@@ -102,6 +103,8 @@ export default function CommunityRail({
   seeAllLabel,
   emptySearchLabel,
   railId,
+  onSeeAll,
+  badgeCountOverride,
 }: {
   title: string;
   /**
@@ -127,10 +130,11 @@ export default function CommunityRail({
   /** Pinta skeletons en vez de tarjetas mientras llega la primera tanda. */
   loading?: boolean;
   /**
-   * Permite plegar el rail desde su encabezado. Se activa en laptop, donde el
-   * sidebar compite por alto con el resto de la pantalla. En celular el sidebar
-   * ES la pantalla: los tres rails van siempre abiertos y el encabezado no es
-   * un botón, para no ofrecer un gesto que ahí no aporta nada.
+   * Permite plegar el rail desde su encabezado, que pasa a ser un botón.
+   *
+   * Se activa en los dos tamaños. En celular estuvo apagado un tiempo —los
+   * rails se pintaban siempre abiertos— y el menú acababa siendo tres tiras de
+   * avatares que empujaban todo lo demás fuera de la pantalla.
    */
   collapsible?: boolean;
   /**
@@ -148,6 +152,24 @@ export default function CommunityRail({
    * igual, solo que sin memoria.
    */
   railId?: string;
+  /**
+   * Sustituye el panel interno de "ver todas" por otra acción. Lo usa "Mis
+   * experiencias", cuya lista completa no es un panel sino una página propia
+   * (/experiencias): ahí el rail solo enseña las últimas y el enlace lleva al
+   * sitio donde están todas, con sus filtros y sus estados.
+   */
+  onSeeAll?: () => void;
+  /**
+   * Número del globo del encabezado, decidido desde fuera.
+   *
+   * Por omisión el rail lo calcula solo, sumando `newPostsCounts` y restando lo
+   * que ya te enseñó (marca en localStorage). Eso sirve para comunidades y
+   * perfiles, donde la novedad ES un post. Las experiencias ya tienen su propio
+   * registro de visto —el de la página, por categoría— y hacerles llevar dos
+   * contabilidades en paralelo terminaría avisando de cosas distintas en cada
+   * menú. Con esta prop el rail no calcula ni escribe nada: solo pinta.
+   */
+  badgeCountOverride?: number;
 }) {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
@@ -159,9 +181,8 @@ export default function CommunityRail({
   // (cada uno con sus listeners de aro) para enseñar seis.
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  // Cerrados de entrada: tres tiras de avatares abiertas a la vez son mucho
-  // ruido nada más entrar. Solo afecta a laptop — en celular `collapsible` es
-  // false y los rails se pintan siempre abiertos, ignorando este estado.
+  // Cerrados de entrada, en los dos tamaños: varias tiras de avatares abiertas
+  // a la vez son mucho ruido nada más entrar.
   const [open, setOpen] = useState(false);
 
   // Panel de "ver todas": la lista completa, con buscador. Sin paginar — aquí
@@ -193,10 +214,9 @@ export default function CommunityRail({
     0
   );
 
-  // ¿El rail está mostrando su contenido? En celular `collapsible` es false y se
-  // pinta siempre desplegado, así que ahí cuenta como visto sin tocar nada. Sin
-  // esta distinción, mirar el sidebar en el móvil no descontaba nada y al volver
-  // a la laptop el globo avisaba de novedades que ya habías visto.
+  // ¿El rail está mostrando su contenido? Sin `collapsible` no hay nada que
+  // plegar y se pinta siempre desplegado, así que cuenta como visto sin tocar
+  // nada.
   const isExpanded = !collapsible || open;
 
   // Mientras el rail muestra su contenido, lo que va llegando se da por visto:
@@ -205,8 +225,11 @@ export default function CommunityRail({
   // que abriste; sin esto, esa tanda tardía volvería a avisarte tras recargar.
   useEffect(() => {
     if (!isExpanded) return;
+    // Con el número puesto desde fuera, la marca de visto la lleva quien lo
+    // calcula: escribirla aquí también dejaría dos relojes desincronizados.
+    if (badgeCountOverride !== undefined) return;
     writeRailSeenTotal(railId, totalNewPosts);
-  }, [isExpanded, railId, totalNewPosts]);
+  }, [isExpanded, railId, totalNewPosts, badgeCountOverride]);
 
   /**
    * Perfiles que dejaste de seguir SIN cerrar el panel.
@@ -352,7 +375,12 @@ export default function CommunityRail({
   // perderías las novedades siguientes.
   const effectiveSeen = Math.min(seenTotal, totalNewPosts);
   // Desplegado no hay nada que avisar: los conteos por avatar ya están a la vista.
-  const badgeCount = isExpanded ? 0 : Math.max(0, totalNewPosts - effectiveSeen);
+  const badgeCount =
+    badgeCountOverride !== undefined
+      ? badgeCountOverride
+      : isExpanded
+        ? 0
+        : Math.max(0, totalNewPosts - effectiveSeen);
 
   // Lista del panel, respetando el orden congelado al abrir. Los perfiles que
   // dejaste de seguir siguen ahí, EN SU SITIO, porque el orden se guardó por id
@@ -466,15 +494,6 @@ export default function CommunityRail({
   // (.walletLink en WalletDesktopRail), para que las dos columnas se lean como
   // una sola familia. El tamaño de letra NO se declara: allí tampoco, así que
   // los dos heredan el mismo y siguen igualados si algún día se cambia la base.
-  const headerStyle: CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 7,
-    padding: "0 8px 6px",
-    fontWeight: 400,
-    color: "rgba(255,255,255,0.74)",
-  };
-
   const scrollerStyle: CSSProperties = {
     display: "flex",
     gap: 3,
@@ -586,155 +605,26 @@ export default function CommunityRail({
         }
       `}</style>
 
-      {(() => {
-        const headerInner = (
-          <>
-            {/* Caja y color calcados de .walletIcon (menu derecho de laptop):
-                22px de lado, gris al 68% y opacidad 0.82. Antes iba suelto al
-                90% y se veia mas marcado que los del otro menu. */}
-            {icon ? (
-              <span
-                style={{
-                  width: 22,
-                  minWidth: 22,
-                  height: 22,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                  color: "rgba(255,255,255,0.68)",
-                  opacity: 0.82,
-                }}
-              >
-                {icon}
-              </span>
-            ) : null}
-            <span
-              style={{
-                flex: 1,
-                minWidth: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                textAlign: "start",
-              }}
-            >
-              {title}
-            </span>
+      <RailHeader
+        icon={icon}
+        title={title}
+        open={open}
+        collapsible={collapsible}
+        badgeCount={badgeCount}
+        seeAllLabel={seeAllLabel}
+        onToggle={() => {
+          // Abrir o cerrar, lo que hay ahora queda por visto: al abrirlo lo
+          // estás mirando, y al cerrarlo ya lo miraste. El globo solo vuelve
+          // con lo que llegue DESPUÉS.
+          setSeenTotal(totalNewPosts);
+          setOpen((prev) => !prev);
+        }}
+        onSeeAll={() => {
+          if (onSeeAll) onSeeAll();
+          else openAllPanel();
+        }}
+      />
 
-            {/* Cerrado, un "+" para volver a abrir. Abierto, el enlace de "ver
-                todas", con el mismo tratamiento que el de Mensajes.
-
-                TODO: el enlace aún no lleva a ningún sitio; falta decidir su
-                destino. `stopPropagation` para que pulsarlo no pliegue el rail
-                al que pertenece. */}
-            {/* El "+" solo existe donde se puede plegar (laptop) y solo cuando
-                está cerrado. El enlace de "ver todas" NO depende de eso: en
-                celular, donde los rails van siempre abiertos, es la única
-                puerta a la lista completa. */}
-            {/* Globo de novedades: solo con el rail cerrado, porque abierto ya
-                las estás viendo en las tarjetas. */}
-            {collapsible && !open && badgeCount > 0 ? (
-              <span
-                style={{
-                  flexShrink: 0,
-                  minWidth: 18,
-                  height: 18,
-                  padding: "0 5px",
-                  borderRadius: 999,
-                  background: "#a855f7",
-                  color: "#fff",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  boxSizing: "border-box",
-                }}
-              >
-                {badgeCount > 99 ? "99+" : badgeCount}
-              </span>
-            ) : null}
-
-            {collapsible && !open ? (
-              <span
-                aria-hidden
-                style={{
-                  flexShrink: 0,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 18,
-                  height: 18,
-                  fontSize: 17,
-                  lineHeight: 1,
-                  fontWeight: 400,
-                  color: "rgba(255,255,255,0.62)",
-                }}
-              >
-                +
-              </span>
-            ) : seeAllLabel ? (
-              <span
-                    role="link"
-                    tabIndex={0}
-                    // stopPropagation: el encabezado entero pliega el rail, y sin
-                    // esto pulsar "ver todas" lo cerraría en vez de abrir la lista.
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openAllPanel();
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key !== "Enter" && e.key !== " ") return;
-                      e.preventDefault();
-                      e.stopPropagation();
-                      openAllPanel();
-                    }}
-                    style={{
-                      flexShrink: 0,
-                      color: "#a855f7",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {seeAllLabel}
-              </span>
-            ) : null}
-          </>
-        );
-
-        // En celular no es un botón: no hay nada que plegar, y un control que
-        // no hace nada confunde al lector de pantalla.
-        return collapsible ? (
-          <button
-            type="button"
-            onClick={() => {
-              // Abrir o cerrar, lo que hay ahora queda por visto: al abrirlo lo
-              // estás mirando, y al cerrarlo ya lo miraste. El globo solo vuelve
-              // con lo que llegue DESPUÉS.
-              setSeenTotal(totalNewPosts);
-              setOpen((prev) => !prev);
-            }}
-            aria-expanded={open}
-            style={{
-              ...headerStyle,
-              width: "100%",
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >
-            {headerInner}
-          </button>
-        ) : (
-          <div style={headerStyle}>{headerInner}</div>
-        );
-      })()}
 
       {/* Plegado: 0fr→1fr anima hasta la altura real del contenido, sin tope
           fijo que lo recorte. Mismo patrón que el resto del sidebar. La tira

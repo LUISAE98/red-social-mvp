@@ -67,6 +67,7 @@
     "settings": "Ustawienia",
     "seeAllFollowing": "Zobacz wszystkie",
     "seeAllCommunities": "Zobacz wszystkie",
+    "seeAllExperiences": "Zobacz wszystkie",
     "reels": "Relacje"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Wyślij wiadomość",
     "sendGreeting": "Wyślij dedykację",
     "downloadingProgress": "Przetwarzanie {progress} %…",
-    "downloadVideo": "↓ Pobierz film",
+    "downloadVideo": "Pobierz film",
     "successAdvice": "Porada wysłana!",
     "successMessage": "Wiadomość wysłana!",
     "successGreeting": "Dedykacja wysłana!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Na pewno chcesz odrzucić to zlecenie?",
     "confirmRejectBody": "Płatność kupującego zostanie anulowana, a zlecenie zniknie z twojej listy. Nie da się tego cofnąć.",
     "sampleRequestTitle": "Napisz zlecenie tak, jakbyś był kupującym",
-    "sampleRequestHint": "Użyj słów osoby, która by je zamówiła, nie swoich. Zamiast «pozdrowię Anię» napisz «chcę pozdrowienia dla Ani, kończy 30 lat». To zobaczysz na ekranie podczas nagrywania."
+    "sampleRequestHintGreeting": "Napisz to słowami osoby, która by o to poprosiła, nie swoimi. Na przykład «to dla mojej siostry Ani, w sobotę kończy 30 lat i śledzi cię od początku. Chciałabym, żebyś pogratulował jej po imieniu i powiedział, żeby odważyła się w tym roku wystartować».",
+    "sampleRequestHintAdvice": "Napisz to słowami osoby, która by o to poprosiła, nie swoimi. Na przykład «właśnie skończyłem studia i waham się, czy przyjąć pierwszą propozycję pracy, czy poczekać na coś lepszego. Chciałbym wiedzieć, jak ty to rozstrzygnąłeś na początku».",
+    "uploadSample": "Prześlij próbkę",
+    "samplePublished": "Próbka opublikowana"
   },
   "live": {
     "accessTicket": "Bilet wstępu",

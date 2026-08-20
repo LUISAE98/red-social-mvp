@@ -42,6 +42,8 @@ export async function reserveCreditAndSplit(params: {
   displayCurrency: string;
   sourceType: string;
   sourceId: string;
+  /** Precio comercial exacto en la moneda del comprador (…,99). Ver `applyCharmRounding`. */
+  displayAmount?: number | null;
 }): Promise<CreditSplit> {
   let creditApplied = 0;
   if (params.applyCredit && params.uid) {
@@ -52,7 +54,13 @@ export async function reserveCreditAndSplit(params: {
     });
   }
   const remainderMxn = round2(params.totalMxn - creditApplied);
-  const presentment = remainderMxn > 0 ? await resolvePresentment(remainderMxn, params.displayCurrency) : null;
+  // ⚠️ El importe exacto SOLO se usa si no se aplicó saldo a favor. Con crédito de por
+  // medio lo que queda es un residuo (total − crédito), no un precio: forzarle el precio
+  // comercial cobraría de más, y crédito + tarjeta sumarían más de lo que el comprador aceptó.
+  const exacto = creditApplied === 0 ? params.displayAmount ?? null : null;
+  const presentment = remainderMxn > 0
+    ? await resolvePresentment(remainderMxn, params.displayCurrency, exacto)
+    : null;
   return { creditApplied, remainderMxn: Math.max(0, remainderMxn), presentment };
 }
 

@@ -67,6 +67,7 @@
     "settings": "Postavke",
     "seeAllFollowing": "Prikaži sve",
     "seeAllCommunities": "Prikaži sve",
+    "seeAllExperiences": "Prikaži sve",
     "reels": "Priče"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Pošalji poruku",
     "sendGreeting": "Pošalji posvetu",
     "downloadingProgress": "Obrađuje se {progress} %...",
-    "downloadVideo": "↓ Preuzmi video",
+    "downloadVideo": "Preuzmi video",
     "successAdvice": "Savjet je poslan!",
     "successMessage": "Poruka je poslana!",
     "successGreeting": "Posveta je poslana!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Želiš li odbiti ovu narudžbu?",
     "confirmRejectBody": "Naplata kupcu bit će otkazana i narudžba će nestati s tvog popisa. Nema povratka.",
     "sampleRequestTitle": "Napiši narudžbu kao da si kupac",
-    "sampleRequestHint": "Koristi riječi onoga ko bi ti je naručio, ne svoje. Umjesto «pozdravit ću Anu», napiši «želim pozdrav za Anu, puni 30». To ćeš vidjeti na ekranu dok snimaš."
+    "sampleRequestHintGreeting": "Napiši to riječima onoga ko bi ti to naručio, ne svojim. Na primjer «ovo je za moju sestru Anu, u subotu puni 30 i prati te od početka. Voljela bih da joj čestitaš imenom i kažeš joj da se ohrabri i takmiči ove godine».",
+    "sampleRequestHintAdvice": "Napiši to riječima onoga ko bi ti to naručio, ne svojim. Na primjer «upravo sam završio fakultet i ne znam da li da prihvatim prvi ponuđeni posao ili da čekam nešto bolje. Zanima me kako si ti to odlučio na početku».",
+    "uploadSample": "Otpremi primjer",
+    "samplePublished": "Primjer objavljen"
   },
   "live": {
     "accessTicket": "Ulaznica",

@@ -67,6 +67,7 @@
     "settings": "Paramètres",
     "seeAllFollowing": "Tout voir",
     "seeAllCommunities": "Tout voir",
+    "seeAllExperiences": "Tout voir",
     "reels": "Stories"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Envoyer le message",
     "sendGreeting": "Envoyer la dédicace",
     "downloadingProgress": "Traitement {progress} %…",
-    "downloadVideo": "↓ Télécharger la vidéo",
+    "downloadVideo": "Télécharger la vidéo",
     "successAdvice": "Conseil envoyé !",
     "successMessage": "Message envoyé !",
     "successGreeting": "Dédicace envoyée !",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Tu veux vraiment refuser cette commande ?",
     "confirmRejectBody": "Le paiement de l'acheteur sera annulé et la commande disparaîtra de ta liste. C'est irréversible.",
     "sampleRequestTitle": "Écris la demande comme si tu étais l'acheteur",
-    "sampleRequestHint": "Utilise les mots de la personne qui te la ferait, pas les tiens. Au lieu de «je vais saluer Ana», écris «je veux un message pour Ana, elle a 30 ans». C'est ce que tu verras à l'écran pendant l'enregistrement."
+    "sampleRequestHintGreeting": "Écris-le avec les mots de la personne qui te le demanderait, pas les tiens. Par exemple «c'est pour ma sœur Ana, elle a 30 ans samedi et te suit depuis le début. J'adorerais que tu la félicites par son prénom et que tu lui dises de se lancer en compétition cette année».",
+    "sampleRequestHintAdvice": "Écris-le avec les mots de la personne qui te le demanderait, pas les tiens. Par exemple «je viens de finir mes études et j'hésite entre accepter le premier poste qu'on me propose ou attendre mieux. J'aimerais savoir comment tu as tranché quand tu débutais».",
+    "uploadSample": "Publier l'exemple",
+    "samplePublished": "Exemple publié"
   },
   "live": {
     "accessTicket": "Billet d'accès",

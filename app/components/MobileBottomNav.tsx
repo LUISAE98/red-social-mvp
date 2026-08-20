@@ -22,8 +22,7 @@ type NavIconKey =
   | "groups"
   | "messages"
   | "notifications"
-  | "wallet"
-  | "experiences";
+  | "wallet";
 
 type MobileNavItem = {
   key: string;
@@ -161,22 +160,6 @@ function NavGroupsIconFilled() {
   );
 }
 
-function NavStarIcon() {
-  return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
-    </svg>
-  );
-}
-
-function NavStarIconFilled() {
-  return (
-    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path fill="white" d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
-    </svg>
-  );
-}
-
 function ProfileAvatarIcon({
   src,
   active,
@@ -226,14 +209,8 @@ function ProfileAvatarIcon({
 
 export default function MobileBottomNav({
   showWallet = false,
-  showExperiences = false,
-  experiencesBadge = false,
 }: {
   showWallet?: boolean;
-  /** Estrella "Mis experiencias": solo para quien compró alguna experiencia. */
-  showExperiences?: boolean;
-  /** Punto de notificación en la estrella: hay algo nuevo sin ver. */
-  experiencesBadge?: boolean;
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -456,18 +433,10 @@ export default function MobileBottomNav({
       iconKey: "notifications",
     });
 
-    // Experiencias (compras del usuario): estrella junto a notificaciones.
-    // Solo aparece si el usuario ya compró alguna experiencia.
-    if (showExperiences) {
-      items.push({
-        key: "experiences",
-        href: "/experiencias",
-        active: pathname.startsWith("/experiencias"),
-        label: t("tabExperiences"),
-        type: "icon",
-        iconKey: "experiences",
-      });
-    }
+    // "Mis experiencias" ya NO vive aquí: se movió al menú del avatar
+    // (OwnerSidebar), encima de "Crea tu comunidad". En laptop está en el
+    // menú lateral derecho. En los dos sitios lleva su globo con el número,
+    // que aquí no cabía: el nav inferior solo tiene sitio para un punto.
 
     if (showWallet) {
       items.push({
@@ -493,7 +462,7 @@ export default function MobileBottomNav({
     });
 
     return items;
-  }, [pathname, menuHref, handle, showWallet, showExperiences]);
+  }, [pathname, menuHref, handle, showWallet]);
 
   return (
     <>
@@ -759,12 +728,7 @@ export default function MobileBottomNav({
                       </>
                     ) : item.iconKey === "wallet" ? (
                       isActive ? <NavWalletIconFilled /> : <NavWalletIcon />
-                    ) : item.iconKey === "experiences" ? (
-                      <>
-                        {isActive ? <NavStarIconFilled /> : <NavStarIcon />}
-                        {experiencesBadge ? <span className="navDot" aria-hidden="true" /> : null}
-                      </>
-                    ) : (
+                                        ) : (
                       isActive ? <NavGroupsIconFilled /> : <NavGroupsIcon />
                     )}
                   </span>

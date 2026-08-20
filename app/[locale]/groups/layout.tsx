@@ -1108,7 +1108,7 @@ const contentAreaClassName = isEmbed
            de una comunidad (`/groups/{id}`). Ver isFeedRoute en el componente.
            La `key` lo remonta limpio en cada ruta. */}
        {!isEmbed && <ScrollToTopFAB key={pathname} />}
-       {!isEmbed && <MobileBottomNav showWallet={!!user} showExperiences={hasPurchasedExperiences} experiencesBadge={experiencesBadge} />}
+       {!isEmbed && <MobileBottomNav showWallet={!!user} />}
       </div>
 
        {/* Búsqueda móvil: página completa negra que entra deslizándose de derecha

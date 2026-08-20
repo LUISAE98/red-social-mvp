@@ -673,7 +673,7 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   // Los cuatro recaudan por PLATAFORMA: Vibra cobra el impuesto y lo entera. Ninguno funciona
   // como Argentina (donde recauda el banco del comprador).
   //
-  // 🚨 Sus altas siguen PENDIENTES. Ver `ALTAS_PENDIENTES` y los interruptores de arriba.
+  // ✅ Sus altas están HECHAS (2026-08-13). Ver `ALTAS_PENDIENTES`, que quedó vacía.
   //
   // 🇧🇷 BRASIL — ⚠️ LA TASA CAMBIA CON EL TIEMPO, es la única de toda la tabla que lo hace.
   //    2026 (hoy): 1,0% — año de prueba (CBS 0,9% + IBS 0,1%)
@@ -774,6 +774,16 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   //       impuesto. Decisión de Luis, 2026-08-11.
   //    ⚠️ Si NO se registra, los bancos e intermediarios retienen y enteran mensualmente.
   //       Es la vía del incumplimiento, no una alternativa (mismo patrón que Perú).
+  // 🚫 NO se integró, a propósito (decisión de Luis, 2026-08-19):
+  //    · 🇮🇱 Israel — por DOS razones independientes, y cualquiera de las dos basta:
+  //      1. Inestabilidad política. Un régimen fiscal al que hay que darse de alta y
+  //         declarar de forma continua asume que el país sigue operando igual dentro de
+  //         un año; ahí eso no se puede dar por hecho.
+  //      2. Exige REPRESENTANTE FISCAL residente en Israel, y Vibra no lo tiene. Es el
+  //         mismo motivo por el que se descartaron Macedonia del Norte y Suiza.
+  //    ⚠️ Sin fila en esta tabla, `isChargeableCountry("IL")` da false y la venta se
+  //       RECHAZA. Es el lado seguro y es deliberado: mejor no vender que cobrar un
+  //       impuesto que no se puede enterar.
   KR: platformCollects("VAT", 0.10, "KRW", KR_NTS_REGISTERED),      // Corea del Sur
   VN: platformCollects("VAT", 0.10, "VND", VN_GDT_REGISTERED),      // Vietnam
   AE: platformCollects("VAT", 0.05, "AED", AE_FTA_REGISTERED),      // Emiratos Árabes Unidos

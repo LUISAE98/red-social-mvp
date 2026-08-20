@@ -67,6 +67,7 @@
     "settings": "Postavke",
     "seeAllFollowing": "Prikaži sve",
     "seeAllCommunities": "Prikaži sve",
+    "seeAllExperiences": "Prikaži sve",
     "reels": "Приче"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Pošalji poruku",
     "sendGreeting": "Pošalji posvetu",
     "downloadingProgress": "Obrađuje se {progress} %...",
-    "downloadVideo": "↓ Preuzmi video",
+    "downloadVideo": "Preuzmi video",
     "successAdvice": "Savet je poslan!",
     "successMessage": "Poruka je poslata!",
     "successGreeting": "Posveta je poslata!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Сигурно желиш да одбијеш ову поруџбину?",
     "confirmRejectBody": "Наплата купцу биће отказана и поруџбина ће нестати с твоје листе. Не може се поништити.",
     "sampleRequestTitle": "Напиши поруџбину као да си купац",
-    "sampleRequestHint": "Користи речи оног ко би је наручио, не своје. Уместо «поздравићу Ану», напиши «желим поздрав за Ану, пуни 30». То ћеш видети на екрану док снимаш."
+    "sampleRequestHintGreeting": "Напиши то речима оног ко би ти то наручио, не својим. На пример «ово је за моју сестру Ану, у суботу пуни 30 и прати те од почетка. Волела бих да јој честиташ именом и кажеш јој да се ове године усуди да се такмичи».",
+    "sampleRequestHintAdvice": "Напиши то речима оног ко би ти то наручио, не својим. На пример «управо сам завршио факултет и колебам се између првог понуђеног посла и чекања нечег бољег. Занима ме како си ти то одлучио на почетку».",
+    "uploadSample": "Отпреми пример",
+    "samplePublished": "Пример објављен"
   },
   "live": {
     "accessTicket": "Ulaznica",

@@ -67,6 +67,7 @@
     "settings": "Iestatījumi",
     "seeAllFollowing": "Skatīt visas",
     "seeAllCommunities": "Skatīt visus",
+    "seeAllExperiences": "Skatīt visus",
     "reels": "Stāsti"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Sūtīt ziņu",
     "sendGreeting": "Sūtīt sveicienu",
     "downloadingProgress": "Apstrādā {progress}%...",
-    "downloadVideo": "↓ Lejupielādēt video",
+    "downloadVideo": "Lejupielādēt video",
     "successAdvice": "Padoms nosūtīts!",
     "successMessage": "Ziņa nosūtīta!",
     "successGreeting": "Sveiciens nosūtīts!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Vai tiešām vēlies noraidīt šo pasūtījumu?",
     "confirmRejectBody": "Pircēja maksājums tiks atcelts un pasūtījums pazudīs no tava saraksta. To nevar atsaukt.",
     "sampleRequestTitle": "Uzraksti pieprasījumu tā, it kā būtu pircējs",
-    "sampleRequestHint": "Lieto tā vārdus, kas to lūgtu, nevis savus. «Sveikšu Annu» vietā raksti «gribu sveicienu Annai, viņai paliek 30». To redzēsi ekrānā, kamēr ieraksti."
+    "sampleRequestHintGreeting": "Uzraksti to tā cilvēka vārdiem, kurš to lūgtu, nevis saviem. Piemēram «tas ir manai māsai Annai, sestdien viņai paliek 30 un viņa tev seko no paša sākuma. Man ļoti patiktu, ja apsveiktu viņu vārdā un pateiktu, lai šogad uzdrošinās startēt».",
+    "sampleRequestHintAdvice": "Uzraksti to tā cilvēka vārdiem, kurš to lūgtu, nevis saviem. Piemēram «tikko pabeidzu studijas un šaubos, vai pieņemt pirmo piedāvāto darbu, vai gaidīt ko labāku. Gribētu zināt, kā tu to izlēmi pašā sākumā».",
+    "uploadSample": "Augšupielādēt paraugu",
+    "samplePublished": "Paraugs publicēts"
   },
   "live": {
     "accessTicket": "Piekļuves biļete",

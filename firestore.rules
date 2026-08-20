@@ -2512,7 +2512,12 @@ match /memberBlocks/{blockId} {
       // El orden se conserva: `searchable == true` sigue delante y sigue
       // costando cero `get()`, que es lo que hace viable el feed de reels. La
       // comprobación cara solo se paga al abrir una historia concreta.
-      allow read: if ("searchable" in resource.data && resource.data.searchable == true)
+      // Quien la publicó siempre puede leerla. Faltaba, y por eso el panel del
+      // comprador no podía consultar la historia que él mismo acababa de sacar
+      // de su saludo: si su perfil está cerrado, `canReadProfileContent` le
+      // negaba su propio contenido. Va DELANTE porque no cuesta ningún get().
+      allow read: if (request.auth != null && resource.data.creatorId == request.auth.uid)
+        || ("searchable" in resource.data && resource.data.searchable == true)
         || (storyHasNoGroup(resource.data) && canReadProfileContent(resource.data.creatorId))
         || canReadGroupContent(resource.data.groupId);
 

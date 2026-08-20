@@ -135,7 +135,7 @@ export const createPremiumPostStripeIntent = onCall(
     // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
-    const { charge, quote: fxQuote } = await applyCharmRounding(composeCharge(base, country));
+    const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(composeCharge(base, country));
     const totalMxn = charge.chargedAmount;
     // Saldo a favor: reserva el crédito y calcula el RESTANTE a cobrar a la tarjeta.
     const { creditApplied, remainderMxn, presentment } = await reserveCreditAndSplit({
@@ -143,6 +143,7 @@ export const createPremiumPostStripeIntent = onCall(
       applyCredit,
       totalMxn,
       displayCurrency: charge.displayCurrency,
+      displayAmount,
       sourceType: "postAccess",
       sourceId: accessId,
     });

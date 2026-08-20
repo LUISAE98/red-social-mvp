@@ -12,6 +12,11 @@ import {
   type CSSProperties,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useHasPurchasedExperiences } from "@/lib/experiences/useHasPurchasedExperiences";
+import { useBuyerExperienceActivity } from "@/lib/experiences/useBuyerExperienceActivity";
+import { useBuyerExperiencesSeen } from "@/lib/experiences/useBuyerExperiencesSeen";
+import { countNewExperiences } from "@/lib/experiences/experienceActivity";
+import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import {
@@ -49,6 +54,8 @@ import OwnerSidebarSettings, { SIDEBAR_LOGOUT_BUTTON_STYLE } from "./OwnerSideba
 import LogoutButton from "@/app/LogoutButton";
 import CreateCommunityCard from "@/components/groups/CreateCommunityCard";
 import CommunityRail from "@/components/groups/CommunityRail";
+import ExperiencesSidebarSection from "@/components/experiences/ExperiencesSidebarSection";
+import { getSectionForMeetGreetStatus } from "@/app/components/OwnerSidebar/OwnerSidebarGreetings.parts";
 import { useRailSignals, sortRailItems } from "@/lib/hooks/useRailSignals";
 import {
   SidebarFollowingIcon,
@@ -103,6 +110,16 @@ export {
   friendlyJoinErrorMessage,
   buildDisplayName,
 };
+
+/**
+ * Mapa vacío ESTABLE para los rails que no cuentan posts nuevos. Un objeto
+ * literal en el JSX sería uno distinto en cada render y volvería a disparar los
+ * memos del rail sin que nada haya cambiado.
+ */
+const EMPTY_NEW_POSTS_COUNTS: Record<string, number> = {};
+
+/** Cuántas tarjetas enseña la sección de experiencias antes de "ver todas". */
+const EXPERIENCE_CARDS_SHOWN = 3;
 
 export default function OwnerSidebar() {
   const router = useRouter();
@@ -238,6 +255,16 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
   const [openCommunities, setOpenCommunities] = useState<
     Record<string, boolean>
   >(() => ownerSidebarCache?.openCommunities ?? {});
+
+  // "Mis experiencias": el mismo atajo que en laptop vive en el menu lateral
+  // derecho. Solo para quien ya compro alguna. Se movio aqui desde el nav
+  // inferior, que no tenia sitio para el globo con el numero.
+  const hasPurchasedExperiences = useHasPurchasedExperiences(viewer?.uid);
+  const expActivity = useBuyerExperienceActivity(viewer?.uid);
+  const { seen: expSeen } = useBuyerExperiencesSeen(viewer?.uid);
+  const experiencesBadgeCount = hasPurchasedExperiences
+    ? countNewExperiences(expActivity.timestamps, expSeen)
+    : 0;
 
   const profileBucketKey = viewer?.uid ? `profile:${viewer.uid}` : null;
 
@@ -2087,6 +2114,80 @@ color: "rgba(255,255,255,0.94)",
     [railFollowedRaw, profileSignals, newPostsCounts, visitCounts]
   );
 
+  /**
+   * Las últimas experiencias del comprador, recortadas para la sección del menú.
+   *
+   * Manda lo ENTREGADO: saludo/consejo en "delivered", o tiempo contigo /
+   * sesión exclusiva en "completed". Si todavía no te han entregado nada, la
+   * sección enseña lo PENDIENTE en su lugar — una sección vacía nada más
+   * comprar no diría nada, y lo que quieres ver justo entonces es que tu
+   * encargo existe y está esperando al creador. Nunca las dos a la vez.
+   *
+   * Devuelve las MISMAS bandejas que consume la página, solo que cortadas a las
+   * tres más recientes: quien las pinta es `OwnerSidebarGreetings`, así que la
+   * tarjeta del menú es la de /experiencias sin ninguna copia de por medio.
+   *
+   * Sin consultas propias: los cuatro arrays ya los trae el data-layer.
+   */
+  const experiencePreview = useMemo(() => {
+    const ms = (v: { toMillis?: () => number } | null | undefined) =>
+      typeof v?.toMillis === "function" ? v.toMillis() : 0;
+
+    const greetingAt = (d: GreetingRequestDoc) =>
+      Math.max(ms(d.deliveredAt), ms(d.updatedAt), ms(d.createdAt));
+    const sessionAt = (d: MeetGreetRequestDoc | ExclusiveSessionRequestDoc) =>
+      Math.max(ms(d.updatedAt), ms(d.createdAt));
+
+    const completedMeet = buyerMeetGreets.filter((r) => r.data.status === "completed");
+    const completedExclusive = buyerExclusiveSessions.filter(
+      (r) => r.data.status === "completed"
+    );
+
+    // Mismo reparto por estado que la página: rechazadas y devoluciones no son
+    // "pendientes" y no se asoman al menú.
+    const pendingMeet = buyerMeetGreets.filter(
+      (r) => r.data.status !== "completed" &&
+        getSectionForMeetGreetStatus(r.data.status ?? "") === "requested"
+    );
+    const pendingExclusive = buyerExclusiveSessions.filter(
+      (r) => r.data.status !== "completed" &&
+        getSectionForMeetGreetStatus(r.data.status ?? "") === "requested"
+    );
+
+    const hasDelivered =
+      buyerDelivered.length > 0 ||
+      completedMeet.length > 0 ||
+      completedExclusive.length > 0;
+
+    const greetings = hasDelivered ? buyerDelivered : buyerPending;
+    const meets = hasDelivered ? completedMeet : pendingMeet;
+    const exclusives = hasDelivered ? completedExclusive : pendingExclusive;
+
+    // El corte a tres es del CONJUNTO, no de cada bandeja por separado: si no,
+    // tres saludos y tres sesiones darían seis tarjetas.
+    const keep = new Set(
+      [
+        ...greetings.map((r) => ({ id: r.id, at: greetingAt(r.data) })),
+        ...meets.map((r) => ({ id: r.id, at: sessionAt(r.data) })),
+        ...exclusives.map((r) => ({ id: r.id, at: sessionAt(r.data) })),
+      ]
+        .sort((a, b) => b.at - a.at)
+        .slice(0, EXPERIENCE_CARDS_SHOWN)
+        .map((r) => r.id)
+    );
+
+    return {
+      activeSection: (hasDelivered ? "delivered" : "requested") as
+        | "delivered"
+        | "requested",
+      buyerDelivered: hasDelivered ? greetings.filter((r) => keep.has(r.id)) : [],
+      buyerPending: hasDelivered ? [] : greetings.filter((r) => keep.has(r.id)),
+      buyerMeetGreets: meets.filter((r) => keep.has(r.id)),
+      buyerExclusiveSessions: exclusives.filter((r) => keep.has(r.id)),
+      count: keep.size,
+    };
+  }, [buyerDelivered, buyerPending, buyerMeetGreets, buyerExclusiveSessions]);
+
   const openProfileFromRail = useCallback(
     (uid: string) => {
       // El rail devuelve el uid; la ruta necesita el handle.
@@ -2547,8 +2648,10 @@ newPostsCounts={newPostsCounts}
             // Clave estable para recordar entre recargas qué novedades ya te
             // enseñó el globo del encabezado. Nunca el título: va traducido.
             railId="followed-profiles"
-            // Plegable solo en laptop: en celular los tres van siempre abiertos.
-            collapsible={!isMobile}
+            // Plegable en los dos tamaños, y cerrado de entrada: tres tiras de
+            // avatares abiertas nada más entrar son mucho ruido, y en celular
+            // además empujaban el resto del menú fuera de la pantalla.
+            collapsible
           />
 
           <CommunityRail
@@ -2564,8 +2667,10 @@ newPostsCounts={newPostsCounts}
             loading={loadingGroups}
             seeAllLabel={tNav("seeAllCommunities")}
             emptySearchLabel={tGroups("noGroupsFound")}
-            // Plegable solo en laptop: en celular los tres van siempre abiertos.
-            collapsible={!isMobile}
+            // Plegable en los dos tamaños, y cerrado de entrada: tres tiras de
+            // avatares abiertas nada más entrar son mucho ruido, y en celular
+            // además empujaban el resto del menú fuera de la pantalla.
+            collapsible
             railId="owned-groups"
           />
 
@@ -2580,8 +2685,10 @@ newPostsCounts={newPostsCounts}
             loading={loadingCommunities}
             seeAllLabel={tNav("seeAllCommunities")}
             emptySearchLabel={tGroups("noGroupsFound")}
-            // Plegable solo en laptop: en celular los tres van siempre abiertos.
-            collapsible={!isMobile}
+            // Plegable en los dos tamaños, y cerrado de entrada: tres tiras de
+            // avatares abiertas nada más entrar son mucho ruido, y en celular
+            // además empujaban el resto del menú fuera de la pantalla.
+            collapsible
             railId="joined-groups"
           />
 
@@ -2625,6 +2732,111 @@ newPostsCounts={newPostsCounts}
     Sin divisor arriba: la tarjeta gris del módulo ya lo separa del acordeón. */}
 {isMobile && viewer && !viewer.isAnonymous && (
   <>
+    {/* "Mis experiencias": encima de la tarjeta de crear comunidad.
+
+        Con algo que enseñar es una sección plegable —mismo encabezado y mismo
+        globo a la izquierda del "+" que los rails de arriba— y por dentro las
+        tarjetas de /experiencias, dibujadas por el mismo componente que las
+        dibuja allá. "Ver todas" lleva a la página, donde está la lista entera
+        con sus filtros y sus tres bandejas.
+
+        Sin nada que enseñar (ni entregadas ni pendientes: todo rechazado o
+        devuelto) la sección se quedaría vacía y con ella se iría el aviso. Por
+        eso ahí queda el renglón simple: sin nada que desplegar, pero con su
+        número y su puerta a la página. */}
+    {hasPurchasedExperiences && experiencePreview.count > 0 ? (
+      <ExperiencesSidebarSection
+        title={tNav("myExperiences")}
+        icon={<VibraNavigationIcon type="experiences" size={21} />}
+        badgeCount={experiencesBadgeCount}
+        seeAllLabel={tNav("seeAllExperiences")}
+        onSeeAll={() => router.push("/experiencias")}
+        activeSection={experiencePreview.activeSection}
+        buyerPending={experiencePreview.buyerPending}
+        buyerDelivered={experiencePreview.buyerDelivered}
+        buyerMeetGreets={experiencePreview.buyerMeetGreets}
+        buyerExclusiveSessions={experiencePreview.buyerExclusiveSessions}
+        groupMetaMap={groupMetaMap}
+        userMiniMap={userMiniMap}
+        router={router}
+      />
+    ) : hasPurchasedExperiences ? (
+      <button
+        type="button"
+        onClick={() => router.push("/experiencias")}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 7,
+          width: "100%",
+          padding: "0 8px 6px",
+          minHeight: 34,
+          border: "none",
+          background: "transparent",
+          color: "rgba(255,255,255,0.74)",
+          fontFamily: "inherit",
+          fontWeight: 400,
+          cursor: "pointer",
+          textAlign: "start",
+          minWidth: 0,
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            width: 22,
+            minWidth: 22,
+            height: 22,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            color: "rgba(255,255,255,0.68)",
+            opacity: 0.82,
+          }}
+        >
+          <VibraNavigationIcon type="experiences" size={21} />
+        </span>
+
+        <span
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {tNav("myExperiences")}
+        </span>
+
+        {/* Mismo globo que en el resto del menú y que en laptop. */}
+        {experiencesBadgeCount > 0 ? (
+          <span
+            style={{
+              flexShrink: 0,
+              minWidth: 18,
+              height: 18,
+              padding: "0 5px",
+              borderRadius: 999,
+              background: "#a855f7",
+              color: "#fff",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 10,
+              fontWeight: 700,
+              lineHeight: 1,
+              boxSizing: "border-box",
+            }}
+          >
+            {experiencesBadgeCount > 99 ? "99+" : experiencesBadgeCount}
+          </span>
+        ) : null}
+      </button>
+    ) : null}
+
+
     {/* "Crea tu comunidad": el mismo bloque que vive en el menú derecho de
         laptop (WalletDesktopRail), que en celular no existe. */}
     <div style={{ padding: "14px 6px 0", minWidth: 0 }}>

@@ -67,6 +67,7 @@
     "settings": "Ayarlar",
     "seeAllFollowing": "Tümünü gör",
     "seeAllCommunities": "Tümünü gör",
+    "seeAllExperiences": "Tümünü gör",
     "reels": "Hikâyeler"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Mesajı gönder",
     "sendGreeting": "Kutlama videosunu gönder",
     "downloadingProgress": "İşleniyor %{progress}...",
-    "downloadVideo": "↓ Videoyu indir",
+    "downloadVideo": "Videoyu indir",
     "successAdvice": "Tavsiye gönderildi!",
     "successMessage": "Mesaj gönderildi!",
     "successGreeting": "Kutlama videosu gönderildi!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Bu siparişi reddetmek istediğine emin misin?",
     "confirmRejectBody": "Alıcının ödemesi iptal edilecek ve sipariş listenden kaybolacak. Geri alınamaz.",
     "sampleRequestTitle": "İsteği alıcıymışsın gibi yaz",
-    "sampleRequestHint": "Kendi sözlerini değil, senden isteyecek kişinin sözlerini kullan. «Anaya selam vereceğim» yerine «Ana için bir selam istiyorum, 30 yaşına giriyor» yaz. Kayıt sırasında ekranda bunu göreceksin."
+    "sampleRequestHintGreeting": "Senden isteyecek kişinin sözleriyle yaz, kendi sözlerinle değil. Örneğin «bu kız kardeşim Ana için, cumartesi 30 yaşına giriyor ve seni ilk günden beri takip ediyor. Adını söyleyip kutlamanı ve bu yıl yarışmaya cesaret etmesini söylemeni çok isterim».",
+    "sampleRequestHintAdvice": "Senden isteyecek kişinin sözleriyle yaz, kendi sözlerinle değil. Örneğin «okulu yeni bitirdim ve ilk gelen işi kabul etmekle daha iyisini beklemek arasında kaldım. Sen başlarken bunu nasıl karara bağladın merak ediyorum».",
+    "uploadSample": "Örneği yükle",
+    "samplePublished": "Örnek yayınlandı"
   },
   "live": {
     "accessTicket": "Giriş bileti",

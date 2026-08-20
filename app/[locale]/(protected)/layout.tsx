@@ -1290,7 +1290,7 @@ const contentAreaClassName = isEmbed
        {/* El propio botón decide en qué rutas se pinta (solo feeds). La `key`
            lo remonta limpio en cada ruta; ver la nota en el componente. */}
        {!isEmbed && <ScrollToTopFAB key={pathname} />}
-       {!isEmbed && <MobileBottomNav showWallet={!!user} showExperiences={hasPurchasedExperiences} experiencesBadge={experiencesBadge} />}
+       {!isEmbed && <MobileBottomNav showWallet={!!user} />}
        {!isEmbed && <PushEnablePrompt />}
       </div>
 

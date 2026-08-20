@@ -67,6 +67,7 @@
     "settings": "Settings",
     "seeAllFollowing": "See all",
     "seeAllCommunities": "View all",
+    "seeAllExperiences": "View all",
     "reels": "Stories"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Send message",
     "sendGreeting": "Send greeting",
     "downloadingProgress": "Processing {progress}%...",
-    "downloadVideo": "↓ Download video",
+    "downloadVideo": "Download video",
     "successAdvice": "Advice sent!",
     "successMessage": "Message sent!",
     "successGreeting": "Greeting sent!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Are you sure you want to decline this request?",
     "confirmRejectBody": "The buyer's payment will be cancelled and the request will leave your list. This cannot be undone.",
     "sampleRequestTitle": "Write the request as if you were the buyer",
-    "sampleRequestHint": "Use the words of the person who would ask you, not your own. Instead of «I will greet Ana», write «I want a greeting for Ana, she is turning 30». This is what you will see on screen while recording."
+    "sampleRequestHintGreeting": "Write it in the words of the person who would ask you, not your own. For example «it is for my sister Ana, she turns 30 on Saturday and has followed you from day one. I would love you to congratulate her by name and tell her to go for the competition this year».",
+    "sampleRequestHintAdvice": "Write it in the words of the person who would ask you, not your own. For example «I have just finished my degree and I am torn between taking the first job I am offered or waiting for something better. I would like to know how you decided this when you were starting out».",
+    "uploadSample": "Upload sample",
+    "samplePublished": "Sample published"
   },
   "live": {
     "accessTicket": "Access ticket",

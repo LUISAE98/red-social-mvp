@@ -67,6 +67,7 @@
     "settings": "設定",
     "seeAllFollowing": "すべて見る",
     "seeAllCommunities": "すべて見る",
+    "seeAllExperiences": "すべて見る",
     "reels": "ストーリー"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "メッセージを送る",
     "sendGreeting": "ビデオメッセージを送る",
     "downloadingProgress": "処理しています {progress}%...",
-    "downloadVideo": "↓ 動画をダウンロード",
+    "downloadVideo": "動画をダウンロード",
     "successAdvice": "アドバイスを送信しました！",
     "successMessage": "メッセージを送信しました！",
     "successGreeting": "ビデオメッセージを送信しました！",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "この依頼を辞退しますか?",
     "confirmRejectBody": "購入者の支払いは取り消され、依頼は一覧から消えます。元には戻せません。",
     "sampleRequestTitle": "購入者になったつもりで依頼を書く",
-    "sampleRequestHint": "自分の言葉ではなく、頼む人の言葉で書いてください。「アナに挨拶する」ではなく「アナに挨拶がほしい、30歳になります」と書きます。録画中に画面に表示されます。"
+    "sampleRequestHintGreeting": "自分の言葉ではなく、頼む人の言葉で書いてください。たとえば「妹のアナへのものです。土曜日に30歳になります。最初からあなたを応援しています。名前を呼んでお祝いして、今年こそ大会に出るように励ましてほしいです」。",
+    "sampleRequestHintAdvice": "自分の言葉ではなく、頼む人の言葉で書いてください。たとえば「大学を出たばかりで、最初に来た内定を受けるか、もっと良い話を待つか迷っています。あなたが駆け出しの頃どう決めたのか知りたいです」。",
+    "uploadSample": "サンプルをアップロード",
+    "samplePublished": "サンプルを公開しました"
   },
   "live": {
     "accessTicket": "アクセスチケット",

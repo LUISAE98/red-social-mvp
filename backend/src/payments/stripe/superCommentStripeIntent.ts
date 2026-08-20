@@ -185,7 +185,7 @@ export const createSuperCommentStripeIntent = onCall(
     // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
-    const { charge, quote: fxQuote } = await applyCharmRounding(composeCharge(base, country));
+    const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(composeCharge(base, country));
     const totalMxn = charge.chargedAmount;
 
     // Id único por súper comentario (es el id del doc que se materializará).
@@ -198,6 +198,7 @@ export const createSuperCommentStripeIntent = onCall(
       applyCredit,
       totalMxn,
       displayCurrency: charge.displayCurrency,
+      displayAmount,
       sourceType: "superComment",
       sourceId: `${postId}_${scId}`,
     });

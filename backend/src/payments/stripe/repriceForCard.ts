@@ -131,10 +131,11 @@ export const repriceStripeIntentForCard = onCall(
 
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
-    const { charge, quote: fxQuote } = await applyCharmRounding(composeCharge(base, resolved.country));
+    const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(composeCharge(base, resolved.country));
     // La moneda de cobro también puede cambiar: si la IP decía Alemania y la tarjeta resulta
     // mexicana, se pasa de cobrar en EUR a cobrar en MXN.
-    const presentment = await resolvePresentment(charge.chargedAmount, charge.displayCurrency);
+    // El total íntegro: se cobra EXACTAMENTE el precio comercial que ve el comprador.
+    const presentment = await resolvePresentment(charge.chargedAmount, charge.displayCurrency, displayAmount);
 
     const previousCharged = Number(intent.chargedAmount) || 0;
     const previousCurrency = String(intent.presentmentCurrency ?? SETTLEMENT_CURRENCY);
@@ -213,12 +214,29 @@ export const repriceStripeIntentForCard = onCall(
 
     // La UI usa esto para actualizar el monto en pantalla (sin avisar del cambio: el usuario
     // ve el total vigente antes de dar pagar). Ver impuestos.md §1.
+    // Desglose EN LA MONEDA DEL COMPRADOR, que es lo único que la pasarela puede pintar.
+    // `chargedAmount` va en la de liquidación (USD) y no sirve para enseñarlo. El total es
+    // el precio comercial ya redondeado; el subtotal y el impuesto se despejan HACIA ATRÁS
+    // desde él, igual que en `recomposeWithCharged`, para que las tres cifras sumen exacto.
+    const totalMostrado = displayAmount ?? presentment.amount;
+    const tasa = charge.buyerTax.collectedByPlatform ? charge.buyerTax.rate : 0;
+    const subtotalMostrado = Math.round((totalMostrado / (1 + tasa)) * 100) / 100;
+
     return {
       changed,
       country: resolved.country,
       chargedAmount: charge.chargedAmount,
       displayCurrency: charge.displayCurrency,
       settlementCurrency: charge.settlementCurrency,
+      /** Lo que se le enseña al comprador, en su moneda. Las tres cifras cuadran entre sí. */
+      display: {
+        currency: presentment.currency,
+        subtotal: subtotalMostrado,
+        tax: Math.round((totalMostrado - subtotalMostrado) * 100) / 100,
+        total: totalMostrado,
+        taxName: charge.buyerTax.name,
+        taxRate: tasa,
+      },
       breakdown: {
         baseAmount: charge.baseAmount,
         fixedFee: charge.fixedFee,

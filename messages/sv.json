@@ -67,6 +67,7 @@
     "settings": "Inställningar",
     "seeAllFollowing": "Visa alla",
     "seeAllCommunities": "Visa alla",
+    "seeAllExperiences": "Visa alla",
     "reels": "Berättelser"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Skicka meddelandet",
     "sendGreeting": "Skicka hälsningen",
     "downloadingProgress": "Bearbetar {progress} %...",
-    "downloadVideo": "↓ Ladda ner videon",
+    "downloadVideo": "Ladda ner videon",
     "successAdvice": "Rådet är skickat!",
     "successMessage": "Meddelandet är skickat!",
     "successGreeting": "Hälsningen är skickad!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Är du säker på att du vill avböja den här beställningen?",
     "confirmRejectBody": "Köparens betalning avbryts och beställningen försvinner från din lista. Det går inte att ångra.",
     "sampleRequestTitle": "Skriv beställningen som om du vore köparen",
-    "sampleRequestHint": "Använd orden från den som skulle beställa den, inte dina egna. I stället för «jag ska hälsa på Anna», skriv «jag vill ha en hälsning till Anna, hon fyller 30». Det är vad du ser på skärmen medan du spelar in."
+    "sampleRequestHintGreeting": "Skriv det med orden från den som skulle beställa det, inte dina egna. Till exempel «det är till min syster Anna, hon fyller 30 på lördag och har följt dig från början. Jag skulle älska om du gratulerade henne vid namn och sa att hon ska våga tävla i år».",
+    "sampleRequestHintAdvice": "Skriv det med orden från den som skulle beställa det, inte dina egna. Till exempel «jag har precis pluggat klart och tvekar mellan att ta det första jobbet jag blir erbjuden eller vänta på något bättre. Jag skulle vilja veta hur du avgjorde det när du började».",
+    "uploadSample": "Ladda upp provet",
+    "samplePublished": "Provet publicerat"
   },
   "live": {
     "accessTicket": "Inträdesbiljett",

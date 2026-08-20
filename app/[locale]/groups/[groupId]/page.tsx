@@ -3162,6 +3162,7 @@ const avatarNode = (
         open={payGreetOpen}
         amount={payGreetAmount != null ? payGreetAmount + FIXED_SERVICE_FEE_USD : null}
         amountCurrency={SETTLEMENT_CURRENCY}
+        externalReference={payGreetId ? `greetingRequest__${payGreetId}` : null}
         createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
         priceLabel={payGreetLabel}
         productType={greetType === "consejo" ? "Consejo" : "Saludo"}
@@ -3190,6 +3191,7 @@ const avatarNode = (
         open={paySessionOpen}
         amount={paySessionAmount != null ? paySessionAmount + FIXED_SERVICE_FEE_USD : null}
         amountCurrency={SETTLEMENT_CURRENCY}
+        externalReference={paySessionId ? `exclusiveSessionRequest__${paySessionId}` : null}
         createIntent={(args) => createServiceStripeIntent({ externalReference: `exclusiveSessionRequest__${paySessionId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
         priceLabel={paySessionLabel}
         productType="Sesión exclusiva"
@@ -3214,6 +3216,7 @@ const avatarNode = (
         open={payMeetOpen}
         amount={payMeetAmount != null ? payMeetAmount + FIXED_SERVICE_FEE_USD : null}
         amountCurrency={SETTLEMENT_CURRENCY}
+        externalReference={payMeetId ? `meetGreetRequest__${payMeetId}` : null}
         createIntent={(args) => createServiceStripeIntent({ externalReference: `meetGreetRequest__${payMeetId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
         priceLabel={payMeetLabel}
         productType="Tiempo contigo"

@@ -67,6 +67,7 @@
     "settings": "Setări",
     "seeAllFollowing": "Vezi toate",
     "seeAllCommunities": "Vezi toate",
+    "seeAllExperiences": "Vezi toate",
     "reels": "Povești"
   },
   "common": {
@@ -1601,7 +1602,7 @@
     "sendMessage": "Trimite mesajul",
     "sendGreeting": "Trimite dedicația",
     "downloadingProgress": "Se procesează {progress} %…",
-    "downloadVideo": "↓ Descarcă videoclipul",
+    "downloadVideo": "Descarcă videoclipul",
     "successAdvice": "Sfat trimis!",
     "successMessage": "Mesaj trimis!",
     "successGreeting": "Dedicație trimisă!",
@@ -2028,7 +2029,10 @@
     "confirmRejectTitle": "Sigur vrei să refuzi această comandă?",
     "confirmRejectBody": "Plata cumpărătorului va fi anulată și comanda va dispărea din lista ta. Nu se poate anula.",
     "sampleRequestTitle": "Scrie cererea ca și cum ai fi cumpărătorul",
-    "sampleRequestHint": "Folosește cuvintele celui care ți-ar cere-o, nu ale tale. În loc de «o voi saluta pe Ana», scrie «vreau un salut pentru Ana, împlinește 30». Asta vei vedea pe ecran cât înregistrezi."
+    "sampleRequestHintGreeting": "Scrie-o cu vorbele celui care ți-ar cere-o, nu cu ale tale. De exemplu «este pentru sora mea Ana, sâmbătă împlinește 30 de ani și te urmărește de la început. Mi-ar plăcea să o feliciți pe nume și să îi spui să îndrăznească să concureze anul acesta».",
+    "sampleRequestHintAdvice": "Scrie-o cu vorbele celui care ți-ar cere-o, nu cu ale tale. De exemplu «tocmai am terminat facultatea și ezit între a accepta primul job oferit sau a aștepta ceva mai bun. Aș vrea să știu cum ai hotărât tu asta la început».",
+    "uploadSample": "Încarcă mostra",
+    "samplePublished": "Mostră publicată"
   },
   "live": {
     "accessTicket": "Bilet de acces",
