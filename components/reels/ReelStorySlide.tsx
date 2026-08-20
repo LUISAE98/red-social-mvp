@@ -958,12 +958,19 @@ export default function ReelStorySlide({
               que vive con lo que se hace CON la historia y no en la columna de
               silencio y compartir. */}
           {likeUid && (
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 16px 6px" }}>
+            // El mismo margen lateral que la fila de botones, para que la
+            // flamita arranque donde arranca "Contexto".
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 14px 6px" }}>
               <IconButton
                 label={liked ? tCommon("removeFlameFromStory") : tCommon("addFlameToStory")}
                 size="sm"
                 tone="bare"
                 shape="square"
+                // ⚠️ El icono va CENTRADO en una caja de 32, asi que el dibujo
+                // empieza mas adentro que el borde del boton. Sin descontar ese
+                // hueco, la flamita se ve desalineada respecto a "Contexto"
+                // aunque los dos contenedores compartan margen.
+                style={{ marginInlineStart: -(32 - (compact ? 20 : 24)) / 2 }}
                 onClick={(e) => { void handleLike(e); }}
               >
                 <VibraFlameIcon active={liked} size={compact ? 20 : 24} />
