@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Neplatná cena za měsíční předplatné.",
     "durationInvalidMeetGreet": "Nastav platnou délku v minutách pro Čas s tebou.",
     "durationInvalidSession": "Nastav platnou délku v minutách pro exkluzivní sezení.",
-    "donationAmountFloor": "Každá navržená částka daru musí být aspoň 50.",
+    "donationAmountFloor": "Každá navržená částka daru musí být aspoň {min}.",
     "donationWeddingText": "Napiš text, který se u svatebního daru zobrazí.",
     "configSaved": "Nastavení uloženo.",
     "configSaveError": "Služby se nepodařilo uložit.",

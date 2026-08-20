@@ -40,10 +40,10 @@ export const metadata: Metadata = {
    */
   icons: {
     icon: [
-      { url: "/favicons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicons/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicons/favicon-32x32.png?v=2", sizes: "32x32", type: "image/png" },
+      { url: "/favicons/favicon-16x16.png?v=2", sizes: "16x16", type: "image/png" },
     ],
-    apple: [{ url: "/favicons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    apple: [{ url: "/favicons/apple-touch-icon.png?v=2", sizes: "180x180", type: "image/png" }],
   },
   appleWebApp: {
     capable: true,

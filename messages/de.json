@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Ungültiger Preis für das Monatsabo.",
     "durationInvalidMeetGreet": "Lege eine gültige Dauer in Minuten für Zeit mit dir fest.",
     "durationInvalidSession": "Lege eine gültige Dauer in Minuten für die exklusive Session fest.",
-    "donationAmountFloor": "Jeder vorgeschlagene Spendenbetrag muss mindestens 50 sein.",
+    "donationAmountFloor": "Jeder vorgeschlagene Spendenbetrag muss mindestens {min} sein.",
     "donationWeddingText": "Schreibe den Text, der bei der Hochzeitsspende angezeigt wird.",
     "configSaved": "Einstellungen gespeichert.",
     "configSaveError": "Die Services konnten nicht gespeichert werden.",

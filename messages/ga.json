@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Praghas neamhbhailí don síntiús míosúil.",
     "durationInvalidMeetGreet": "Socraigh fad bailí i nóiméid do Am leat.",
     "durationInvalidSession": "Socraigh fad bailí i nóiméid don seisiún eisiach.",
-    "donationAmountFloor": "Caithfidh gach suim síntiúis mholta a bheith 50 ar a laghad.",
+    "donationAmountFloor": "Caithfidh gach suim síntiúis mholta a bheith {min} ar a laghad.",
     "donationWeddingText": "Scríobh an téacs a thaispeántar don síntiús bainise.",
     "configSaved": "Sábháladh na socruithe.",
     "configSaveError": "Níorbh fhéidir na seirbhísí a shábháil.",

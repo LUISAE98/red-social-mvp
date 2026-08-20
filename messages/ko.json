@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "월 구독 가격이 올바르지 않습니다.",
     "durationInvalidMeetGreet": "함께하는 시간의 길이를 분 단위로 올바르게 설정하세요.",
     "durationInvalidSession": "단독 세션의 길이를 분 단위로 올바르게 설정하세요.",
-    "donationAmountFloor": "제안하는 후원 금액은 모두 50 이상이어야 합니다.",
+    "donationAmountFloor": "제안하는 후원 금액은 모두 {min} 이상이어야 합니다.",
     "donationWeddingText": "결혼 후원에 표시할 문구를 작성하세요.",
     "configSaved": "설정을 저장했습니다.",
     "configSaveError": "서비스를 저장하지 못했습니다.",

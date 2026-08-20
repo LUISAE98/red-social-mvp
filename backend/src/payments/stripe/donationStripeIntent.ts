@@ -7,7 +7,7 @@
 // el creador recibe 75% de la base.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
+import { SETTLEMENT_CURRENCY, DONATION_MIN_AMOUNT_USD } from "../../wallet/ledger";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
@@ -26,7 +26,7 @@ if (admin.apps.length === 0) {
 }
 const db = admin.firestore();
 const REGION = "us-central1";
-const MIN_DONATION = 50; // mínimo por donación (MXN base)
+const MIN_DONATION = DONATION_MIN_AMOUNT_USD; // mínimo por donación (moneda de liquidación)
 const MAX_DONATION = 100000; // tope de seguridad
 
 function round2(n: number): number {

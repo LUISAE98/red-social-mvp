@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Prezz mhux validu għall-abbonament ta' kull xahar.",
     "durationInvalidMeetGreet": "Issettja tul validu f'minuti għal Ħin miegħek.",
     "durationInvalidSession": "Issettja tul validu f'minuti għas-sessjoni esklussiva.",
-    "donationAmountFloor": "Kull ammont ta' donazzjoni suġġerit irid ikun mill-inqas 50.",
+    "donationAmountFloor": "Kull ammont ta' donazzjoni suġġerit irid ikun mill-inqas {min}.",
     "donationWeddingText": "Ikteb it-test li jidher għad-donazzjoni tat-tieġ.",
     "configSaved": "L-issettjar ġie salvat.",
     "configSaveError": "Is-servizzi ma setgħux jiġu salvati.",

@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Aylık abonelik için geçersiz fiyat.",
     "durationInvalidMeetGreet": "Seninle vakit için dakika cinsinden geçerli bir süre belirle.",
     "durationInvalidSession": "Özel oturum için dakika cinsinden geçerli bir süre belirle.",
-    "donationAmountFloor": "Önerilen her bağış tutarı en az 50 olmalı.",
+    "donationAmountFloor": "Önerilen her bağış tutarı en az {min} olmalı.",
     "donationWeddingText": "Düğün bağışında görünecek metni yaz.",
     "configSaved": "Ayarlar kaydedildi.",
     "configSaveError": "Hizmetler kaydedilemedi.",

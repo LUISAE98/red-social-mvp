@@ -23,8 +23,8 @@ const RUNTIME_CACHE = `vibra-runtime-${VERSION}`;
 // Lo mínimo que siempre existe y conviene tener listo.
 const PRECACHE = [
   "/manifest.json",
-  "/favicons/android-chrome-192x192.png",
-  "/favicons/android-chrome-512x512.png",
+  "/favicons/android-chrome-192x192.png?v=2",
+  "/favicons/android-chrome-512x512.png?v=2",
 ];
 
 const ASSET_EXT = /\.(png|jpe?g|webp|svg|gif|ico|woff2?|ttf|otf)$/i;

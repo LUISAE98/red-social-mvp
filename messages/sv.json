@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Ogiltigt pris för månadsprenumerationen.",
     "durationInvalidMeetGreet": "Ange en giltig längd i minuter för Tid med dig.",
     "durationInvalidSession": "Ange en giltig längd i minuter för den exklusiva sessionen.",
-    "donationAmountFloor": "Varje föreslaget donationsbelopp måste vara minst 50.",
+    "donationAmountFloor": "Varje föreslaget donationsbelopp måste vara minst {min}.",
     "donationWeddingText": "Skriv texten som visas vid bröllopsdonationen.",
     "configSaved": "Inställningarna är sparade.",
     "configSaveError": "Tjänsterna kunde inte sparas.",

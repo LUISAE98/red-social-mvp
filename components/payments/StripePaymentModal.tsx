@@ -12,12 +12,13 @@ import { createPortal } from "react-dom";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { intlLocale } from "@/i18n/locales";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { repriceStripeIntentForCard } from "@/lib/stripe/stripePayments";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { taxRateForCountry } from "@/lib/tax/config";
 import { formatCurrency } from "@/lib/currency/format";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
 import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
@@ -379,6 +380,36 @@ export default function StripePaymentModal({
     ipCountry === "MX" ? "MX" : (cardPm?.country ?? ipCountry);
   /** true cuando la tarjeta cambió el país respecto a lo que dijo la IP. */
   const countryFromCard = !!cardPm?.country && effectiveCountry === cardPm.country && cardPm.country !== ipCountry;
+
+  // Tasa del país que MANDA (la de la tarjeta si ya se leyó, si no la de la IP). Usar
+  // `pf.taxRate`, que va siempre por IP, desglosaba con una tasa y cobraba con otra.
+  const tasaImpuestoVigente = taxRateForCountry(effectiveCountry);
+
+  /**
+   * El donante teclea el TOTAL en SU moneda. Aquí se deshace todo para llegar a la base en
+   * USD, que es lo único que el backend entiende.
+   *
+   * ⚠️ El campo estaba en USD con la etiqueta "MXN" fija: quien escribía 149 pensando en
+   * pesos acababa pagando 149 dólares —2.592 MXN—. Y al pulsar un botón sugerido se metía
+   * en el campo el importe en USD mientras el botón enseñaba el convertido, así que los dos
+   * números nunca coincidían.
+   */
+  const baseUsdDesdeTotalLocal = useCallback((totalLocal: number): number | null => {
+    if (!Number.isFinite(totalLocal) || totalLocal <= 0) return null;
+    const sinImpuesto = totalLocal / (1 + (tasaImpuestoVigente));
+    const usd = pf.currency === SETTLEMENT_CURRENCY ? sinImpuesto : pf.buyerLocalToUsd(sinImpuesto);
+    if (usd == null) return null;
+    const base = usd - FIXED_SERVICE_FEE_USD;
+    return base > 0 ? Math.round(base * 100) / 100 : null;
+  }, [pf, tasaImpuestoVigente]);
+
+  /** El TOTAL en moneda local de una base en USD. Es lo que enseña el botón sugerido. */
+  const totalLocalDesdeBaseUsd = useCallback((baseUsd: number): number =>
+    pf.formatWithTax(baseUsd + FIXED_SERVICE_FEE_USD, {
+      baseCurrency: SETTLEMENT_CURRENCY,
+      taxCountryOverride: effectiveCountry,
+    }).totalLocal,
+  [pf, effectiveCountry]);
 
   const amountInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -1021,11 +1052,10 @@ export default function StripePaymentModal({
                 <button key={base} type="button"
                   onClick={() => {
                     setSelectedPreset(base); setChosenAmount(base);
-                    // En modo inclusivo el input custom muestra el TOTAL (base+$3+IVA), igual
-                    // que el botón, para no confundir al usuario. En modo base, muestra la base.
-                    setCustomAmount(donationCustomInclusive
-                      ? String(Math.round((base + FIXED_SERVICE_FEE_USD) * (1 + pf.taxRate) * 100) / 100)
-                      : String(base));
+                    // El campo recibe EXACTAMENTE el número que enseña el botón: mismo total,
+                    // misma moneda. Antes se metía el importe en USD mientras el botón
+                    // mostraba el convertido, y no cuadraban.
+                    setCustomAmount(String(totalLocalDesdeBaseUsd(base)));
                   }}
                   style={{ padding: "9px 2px", borderRadius: 10, border: "none", background: selected ? "#eaf6fd" : "transparent", color: selected ? BLUE : "#3a3f4a", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}>
                   {/* Todo-incluido desde el inicio: (base + $3) + IVA. */}
@@ -1043,20 +1073,11 @@ export default function StripePaymentModal({
                   const v = e.target.value; setCustomAmount(v); setSelectedPreset(null);
                   const typed = Number(v);
                   if (!Number.isFinite(typed) || typed <= 0) { setChosenAmount(null); return; }
-                  if (donationCustomInclusive) {
-                    // Lo tecleado YA es el TOTAL (incluye $3 + IVA): NO se suma nada. Despejamos
-                    // la base (base + $3 = total/(1+iva)) para que abajo se DESGLOSE el IVA de
-                    // ese total y el total cobrado sea exactamente lo que escribió el usuario.
-                    const base = typed / (1 + pf.taxRate) - FIXED_SERVICE_FEE_USD;
-                    setChosenAmount(base > 0 ? Math.round(base * 100) / 100 : null);
-                  } else {
-                    // El donador teclea la BASE directo en MXN (México-only, sin conversión).
-                    const n = Math.floor(typed);
-                    setChosenAmount(n > 0 ? n : null);
-                  }
+                  // Lo tecleado es el TOTAL en la moneda del donante: lo que va a pagar.
+                  setChosenAmount(baseUsdDesdeTotalLocal(typed));
                 }}
                 placeholder="0" style={{ width: 120, border: "none", borderBottom: "1px solid #eceef1", background: "transparent", fontSize: 22, fontWeight: 700, color: "#3a3f4a", textAlign: "center", outline: "none", fontFamily: "inherit", padding: "0 2px 4px" }} />
-              <span style={{ fontSize: 13, color: "#9aa0a8", fontWeight: 600 }}>MXN</span>
+              <span style={{ fontSize: 13, color: "#9aa0a8", fontWeight: 600 }}>{pf.currency}</span>
             </div>
           </div>
           {minBaseAmount > 0 && (

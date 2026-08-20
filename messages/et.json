@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Sobimatu hind kuutellimuse jaoks.",
     "durationInvalidMeetGreet": "Määra Aeg sinuga jaoks kehtiv kestus minutites.",
     "durationInvalidSession": "Määra eksklusiivse seansi jaoks kehtiv kestus minutites.",
-    "donationAmountFloor": "Iga soovitatud annetussumma peab olema vähemalt 50.",
+    "donationAmountFloor": "Iga soovitatud annetussumma peab olema vähemalt {min}.",
     "donationWeddingText": "Kirjuta tekst, mis pulmaannetuse juures kuvatakse.",
     "configSaved": "Seaded salvestatud.",
     "configSaveError": "Teenuseid ei õnnestunud salvestada.",

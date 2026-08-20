@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Preț nevalid pentru abonamentul lunar.",
     "durationInvalidMeetGreet": "Stabilește o durată validă în minute pentru Timp cu tine.",
     "durationInvalidSession": "Stabilește o durată validă în minute pentru sesiunea exclusivă.",
-    "donationAmountFloor": "Fiecare sumă sugerată de donație trebuie să fie cel puțin 50.",
+    "donationAmountFloor": "Fiecare sumă sugerată de donație trebuie să fie cel puțin {min}.",
     "donationWeddingText": "Scrie textul afișat la donația de nuntă.",
     "configSaved": "Configurarea a fost salvată.",
     "configSaveError": "Serviciile nu au putut fi salvate.",

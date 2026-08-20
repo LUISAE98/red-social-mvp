@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/currency/format";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY, DONATION_MIN_AMOUNT_USD } from "@/lib/currency/catalog";
 import { AVISOS_SERVICIOS } from "@/lib/services/avisosServicios";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
@@ -578,9 +578,9 @@ export default function OwnerAdminServices({
       if (
         workingDraft.donationMode !== "none" &&
         (donationSuggestedNums.length !== 4 ||
-          donationSuggestedNums.some((n) => !Number.isFinite(n) || n < 50))
+          donationSuggestedNums.some((n) => !Number.isFinite(n) || n < DONATION_MIN_AMOUNT_USD))
       ) {
-        setErr(tServices(AVISOS_SERVICIOS.donacionMontoMinimo));
+        setErr(tServices(AVISOS_SERVICIOS.donacionMontoMinimo, { min: DONATION_MIN_AMOUNT_USD }));
         return;
       }
 

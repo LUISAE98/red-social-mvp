@@ -14,6 +14,8 @@ import {
   DISPLAY_CURRENCIES,
   COUNTRY_TO_CURRENCY,
   FX_CONVERSION_FEE,
+  DONATION_MIN_AMOUNT_USD,
+  FIXED_SERVICE_FEE_USD,
   displayCurrencyForCountry,
   isDisplayCurrency,
 } from "@/lib/currency/catalog";
@@ -242,5 +244,46 @@ describe("el total del comprador no depende de si hay impuesto", () => {
     const sinIva = roundCharm(40.4, "USD");
     for (const t of [conIva, sinIva]) expect(Math.round(t * 100) % 100).toBe(99);
     expect(conIva).toBeGreaterThan(sinIva);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Los mínimos de dinero viven en DOS sitios: el catálogo (frontend) y
+// backend/src/wallet/ledger.ts, porque el backend compila aparte y no puede
+// importar de lib/. Si se separan, el creador configura un monto que el servidor
+// rechaza al cobrar — o al revés, y se cuela una donación por debajo del mínimo.
+//
+// El mínimo de donación estuvo en 50 pensado en pesos. Al pasar la denominación a
+// USD, ese 50 se convirtió en 50 DÓLARES: ninguna de las cantidades sugeridas por
+// defecto se podía pagar, y publicar la donación se rechazaba con un aviso que
+// llevaba el 50 escrito dentro del texto traducido a los 47 idiomas.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("mínimos de dinero — frontend y backend no pueden separarse", () => {
+  const leerLedger = () =>
+    readFileSync(
+      fileURLToPath(new URL("../../backend/src/wallet/ledger.ts", import.meta.url)),
+      "utf8"
+    );
+
+  it("DONATION_MIN_AMOUNT_USD coincide en catálogo y ledger", () => {
+    const m = leerLedger().match(/export const DONATION_MIN_AMOUNT_USD = ([\d.]+);/);
+    expect(m, "no se encontró DONATION_MIN_AMOUNT_USD en backend/src/wallet/ledger.ts").not.toBeNull();
+    expect(Number(m![1])).toBe(DONATION_MIN_AMOUNT_USD);
+  });
+
+  it("FIXED_SERVICE_FEE_USD coincide en catálogo y ledger", () => {
+    const m = leerLedger().match(/export const FIXED_SERVICE_FEE_USD = ([\d.]+);/);
+    expect(m).not.toBeNull();
+    expect(Number(m![1])).toBe(FIXED_SERVICE_FEE_USD);
+  });
+
+  it("el aviso de la donación NO lleva la cifra escrita dentro del texto", () => {
+    // Con el número dentro de la traducción, cambiar el mínimo obligaba a tocar los
+    // 47 idiomas y el aviso mentía en cuanto alguien se olvidaba de uno.
+    const es = JSON.parse(
+      readFileSync(fileURLToPath(new URL("../../messages/es.json", import.meta.url)), "utf8")
+    ) as { services: Record<string, string> };
+    expect(es.services.donationAmountFloor).toContain("{min}");
+    expect(es.services.donationAmountFloor).not.toMatch(/\d/);
   });
 });

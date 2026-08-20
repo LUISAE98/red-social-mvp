@@ -273,6 +273,25 @@ export function buyerPriceExact(
 }
 
 /**
+ * INVERSO EXACTO de `buyerPriceExact`: de lo que el comprador ve en su moneda, al USD.
+ *
+ * Existe porque en la donación el comprador TECLEA un importe en su moneda y hay que saber
+ * qué base en USD le corresponde. Invertir a ojo (dividir solo por la tasa) se dejaba fuera
+ * el margen FX y el importe cobrado no coincidía con el tecleado.
+ *
+ * Devuelve null si falta la tasa, igual que la ida.
+ */
+export function buyerLocalToAnchor(
+  localAmount: number,
+  currency: DisplayCurrency,
+  rates: RateMap
+): number | null {
+  if (currency === ANCHOR_CURRENCY) return localAmount;
+  const sinMargen = localAmount / (1 + fxConversionFeeForCurrency(currency));
+  return convertToAnchor(sinMargen, currency, rates);
+}
+
+/**
  * Precio de cara al COMPRADOR: convierte del USD (ancla) a su moneda local, aplica
  * el margen FX y redondea a cifra limpia. Es lo que el comprador VE y PAGA (dLocal).
  * USD (Ecuador/El Salvador/Panamá) se paga exacto: sin buffer ni redondeo (es la

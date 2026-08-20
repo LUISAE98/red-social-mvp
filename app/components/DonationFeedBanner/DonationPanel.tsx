@@ -6,7 +6,7 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { formatCurrency } from "@/lib/currency/format";
-import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, DONATION_MIN_AMOUNT_USD } from "@/lib/currency/catalog";
 
 type Props = {
   open: boolean;
@@ -20,7 +20,8 @@ type Props = {
 
 // 💵 USD desde el corte a Vibra On, LLC.
 const DEFAULT_AMOUNTS = [3, 7, 15, 30];
-const MIN_DONATION = 50; // no se puede donar menos de $50
+// Del catálogo, no a mano: el backend valida el MISMO mínimo al cobrar.
+const MIN_DONATION = DONATION_MIN_AMOUNT_USD;
 const CLOSE_THRESHOLD = 130;
 
 function applyOffset(raw: number): number {

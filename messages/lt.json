@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Netinkama mėnesinės prenumeratos kaina.",
     "durationInvalidMeetGreet": "Nustatyk tinkamą Laiko su tavimi trukmę minutėmis.",
     "durationInvalidSession": "Nustatyk tinkamą išskirtinio seanso trukmę minutėmis.",
-    "donationAmountFloor": "Kiekviena siūloma aukos suma turi būti bent 50.",
+    "donationAmountFloor": "Kiekviena siūloma aukos suma turi būti bent {min}.",
     "donationWeddingText": "Parašyk tekstą, rodomą prie vestuvių aukos.",
     "configSaved": "Nustatymai išsaugoti.",
     "configSaveError": "Nepavyko išsaugoti paslaugų.",

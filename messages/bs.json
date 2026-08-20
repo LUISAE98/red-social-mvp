@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Neispravna cijena za mjesečnu pretplatu.",
     "durationInvalidMeetGreet": "Postavi ispravno trajanje u minutama za Vrijeme s tobom.",
     "durationInvalidSession": "Postavi ispravno trajanje u minutama za ekskluzivnu sesiju.",
-    "donationAmountFloor": "Svaki predloženi iznos donacije mora biti najmanje 50.",
+    "donationAmountFloor": "Svaki predloženi iznos donacije mora biti najmanje {min}.",
     "donationWeddingText": "Napiši tekst koji se vidi za donaciju za vjenčanje.",
     "configSaved": "Postavke su sačuvane.",
     "configSaveError": "Usluge nisu sačuvane.",

@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "මාසික දායකත්වය සඳහා වලංගු නොවන මිලක්.",
     "durationInvalidMeetGreet": "ඔබ සමඟ කාලය සඳහා මිනිත්තු වලින් වලංගු කාලයක් සකසන්න.",
     "durationInvalidSession": "සුවිශේෂී සැසිය සඳහා මිනිත්තු වලින් වලංගු කාලයක් සකසන්න.",
-    "donationAmountFloor": "යෝජිත එක් එක් පරිත්‍යාග මුදල අවම වශයෙන් 50ක් විය යුතුය.",
+    "donationAmountFloor": "යෝජිත එක් එක් පරිත්‍යාග මුදල අවම වශයෙන් {min}ක් විය යුතුය.",
     "donationWeddingText": "විවාහ පරිත්‍යාගය සඳහා පෙනෙන පෙළ ලියන්න.",
     "configSaved": "සැකසුම් සුරකින ලදී.",
     "configSaveError": "සේවා සුරැකිය නොහැකි විය.",

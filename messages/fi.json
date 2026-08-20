@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Virheellinen hinta kuukausitilaukselle.",
     "durationInvalidMeetGreet": "Aseta kelvollinen kesto minuutteina Aikaa kanssasi -palvelulle.",
     "durationInvalidSession": "Aseta kelvollinen kesto minuutteina yksityiselle sessiolle.",
-    "donationAmountFloor": "Jokaisen ehdotetun lahjoitussumman on oltava vähintään 50.",
+    "donationAmountFloor": "Jokaisen ehdotetun lahjoitussumman on oltava vähintään {min}.",
     "donationWeddingText": "Kirjoita teksti, joka näkyy hääkeräyksessä.",
     "configSaved": "Asetukset tallennettu.",
     "configSaveError": "Palveluita ei voitu tallentaa.",

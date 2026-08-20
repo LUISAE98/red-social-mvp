@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Aylıq abunə üçün yanlış qiymət.",
     "durationInvalidMeetGreet": "Səninlə vaxt üçün dəqiqə ilə düzgün müddət təyin et.",
     "durationInvalidSession": "Eksklüziv sessiya üçün dəqiqə ilə düzgün müddət təyin et.",
-    "donationAmountFloor": "Hər təklif olunan ianə məbləği ən azı 50 olmalıdır.",
+    "donationAmountFloor": "Hər təklif olunan ianə məbləği ən azı {min} olmalıdır.",
     "donationWeddingText": "Toy ianəsi üçün görünən mətni yaz.",
     "configSaved": "Tənzimləmələr yadda saxlanıldı.",
     "configSaveError": "Xidmətlər yadda saxlanılmadı.",

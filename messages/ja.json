@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "月額サブスクリプションの価格が正しくありません。",
     "durationInvalidMeetGreet": "あなたとの時間の長さを分で正しく設定してください。",
     "durationInvalidSession": "限定セッションの長さを分で正しく設定してください。",
-    "donationAmountFloor": "提案する寄付額はいずれも50以上にしてください。",
+    "donationAmountFloor": "提案する寄付額はいずれも{min}以上にしてください。",
     "donationWeddingText": "結婚の寄付に表示するテキストを入力してください。",
     "configSaved": "設定を保存しました。",
     "configSaveError": "サービスを保存できませんでした。",

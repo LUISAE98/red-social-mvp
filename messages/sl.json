@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Neveljavna cena za mesečno naročnino.",
     "durationInvalidMeetGreet": "Nastavi veljavno trajanje v minutah za Čas s teboj.",
     "durationInvalidSession": "Nastavi veljavno trajanje v minutah za ekskluzivno srečanje.",
-    "donationAmountFloor": "Vsak predlagani znesek donacije mora biti vsaj 50.",
+    "donationAmountFloor": "Vsak predlagani znesek donacije mora biti vsaj {min}.",
     "donationWeddingText": "Napiši besedilo, ki se prikaže pri poročni donaciji.",
     "configSaved": "Nastavitve shranjene.",
     "configSaveError": "Storitev ni bilo mogoče shraniti.",

@@ -12,7 +12,7 @@ import { useCallback } from "react";
 import { useLocale } from "next-intl";
 import { useCurrency } from "@/app/components/CurrencyProvider";
 import { useExchangeRates } from "./rates";
-import { buyerPrice, buyerPriceExact, roundCharm, convertFromAnchor, convertToAnchor, formatCurrency } from "./format";
+import { buyerPrice, buyerPriceExact, roundCharm, convertFromAnchor, convertToAnchor, formatCurrency, buyerLocalToAnchor } from "./format";
 import {
   ANCHOR_CURRENCY,
   isDisplayCurrency,
@@ -87,6 +87,8 @@ export type PriceFormatter = {
   toAnchor: (amount: number) => number | null;
   /** Conversión SIMPLE del ancla a la moneda del usuario: solo tipo de cambio, sin el 2% ni redondeo. */
   fromAnchor: (amount: number) => number | null;
+  /** Inverso del precio de comprador: de su moneda a USD (deshace tasa + margen FX). */
+  buyerLocalToUsd: (localAmount: number) => number | null;
   /** Como `format` pero con conversión SIMPLE (sin el 2% ni redondeo). Para lo que ve el CREADOR de su dinero. */
   formatPlain: (amount: number, opts?: { baseCurrency?: string | null; code?: boolean }) => string;
   /** Formatea un monto ya en MXN, siempre en MXN (para el "= $X MXN (precio real)"). */
@@ -240,6 +242,17 @@ export function usePriceFormat(): PriceFormatter {
     [currency, rates]
   );
 
+  /**
+   * De lo que el comprador VE en su moneda, de vuelta a USD. Inverso exacto del precio
+   * de comprador (deshace el margen FX además de la tasa).
+   *
+   * Lo usa la donación, que es el único sitio donde el comprador TECLEA un importe.
+   */
+  const buyerLocalToUsd = useCallback(
+    (localAmount: number) => buyerLocalToAnchor(localAmount, currency, rates.rates),
+    [currency, rates]
+  );
+
   const formatAnchor = useCallback(
     (mxnAmount: number, opts: { code?: boolean } = {}) =>
       formatCurrency(mxnAmount, ANCHOR_CURRENCY, locale, { code: opts.code ?? true }),
@@ -283,6 +296,7 @@ export function usePriceFormat(): PriceFormatter {
     ratesSource: rates.source,
     toAnchor,
     fromAnchor,
+    buyerLocalToUsd,
     formatPlain,
     formatAnchor,
     resolveStoredPrice,

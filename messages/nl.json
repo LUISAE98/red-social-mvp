@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Ongeldige prijs voor het maandabonnement.",
     "durationInvalidMeetGreet": "Stel een geldige duur in minuten in voor Tijd met jou.",
     "durationInvalidSession": "Stel een geldige duur in minuten in voor de exclusieve sessie.",
-    "donationAmountFloor": "Elk voorgesteld donatiebedrag moet minstens 50 zijn.",
+    "donationAmountFloor": "Elk voorgesteld donatiebedrag moet minstens {min} zijn.",
     "donationWeddingText": "Schrijf de tekst die bij de huwelijksdonatie wordt getoond.",
     "configSaved": "Instellingen opgeslagen.",
     "configSaveError": "De services konden niet worden opgeslagen.",

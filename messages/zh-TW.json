@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "月訂閱的價格不正確。",
     "durationInvalidMeetGreet": "請為與你的時光設定正確的分鐘數。",
     "durationInvalidSession": "請為專屬時段設定正確的分鐘數。",
-    "donationAmountFloor": "每個建議的贊助金額都必須至少 50。",
+    "donationAmountFloor": "每個建議的贊助金額都必須至少 {min}。",
     "donationWeddingText": "請填寫婚禮贊助要顯示的文字。",
     "configSaved": "已儲存設定。",
     "configSaveError": "無法儲存服務。",

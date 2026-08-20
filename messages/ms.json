@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Harga tidak sah untuk langganan bulanan.",
     "durationInvalidMeetGreet": "Tetapkan tempoh yang sah dalam minit untuk Masa bersamamu.",
     "durationInvalidSession": "Tetapkan tempoh yang sah dalam minit untuk sesi eksklusif.",
-    "donationAmountFloor": "Setiap jumlah derma yang dicadangkan mesti sekurang-kurangnya 50.",
+    "donationAmountFloor": "Setiap jumlah derma yang dicadangkan mesti sekurang-kurangnya {min}.",
     "donationWeddingText": "Tulis teks yang dipaparkan untuk derma perkahwinan.",
     "configSaved": "Tetapan disimpan.",
     "configSaveError": "Perkhidmatan tidak dapat disimpan.",

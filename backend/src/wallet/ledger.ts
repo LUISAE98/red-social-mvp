@@ -52,6 +52,18 @@ export const SETTLEMENT_CURRENCY = "USD";
  */
 export const FIXED_SERVICE_FEE_USD = 0.4;
 
+/**
+ * Mínimo de una donación, en la moneda de liquidación.
+ *
+ * ⚠️ ESPEJO de `DONATION_MIN_AMOUNT_USD` en lib/currency/catalog.ts. Hay un test que
+ * compara los dos: si se separan, un creador podría configurar un monto que el servidor
+ * rechaza al cobrar, o al revés.
+ *
+ * Era 50 y estaba pensado en pesos. Con la denominación en USD pedía 50 dólares por
+ * donación, así que ninguna de las sugeridas por defecto se podía pagar.
+ */
+export const DONATION_MIN_AMOUNT_USD = 3;
+
 export type LedgerServiceType =
   | "supercomment"
   | "profile_donation"

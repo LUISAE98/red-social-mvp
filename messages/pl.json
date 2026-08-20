@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Nieprawidłowa cena za subskrypcję miesięczną.",
     "durationInvalidMeetGreet": "Ustaw prawidłowy czas w minutach dla Czasu z tobą.",
     "durationInvalidSession": "Ustaw prawidłowy czas w minutach dla sesji na wyłączność.",
-    "donationAmountFloor": "Każda proponowana kwota wsparcia musi wynosić co najmniej 50.",
+    "donationAmountFloor": "Każda proponowana kwota wsparcia musi wynosić co najmniej {min}.",
     "donationWeddingText": "Napisz tekst widoczny przy wsparciu ślubnym.",
     "configSaved": "Ustawienia zapisane.",
     "configSaveError": "Nie udało się zapisać usług.",

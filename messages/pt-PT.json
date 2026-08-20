@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Preço inválido para a subscrição mensal.",
     "durationInvalidMeetGreet": "Define uma duração válida em minutos para Tempo contigo.",
     "durationInvalidSession": "Define uma duração válida em minutos para a sessão exclusiva.",
-    "donationAmountFloor": "Cada valor sugerido de donativo tem de ser pelo menos 50.",
+    "donationAmountFloor": "Cada valor sugerido de donativo tem de ser pelo menos {min}.",
     "donationWeddingText": "Escreve o texto mostrado no donativo de casamento.",
     "configSaved": "Configuração guardada.",
     "configSaveError": "Não foi possível guardar os serviços.",

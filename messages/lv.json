@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Nederīga cena mēneša abonementam.",
     "durationInvalidMeetGreet": "Iestati derīgu ilgumu minūtēs Laikam ar tevi.",
     "durationInvalidSession": "Iestati derīgu ilgumu minūtēs ekskluzīvajai sesijai.",
-    "donationAmountFloor": "Katrai ieteiktajai ziedojuma summai jābūt vismaz 50.",
+    "donationAmountFloor": "Katrai ieteiktajai ziedojuma summai jābūt vismaz {min}.",
     "donationWeddingText": "Uzraksti tekstu, kas redzams kāzu ziedojumam.",
     "configSaved": "Iestatījumi saglabāti.",
     "configSaveError": "Neizdevās saglabāt pakalpojumus.",

@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Giá không hợp lệ cho gói đăng ký hằng tháng.",
     "durationInvalidMeetGreet": "Đặt thời lượng hợp lệ tính bằng phút cho Thời gian với bạn.",
     "durationInvalidSession": "Đặt thời lượng hợp lệ tính bằng phút cho buổi riêng.",
-    "donationAmountFloor": "Mỗi mức quyên góp gợi ý phải từ 50 trở lên.",
+    "donationAmountFloor": "Mỗi mức quyên góp gợi ý phải từ {min} trở lên.",
     "donationWeddingText": "Viết nội dung hiển thị cho khoản quyên góp đám cưới.",
     "configSaved": "Đã lưu cấu hình.",
     "configSaveError": "Không lưu được các dịch vụ.",

@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "سعر غير صالح للاشتراك الشهري.",
     "durationInvalidMeetGreet": "حدّد مدة صالحة بالدقائق لوقت معك.",
     "durationInvalidSession": "حدّد مدة صالحة بالدقائق للجلسة الحصرية.",
-    "donationAmountFloor": "يجب ألّا يقل كل مبلغ تبرّع مقترح عن 50.",
+    "donationAmountFloor": "يجب ألّا يقل كل مبلغ تبرّع مقترح عن {min}.",
     "donationWeddingText": "اكتب النص الظاهر لتبرّع الزفاف.",
     "configSaved": "تم حفظ الإعدادات.",
     "configSaveError": "تعذّر حفظ الخدمات.",

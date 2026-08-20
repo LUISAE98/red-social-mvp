@@ -1992,7 +1992,7 @@
     "priceInvalidSubscription": "Invalid price for the monthly subscription.",
     "durationInvalidMeetGreet": "Set a valid duration in minutes for Time with you.",
     "durationInvalidSession": "Set a valid duration in minutes for the exclusive session.",
-    "donationAmountFloor": "Each suggested donation amount must be at least 50.",
+    "donationAmountFloor": "Each suggested donation amount must be at least {min}.",
     "donationWeddingText": "Write the text shown for the wedding donation.",
     "configSaved": "Settings saved.",
     "configSaveError": "Could not save the services.",

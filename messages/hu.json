@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Érvénytelen ár a havi előfizetéshez.",
     "durationInvalidMeetGreet": "Adj meg érvényes hosszt percben az Idő veled szolgáltatáshoz.",
     "durationInvalidSession": "Adj meg érvényes hosszt percben az exkluzív alkalomhoz.",
-    "donationAmountFloor": "Minden javasolt adományösszegnek legalább 50-nek kell lennie.",
+    "donationAmountFloor": "Minden javasolt adományösszegnek legalább {min}-nek kell lennie.",
     "donationWeddingText": "Írd meg az esküvői adománynál megjelenő szöveget.",
     "configSaved": "A beállítások elmentve.",
     "configSaveError": "A szolgáltatásokat nem sikerült menteni.",

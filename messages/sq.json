@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Çmim i pavlefshëm për abonimin mujor.",
     "durationInvalidMeetGreet": "Cakto një kohëzgjatje të vlefshme në minuta për Kohë me ty.",
     "durationInvalidSession": "Cakto një kohëzgjatje të vlefshme në minuta për sesionin ekskluziv.",
-    "donationAmountFloor": "Çdo shumë e sugjeruar donacioni duhet të jetë të paktën 50.",
+    "donationAmountFloor": "Çdo shumë e sugjeruar donacioni duhet të jetë të paktën {min}.",
     "donationWeddingText": "Shkruaj tekstin që shfaqet për donacionin e dasmës.",
     "configSaved": "Konfigurimi u ruajt.",
     "configSaveError": "Shërbimet nuk u ruajtën.",

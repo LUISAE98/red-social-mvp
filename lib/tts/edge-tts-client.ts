@@ -40,11 +40,22 @@ export function playEdgeTTS(
   audio.playbackRate = playbackRate;
 
   if (onProgress) {
+    // ⚠️ La PRIMERA vez, el audio llega en streaming desde /api/tts sin
+    // Content-Length, así que `audio.duration` vale Infinity hasta que termina
+    // de bajar. Con el guardia anterior, `onProgress` no se llamaba ni una vez
+    // y el resaltado no arrancaba; a la segunda sí, porque el audio ya estaba
+    // en caché y el navegador conocía la duración de entrada. Eso es lo que se
+    // veía como "se traba la primera vez".
+    //
+    // Ahora hay una duración ESTIMADA por longitud del texto para arrancar
+    // desde el primer segundo, y en cuanto el navegador conoce la real se usa
+    // esa. Va en segundos de MEDIO, no de reloj, así que no se divide por la
+    // velocidad: `currentTime` ya avanza en la escala del propio audio.
+    const estimatedDuration = Math.max(1, text.length * 0.066);
     audio.addEventListener("timeupdate", () => {
-      // isFinite guard: iOS Safari devuelve Infinity cuando no hay Content-Length.
-      if (audio.duration > 0 && isFinite(audio.duration)) {
-        onProgress(audio.currentTime / audio.duration);
-      }
+      const real = audio.duration;
+      const total = real > 0 && isFinite(real) ? real : estimatedDuration;
+      onProgress(Math.min(1, audio.currentTime / total));
     });
   }
   if (onEnded) audio.addEventListener("ended", onEnded);

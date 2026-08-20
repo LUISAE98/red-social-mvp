@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Ógilt verð fyrir mánaðaráskriftina.",
     "durationInvalidMeetGreet": "Stilltu gilda lengd í mínútum fyrir Tíma með þér.",
     "durationInvalidSession": "Stilltu gilda lengd í mínútum fyrir einkafundinn.",
-    "donationAmountFloor": "Hver tillögð framlagsupphæð verður að vera minnst 50.",
+    "donationAmountFloor": "Hver tillögð framlagsupphæð verður að vera minnst {min}.",
     "donationWeddingText": "Skrifaðu textann sem birtist við brúðkaupsframlagið.",
     "configSaved": "Stillingar vistaðar.",
     "configSaveError": "Ekki tókst að vista þjónusturnar.",

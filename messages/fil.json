@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Hindi valid na presyo para sa buwanang subscription.",
     "durationInvalidMeetGreet": "Magtakda ng valid na tagal sa minuto para sa Oras kasama ka.",
     "durationInvalidSession": "Magtakda ng valid na tagal sa minuto para sa exclusive session.",
-    "donationAmountFloor": "Bawat iminungkahing halaga ng donasyon ay dapat hindi bababa sa 50.",
+    "donationAmountFloor": "Bawat iminungkahing halaga ng donasyon ay dapat hindi bababa sa {min}.",
     "donationWeddingText": "Isulat ang tekstong makikita sa donasyon para sa kasal.",
     "configSaved": "Na-save ang mga setting.",
     "configSaveError": "Hindi na-save ang mga serbisyo.",

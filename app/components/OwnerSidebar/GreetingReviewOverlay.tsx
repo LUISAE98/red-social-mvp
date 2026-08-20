@@ -693,9 +693,17 @@ export default function GreetingReviewOverlay({
     // timeslice de 1s: en iOS Safari, sin timeslice la pista de VIDEO se congela
     // a los ~13-15s (el audio sigue). Pedir datos cada segundo mantiene viva la
     // codificación de video toda la grabación. Los chunks se reensamblan en onstop.
-    mr.start(1000);
     recorderRef.current = mr;
+
+    // El tirón al empezar a grabar es el navegador levantando el codificador de
+    // video, y eso no se puede evitar. Lo que sí se puede es no hacerlo competir
+    // con el repintado: primero se cambia de fase, para que el pie se pliegue y
+    // el botón rojo baje con la pantalla libre, y el codificador arranca en el
+    // fotograma siguiente, con la animación ya en marcha.
     setRecordPhase("recording");
+    requestAnimationFrame(() => {
+      try { mr.start(1000); } catch { /* el usuario cerró antes de que arrancara */ }
+    });
   };
 
   const handleStopRecording = () => { recorderRef.current?.stop(); };
@@ -1798,7 +1806,10 @@ export default function GreetingReviewOverlay({
     padding: 0, display: "flex", alignItems: "center",
     WebkitTapHighlightColor: "transparent", outline: "none",
   };
-  const vpControlsOverlay = (
+  /** `bleed` saca la franja de tiempo hacia los lados. En laptop el chrome vive
+   *  dentro de un contenedor estrechado 56px por lado para no comerse las
+   *  pestañas, y sin esto el degradado del pie se cortaba a media pantalla. */
+  const renderVpControls = (bleed = 0) => (
     <div style={{ position: "absolute", inset: 0, zIndex: 5, pointerEvents: "none" }}>
       {/* Click catcher — toggle chrome */}
       <div
@@ -1868,9 +1879,12 @@ export default function GreetingReviewOverlay({
 
         {/* Bottom: time + scrubber */}
         <div style={{
-          position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0,
-          background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)",
-          padding: "0 12px 10px",
+          position: "absolute", bottom: 0,
+          insetInlineStart: -bleed, insetInlineEnd: -bleed,
+          // Más discreto que antes: la sombra está para que se lean los números,
+          // no para competir con el video.
+          background: "linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 100%)",
+          padding: `0 ${12 + bleed}px 10px`,
           pointerEvents: "auto",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
@@ -1987,7 +2001,7 @@ export default function GreetingReviewOverlay({
               onEnded={() => setVpPlaying(false)}
               style={{ width: "100%", height: "100%", objectFit: "cover", background: "#000", display: "block" }}
             />
-            {vpControlsOverlay}
+            {renderVpControls()}
           </div>
         )}
 
@@ -2175,9 +2189,26 @@ export default function GreetingReviewOverlay({
                 type="button"
                 onClick={handleSendGreeting}
                 disabled={busy || isUploading}
-                style={{ ...videoActionButton, background: "linear-gradient(135deg, #ec4899, #9333ea)", width: BTN_W }}
+                style={{
+                  ...videoActionButton,
+                  background: "linear-gradient(135deg, #ec4899, #9333ea)",
+                  width: BTN_W,
+                  position: "relative", overflow: "hidden",
+                }}
               >
-                {sendLabel}
+                {isUploading && (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: "absolute", inset: 0,
+                      background: "rgba(255,255,255,0.28)",
+                      transformOrigin: "left center",
+                      transform: `scaleX(${Math.max(0, Math.min(100, uploadProgress)) / 100})`,
+                      transition: "transform 300ms ease-out",
+                    }}
+                  />
+                )}
+                <span style={{ position: "relative" }}>{sendLabel}</span>
               </button>
             </>
           ) : (
@@ -2330,7 +2361,7 @@ export default function GreetingReviewOverlay({
               onEnded={() => { setVpPlaying(false); showVPChrome(); }}
               style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
             />
-            {vpControlsOverlay}
+            {renderVpControls()}
           </div>
         ) : (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
@@ -2437,10 +2468,25 @@ export default function GreetingReviewOverlay({
               style={{
                 ...videoActionButton,
                 width: BTN_W, background: "#3b82f6", gap: 8,
+                position: "relative", overflow: "hidden",
                 cursor: downloading ? "not-allowed" : "pointer",
               }}
             >
-              {downloading ? tServices("downloadingProgress", { progress: downloadProgress }) : tServices("downloadVideo")}
+              {downloading && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute", inset: 0,
+                    background: "rgba(255,255,255,0.28)",
+                    transformOrigin: "left center",
+                    transform: `scaleX(${Math.max(0, Math.min(100, downloadProgress)) / 100})`,
+                    transition: "transform 300ms ease-out",
+                  }}
+                />
+              )}
+              <span style={{ position: "relative" }}>
+                {downloading ? tServices("downloadingProgress", { progress: downloadProgress }) : tServices("downloadVideo")}
+              </span>
             </button>
           )}
 
@@ -2508,7 +2554,7 @@ export default function GreetingReviewOverlay({
         position: "absolute", top: 0, bottom: 0,
         insetInlineStart: infoTab, insetInlineEnd: infoTab,
       }}>
-        {vpControlsOverlay}
+        {renderVpControls(infoTab)}
       </div>
     );
 
@@ -2738,10 +2784,25 @@ export default function GreetingReviewOverlay({
                         width: "100%",
                         background: "#3b82f6",
                         gap: 8,
+                        position: "relative", overflow: "hidden",
                         cursor: downloading ? "not-allowed" : "pointer",
                       }}
                     >
-                      {downloading ? tServices("downloadingProgress", { progress: downloadProgress }) : tServices("downloadVideo")}
+                      {downloading && (
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute", inset: 0,
+                            background: "rgba(255,255,255,0.28)",
+                            transformOrigin: "left center",
+                            transform: `scaleX(${Math.max(0, Math.min(100, downloadProgress)) / 100})`,
+                            transition: "transform 300ms ease-out",
+                          }}
+                        />
+                      )}
+                      <span style={{ position: "relative" }}>
+                        {downloading ? tServices("downloadingProgress", { progress: downloadProgress }) : tServices("downloadVideo")}
+                      </span>
                     </button>
                   )}
                   {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
@@ -3212,9 +3273,22 @@ export default function GreetingReviewOverlay({
                           ...videoActionButton,
                           // El degradado del botón de seguir de un perfil ajeno.
                           background: "linear-gradient(135deg, #ec4899, #9333ea)",
+                          position: "relative", overflow: "hidden",
                         }}
                       >
-                        {sendLabel}
+                        {isUploading && (
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              position: "absolute", inset: 0,
+                              background: "rgba(255,255,255,0.28)",
+                              transformOrigin: "left center",
+                              transform: `scaleX(${Math.max(0, Math.min(100, uploadProgress)) / 100})`,
+                              transition: "transform 300ms ease-out",
+                            }}
+                          />
+                        )}
+                        <span style={{ position: "relative" }}>{sendLabel}</span>
                       </button>
                     </div>
                     );

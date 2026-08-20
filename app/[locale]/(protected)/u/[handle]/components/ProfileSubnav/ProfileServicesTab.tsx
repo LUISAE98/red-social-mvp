@@ -20,7 +20,7 @@ import CustomClass from "@/components/services/config/CustomClass";
 import ProfileDonation from "./ProfileDonation";
 
 import { updateProfileOfferings } from "@/lib/profile/updateProfileOfferings";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY, DONATION_MIN_AMOUNT_USD } from "@/lib/currency/catalog";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
 
@@ -440,9 +440,9 @@ export default function ProfileServicesTab({
       if (
         workingDraft.donationMode !== "none" &&
         (donationSuggestedNums.length !== 4 ||
-          donationSuggestedNums.some((n) => !Number.isFinite(n) || n < 50))
+          donationSuggestedNums.some((n) => !Number.isFinite(n) || n < DONATION_MIN_AMOUNT_USD))
       ) {
-        setErr(tServices(AVISOS_SERVICIOS.donacionMontoMinimo));
+        setErr(tServices(AVISOS_SERVICIOS.donacionMontoMinimo, { min: DONATION_MIN_AMOUNT_USD }));
         return;
       }
 

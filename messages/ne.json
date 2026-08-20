@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "मासिक सदस्यताका लागि अमान्य मूल्य।",
     "durationInvalidMeetGreet": "तपाईंसँगको समयका लागि मिनेटमा मान्य अवधि तोक्नुहोस्।",
     "durationInvalidSession": "विशेष सत्रका लागि मिनेटमा मान्य अवधि तोक्नुहोस्।",
-    "donationAmountFloor": "सुझाइएको प्रत्येक अनुदान रकम कम्तीमा 50 हुनुपर्छ।",
+    "donationAmountFloor": "सुझाइएको प्रत्येक अनुदान रकम कम्तीमा {min} हुनुपर्छ।",
     "donationWeddingText": "विवाह अनुदानमा देखिने पाठ लेख्नुहोस्।",
     "configSaved": "सेटिङ सुरक्षित भयो।",
     "configSaveError": "सेवाहरू सुरक्षित गर्न सकिएन।",

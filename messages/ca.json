@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Preu no vàlid per a la subscripció mensual.",
     "durationInvalidMeetGreet": "Defineix una durada vàlida en minuts per a Temps amb tu.",
     "durationInvalidSession": "Defineix una durada vàlida en minuts per a la sessió exclusiva.",
-    "donationAmountFloor": "Cada import suggerit de donació ha de ser com a mínim 50.",
+    "donationAmountFloor": "Cada import suggerit de donació ha de ser com a mínim {min}.",
     "donationWeddingText": "Escriu el text visible per a la donació de casament.",
     "configSaved": "Configuració desada.",
     "configSaveError": "No s'han pogut desar els serveis.",

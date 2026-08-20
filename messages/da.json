@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Ugyldig pris for det månedlige abonnement.",
     "durationInvalidMeetGreet": "Angiv en gyldig varighed i minutter for Tid med dig.",
     "durationInvalidSession": "Angiv en gyldig varighed i minutter for den eksklusive session.",
-    "donationAmountFloor": "Hvert foreslået donationsbeløb skal være mindst 50.",
+    "donationAmountFloor": "Hvert foreslået donationsbeløb skal være mindst {min}.",
     "donationWeddingText": "Skriv teksten, der vises ved bryllupsdonationen.",
     "configSaved": "Indstillingerne er gemt.",
     "configSaveError": "Tjenesterne kunne ikke gemmes.",

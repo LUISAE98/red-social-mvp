@@ -1991,7 +1991,7 @@
     "priceInvalidSubscription": "Harga tidak valid untuk langganan bulanan.",
     "durationInvalidMeetGreet": "Tetapkan durasi yang valid dalam menit untuk Waktu bersamamu.",
     "durationInvalidSession": "Tetapkan durasi yang valid dalam menit untuk sesi eksklusif.",
-    "donationAmountFloor": "Setiap nominal donasi yang disarankan minimal 50.",
+    "donationAmountFloor": "Setiap nominal donasi yang disarankan minimal {min}.",
     "donationWeddingText": "Tulis teks yang tampil untuk donasi pernikahan.",
     "configSaved": "Pengaturan disimpan.",
     "configSaveError": "Layanan tidak dapat disimpan.",
