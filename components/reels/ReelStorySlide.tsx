@@ -522,6 +522,10 @@ export default function ReelStorySlide({
     effectiveType === "saludo" ? tWallet("typeLabelGreeting") : tWallet("typeLabelAdvice");
   const isLandscape = !!videoAspect && videoAspect.w > videoAspect.h;
 
+  // La flamita: el dibujo y el hueco que deja dentro de la caja del boton.
+  const flameIconSize = compact ? 20 : 24;
+  const flameInset = (32 - flameIconSize) / 2;
+
   const avatarSz = compact ? 40 : 54;
   const avatarInset = compact ? 5 : 6;
   const profileHref = creator?.handle ? `/u/${creator.handle}` : null;
@@ -958,22 +962,38 @@ export default function ReelStorySlide({
               que vive con lo que se hace CON la historia y no en la columna de
               silencio y compartir. */}
           {likeUid && (
-            // El mismo margen lateral que la fila de botones, para que la
-            // flamita arranque donde arranca "Contexto".
-            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 14px 6px" }}>
+            // Con el contexto abierto la flamita se aparta: ese panel es para
+            // leer, y un icono encima compitiendo por atencion sobra. Se va y
+            // vuelve con un fundido, sin moverse de sitio — reservar su hueco
+            // evita que los botones den un salto al abrir y cerrar.
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                // Sin separacion propia: el hueco lo pone el margen del numero,
+                // que ya descuenta la caja del icono.
+                gap: 0,
+                padding: "0 14px 6px",
+                opacity: contextOpen ? 0 : 1,
+                transform: contextOpen ? "translateY(4px)" : "none",
+                transition: "opacity 220ms ease, transform 220ms ease",
+                pointerEvents: contextOpen ? "none" : undefined,
+              }}
+              aria-hidden={contextOpen}
+            >
               <IconButton
                 label={liked ? tCommon("removeFlameFromStory") : tCommon("addFlameToStory")}
                 size="sm"
                 tone="bare"
                 shape="square"
-                // ⚠️ El icono va CENTRADO en una caja de 32, asi que el dibujo
-                // empieza mas adentro que el borde del boton. Sin descontar ese
-                // hueco, la flamita se ve desalineada respecto a "Contexto"
-                // aunque los dos contenedores compartan margen.
-                style={{ marginInlineStart: -(32 - (compact ? 20 : 24)) / 2 }}
+                // ⚠️ El icono va CENTRADO en una caja de 32, asi que sobra hueco
+                // a AMBOS lados del dibujo. A la izquierda desalineaba la fila
+                // respecto a "Contexto"; a la derecha alejaba el numero. Los dos
+                // se descuentan con el mismo valor.
+                style={{ marginInlineStart: -flameInset }}
                 onClick={(e) => { void handleLike(e); }}
               >
-                <VibraFlameIcon active={liked} size={compact ? 20 : 24} />
+                <VibraFlameIcon active={liked} size={flameIconSize} />
               </IconButton>
               {likes > 0 && (
                 <span
@@ -985,6 +1005,8 @@ export default function ReelStorySlide({
                     lineHeight: 1,
                     fontVariantNumeric: "tabular-nums",
                     textShadow: "0 1px 6px rgba(0,0,0,0.6)",
+                    // Pegado al dibujo, no a la caja.
+                    marginInlineStart: 5 - flameInset,
                   }}
                 >
                   {formatPlays(likes)}
