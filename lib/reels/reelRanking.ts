@@ -24,8 +24,20 @@ export const REEL_QUOTA: Record<ReelLane, number> = {
 
 export type ReelLane = StoryType | "live";
 
-/** Media vida de la frescura, en días. */
-const RECENCY_HALF_LIFE_DAYS = 30;
+/**
+ * Media vida de la frescura, en dias.
+ *
+ * ⚠️ Estuvo en 30 dias y hundia lo recien publicado. Con esa media vida, dos
+ * historias separadas por una semana casi empataban en frescura, asi que quien
+ * decidia era la popularidad, y lo nuevo empieza con cero vistas por definicion:
+ * una historia de hace dos semanas con 500 vistas sacaba 3.78 y una recien
+ * publicada 1.50. Lo nuevo salia al final del feed, que es justo lo contrario de
+ * lo que un feed debe hacer.
+ *
+ * A tres dias la frescura vuelve a distinguir lo de hoy de lo de la semana
+ * pasada, que es la escala en la que la gente nota que un feed esta vivo.
+ */
+const RECENCY_HALF_LIFE_DAYS = 3;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -62,11 +74,11 @@ export type ScoreInput = {
 /**
  * Puntúa una historia para el carril de descubrimiento.
  *
- * ⚠️ La fórmula NO es la del rail viejo. Aquella pesaba la frescura a 1.5 sobre
- * una ventana de 24 horas, donde todo era reciente por definición. Con el
- * histórico completo eso hundiría cualquier cosa de hace más de un día, así que
- * la frescura pasa a ser un decaimiento suave y el peso se mueve a la afinidad y
- * a la popularidad, que son las que envejecen bien.
+ * Manda lo que esta persona demuestra que le interesa; despues, que sea
+ * reciente; y solo entonces, cuanta gente lo ha visto.
+ *
+ * La frescura es un decaimiento suave y no una ventana con corte: el histórico
+ * entero sigue siendo elegible, solo que lo de hoy sale antes.
  */
 export function scoreStory({ story, taste, nowMs, interest = 0 }: ScoreInput): number {
   let affinity = 0;
@@ -78,7 +90,7 @@ export function scoreStory({ story, taste, nowMs, interest = 0 }: ScoreInput): n
   }
 
   const ageMs = Math.max(0, nowMs - (story.createdAt?.toMillis?.() ?? nowMs));
-  // Decaimiento exponencial: a los 30 días vale la mitad, y nunca llega a cero.
+  // Decaimiento exponencial: a los tres dias vale la mitad, y nunca llega a cero.
   const recency = Math.pow(0.5, ageMs / (RECENCY_HALF_LIFE_DAYS * DAY_MS));
 
   const affinityNorm = clamp01(affinity / AFFINITY_SATURATION);
@@ -97,9 +109,17 @@ export function scoreStory({ story, taste, nowMs, interest = 0 }: ScoreInput): n
   //
   // En frío hay una excepción: aunque no haya categorías, si ya se ha quedado
   // viendo cosas la permanencia manda igual. Por eso entra en las dos ramas.
+  //
+  // Y la frescura pesa por encima de la popularidad, no al reves.
+  //
+  // La popularidad es un marcador acumulado: solo puede crecer, y lo hace con el
+  // tiempo. Poniendola por delante, lo viejo gana siempre por el mero hecho de
+  // llevar mas tiempo publicado, y lo nuevo no tiene forma de entrar. Sigue
+  // contando —entre dos historias igual de frescas decide ella— pero deja de ser
+  // una barrera de entrada.
   return taste.size > 0
-    ? interestNorm * 4 + affinityNorm * 3 + popularityNorm * 1.5 + recency * 1
-    : interestNorm * 4 + popularityNorm * 3 + recency * 1.5;
+    ? interestNorm * 4 + affinityNorm * 3 + popularityNorm * 1.5 + recency * 3
+    : interestNorm * 4 + popularityNorm * 2 + recency * 3.5;
 }
 
 /**

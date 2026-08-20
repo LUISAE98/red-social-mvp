@@ -71,7 +71,10 @@ describe("rankStories", () => {
     expect(out).toEqual(["antiguo", "reciente"]);
   });
 
-  it("en frío ordena por popularidad y frescura, no solo por fecha", () => {
+  // Esta prueba afirmaba lo contrario: que la vieja y muy vista iba primero. Era
+  // el comportamiento real, y era el fallo — lo recien publicado no tenia forma
+  // de entrar, porque empieza con cero vistas por definicion.
+  it("en frío la frescura manda sobre la popularidad acumulada", () => {
     const stories = [
       story("vieja-popular", { ageDays: 60, views: 5000 }),
       story("nueva-ignorada", { ageDays: 0, views: 0 }),
@@ -79,7 +82,7 @@ describe("rankStories", () => {
 
     const out = rankStories(stories, NO_TASTE, NO_VIEWS, NOW).map((s) => s.id);
 
-    expect(out[0]).toBe("vieja-popular");
+    expect(out[0]).toBe("nueva-ignorada");
   });
 
   it("una afinidad FUERTE gana a una popularidad enorme", () => {
@@ -382,5 +385,41 @@ describe("rankLives", () => {
   it("descarta lo que no sea un live", () => {
     const out = rankLives([storyItem(story("s0")), liveOf("l0")], { nowMs: NOW });
     expect(out).toHaveLength(1);
+  });
+});
+
+// ── Frescura contra popularidad ──────────────────────────────────────────────
+//
+// El fallo que motiva estas pruebas: la popularidad pesaba mas que la frescura, y
+// como solo puede crecer con el tiempo, lo viejo ganaba por el mero hecho de
+// llevar mas tiempo publicado. Lo recien publicado salia al FINAL del feed.
+
+describe("frescura", () => {
+  it("una historia recien publicada gana a una vieja y muy vista", () => {
+    const nueva = story("nueva", { ageDays: 0, views: 0 });
+    const vieja = story("vieja", { ageDays: 14, views: 500 });
+
+    const out = rankStories([vieja, nueva], NO_TASTE, NO_VIEWS, NOW).map((s) => s.id);
+
+    expect(out[0]).toBe("nueva");
+  });
+
+  it("y tambien a una de hace dos meses con mas vistas todavia", () => {
+    const nueva = story("nueva", { ageDays: 0, views: 0 });
+    const antigua = story("antigua", { ageDays: 60, views: 800 });
+
+    const out = rankStories([antigua, nueva], NO_TASTE, NO_VIEWS, NOW).map((s) => s.id);
+
+    expect(out[0]).toBe("nueva");
+  });
+
+  // La popularidad no desaparece: sigue siendo el desempate natural.
+  it("entre dos igual de frescas, manda la popularidad", () => {
+    const vista = story("vista", { ageDays: 0, views: 400 });
+    const ignorada = story("ignorada", { ageDays: 0, views: 0 });
+
+    const out = rankStories([ignorada, vista], NO_TASTE, NO_VIEWS, NOW).map((s) => s.id);
+
+    expect(out[0]).toBe("vista");
   });
 });

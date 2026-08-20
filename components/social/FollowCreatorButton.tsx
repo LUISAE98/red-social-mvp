@@ -1,11 +1,14 @@
 "use client";
 
-// Botón de seguir para el feed de reels, al estilo de Instagram.
+// Botón de seguir para el feed de reels.
 //
-// Alterna: si no sigues dice "Seguir", y en cuanto sigues pasa a "Siguiendo",
-// desde donde se puede dejar de seguir con otro toque. Por eso sigue visible
-// cuando ya sigues, al revés que el de los perfiles sugeridos del home, que
-// desaparece una vez cumplida su función.
+// Solo aparece si NO sigues a esa persona. Al pulsarlo pasa a "Siguiendo" un
+// momento —para que el toque tenga respuesta— y se retira. Ya seguida, no hay
+// nada que ofrecer ahí, y un botón permanente sobre el video estorba.
+//
+// Para dejar de seguir está el perfil. En un reel se pasa el dedo por encima de
+// la cabecera todo el rato, y un botón que alterne acaba desactivando follows
+// por accidente.
 //
 // A QUIÉN se sigue lo decide quien lo monta, y no es negociable en un caso: en
 // un saludo o consejo republicado por el comprador, se sigue a quien lo GRABÓ.
@@ -17,7 +20,7 @@ import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
-import { followUser, unfollowUser } from "@/lib/social/social-service";
+import { followUser } from "@/lib/social/social-service";
 
 type Props = {
   /** A quién se sigue. En una historia, quien grabó el video. */
@@ -34,6 +37,8 @@ export default function FollowCreatorButton({ targetUserId, compact = false }: P
   // null = todavía no se sabe.
   const [following, setFollowing] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
+  // Recién seguida: se enseña "Siguiendo" y acto seguido se va.
+  const [justFollowed, setJustFollowed] = useState(false);
 
   // Una cuenta anónima no puede seguir a nadie: sus escrituras no pasarían las
   // reglas, así que ni se ofrece.
@@ -58,26 +63,30 @@ export default function FollowCreatorButton({ targetUserId, compact = false }: P
   }, [invalid, targetUserId, currentUserId]);
 
   if (invalid) return null;
-  // Mientras no se sabe no se pinta, para que el botón no parpadee de un estado
-  // al otro nada más aparecer la historia.
+  // Mientras no se sabe no se pinta, para que no parpadee un "Seguir" en alguien
+  // a quien ya sigues.
   if (following === null) return null;
+  // Ya seguida de antes: no hay nada que ofrecer.
+  if (following && !justFollowed) return null;
 
-  async function handleToggle(e: React.MouseEvent) {
+  async function handleFollow(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (busy || !targetUserId || !currentUserId) return;
+    if (busy || following || !targetUserId || !currentUserId) return;
 
-    // Se cambia ANTES de escribir y se revierte si falla. En un reel el dedo ya
+    // Se marca ANTES de escribir y se revierte si falla. En un reel el dedo ya
     // va camino de la siguiente historia: esperar a la red para mover el botón
     // se siente como que el toque no registró.
-    const antes = following;
-    setFollowing(!antes);
+    setFollowing(true);
+    setJustFollowed(true);
     setBusy(true);
     try {
-      if (antes) await unfollowUser({ currentUserId, targetUserId });
-      else await followUser({ currentUserId, targetUserId });
+      await followUser({ currentUserId, targetUserId });
+      // Un respiro para que se lea "Siguiendo", y fuera.
+      setTimeout(() => setJustFollowed(false), 1400);
     } catch {
-      setFollowing(antes);
+      setFollowing(false);
+      setJustFollowed(false);
     } finally {
       setBusy(false);
     }
@@ -86,7 +95,7 @@ export default function FollowCreatorButton({ targetUserId, compact = false }: P
   return (
     <button
       type="button"
-      onClick={handleToggle}
+      onClick={handleFollow}
       disabled={busy}
       style={{
         flexShrink: 0,
