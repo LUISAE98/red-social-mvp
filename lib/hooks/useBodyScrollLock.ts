@@ -2,8 +2,6 @@
 
 import { useEffect } from "react";
 
-import { resettleVisualViewport } from "./resettleVisualViewport";
-
 /**
  * Bloqueo de scroll del fondo mientras hay un panel/pestaña/overlay abierto.
  *
@@ -115,19 +113,6 @@ function releaseLock() {
   document.removeEventListener("touchmove", preventBackgroundTouchMove);
   body.classList.remove("vb-modal-open");
   saved = null;
-
-  /* Y, ya con el fondo suelto, obligar a iOS a reasentar el viewport visual.
-   *
-   * Este bloqueo es justamente lo que se lo impide: con el documento inmóvil,
-   * iOS no puede devolver el desplazamiento que se aplicó al abrir el teclado, y
-   * el desfase sobrevive al panel. Se nota al cerrarlo — la barra inferior queda
-   * más arriba de donde toca y no se endereza hasta cambiar de sección.
-   *
-   * Va aquí y no en cada panel porque el causante es el bloqueo, no la pantalla:
-   * ponerlo en cada sitio significaba acordarse cada vez. La función no hace nada
-   * si no hay ni campo enfocado ni desfase, así que en Android y en escritorio
-   * sale por la puerta de al lado sin tocar nada. */
-  resettleVisualViewport();
 }
 
 export function useBodyScrollLock(active: boolean | null | undefined) {

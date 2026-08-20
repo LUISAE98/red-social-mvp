@@ -26,9 +26,12 @@
  *
  * Qué hace
  * --------
- * 1. Suelta el foco, pero SOLO si lo tiene un campo de texto. Mientras un campo
- *    lo tenga, iOS da el teclado por vivo y no reasienta nada. Fuera de ese caso
- *    no se toca el foco: robárselo a un botón rompería la navegación por teclado.
+ * 1. Suelta el foco, pero SOLO si lo tiene un campo que ABRE TECLADO.
+ *
+ *    🚨 Nunca un `input[type=file]`. En iOS el selector de fotos ES ese input, y
+ *    quitarle el foco mientras el selector está abierto lo cancela: adjuntar una
+ *    imagen en el chat dejaba de funcionar. Fuera de los campos de texto no se
+ *    toca el foco tampoco — robárselo a un botón rompería el teclado físico.
  * 2. Desplaza el documento un píxel y lo devuelve. Un desplazamiento programado
  *    es lo que obliga al motor a recalcular la geometría; ir y volver en el mismo
  *    frame no se ve.
@@ -42,12 +45,21 @@
 export function resettleVisualViewport(scrollY?: number): void {
   if (typeof window === "undefined") return;
 
+  /* Tipos de <input> que NO abren teclado. Ninguno de ellos debe perder el foco
+     aquí, y el de archivo además es peligroso: ver la nota de arriba. */
+  const SIN_TECLADO = new Set([
+    "file", "button", "submit", "reset", "image",
+    "checkbox", "radio", "range", "color",
+  ]);
+
   const activo = document.activeElement as HTMLElement | null;
+  const etiqueta = activo?.tagName;
   const esCampo =
     !!activo &&
-    (activo.tagName === "INPUT" ||
-      activo.tagName === "TEXTAREA" ||
-      activo.isContentEditable);
+    (etiqueta === "TEXTAREA" ||
+      activo.isContentEditable ||
+      (etiqueta === "INPUT" &&
+        !SIN_TECLADO.has(((activo as HTMLInputElement).type || "text").toLowerCase())));
 
   if (esCampo && typeof activo.blur === "function") activo.blur();
 

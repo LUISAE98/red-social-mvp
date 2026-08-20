@@ -571,7 +571,7 @@ export default function MobileBottomNav({
               rgba(255, 255, 255, 0.03) 42%,
               rgba(0, 0, 0, 0.10) 100%
             ),
-            rgba(18, 18, 24, 0.74);
+            rgba(18, 18, 24, 0.56);
           border: 1px solid rgba(255, 255, 255, 0.14);
           /* El volumen sale de cuatro capas: filo de luz arriba, sombra propia
              abajo (las dos por dentro, son el grosor del cristal) y dos sombras
@@ -585,8 +585,8 @@ export default function MobileBottomNav({
           /* Más desenfoque y algo de brillo a la baja: lo que pasa por detrás
              tiene que quedar irreconocible, no solo suavizado. Con 26 y una base
              al 52% una foto clara se leía a través y la píldora desaparecía. */
-          backdrop-filter: blur(40px) saturate(180%) brightness(0.72);
-          -webkit-backdrop-filter: blur(40px) saturate(180%) brightness(0.72);
+          backdrop-filter: blur(40px) saturate(180%) brightness(0.82);
+          -webkit-backdrop-filter: blur(40px) saturate(180%) brightness(0.82);
           /* SIN overflow:hidden. Los globos de aviso se dibujan fuera de su
              icono (top:-5px, inset-inline-end:-8px) y en el primer y el ultimo
              elemento caerian justo sobre el borde: recortarlos los partiria por
@@ -819,13 +819,14 @@ export default function MobileBottomNav({
                   router.push(item.href, { scroll: false });
                 }}
               >
-                <div
-                  className="itemInner"
-                  style={{
-                    transform: `scaleX(${Math.sqrt(navScale)})`,
-                    transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
-                  }}
-                >
+                {/* Sin transformación propia. La cáscara ya encoge la barra
+                    entera con un scale UNIFORME, así que el scaleX que había
+                    aquí se sumaba al de fuera y estrujaba cada icono a lo ancho
+                    más que a lo alto. Eso era el desplazamiento al hacer scroll:
+                    no se movían de sitio, se deformaban. Es un resto de cuando
+                    la barra se aplastaba solo en vertical y había que
+                    compensarla. */}
+                <div className="itemInner">
                   <span
                     className={
                       poppingKey === item.key ? "iconPop popping" :

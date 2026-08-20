@@ -202,11 +202,6 @@ export default function ConversationPage() {
       window.scrollTo(0, baseScrollRef.current);
     };
 
-    // Y, en cuanto el campo suelta el foco, EMPUJAR a iOS a reasentar el
-    // viewport visual. Releerlo no basta: si sigue corrido, lo que leemos es un
-    // desfase real, no una lectura vieja, y la pantalla se queda calzada contra
-    // un área que ya no existe. Ver resettleVisualViewport.
-    if (!composerFocused) resettleVisualViewport(baseScrollRef.current);
 
     restore();
 
