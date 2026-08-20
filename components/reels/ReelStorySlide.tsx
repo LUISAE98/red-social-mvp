@@ -1006,7 +1006,7 @@ export default function ReelStorySlide({
                     fontVariantNumeric: "tabular-nums",
                     textShadow: "0 1px 6px rgba(0,0,0,0.6)",
                     // Pegado al dibujo, no a la caja.
-                    marginInlineStart: 5 - flameInset,
+                    marginInlineStart: 2 - flameInset,
                   }}
                 >
                   {formatPlays(likes)}
