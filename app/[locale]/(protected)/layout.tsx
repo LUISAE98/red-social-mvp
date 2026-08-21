@@ -1388,6 +1388,11 @@ export default function PublicProfileLayout({
       // layout ya cae al shell público, y escribirla aquí dispara renders en cascada.
       return;
     }
+    // ⚠️ DENTRO DE UN MARCO no se desvía: el panel de moderación lleva un navegador
+    // interno para recorrer el sitio como lo ve cualquiera, y ahí el supermoderador SÍ
+    // tiene que ver la aplicación normal. Sin esta salida, ese marco cargaba una ruta
+    // protegida, el desvío lo mandaba al panel y el panel se dibujaba dentro de sí mismo.
+    if (typeof window !== "undefined" && window.self !== window.top) return;
     let vigente = true;
     user
       .getIdTokenResult()

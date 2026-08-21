@@ -708,6 +708,10 @@ export default function PostCommentThread({
                   maxRows={3}
                   style={{ ...inputStyle, borderBottom: "none", minHeight: 22 }}
                   disabled={!canCommentOnPosts}
+                  // Enter envía, Mayús+Enter salta de línea. `handleCreateReply`
+                  // ya se guarda sola de la respuesta vacía y del doble envío,
+                  // así que no hace falta repetir la condición aquí.
+                  onSubmit={() => { void handleCreateReply(); }}
                 />
               </div>
               <CommentAttachButton

@@ -66,48 +66,35 @@ const NAV_ICON = {
   "aria-hidden": true,
 } as const;
 
-/** Casa: tejado, cuerpo y una puerta de arco. */
-const HOME_ROOF = "M3.9 10.6 12 3.9l8.1 6.7";
-const HOME_BODY = "M5.9 9.4v9.1a1.9 1.9 0 0 0 1.9 1.9h8.4a1.9 1.9 0 0 0 1.9-1.9V9.4";
-const HOME_DOOR = "M10.2 20.4v-4a1.8 1.8 0 0 1 3.6 0v4";
+/**
+ * Casa: UN SOLO trazado cerrado.
+ *
+ * Empieza en la cumbrera, baja por el alero derecho, cae por la pared, y al
+ * llegar al suelo se mete hacia arriba para dejar el HUECO de la puerta antes
+ * de seguir hasta la pared izquierda y cerrar. La puerta no se dibuja: es la
+ * muesca que el propio contorno deja al pasar.
+ *
+ * Que sea un único trazado es lo que hace que las dos versiones sean el MISMO
+ * icono: la de contorno lo traza y la rellena lo pinta. Antes eran dibujos
+ * distintos —tres trazos sueltos por un lado, una silueta recortada con una
+ * máscara por el otro— y no acababan de coincidir.
+ */
+const HOME_PATH = "M12 3.2 21 10.6V20.6H14.4V15.2H9.6V20.6H3V10.6Z";
 
 function NavHomeIcon() {
   return (
     <svg {...NAV_ICON}>
-      <path d={HOME_ROOF} />
-      <path d={HOME_BODY} />
-      <path d={HOME_DOOR} />
+      <path d={HOME_PATH} />
     </svg>
   );
 }
 
-/** Silueta cerrada de la casa, para la versión rellena. */
-const HOME_FILL = "M12 3.9 20.1 10.6V18.5a1.9 1.9 0 0 1-1.9 1.9H5.8a1.9 1.9 0 0 1-1.9-1.9V10.6Z";
-
 function NavHomeIconFilled() {
   return (
     <svg {...NAV_ICON}>
-      {/* El MISMO icono, invertido. En vez de pintar el detalle interior encima
-          del relleno —que obligaba a darle un color y por eso salía negro—, se
-          recorta con una máscara: lo que ahí va en negro no se dibuja nunca, solo
-          marca dónde NO pintar. Así la puerta es un hueco transparente y se ve
-          la barra a través, exactamente igual que en la versión de trazo. */}
-      <mask id="vibraNavHomeMask" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
-        <rect x="0" y="0" width="24" height="24" fill="#fff" />
-        <path
-          d={HOME_DOOR}
-          fill="none"
-          stroke="#000"
-          strokeWidth={1.8}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </mask>
-      <g mask="url(#vibraNavHomeMask)">
-        <path d={HOME_FILL} fill="#fff" stroke="#fff" />
-        {/* Devuelve el alero, que en la silueta cerrada se perdía. */}
-        <path d={HOME_ROOF} fill="none" stroke="#fff" />
-      </g>
+      {/* El mismo trazado, relleno. Sin máscara: el hueco de la puerta ya
+          está en el propio contorno, así que el relleno no llega ahí. */}
+      <path d={HOME_PATH} fill="white" stroke="white" />
     </svg>
   );
 }
@@ -813,28 +800,47 @@ export default function MobileBottomNav({
           animation: vbIconVibra 900ms cubic-bezier(0.33, 0, 0.67, 1) forwards;
         }
 
-        /* Trazo y relleno del icono. */
-        .vibraFlash :global(svg) {
+        /* 🚨 HAY QUE LISTAR LOS COLORES UNO A UNO. No basta con poner el
+           degradado en el <svg> y confiar en que herede.
+
+           Un atributo de pintura escrito en el propio elemento —stroke="white"
+           en un <path>— es una declaración SUYA, y cualquier declaración propia
+           gana a un valor heredado del padre. Con la regla solo en el <svg>, el
+           relleno sí se teñía pero el CONTORNO seguía blanco: se veía el icono
+           de color con su silueta blanca alrededor. El único que salía bien era
+           reels, y solo porque es el único cuyo dibujo no lleva stroke propio.
+
+           De ahí que se ataquen por selector de atributo, tanto el trazo como el
+           relleno, y en las tres formas de escribir blanco que hay en el
+           archivo. Si algún icono nuevo usa otra —rgb(), currentColor—, hay que
+           añadirla aquí o ese icono se quedará con la silueta blanca. */
+        .vibraFlash :global(svg),
+        .vibraFlash :global(svg [stroke="white"]),
+        .vibraFlash :global(svg [stroke="#fff"]),
+        .vibraFlash :global(svg [stroke="#ffffff"]) {
           stroke: url(#vbNavGradient);
         }
 
         .vibraFlash :global(svg [fill="white"]),
-        .vibraFlash :global(svg [fill="#fff"]) {
+        .vibraFlash :global(svg [fill="#fff"]),
+        .vibraFlash :global(svg [fill="#ffffff"]) {
           fill: url(#vbNavGradient);
         }
 
-        /* 🚨 Las MÁSCARAS se quedan como estaban. Dos iconos —inicio y wallet—
-           recortan su detalle interior con una máscara cuyo rectángulo va en
-           blanco y cuyo trazo va en negro. Si el degradado les entrara, la
-           máscara dejaría de ser blanco y negro y el recorte se rompería: la
-           puerta de la casa dejaría de ser un hueco. */
-        .vibraFlash :global(svg mask rect) {
-          fill: #fff;
-        }
+        /* 🚨 Las MÁSCARAS se quedan en blanco y negro. Dos iconos —inicio y
+           wallet— recortan su detalle interior con una máscara: su rectángulo
+           va en blanco y su trazo en negro, y esos dos colores no son decoración,
+           son los que deciden qué se dibuja y qué no. Si el degradado entrara
+           ahí, la puerta de la casa dejaría de ser un hueco.
 
-        .vibraFlash :global(svg mask path) {
-          fill: none;
-          stroke: #000;
+           OJO CON LA ESPECIFICIDAD. El rectángulo de la máscara lleva
+           fill="#fff", así que lo caza la regla del degradado de arriba, que
+           vale (0,2,1). Un selector de solo elementos llega a (0,1,3) y
+           PERDERÍA pese a ir después. Por eso aquí se repite el selector de
+           atributo: sube a (0,2,2) y gana. */
+        .vibraFlash :global(svg mask [fill="#fff"]),
+        .vibraFlash :global(svg mask [fill="white"]) {
+          fill: #fff;
         }
 
         /* La etiqueta. Un texto no admite un degradado como color, así que se

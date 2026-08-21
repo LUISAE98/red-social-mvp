@@ -329,6 +329,11 @@ export default function MentionTextarea({
 
       <textarea
         {...props}
+        // En celular no existe Mayús+Enter, así que la tecla solo puede hacer
+        // una cosa. Que el teclado la anuncie como "enviar" en vez de como
+        // "salto de línea" es lo que evita que enviar a medias sea una sorpresa.
+        // Si quien llama prefiere otra pista, la suya manda: va en {...props}.
+        enterKeyHint={props.enterKeyHint ?? (onSubmit ? "send" : undefined)}
         ref={textareaRef}
         value={value}
         disabled={disabled}

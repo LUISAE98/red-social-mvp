@@ -341,6 +341,20 @@ export default function PostCommentsPanel({
   };
 
   // Sin minHeight/maxHeight aquí: la altura la controla el autogrow de
+  // Enter envía, Mayús+Enter salta de línea. La condición es EXACTAMENTE la del
+  // botón de enviar: si se dejaran por separado, Enter terminaría mandando lo
+  // que el botón tiene deshabilitado —un comentario vacío, o uno encima de otro
+  // que aún se está subiendo—.
+  const puedeEnviarComentario =
+    canCommentOnPosts
+    && !creatingComment
+    && (commentText.trim().length > 0 || !!commentImageFile);
+
+  function enviarComentarioConEnter() {
+    if (!puedeEnviarComentario) return;
+    onCreateComment();
+  }
+
   // MentionTextarea (arranca en 1 renglón y crece hasta maxRows=4; a partir de ahí
   // scrollea dentro). El padding del campo lo aporta pillWrapperStyle.
   const inputStyle: CSSProperties = {
@@ -557,6 +571,7 @@ export default function PostCommentsPanel({
                     placeholder={tPosts("writeComment")}
                     maxRows={4}
                     style={inputStyle}
+                    onSubmit={enviarComentarioConEnter}
                   />
                 ) : (
                   <input
@@ -929,6 +944,7 @@ export default function PostCommentsPanel({
                   placeholder={tPosts("writeComment")}
                   maxRows={4}
                   style={inputStyle}
+                  onSubmit={enviarComentarioConEnter}
                 />
               ) : (
                 <input
