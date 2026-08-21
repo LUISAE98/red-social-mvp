@@ -8,7 +8,6 @@ import StoryViewer from "./StoryViewer";
 
 const VIBRA_GRADIENT =
   "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
-const SEEN_COLOR = "rgba(255,255,255,0.28)";
 const GAP_COLOR = "rgb(10,10,14)";
 
 type Props = {
@@ -63,10 +62,18 @@ export default function StoryRingAvatar({
     [currentUserId],
   );
 
+  // Se puede ABRIR mientras haya historias, vistas o no: el aro gris ya no está,
+  // pero volver a ver lo de alguien sigue siendo legítimo.
   const hasStories = ring !== "none" && stories.length > 0;
-  const ringBg = ring === "vibra" ? VIBRA_GRADIENT : ring === "seen" ? SEEN_COLOR : "transparent";
-  const padding = ring !== "none" ? 2.4 : 0;
-  const innerBorder = ring !== "none" ? `1.5px solid ${GAP_COLOR}` : "none";
+
+  // ⚠️ El aro solo existe cuando hay algo NUEVO. El estado "visto" pintaba un
+  // aro gris que no invitaba a nada y llenaba de anillos apagados cualquier
+  // pantalla con varias filas de avatares. Sin nada nuevo, el avatar se enseña
+  // tal cual, y el aro reaparece en cuanto suben una historia.
+  const showRing = ring === "vibra";
+  const ringBg = showRing ? VIBRA_GRADIENT : "transparent";
+  const padding = showRing ? 2.4 : 0;
+  const innerBorder = showRing ? `1.5px solid ${GAP_COLOR}` : "none";
 
   const initials = (() => {
     const parts = displayName.trim().split(/\s+/).filter(Boolean);

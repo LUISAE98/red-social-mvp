@@ -233,7 +233,7 @@ export default function PostFlamesPanel({
         >
           <FlameAvatar name={user.displayName} avatarUrl={user.avatarUrl} />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {user.displayName}
             </div>
             {user.username && (

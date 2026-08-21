@@ -8,6 +8,7 @@ import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import { useReport, type ReportTarget } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
 import { useConfirm } from "@/lib/hooks/useConfirm";
+import { MenuLinesIcon } from "@/components/ui";
 
 type Props = {
   viewerUid: string | null | undefined;
@@ -26,7 +27,7 @@ type Props = {
    * para que moderación vea el hilo, que es lo único que hace juzgable un DM.
    */
   reportTarget?: ReportTarget;
-  /** Estilo/clase extra para el botón disparador (⋮), p. ej. círculo de portada. */
+  /** Estilo/clase extra para el botón disparador, p. ej. círculo de portada. */
   buttonStyle?: CSSProperties;
   buttonClassName?: string;
   /**
@@ -153,15 +154,16 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onBlockSuccess,
           border: "none",
           padding: 0,
           color: "rgba(255,255,255,0.75)",
-          fontSize: 20,
-          fontWeight: 900,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
           lineHeight: 1,
           cursor: loading ? "not-allowed" : "pointer",
           ...(loading ? { opacity: 0.65 } : {}),
           ...buttonStyle,
         }}
       >
-        ⋮
+        <MenuLinesIcon size={20} />
       </button>
 
       {menuOpen && typeof document !== "undefined" && createPortal(

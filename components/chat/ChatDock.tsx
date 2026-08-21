@@ -199,9 +199,9 @@ export default function ChatDock({
                 targetId: conversationId,
                 targetOwnerId: otherUid,
               }}
-              // Área de clic holgada: con `padding: 0` el blanco entre los tres
-              // puntos era todo lo que había que acertar.
-              buttonStyle={{ fontSize: 18, padding: "6px 9px", lineHeight: 1 }}
+              // Área de clic holgada: sin relleno, solo el propio glifo
+              // respondía al toque, y en la pestaña del dock es diminuto.
+              buttonStyle={{ padding: "6px 9px", lineHeight: 1 }}
               extraItems={({ close, itemStyle }) =>
                 selfUid ? (
                   <ChatConversationMenuItems
@@ -291,7 +291,7 @@ export default function ChatDock({
             textAlign: "start",
             fontFamily: "inherit",
             fontSize: 13,
-            fontWeight: 600,
+            fontWeight: 500,
             color: "#fff",
             whiteSpace: "nowrap",
             overflow: "hidden",

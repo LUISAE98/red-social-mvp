@@ -1881,7 +1881,7 @@ export default function ConversationThread({
 
   function renderFooter() {
     // Bloqueado: no hay campo de escritura, solo el aviso de quién bloqueó a
-    // quién. Desbloquear se hace desde el menú ⋮ de la cabecera, que es donde
+    // quién. Desbloquear se hace desde el menú de la cabecera, que es donde
     // vive el bloqueo de perfil.
     if (isBlocked) {
       return (
@@ -2205,11 +2205,11 @@ export default function ConversationThread({
 
   function renderBody() {
     // El selector de motivos de reporte se fue con el resto: ahora lo abre el
-    // menú ⋮ de la cabecera, con el ReportModal compartido del producto.
+    // menú de la cabecera, con el ReportModal compartido del producto.
     return (
       <>
         {/* Acciones de seguridad del hilo, discretas y siempre a la vista. */}
-        {/* Bloquear y reportar ya viven en el menú ⋮ de la cabecera; tenerlos
+        {/* Bloquear y reportar ya viven en el menú de la cabecera; tenerlos
             también aquí sería la misma acción en dos sitios. */}
 
         {loading && exists ? (

@@ -296,7 +296,7 @@ function ProfileAvatarIcon({
  * no que desaparezca. Con el 0.75 de antes —que solo aplastaba en vertical— una
  * píldora se deformaría y perdería su forma redonda.
  */
-const NAV_SHRUNK_SCALE = 0.88;
+const NAV_SHRUNK_SCALE = 0.93;
 
 /**
  * Pantallas con cabecera propia y feed largo debajo: un perfil, el tuyo o el de
@@ -350,6 +350,15 @@ export default function MobileBottomNav({
   // ── Nav scale (shrink on scroll-down / idle) ───────────────────────────────
   const [navScale, setNavScale] = useState(1);
   const [poppingKey, setPoppingKey] = useState<string | null>(null);
+  /**
+   * Qué icono está encendido en degradado.
+   *
+   * Estado aparte de `poppingKey` a propósito. El rebote dura 380ms y al
+   * acabar limpia su clave; si el encendido colgara de ella, se desmontaría a
+   * los 380ms y su desvanecido de 900ms se cortaría en seco a media caída. Ese
+   * corte era justo lo que se veía como "el color desaparece de golpe".
+   */
+  const [glowKey, setGlowKey] = useState<string | null>(null);
   const [shakingKey, setShakingKey] = useState<string | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastScrollYRef = useRef(0);
@@ -569,26 +578,6 @@ export default function MobileBottomNav({
     return items;
   }, [pathname, menuHref, handle, showWallet]);
 
-  /**
-   * En qué columna está la pestaña activa. Es lo único que necesita la burbuja
-   * para colocarse: la rejilla reparte columnas iguales, así que con el índice
-   * basta y no hay que medir nada.
-   *
-   * Manda `pendingHref` cuando lo hay —el destino que acabas de tocar—, igual
-   * que el resaltado del icono. Así la burbuja arranca con el toque y no
-   * espera a que la ruta termine de cambiar.
-   *
-   * Devuelve -1 si ninguna coincide (una ruta que no está en la barra); ahí la
-   * burbuja se esconde en vez de quedarse marcando una pestaña que no toca.
-   */
-  const activeIndex = useMemo(() => {
-    if (pendingHref !== null) {
-      const i = nav.findIndex((item) => item.href === pendingHref);
-      if (i >= 0) return i;
-    }
-    return nav.findIndex((item) => item.active);
-  }, [nav, pendingHref]);
-
   return (
     <>
       <style jsx>{`
@@ -621,43 +610,81 @@ export default function MobileBottomNav({
           width: 100%;
           pointer-events: auto;
           box-sizing: border-box;
-          border-radius: 20px;
-          /* Cristal: base translúcida + un degradado de luz encima. El
-             degradado es lo que le da relieve — arriba entra la luz y abajo se
-             apaga—, y sin él un fondo translúcido se ve como una lámina plana. */
-          background:
-            linear-gradient(
-              180deg,
-              rgba(255, 255, 255, 0.08) 0%,
-              rgba(255, 255, 255, 0.02) 42%,
-              rgba(0, 0, 0, 0.18) 100%
-            ),
-            rgba(10, 10, 14, 0.68);
-          /* El contorno se apoya sobre un cristal ya bastante oscuro, así que un
-             borde al 14% se leía como una línea dibujada y no como un filo. Con
-             el fondo tan ahumado, el volumen lo dan las sombras; el borde solo
-             tiene que insinuar dónde acaba. */
-          border: 1px solid rgba(255, 255, 255, 0.06);
+          /* Píldora entera: el radio supera la mitad del alto, así que los
+             extremos salen semicirculares pase lo que pase con el alto. */
+          border-radius: 999px;
+          /* CRISTAL ÓPTICO OSCURO.
+             ======================
+             A primera vista, una cápsula negra. Solo al pasar una foto o un
+             video por detrás se descubre que hay algo: sus colores tiñen el
+             cristal en manchas suaves. Ese es todo el efecto, y es deliberado
+             que no se note más.
+
+             Dos piezas, y solo dos: la BASE casi negra, y el FILTRO de abajo
+             que es lo único que trae algo de lo que pasa por detrás. Todo lo
+             que se pinte ENCIMA de la base la agrisa. */
+          /* NEGRO, no gris. Aquí hubo tres degradados de blanco encima —una
+             cúpula de luz, un contraluz y una franja— para simular volumen. El
+             efecto secundario era justo el que no se quería: superponer blanco
+             sobre negro da GRIS, y la cápsula se alejaba del negro cuanto más
+             se subían. Se fueron los tres. El volumen no se pinta: tiene que
+             venir del fondo, y eso es lo que hace el filtro de abajo. */
+          background: rgba(6, 6, 8, 0.92);
+          /* Filo mínimo: solo dice dónde acaba la cápsula. El efecto NO va en
+             las orillas —ese fue el error de las versiones anteriores—, va en lo
+             que se ve a través. */
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          /* VOLUMEN. Todo va en los CANTOS y ni una capa sobre el relleno: los
+             degradados de blanco que hubo aquí antes daban sensación de bulto,
+             sí, pero mezclados con el negro lo volvían gris. Una línea de un
+             píxel ilumina un borde sin tocar el color de la superficie.
+
+             Por dentro, dos filos y una sombra que hunde la mitad inferior.
+             Por fuera, TRES sombras a distinta distancia: la corta es el punto
+             de contacto, la media da el bulto y la larga y difusa es la que hace
+             que se lea despegado del contenido. Una sola sombra da una silueta
+             plana; escalonarlas es lo que se lee como profundidad. */
           box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.08),
-            inset 0 -1px 0 rgba(0, 0, 0, 0.22),
-            0 6px 14px rgba(0, 0, 0, 0.34),
-            0 22px 48px rgba(0, 0, 0, 0.52);
-          /* Más desenfoque y algo de brillo a la baja: lo que pasa por detrás
-             tiene que quedar irreconocible, no solo suavizado. Con 26 y una base
-             al 52% una foto clara se leía a través y la píldora desaparecía. */
-          /* Cristal AHUMADO. Tres cosas distintas, y conviene no confundirlas:
-             el desenfoque hace ilegible lo de detrás, el brillo lo oscurece y la
-             capa opaca de arriba lo tapa. Para que se vea oscuro y borroso pero
-             se siga notando que hay algo pasando, el peso va en los dos primeros
-             y la capa opaca se queda a media altura. */
-          backdrop-filter: blur(64px) saturate(140%) brightness(0.36);
-          -webkit-backdrop-filter: blur(64px) saturate(140%) brightness(0.36);
+            inset 0 1.5px 0 rgba(255, 255, 255, 0.24),
+            inset 0 -1.5px 0 rgba(0, 0, 0, 0.70),
+            inset 0 -16px 26px -16px rgba(0, 0, 0, 0.85),
+            inset 0 14px 24px -18px rgba(255, 255, 255, 0.10),
+            0 1px 2px rgba(0, 0, 0, 0.40),
+            0 6px 12px rgba(0, 0, 0, 0.38),
+            0 16px 32px rgba(0, 0, 0, 0.50),
+            0 34px 70px rgba(0, 0, 0, 0.62);
+          /* El efecto óptico, subido de intensidad.
+
+             · blur(72px): el fondo llega en manchas grandes, sin una sola
+               forma reconocible. Es desenfoque de material, no de suavizado.
+             · saturate(260%): con la base al 80% solo pasa una quinta parte de
+               lo de detrás, así que el color hay que exagerarlo para que se
+               note al atravesarla. Es LO QUE MÁS SE NOTA de todo.
+             · contrast(120%) y brightness(120%): separan las manchas y las
+               levantan lo justo para que atraviesen una base ya bastante
+               cerrada.
+
+             🚨 DEFORMAR el fondo, como la lupa de iOS, NO se puede desde CSS en
+             iPhone. Se haría con un filtro SVG de desplazamiento dentro de
+             backdrop-filter, y Safari no admite url() ahí — solo Chrome. Lo que
+             hay aquí es desenfoque y color, que es todo lo que WebKit ofrece. */
+          backdrop-filter: blur(40px) saturate(150%);
+          -webkit-backdrop-filter: blur(40px) saturate(150%);
           /* SIN overflow:hidden. Los globos de aviso se dibujan fuera de su
              icono (top:-5px, inset-inline-end:-8px) y en el primer y el ultimo
              elemento caerian justo sobre el borde: recortarlos los partiria por
              la mitad. Los hijos no tienen fondo, asi que no hay nada que la
              curva del borde necesite recortar. */
+        }
+
+        /* Sin backdrop-filter no hay nada que difuminar, y una base al 80% se
+           vería como una barra medio transparente con el contenido crudo detrás
+           —peor que no intentarlo—. Ahí la cápsula se cierra y se comporta como
+           lo que aparenta: negra. */
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+          .navShell {
+            background: rgba(6, 6, 8, 0.96);
+          }
         }
 
         .nav {
@@ -667,7 +694,7 @@ export default function MobileBottomNav({
           align-items: center;
           /* Sin fondo propio: el de la píldora es el que se ve. El safe-area ya
              lo reserva el contenedor. */
-          padding: 5px 6px;
+          padding: 7px 6px;
           background: transparent;
           box-sizing: border-box;
           /* Ancla de la burbuja, que va en posición absoluta dentro. */
@@ -676,67 +703,11 @@ export default function MobileBottomNav({
           -webkit-transform: translateZ(0);
         }
 
-        /* ── Burbuja del elemento activo ──────────────────────────────────────
-           Se desliza de un icono a otro en vez de aparecer y desaparecer.
-
-           No se mide nada con JavaScript: la rejilla reparte columnas IGUALES,
-           así que la burbuja mide una columna y se mueve tantas columnas como
-           diga el índice activo. Medir con ResizeObserver habría añadido un
-           frame de retraso —la burbuja saldría del sitio viejo— y encima pelea
-           con el encogido de la barra, que es un transform y no dispara
-           recálculo de tamaño.
-
-           El carril ocupa exactamente el área de contenido de .nav, así que
-           "una columna" es aquí el 100% dividido entre el número de elementos,
-           sin restar rellenos a mano. */
-        .navBubbleTrack {
-          position: absolute;
-          inset: 5px 6px;
-          pointer-events: none;
-          z-index: 0;
-        }
-
-        .navBubble {
-          width: calc(100% / var(--mobile-nav-count));
-          height: 100%;
-          display: flex;
-          align-items: center;
-          /* Solo se anima el transform: no provoca recálculo de layout, así que
-             el deslizamiento va suelto también en un teléfono modesto. */
-          transform: translateX(calc(var(--mobile-nav-active) * 100%));
-          transition: transform 340ms cubic-bezier(0.32, 0.72, 0, 1);
-          will-change: transform;
-        }
-
-        /* La forma va en un hijo: así el que se mueve mide justo una columna y
-           el visible puede llevar su propio margen sin ensuciar la cuenta. */
-        /* Abraza al icono y su etiqueta, que juntos miden unos 41px dentro de
-           una casilla de 62. A toda la altura de la casilla la burbuja se leía
-           como un bloque, no como un selector. */
-        .navBubbleShape {
-          flex: 1;
-          min-width: 0;
-          height: 46px;
-          margin: 0 5px;
-          border-radius: 16px;
-          background: rgba(255, 255, 255, 0.10);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
-        }
-
-        /* Sin sesión no hay pestaña activa que marcar. */
-        .navBubbleTrack[data-hidden="true"] .navBubble {
-          opacity: 0;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .navBubble { transition: none; }
-        }
 
         .item {
           position: relative;
-          /* Por encima de la burbuja, que va en z-index 0. */
           z-index: 1;
-          height: 62px;
+          height: 74px;
           display: grid;
           place-items: center;
           text-decoration: none;
@@ -815,6 +786,75 @@ export default function MobileBottomNav({
           box-shadow: 0 0 0 2px rgba(22, 22, 28, 0.55);
         }
 
+        /* ENCENDIDO al elegir sección.
+           ============================
+           Al tocar, sobre la casilla se pinta una copia de TODO lo blanco —el
+           relleno del icono, su contorno y la etiqueta— en degradado de marca,
+           y esa copia se desvanece despacio. Arranca en color y termina
+           completamente en blanco.
+
+           Va como copia superpuesta y no recoloreando lo de debajo porque un
+           degradado no se puede animar hacia un color plano: ni en un fill de
+           SVG ni en el color de un texto. Con dos capas lo que se anima es la
+           opacidad de la de arriba, que además es lo más barato que hay.
+
+           La copia es aria-hidden y no recibe eventos: para un lector de
+           pantalla la casilla sigue teniendo un icono y una etiqueta. */
+        .vibraFlash {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          /* El mismo hueco que .itemInner: la copia tiene que caer EXACTAMENTE
+             encima del original o se vería doble. */
+          gap: 2px;
+          pointer-events: none;
+          animation: vbIconVibra 900ms cubic-bezier(0.33, 0, 0.67, 1) forwards;
+        }
+
+        /* Trazo y relleno del icono. */
+        .vibraFlash :global(svg) {
+          stroke: url(#vbNavGradient);
+        }
+
+        .vibraFlash :global(svg [fill="white"]),
+        .vibraFlash :global(svg [fill="#fff"]) {
+          fill: url(#vbNavGradient);
+        }
+
+        /* 🚨 Las MÁSCARAS se quedan como estaban. Dos iconos —inicio y wallet—
+           recortan su detalle interior con una máscara cuyo rectángulo va en
+           blanco y cuyo trazo va en negro. Si el degradado les entrara, la
+           máscara dejaría de ser blanco y negro y el recorte se rompería: la
+           puerta de la casa dejaría de ser un hueco. */
+        .vibraFlash :global(svg mask rect) {
+          fill: #fff;
+        }
+
+        .vibraFlash :global(svg mask path) {
+          fill: none;
+          stroke: #000;
+        }
+
+        /* La etiqueta. Un texto no admite un degradado como color, así que se
+           pinta el degradado de fondo y se recorta con la forma de las letras. */
+        .vibraFlash .itemLabel {
+          background: linear-gradient(135deg, #ec4899 0%, #a855f7 55%, #7c3aed 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+        }
+
+        @keyframes vbIconVibra {
+          from { opacity: 1; }
+          to   { opacity: 0; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .vibraFlash { animation-duration: 1ms; }
+        }
+
         @keyframes navPop {
           0%   { transform: scale(1); }
           40%  { transform: scale(1.26); }
@@ -858,6 +898,20 @@ export default function MobileBottomNav({
           además se encoge al hacer scroll, así que copiarlo como número fijo
           siempre acaba desfasado. */}
       <nav ref={navRef} className="wrap" data-vibra-bottom-nav="" aria-label={t("mobileNavLabel")}>
+        {/* El degradado de marca que enciende el icono al elegir sección. Vive
+            aquí, una sola vez, y los iconos lo referencian por su id: un
+            degradado SVG no se puede declarar desde CSS. El svg no ocupa ni
+            pinta nada, solo transporta la definición. */}
+        <svg width="0" height="0" aria-hidden="true" focusable="false" style={{ position: "absolute" }}>
+          <defs>
+            <linearGradient id="vbNavGradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#ec4899" />
+              <stop offset="55%" stopColor="#a855f7" />
+              <stop offset="100%" stopColor="#7c3aed" />
+            </linearGradient>
+          </defs>
+        </svg>
+
         {/* Un único `scale` UNIFORME, no uno vertical con otro horizontal que lo
             compense. Antes la barra era un rectángulo a todo lo ancho y aplastarla
             en vertical no se notaba; una píldora sí: los extremos redondeados se
@@ -875,22 +929,8 @@ export default function MobileBottomNav({
             className="nav"
             style={{
               "--mobile-nav-count": nav.length,
-              /* Índice de la pestaña activa. Con `pendingHref` la burbuja sale
-                 hacia el destino EN CUANTO tocas, sin esperar a que la ruta
-                 cambie: es lo que hace que se sienta inmediata. */
-              "--mobile-nav-active": Math.max(0, activeIndex),
             } as React.CSSProperties}
           >
-            <div
-              className="navBubbleTrack"
-              data-hidden={activeIndex < 0 ? "true" : undefined}
-              aria-hidden="true"
-            >
-              <div className="navBubble">
-                <div className="navBubbleShape" />
-              </div>
-            </div>
-
             {nav.map((item, idx) => {
               const isActive = pendingHref !== null
                 ? item.href === pendingHref
@@ -963,6 +1003,7 @@ export default function MobileBottomNav({
                     lastScrollYRef.current = savedRoot !== null ? parseInt(savedRoot) : 0;
 
                     setPoppingKey(item.key);
+                    setGlowKey(item.key);
                     setPendingHref(item.href);
                     // Hacia atrás: entra desde la izquierda.
                     setNavSlideDir("left");
@@ -979,6 +1020,7 @@ export default function MobileBottomNav({
                   lastScrollYRef.current = destSaved !== null ? parseInt(destSaved) : 0;
 
                   setPoppingKey(item.key);
+                  setGlowKey(item.key);
                   setPendingHref(item.href);
 
                   const currentIdx = pendingHref !== null
@@ -997,53 +1039,105 @@ export default function MobileBottomNav({
                     la barra se aplastaba solo en vertical y había que
                     compensarla. */}
                 <div className="itemInner">
-                  <span
-                    className={
-                      poppingKey === item.key ? "iconPop popping" :
-                      shakingKey === item.key ? "iconPop shaking" :
-                      "iconPop"
-                    }
-                    onAnimationEnd={() => { setPoppingKey(null); setShakingKey(null); }}
-                  >
-                    {item.type === "avatar" ? (
-                      <ProfileAvatarIcon src={photoURL} active={isActive} />
-                    ) : item.iconKey === "home" ? (
-                      isActive ? <NavHomeIconFilled /> : <NavHomeIcon />
-                    ) : item.iconKey === "reels" ? (
-                      isActive ? <NavReelsIconFilled /> : <NavReelsIcon />
-                    ) : item.iconKey === "notifications" ? (
-                      <>
-                        {isActive ? <NavBellIconFilled /> : <NavBellIcon />}
-                        {notifAlertCount > 0 ? (
-                          <span className="navBadge">
-                            {notifAlertCount > 99 ? "99+" : notifAlertCount}
-                          </span>
-                        ) : null}
-                      </>
-                    ) : item.iconKey === "messages" ? (
-                      <>
-                        {isActive ? <NavMessagesIconFilled /> : <NavMessagesIcon />}
-                        {unreadMessages > 0 ? (
-                          <span className="navBadge">
-                            {unreadMessages > 99 ? "99+" : unreadMessages}
-                          </span>
-                        ) : null}
-                      </>
-                    ) : item.iconKey === "wallet" ? (
-                      isActive ? <NavWalletIconFilled /> : <NavWalletIcon />
-                                        ) : (
-                      isActive ? <NavGroupsIconFilled /> : <NavGroupsIcon />
-                    )}
-                  </span>
+                  {(() => {
+                    /* El icono, SOLO el icono. Antes se resolvía dentro del
+                       mismo ternario que los globos de aviso, y para poder
+                       superponerle la copia en degradado hace falta tenerlo
+                       suelto: duplicar aquello habría duplicado también el
+                       globo. */
+                    const icono =
+                      item.type === "avatar" ? (
+                        <ProfileAvatarIcon src={photoURL} active={isActive} />
+                      ) : item.iconKey === "home" ? (
+                        isActive ? <NavHomeIconFilled /> : <NavHomeIcon />
+                      ) : item.iconKey === "reels" ? (
+                        isActive ? <NavReelsIconFilled /> : <NavReelsIcon />
+                      ) : item.iconKey === "notifications" ? (
+                        isActive ? <NavBellIconFilled /> : <NavBellIcon />
+                      ) : item.iconKey === "messages" ? (
+                        isActive ? <NavMessagesIconFilled /> : <NavMessagesIcon />
+                      ) : item.iconKey === "wallet" ? (
+                        isActive ? <NavWalletIconFilled /> : <NavWalletIcon />
+                      ) : (
+                        isActive ? <NavGroupsIconFilled /> : <NavGroupsIcon />
+                      );
 
-                  {/* El nombre de la sección. Va DENTRO de itemInner para que
-                      se encoja con el nav igual que el icono, y no aparte. El
-                      perfil no lo lleva: su avatar ya dice de quién es, y su
-                      altura se compensa con un círculo más grande para que no
-                      quede desalineado con el resto. */}
-                  {item.type !== "avatar" ? (
-                    <span className="itemLabel">{item.label}</span>
-                  ) : null}
+                    const globo =
+                      item.iconKey === "notifications" && notifAlertCount > 0 ? (
+                        <span className="navBadge">
+                          {notifAlertCount > 99 ? "99+" : notifAlertCount}
+                        </span>
+                      ) : item.iconKey === "messages" && unreadMessages > 0 ? (
+                        <span className="navBadge">
+                          {unreadMessages > 99 ? "99+" : unreadMessages}
+                        </span>
+                      ) : null;
+
+                    /* El encendido solo en los iconos dibujados. El avatar es
+                       una foto: teñirla de morado no se leería como un
+                       encendido, se leería como un fallo de color. */
+                    const enciende =
+                      glowKey === item.key && item.type !== "avatar";
+
+                    /* El nombre de la sección. Va DENTRO de itemInner para que
+                       se encoja con el nav igual que el icono, y no aparte. El
+                       perfil no lo lleva: su avatar ya dice de quién es, y su
+                       altura se compensa con un círculo más grande para que no
+                       quede desalineado con el resto. */
+                    const etiqueta =
+                      item.type !== "avatar" ? (
+                        <span className="itemLabel">{item.label}</span>
+                      ) : null;
+
+                    return (
+                      <>
+                        <span
+                          className={
+                            poppingKey === item.key ? "iconPop popping" :
+                            shakingKey === item.key ? "iconPop shaking" :
+                            "iconPop"
+                          }
+                          onAnimationEnd={() => { setPoppingKey(null); setShakingKey(null); }}
+                        >
+                          {icono}
+                          {globo}
+                        </span>
+
+                        {etiqueta}
+
+                        {/* La copia en degradado, encima de las dos capas de
+                            arriba. Sin el globo de aviso: es rojo por decreto y
+                            teñirlo lo sacaría de su código de color. */}
+                        {enciende ? (
+                          <span
+                            className="vibraFlash"
+                            aria-hidden="true"
+                            /* Solo la animación PROPIA de esta capa la retira.
+                               Sin la comprobación, el rebote del icono de dentro
+                               burbujea hasta aquí y apagaría el color a los
+                               380ms, que es cuando termina el rebote. */
+                            onAnimationEnd={(e) => {
+                              if (e.target === e.currentTarget) setGlowKey(null);
+                            }}
+                          >
+                            {/* La copia lleva el MISMO rebote que el original.
+                                Sin él, el icono de debajo crece hasta 1.26 y la
+                                copia se queda en su tamaño: por los bordes
+                                asomaba el blanco y el icono nunca llegaba a
+                                verse entero de color. */}
+                            <span
+                              className={
+                                poppingKey === item.key ? "iconPop popping" : "iconPop"
+                              }
+                            >
+                              {icono}
+                            </span>
+                            {etiqueta}
+                          </span>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </div>
               </Link>
               );

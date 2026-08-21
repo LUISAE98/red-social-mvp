@@ -104,6 +104,7 @@ import {
   MediaGridVideoItem,
   type MediaGridVideoItemHandle,
 } from "./GroupPostCard.components";
+import { MenuLinesIcon } from "@/components/ui";
 
 /**
  * El menú de los tres puntos, del que salen estas preguntas, sube al techo de la
@@ -1649,7 +1650,6 @@ const menuButtonStyle: CSSProperties = {
   placeItems: "center",
   cursor: "pointer",
   flexShrink: 0,
-  fontSize: 18,
   lineHeight: 1,
   padding: 0,
   WebkitTapHighlightColor: "transparent",
@@ -2717,7 +2717,7 @@ style={{
                   style={menuButtonStyle}
                   disabled={deleting || moderationBusy || pinBusy}
                 >
-                  ⋮
+                  <MenuLinesIcon size={21} />
                 </button>
               </div>
             )}
@@ -3548,40 +3548,22 @@ style={{
     `}</style>
     </div>
 
-    {/* Badge "Ticket pagado" — debajo del player cuando el live está activo y el viewer ya pagó */}
+    {/* Ticket pagado, debajo del reproductor mientras el live está en curso.
+        Es EL MISMO LiveTicketPanel que se ve antes de empezar y al terminar, no una
+        tarjeta aparte: antes aquí había una copia hecha a mano que repetía el degradado
+        pero se dejaba fuera la capa de imagen del fondo, y encogía icono y letras. El
+        comprador veía dos tarjetas distintas para el mismo mensaje según el momento del
+        live. El panel ya trae sus propias diferencias entre laptop y celular. */}
     {isLivePlayer && post.requiresPayment === true && !(isOwnPost || isOwner) && hasLiveTicketAccess && (
-      <div style={{
-        marginTop: 8,
-        display: "flex",
-        alignItems: "center",
-        gap: 7,
-        padding: "7px 12px",
-        borderRadius: 10,
-        border: "1px solid rgba(239,68,68,0.35)",
-        background: "rgba(20,5,5,0.7)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        fontFamily: fontStack,
-      }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fca5a5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          <path d="M15 5v2" /><path d="M15 11v2" /><path d="M15 17v2" />
-          <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z" />
-        </svg>
-        <div>
-          <div style={{ fontSize: 11.5, fontWeight: 700, color: "#fca5a5", fontFamily: fontStack }}>
-            {tFeed("ticketPaid")}
-          </div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontFamily: fontStack, marginTop: 1 }}>
-            {tFeed("canWatchLive")}
-          </div>
-        </div>
-        <span style={{
-          marginInlineStart: "auto", width: 7, height: 7, borderRadius: "50%",
-          background: "#ef4444", flexShrink: 0,
-          boxShadow: "0 0 0 2px rgba(239,68,68,0.3)",
-          animation: "livePulse 2s ease-in-out infinite",
-        }} />
-      </div>
+      <LiveTicketPanel
+        ticketPrice={post.oneTimePrice ?? activeLiveData?.ticketPrice ?? null}
+        isAuthor={isOwnPost || isOwner}
+        onBuyTicket={() => { if (!ensureSignedInToPay()) return; livePaidRef.current = false; setLivePayOpen(true); }}
+        paid={hasLiveTicketAccess}
+        memberFree={memberHasFreeAccess}
+        unlockCount={post.liveTicketCount ?? 0}
+        isMobile={isMobile}
+      />
     )}
   </div>
   )

@@ -1178,7 +1178,7 @@ boxShadow:
 <span
   style={{
     fontSize: 13,
-    fontWeight: isProfileCard ? 600 : 550,
+    fontWeight: 500,
     fontFamily:
       'inherit',
     letterSpacing: "-0.08px",
@@ -1425,7 +1425,7 @@ boxShadow:
                                               href={`/u/${buyer.handle}`}
                                               style={{
                                                 color: "#fff",
-                                                fontWeight: 600,
+                                                fontWeight: 500,
                                                 fontSize: 12,
                                                 lineHeight: 1.2,
                                                 textDecoration: "none",

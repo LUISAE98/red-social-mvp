@@ -57,23 +57,31 @@ import { fontStack, getInitials, formatMediaDuration } from "./GroupPostCard.uti
 function etiquetaAcumulado(
   netoPorUnidad: number | null,
   unlockCount: number,
-  pf: ReturnType<typeof usePriceFormat>
+  pf: ReturnType<typeof usePriceFormat>,
+  /**
+   * Recorta la frase para donde el ancho manda. En el aviso del ticket en
+   * celular, "Acumulado aproximado de …" parte en dos renglones y descuadra la
+   * tarjeta entera, que ahí ya comparte fila con el título y el precio.
+   */
+  short = false
 ): string | null {
   if (netoPorUnidad == null || netoPorUnidad <= 0 || unlockCount <= 0) return null;
   const total = netoPorUnidad * unlockCount;
 
   if (pf.currency === SETTLEMENT_CURRENCY) {
-    return `Acumulado de ${formatCurrency(total, SETTLEMENT_CURRENCY, pf.locale, { code: true })}`;
+    const importe = formatCurrency(total, SETTLEMENT_CURRENCY, pf.locale, { code: true });
+    return short ? `Acumulado ${importe}` : `Acumulado de ${importe}`;
   }
 
   const local = pf.fromAnchor(total);
   if (local == null) return null;
-  return `Acumulado aproximado de ${formatCurrency(
+  const importe = formatCurrency(
     roundReference(local, pf.currency),
     pf.currency,
     pf.locale,
     { code: true, approx: true }
-  )}`;
+  );
+  return short ? `Acumulado aprox. ${importe}` : `Acumulado aproximado de ${importe}`;
 }
 function GananciaCreador({ neto }: { neto: number }) {
   const pf = usePriceFormat();
@@ -306,7 +314,8 @@ export function LiveTicketPanel({
       ? ticketPrice * WALLET_NET_RATE
       : null,
     unlockCount,
-    priceFmt
+    priceFmt,
+    isMobile
   );
 
   const isPaid = paid && !isAuthor;
@@ -410,10 +419,9 @@ export function LiveTicketPanel({
           acceso, que es lo que de verdad le interesa a quien ya pagó: con
           cuántos va a compartir la transmisión. Sin ventas no se enseña.
 
-          En CELULAR también, ahora que el aviso vive fuera de la portada: ahí ya
-          no compite con el video, y el hueco a la derecha del botón estaba
-          igual de vacío. */}
-      {isPaid && unlockCount > 0 && (
+          En celular NO: la tarjeta comparte fila con el título y el precio, y
+          una frase larga a la derecha la parte en dos renglones. */}
+      {isPaid && !isMobile && unlockCount > 0 && (
         <div
           style={{
             flexShrink: 0,

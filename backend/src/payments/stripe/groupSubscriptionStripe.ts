@@ -21,7 +21,7 @@ import { isChargeableCountry } from "../../tax/config";
 import { resolvePresentment, applyCharmRounding } from "../../tax/presentment";
 import { composeCharge } from "../../tax/composeCharge";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
-import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
+import { SETTLEMENT_CURRENCY, SUBSCRIPTION_MIN_PRICE_USD } from "../../wallet/ledger";
 import { readGroupSub, reserveInviteSlot } from "../groupSubscriptionCore";
 import { stripeIdempotencyKey } from "./idempotency";
 
@@ -85,6 +85,15 @@ export const createGroupSubscription = onCall(
     const sub = readGroupSub(group);
     if (!sub.enabled || sub.price <= 0) {
       throw new HttpsError("failed-precondition", "Esta comunidad no tiene suscripción activa.");
+    }
+    // El mínimo de la cuota estaba solo en el panel del creador, es decir en el navegador.
+    // ⚠️ Importa más aquí que en un cobro único: una cuota por debajo del mínimo no se
+    // cobra una vez, se cobra todos los meses mientras dure la suscripción.
+    if (sub.price < SUBSCRIPTION_MIN_PRICE_USD) {
+      throw new HttpsError(
+        "failed-precondition",
+        `La cuota mensual mínima es ${SUBSCRIPTION_MIN_PRICE_USD} ${SETTLEMENT_CURRENCY}.`
+      );
     }
     const ownerId = String(group.ownerId ?? "");
     if (!ownerId) throw new HttpsError("failed-precondition", "Comunidad sin creador.");

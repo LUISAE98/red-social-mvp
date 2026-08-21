@@ -453,7 +453,7 @@ export default function ConversationPage() {
             style={{
               display: "block",
               fontSize: 14,
-              fontWeight: 600,
+              fontWeight: 500,
               color: "#fff",
               whiteSpace: "nowrap",
               overflow: "hidden",
@@ -495,7 +495,7 @@ export default function ConversationPage() {
               targetId: conversationId,
               targetOwnerId: otherUid,
             }}
-            buttonStyle={{ fontSize: 20, padding: "0 8px", marginInlineEnd: 6 }}
+            buttonStyle={{ padding: "0 8px", marginInlineEnd: 6 }}
             extraItems={({ close, itemStyle }) =>
               selfUid ? (
                 <ChatConversationMenuItems

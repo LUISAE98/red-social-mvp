@@ -591,7 +591,7 @@ const contentAreaClassName = isEmbed
 
 .mobileContextName {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;

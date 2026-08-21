@@ -516,7 +516,7 @@ export default function ExperienceRequestsInbox({
                           href={`/u/${buyer.handle}`}
                           style={{
                             color: "#fff",
-                            fontWeight: 600,
+                            fontWeight: 500,
                             fontSize: 15,
                             lineHeight: 1.25,
                             textDecoration: "none",

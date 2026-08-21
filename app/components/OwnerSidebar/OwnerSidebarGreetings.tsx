@@ -963,7 +963,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
             </div>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ color: "#fff", fontWeight: 500, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {creatorName}
             </div>
             <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 }}>

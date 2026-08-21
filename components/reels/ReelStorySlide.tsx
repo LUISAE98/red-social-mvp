@@ -584,7 +584,7 @@ export default function ReelStorySlide({
     <>
       {avatarRing}
       <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        <span style={{ color: "#fff", fontSize: compact ? 13 : 17, fontWeight: 600, lineHeight: "1.2", fontFamily: FONT }}>
+        <span style={{ color: "#fff", fontSize: compact ? 13 : 17, fontWeight: 500, lineHeight: "1.2", fontFamily: FONT }}>
           {creator?.name ?? ""}
         </span>
         <span style={{ color: "rgba(255,255,255,0.75)", fontSize: compact ? 11 : 13, fontWeight: 500, lineHeight: "1.2", fontFamily: FONT }}>

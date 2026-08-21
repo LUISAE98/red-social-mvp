@@ -10,7 +10,7 @@ import {
 } from "@/lib/chat/chatService";
 
 /**
- * Silenciar y quitar de la bandeja, para el menú ⋮ del chat.
+ * Silenciar y quitar de la bandeja, para el menú del chat.
  *
  * Está partido en DOS piezas a propósito, y no por gusto: los renglones viven
  * dentro del portal del menú, y ese portal se desmonta al cerrarse el menú. Si

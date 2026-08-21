@@ -1210,7 +1210,7 @@ to {
 .result-name {
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.2;
   color: #fff;
   overflow: hidden;

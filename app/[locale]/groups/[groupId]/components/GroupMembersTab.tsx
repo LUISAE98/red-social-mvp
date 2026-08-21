@@ -47,6 +47,7 @@ import {
   type EnrichedMember, type FilterValue, type GroupMembersTabProps,
   type MemberAction, type MemberDoc,
 } from "./GroupMembersTab.parts";
+import { MenuLinesIcon } from "@/components/ui";
 
 export default function GroupMembersTab({
   groupId,
@@ -648,7 +649,6 @@ export default function GroupMembersTab({
     padding: 0,
     cursor: "pointer",
     flexShrink: 0,
-    fontSize: 18,
     lineHeight: 1,
     WebkitTapHighlightColor: "transparent",
   };
@@ -677,7 +677,7 @@ export default function GroupMembersTab({
 
   const nameLinkStyle: CSSProperties = {
     fontSize: isMobile ? 11.5 : 13,
-    fontWeight: 600,
+    fontWeight: 500,
     color: "#fff",
     textDecoration: "none",
     lineHeight: 1.2,
@@ -702,7 +702,7 @@ export default function GroupMembersTab({
 
   const namePlainStyle: CSSProperties = {
     fontSize: isMobile ? 11.5 : 13,
-    fontWeight: 600,
+    fontWeight: 500,
     color: "#fff",
     lineHeight: 1.2,
     whiteSpace: "nowrap",
@@ -1155,7 +1155,7 @@ export default function GroupMembersTab({
                         cursor: isProcessing ? "not-allowed" : "pointer",
                       }}
                     >
-                      ⋮
+                      <MenuLinesIcon size={isMobile ? 16 : 18} />
                     </button>
                   )}
 

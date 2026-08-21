@@ -106,7 +106,7 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, su
           style={{
             color: "rgba(255,255,255,0.82)",
             fontSize: 11,
-            fontWeight: 600,
+            fontWeight: 500,
             lineHeight: 1,
             letterSpacing: "-0.01em",
             fontFamily: 'inherit',

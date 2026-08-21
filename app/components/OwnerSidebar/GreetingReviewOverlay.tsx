@@ -1418,7 +1418,7 @@ export default function GreetingReviewOverlay({
       <div style={{ minWidth: 0, flex: 1 }}>
         {buyer?.handle ? (
           <Link href={`/u/${buyer.handle}`} onClick={handleClose} style={{
-            color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.25,
+            color: "#fff", fontWeight: 500, fontSize: 13, lineHeight: 1.25,
             textDecoration: "none", display: "block", overflowWrap: "anywhere",
           }}>
             {buyer.displayName}
@@ -1453,7 +1453,7 @@ export default function GreetingReviewOverlay({
   const buyerCardNameStyle: React.CSSProperties = {
     color: "#fff",
     fontSize: 17,
-    fontWeight: 600,
+    fontWeight: 500,
     lineHeight: "1.2",
     textDecoration: "none",
     // El visor no parte el nombre porque lo pinta sobre el ancho de la pantalla.

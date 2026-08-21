@@ -167,7 +167,7 @@ export default function OwnerAdminDangerZone({
                   }}
                 >
                   Comunidad:{" "}
-                  <span style={{ color: "#fff", fontWeight: 700 }}>
+                  <span style={{ color: "#fff", fontWeight: 500 }}>
                     {groupName}
                   </span>
                 </p>

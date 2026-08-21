@@ -250,3 +250,40 @@ export async function clearActiveSuper(postId: string): Promise<void> {
     }, { merge: true }),
   ]);
 }
+
+/**
+ * Frase que la voz del live lee para un supercomentario o una donación.
+ *
+ * ⚠️ La donación se lee con lo que el fan PAGÓ, en SU moneda —lo que guarda
+ * `presentmentAmount`—, no con `amount`, que es la base del creador. La voz decía
+ * "donó 7 pesos" a quien acababa de pagar 148.99 MXN: leía la base en dólares y encima
+ * la llamaba pesos.
+ *
+ * El nombre de la moneda se resuelve con `Intl.DisplayNames`, así que se lee "pesos
+ * mexicanos" o "euros" en vez de deletrear el código. Si el navegador no lo soporta, se
+ * cae al código, que se entiende aunque suene peor.
+ */
+export function frasePorVoz(
+  sc: {
+    username: string;
+    text?: string | null;
+    amount: number;
+    presentmentAmount?: number;
+    presentmentCurrency?: string;
+  },
+  locale: string
+): string {
+  if (sc.text) return `${sc.username} dijo: ${sc.text}`;
+
+  const monto = sc.presentmentAmount ?? sc.amount;
+  const moneda = sc.presentmentCurrency ?? "USD";
+  let nombre = moneda;
+  try {
+    const dn = new Intl.DisplayNames([locale], { type: "currency" });
+    nombre = dn.of(moneda) ?? moneda;
+  } catch {
+    // Navegador sin DisplayNames: se queda el código.
+  }
+  const cifra = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(monto);
+  return `${sc.username} donó ${cifra} ${nombre}`;
+}

@@ -249,9 +249,10 @@ export default function ConversationList({
                     <span
                       style={{
                         fontSize: 13,
-                        // Un no leído se nota por peso y opacidad, sin cambiar
-                        // el color: el rosa/morado ya lo usa la fila activa.
-                        fontWeight: hasUnread ? 700 : 550,
+                        // En reposo pesa lo mismo que cualquier otro nombre
+                        // del producto. El no leído sigue engordando: aquí el
+                        // peso no es estilo, es el aviso.
+                        fontWeight: hasUnread ? 700 : 500,
                         letterSpacing: "-0.08px",
                         color: hasUnread
                           ? "rgba(255,255,255,0.98)"

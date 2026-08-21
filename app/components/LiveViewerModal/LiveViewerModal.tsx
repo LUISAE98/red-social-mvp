@@ -26,7 +26,7 @@ import {
   VideoPlayIcon, VideoPauseIcon, VideoSkipBackIcon, VideoSkipForwardIcon,
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import { getOrCreateGuestId, getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
-import { submitSuperComment, submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
+import { submitSuperComment, submitSuperCommentAsGuest , frasePorVoz } from "@/lib/liveChat/super-comment-service";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import { useReport } from "@/lib/moderation/useReport";
@@ -1232,9 +1232,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
       const elapsed = sc.displaySeconds - durationSeconds;
       const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
-      const fullText = sc.text
-        ? `${sc.username} dijo: ${sc.text}`
-        : `${sc.username} donó ${sc.amount} pesos`;
+      const fullText = frasePorVoz(sc, locale);
       const startChar = Math.floor(progressRatio * fullText.length);
       const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
       // Reutilizar el elemento pre-calentado en el gesto de apertura del modal.
@@ -1339,7 +1337,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
           {/* Nombre + badge donó */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "#fff", fontFamily: FONT, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {sc.username}
             </div>
             <div style={{ fontSize: 11, fontFamily: FONT }}>

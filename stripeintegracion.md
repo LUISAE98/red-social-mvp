@@ -304,9 +304,27 @@ moverse de verdad para que la referencia cambie.
 | Post premium · ticket · súper com. · suscripción | $1.50 | 25.54 | 25 |
 | Mínimo por monto de donación | $3 | 51.08 | 50 |
 
-**Tiers de súper comentario:** $1.50 / 2.50 / 5 / 12.50 / 25 → 25.54 / 42.56 / 85.13 / 212.82 / 425.65
+⚠️ Desde el 2026-08-21 **los 11 mínimos se validan en el SERVIDOR**, no solo en el panel del
+creador, y cada uno tiene espejo en el backend con test de paridad. Ver 8-quater.3.
 
-**Presets de donación:** $3 / 7 / 15 / 30 → 51 / 119 / 255 / 511
+**Niveles de supercomentario** (actualizados el 2026-08-21). Son SEIS: el sexto se añadió
+como nivel tope y se pinta con el degradado de la marca —el mismo del botón `gradient` de
+la guía de estilo— para que se lea como lo más especial que un fan puede mandar.
+
+| Nivel | USD | Caracteres | Segundos en pantalla |
+|---|---|---|---|
+| Chispa | 2 | 60 | 10 |
+| Llama | 6 | 140 | 15 |
+| Fuego | 11 | 220 | 20 |
+| Explosión | 16 | 300 | 25 |
+| Volcán | 22 | 380 | 30 |
+| **Supernova** | **33** | **500** | 35 |
+
+⚠️ Estos precios son el CATÁLOGO, no lo que cada creador tenga guardado. El catálogo manda:
+de la configuración del creador solo se rescata el precio. Ver 8-quater.4.
+
+**Montos sugeridos de donación:** $3 / 7 / 15 / 30. Los usa la donación de LIVE; la de
+PERFIL usa los que el creador configure.
 
 Los números limpios en dólares caen a ±2% de los precios viejos en pesos: para un comprador
 mexicano no cambia nada perceptible. **Lo único que sube de verdad es el cargo fijo**, de $3 a
@@ -730,7 +748,7 @@ Mínimo: **1.50 USD** al mes.
 |---|---|
 | Cuenta | Vibra On, LLC (EE. UU.) — `acct_1U46R37tY0CtRg4D` |
 | Modo | **Prueba.** El corte a real sigue pendiente |
-| Cobros | 10 caminos, todos por el mismo cálculo (verificado de forma mecánica) |
+| Cobros | **CERRADOS**: los 11 servicios auditados de punta a punta (ver 8-quater) |
 | Retenciones | Autorizar y capturar, con respaldo a 6 días |
 | Billing | Suscripciones por API; **no hubo que habilitar nada** |
 | Tasas de cambio | Stripe FX Quotes · las 78 monedas con tasa · refresco cada 15 min |
@@ -754,7 +772,8 @@ Mínimo: **1.50 USD** al mes.
    usó** para liquidar. Como evidencia es engañosa: hay que dejar de estamparlo o marcarlo
    antes de citar ese campo en ningún documento.
 
-**Conclusión.** El cobro está listo: las siete experiencias cobran bien, en la moneda
+**Conclusión** (actualizada el 2026-08-21: la auditoría se extendió a los ONCE servicios,
+ver 8-quater). El cobro está listo: las experiencias cobran bien, en la moneda
 correcta, con el impuesto correcto y enseñando lo que van a cobrar. Lo que **no** está listo
 es el otro lado del circuito: **el dinero entra y todavía no hay por dónde salga hacia el
 creador.** Hasta que existan los retiros, esto no puede operar en real.
@@ -832,6 +851,128 @@ para muchas compras. El sistema de saldo a favor ya está construido.
 Los dos espejos del redondeo —`backend/src/tax/presentmentFormat.ts` y
 `lib/currency/format.ts`— se comprobaron importe a importe sobre las **78 monedas**: dan el
 mismo número. Si se separan, el precio mostrado y el cobrado se separan con ellos.
+
+
+## 8-quater. Cierre de los flujos de cobro (auditoría 2026-08-20/21)
+
+Repaso completo de los **11 servicios**, de la activación del servicio al cargo en Stripe.
+Todos quedan cerrados. Este apartado recoge lo que se encontró, porque casi todo pertenece a
+dos familias que van a volver a aparecer.
+
+### 8-quater.1 Familia 1 — restos de la denominación en pesos
+
+⚠️ **Aquí "pesos" es literal, no un ejemplo de moneda local.** Son dos cosas distintas que
+se confunden con facilidad:
+
+* **Denominación** — la moneda en la que se FIJA y se liquida un precio. Antes del corte era
+  el peso mexicano, porque la plataforma era solo México. Hoy es el dólar, para todos.
+* **Moneda local** — la moneda en la que se le MUESTRA y se le cobra a cada comprador.
+  Depende de su país y son 78 distintas.
+
+Lo de esta familia es lo primero: importes que se fijaron en pesos y se quedaron guardados
+así, y que con la denominación ya en dólares el servidor pasó a leer como dólares. Un 297
+que eran ~17 USD se cobraba como 297 USD.
+
+El corte a USD dejó esos importes en sitios que el barrido original no alcanzó, porque
+**no llevaban la palabra "MXN" al lado**. Buscar el texto no bastaba.
+
+| Dónde | Qué pasaba |
+|---|---|
+| `createPost` | `PRECIO_MIN = 10` eran diez PESOS; con la denominación en dólares el servidor rechazaba toda publicación de pago por debajo de 10 USD |
+| Niveles de supercomentario en 5 lives | Precios 15/35/75/150/297 en pesos, cobrados como dólares: **17 veces de más** |
+| `users/{uid}/settings/superCommentConfig` | La configuración del creador, también en pesos; es la que carga el panel |
+| **Regla de Firestore** | Exigía `currency == "MXN"`; el panel ya guardaba "USD" y la regla **rechazaba en silencio** todo guardado de niveles |
+| `LiveComposerModal` | Escritura del CLIENTE que guardaba `currency: "MXN"` junto a un importe en dólares |
+| Precios precargados al reabrir paneles | VOD, ticket de live y niveles de supercomentario **convertían** el precio guardado, así que el creador veía un número distinto del que puso |
+
+⚠️ **El reseteo original a USD limpió `liveData.ticketPrice` pero NO
+`liveData.superCommentConfig.tiers`.** De ahí salieron los precios de 17×. Quedan dos scripts
+en `scripts/` para el mismo patrón: `reset-supercomment-tiers.ts` (por live) y
+`reset-supercomment-user-config.ts` (por creador).
+
+**Lección para el siguiente barrido:** buscar números pelados y campos de precio, no la
+cadena "MXN". Y revisar los tres sitios donde vive un precio: el post, la configuración del
+creador y las reglas.
+
+### 8-quater.2 Familia 2 — la ganancia del creador calculada con la fórmula del comprador
+
+`usePriceFormat().format` calcula el **precio del COMPRADOR**: convierte a la moneda de quien
+mira, suma el 2% de conversión y redondea al escalón. Usarlo para mostrar lo que gana el
+creador da una cifra **convertida e inflada**, que no existe en ninguna parte.
+
+Apareció **siete veces** en sitios distintos: composer premium, panel del VOD, composer de
+live, tarjeta del post, panel de configuración de niveles, ganancia por donación y —dos
+veces— las estadísticas de ingresos del live.
+
+La ganancia del creador **no se convierte**: vive en la moneda de liquidación. Se muestra con
+`formatCurrency(monto, SETTLEMENT_CURRENCY, locale)` y, debajo, una referencia en su moneda
+con redondeo grueso y la palabra "aproximadamente" delante.
+
+### 8-quater.3 Mínimos: ahora en el servidor, los 11
+
+Estaban **solo en el navegador** para seis de ellos. No era un agujero de seguridad —el
+precio del cobro lo lee el servidor del perfil del creador, el cliente no puede inyectarlo—
+pero dejaba pasar un precio guardado por debajo del mínimo con un cliente modificado.
+
+| Servicio | Mínimo | Dónde se valida ahora |
+|---|---|---|
+| Saludo · Consejo | 3 USD | `greetingStripeIntent` |
+| Sesión exclusiva · Tiempo contigo | 9 USD | `serviceStripeIntent` |
+| Post premium · VOD | 1.50 USD | `createPost` **y** `premiumPostStripeIntent` |
+| Supercomentario | 1.50 USD | `superCommentStripeIntent` |
+| Suscripción | 1.50 USD | `groupSubscriptionStripe` |
+| Ticket de live | 1.50 USD | `liveAccessStripeIntent` |
+| Donación (perfil y live) | 3 USD | `donationStripeIntent` · `liveDonationStripeIntent` |
+
+⚠️ **La suscripción es la que más importa**: una cuota por debajo del mínimo no se cobra mal
+una vez, se cobra mal **todos los meses** mientras dure.
+
+Cada mínimo tiene su **espejo en `backend/src/wallet/ledger.ts` con test de paridad**: si el
+del catálogo y el del backend se separan, el creador publica un precio que el servidor
+rechaza.
+
+### 8-quater.4 El catálogo manda sobre lo guardado
+
+Los niveles de supercomentario se resolvían recorriendo **la lista guardada**. Consecuencia:
+un nivel nuevo **no le llegaba jamás** a quien ya hubiera guardado su configuración — se
+quedaba con los que había el día que guardó, para siempre.
+
+Peor: el selector del fan podía enseñar un nivel que el backend rechazaba con "Nivel de
+supercomentario inválido", con el fan intentando pagar.
+
+Ahora los **tres** sitios —panel del creador, selector del fan y `resolveTier` en el
+backend— recorren el catálogo y de lo guardado rescatan **solo el precio**. Nombre, color,
+degradado y caracteres no son editables. De regalo, quitar un nivel del catálogo lo quita
+también de las configuraciones viejas en vez de dejarlo colgando.
+
+### 8-quater.5 Otros cierres
+
+* **El destello de la pantalla verde.** `onPaid` se ejecutaba 300 ms ANTES de mostrar el
+  éxito, así que el contenido de debajo cambiaba a su estado desbloqueado mientras el
+  formulario seguía desvaneciéndose. Ahora van en el mismo tick. ⚠️ No se retrasó `onPaid`:
+  si el modal se desmontara en esos 300 ms, el aviso de un pago YA COBRADO no llegaría nunca.
+* **La voz del live leía mal la donación.** Decía "donó 7 pesos" a quien pagó 148.99 MXN:
+  leía `amount` —la base del creador, en dólares— y encima la llamaba pesos. El documento no
+  guardaba lo cobrado; ahora conserva `presentmentAmount` y `presentmentCurrency` y la voz
+  lee eso, con el nombre de la moneda resuelto por `Intl.DisplayNames`.
+* **Precio mostrado ≠ precio cobrado** en la pantalla del live y en la tarjeta del post: se
+  enseñaba la base pelada, sin cargo fijo ni impuesto, y la pasarela pedía el total.
+* **La pasarela del post premium** leía el precio de un campo distinto que el servidor
+  (`premium.price` contra `oneTimePrice`).
+* **El rojo del ticket pagado.** En esta interfaz el rojo significa problema; se le
+  confirmaba la compra al comprador con el color de una alarma. Ahora es el morado del resto.
+
+### 8-quater.6 Lo que quedó verificado de forma mecánica
+
+| | |
+|---|---|
+| Los 8 caminos de cobro usan `composeCharge` + redondeo comercial | ✅ |
+| El 75% sale de un ÚNICO punto (`netFromGross`) | ✅ Cero cálculos sueltos en el backend |
+| El cargo fijo se suma en un único punto (`composeCharge`) | ✅ |
+| Los 11 comparten régimen fiscal (`export_zero`) | ✅ |
+| El precio del cobro lo lee el SERVIDOR, nunca el cliente | ✅ Los 11 |
+| Las donaciones aceptan importe del comprador, con mínimo y tope | ✅ Por diseño |
+| Los dos espejos del redondeo coinciden en las 78 monedas | ✅ |
 
 ## 9. Dependencias para operar en vivo
 

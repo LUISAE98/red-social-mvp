@@ -8,7 +8,7 @@
 // (base + $3) + IVA; el creador recibe 75% de la base. Cada llamada = un súper comentario.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
+import { SETTLEMENT_CURRENCY, SUPER_COMMENT_MIN_PRICE_USD } from "../../wallet/ledger";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
@@ -36,28 +36,50 @@ function round2(n: number): number {
 
 // Fallback si el live no trae config (espejo de DEFAULT_SUPER_COMMENT_TIERS). El precio
 // SIEMPRE sale de aquí o de la config guardada, NUNCA del cliente.
-type Tier = { id: string; name: string; maxChars: number; price: number; color: string; displaySeconds: number };
+type Tier = { id: string; name: string; maxChars: number; price: number; color: string; displaySeconds: number; gradient?: string };
 // 💵 USD desde el corte a Vibra On, LLC. ⚠️ ESPEJO de DEFAULT_SUPER_COMMENT_TIERS en
 // lib/liveChat/types.ts. Éste es el AUTORITATIVO (aquí se resuelve el precio del cobro);
 // el del frontend solo se muestra. Si se separan, el fan ve un precio y paga otro.
+/**
+ * Degradado del nivel más alto. Es el mismo del botón `gradient` de la guía de estilo, no
+ * uno inventado: ese es EL degradado de la marca, y el nivel tope tiene que leerse como lo
+ * más especial que se puede mandar.
+ */
+const GRADIENTE_SUPERNOVA = "linear-gradient(135deg, var(--pink) 0%, var(--brand-strong) 52%, #3b82f6 100%)";
+
 const DEFAULT_TIERS: Tier[] = [
-  { id: "t1", name: "Chispa",    maxChars: 60,  price: 1.5,  color: "#a855f7", displaySeconds: 10 },
-  { id: "t2", name: "Llama",     maxChars: 140, price: 2.5,  color: "#f72fbe", displaySeconds: 15 },
-  { id: "t3", name: "Fuego",     maxChars: 220, price: 5,    color: "#3b82f6", displaySeconds: 20 },
-  { id: "t4", name: "Explosión", maxChars: 300, price: 12.5, color: "#facc15", displaySeconds: 25 },
-  { id: "t5", name: "Volcán",    maxChars: 380, price: 25,   color: "#4ade80", displaySeconds: 30 },
+  { id: "t1", name: "Chispa",    maxChars: 60,  price: 2,  color: "#a855f7", displaySeconds: 10 },
+  { id: "t2", name: "Llama",     maxChars: 140, price: 6,  color: "#f72fbe", displaySeconds: 15 },
+  { id: "t3", name: "Fuego",     maxChars: 220, price: 11,    color: "#3b82f6", displaySeconds: 20 },
+  { id: "t4", name: "Explosión", maxChars: 300, price: 16, color: "#facc15", displaySeconds: 25 },
+  { id: "t5", name: "Volcán",    maxChars: 380, price: 22,   color: "#4ade80", displaySeconds: 30 },
+  { id: "t6", name: "Supernova", maxChars: 500, price: 33,   color: "#f72fbe", displaySeconds: 35, gradient: GRADIENTE_SUPERNOVA },
 ];
 
 function resolveTier(post: Record<string, unknown>, tierId: string): Tier | null {
   const liveData = (post.liveData ?? {}) as Record<string, unknown>;
   const config = (liveData.superCommentConfig ?? {}) as Record<string, unknown>;
-  const rawTiers = Array.isArray(config.tiers) && config.tiers.length
-    ? (config.tiers as unknown[])
-    : DEFAULT_TIERS;
-  const found = rawTiers.find(
-    (t) => t && typeof t === "object" && (t as Record<string, unknown>).id === tierId
-  ) as Record<string, unknown> | undefined;
-  if (!found) return null;
+  // ⚠️ La lista base es SIEMPRE la del catálogo; de la guardada solo se rescata el precio.
+  //
+  // Antes se recorría la guardada y, si existía, se ignoraba el catálogo entero. Eso hacía
+  // que un nivel NUEVO no existiera para ningún live con configuración previa: el fan lo
+  // veía en el selector y al pagarlo recibía «Nivel de supercomentario inválido».
+  //
+  // Espejo de lo que hace el panel de configuración al cargar.
+  const guardados = Array.isArray(config.tiers) ? (config.tiers as unknown[]) : [];
+  const precioGuardado = (id: string): number | null => {
+    const t = guardados.find(
+      (x) => x && typeof x === "object" && (x as Record<string, unknown>).id === id
+    ) as Record<string, unknown> | undefined;
+    const n = t ? Number(t.price) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  const baseTier = DEFAULT_TIERS.find((t) => t.id === tierId);
+  if (!baseTier) return null;
+  const found: Record<string, unknown> = {
+    ...baseTier,
+    price: precioGuardado(tierId) ?? baseTier.price,
+  };
   const price = Number(found.price);
   if (!Number.isFinite(price) || price <= 0) return null;
   return {
@@ -132,6 +154,13 @@ export const createSuperCommentStripeIntent = onCall(
     // Precio SERVER-AUTHORITATIVE: se resuelve el tier contra la config del live.
     const tier = resolveTier(post, tierId);
     if (!tier) throw new HttpsError("invalid-argument", "Nivel de supercomentario inválido.");
+    // El mínimo del nivel estaba solo en el panel de configuración, o sea en el navegador.
+    if (tier.price < SUPER_COMMENT_MIN_PRICE_USD) {
+      throw new HttpsError(
+        "failed-precondition",
+        `El precio mínimo de un supercomentario es ${SUPER_COMMENT_MIN_PRICE_USD} ${SETTLEMENT_CURRENCY}.`
+      );
+    }
     const base = round2(tier.price); // base del creador (MXN)
     if (base > MAX_SUPER_COMMENT) {
       throw new HttpsError("failed-precondition", "El precio del supercomentario es demasiado alto.");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { aroDegradado } from "@/lib/liveChat/types";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { TextButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -516,7 +517,15 @@ export default function SuperCommentModal({
                               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
                               padding: "12px 6px", borderRadius: 10,
                               border: "none",
-                              background: isSelected ? tier.color + "33" : "transparent",
+                              // El nivel tope lleva el degradado de la marca. Al estar
+                              // seleccionado se apaga con una capa oscura encima —el mismo
+                              // recurso del panel de contenido premium— porque un degradado
+                              // no admite el sufijo de opacidad que sí acepta un color.
+                              background: isSelected
+                                ? tier.gradient
+                                  ? `linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.72)), ${tier.gradient}`
+                                  : tier.color + "33"
+                                : "transparent",
                               transform: isSelected ? "scale(1.05)" : "scale(1)",
                               cursor: "pointer", textAlign: "center",
                               transition: "background-color 0.28s ease, transform 0.28s ease",
@@ -525,7 +534,9 @@ export default function SuperCommentModal({
                             {/* Aro del color del tier */}
                             <div style={{
                               width: 16, height: 16, borderRadius: "50%",
-                              border: `2.5px solid ${tier.color}`,
+                              boxSizing: "border-box" as const,
+                              border: `2.5px solid ${tier.gradient ? "transparent" : tier.color}`,
+                              ...(tier.gradient ? aroDegradado(tier.gradient) : {}),
                             }} />
                             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
                               {tier.maxChars} caract.
@@ -533,6 +544,17 @@ export default function SuperCommentModal({
                             <span style={{
                               fontSize: 13, fontWeight: 700,
                               color: isSelected ? tier.color : "rgba(255,255,255,0.5)",
+                              // Degradado recortado sobre el texto, solo en el nivel tope y
+                              // solo al estar elegido. `color` queda debajo como respaldo si
+                              // el navegador no recorta el fondo.
+                              ...(isSelected && tier.gradient
+                                ? {
+                                    backgroundImage: tier.gradient,
+                                    WebkitBackgroundClip: "text" as const,
+                                    backgroundClip: "text" as const,
+                                    WebkitTextFillColor: "transparent",
+                                  }
+                                : {}),
                               fontFamily: FONT, whiteSpace: "nowrap",
                               transition: "color 0.28s ease",
                             }}>

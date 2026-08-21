@@ -8,7 +8,7 @@
 // el creador recibe 75% de la base. Cubre POST premium y VOD premium (mismo camino postAccess).
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
+import { SETTLEMENT_CURRENCY, PREMIUM_MIN_PRICE_USD } from "../../wallet/ledger";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
@@ -65,6 +65,14 @@ export const createPremiumPostStripeIntent = onCall(
     const base = round2(Number(post.oneTimePrice ?? premium.price ?? 0));
     if (!Number.isFinite(base) || base <= 0) {
       throw new HttpsError("failed-precondition", "Precio inválido para esta publicación.");
+    }
+    // `createPost` ya valida este mínimo al publicar; aquí se repite porque una edición
+    // posterior o una escritura directa podrían dejar el precio por debajo.
+    if (base < PREMIUM_MIN_PRICE_USD) {
+      throw new HttpsError(
+        "failed-precondition",
+        `El precio mínimo de una publicación de pago es ${PREMIUM_MIN_PRICE_USD} ${SETTLEMENT_CURRENCY}.`
+      );
     }
 
     const groupId = post.groupId ? String(post.groupId) : null;

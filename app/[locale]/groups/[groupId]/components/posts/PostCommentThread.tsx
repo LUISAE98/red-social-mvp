@@ -523,7 +523,7 @@ export default function PostCommentThread({
               <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
                 <Link
                   href={author.profileHref}
-                  style={{ color: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 600 }}
+                  style={{ color: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 500 }}
                 >
                   {author.authorName}
                 </Link>
@@ -800,7 +800,7 @@ export default function PostCommentThread({
                       <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
                         <Link
                           href={replyAuthor.profileHref}
-                          style={{ color: "#fff", textDecoration: "none", fontSize: 11.5, fontWeight: 600 }}
+                          style={{ color: "#fff", textDecoration: "none", fontSize: 11.5, fontWeight: 500 }}
                         >
                           {replyAuthor.authorName}
                         </Link>

@@ -60,6 +60,19 @@ const isPublicRoute =
 const isOverlayRoute =
   pathname.startsWith("/live-overlay/") || pathname.startsWith("/egress/");
 
+  /**
+   * El panel del SUPERMODERADOR DE PLATAFORMA se gobierna solo.
+   *
+   * ⚠️ Sin esto, entrar al panel era imposible: un supermoderador NO tiene documento de
+   * perfil —no es un creador, no lo necesita— y la regla de más abajo, pensada para
+   * rescatar un registro a medias, lo devolvía al login. El resultado era un bucle:
+   * inicias sesión, te manda al panel y el panel te devuelve al login.
+   *
+   * `/admin` ya tiene su propia puerta —claim de moderador Y sesión de Google— así que
+   * aquí no hay que decidir nada por él.
+   */
+  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
+
   const isAuthPage =
     pathname === "/login" ||
     pathname === "/register" ||
@@ -83,7 +96,7 @@ const isOverlayRoute =
 
     prevUserRef.current = user;
 
-    if (!user && !isPublicRoute) {
+    if (!user && !isPublicRoute && !isAdminRoute) {
       // Protected route — always redirect unauthenticated users
       startAuthTransition("exiting");
       router.replace("/login");
@@ -95,7 +108,7 @@ const isOverlayRoute =
       // Ya autenticado Y con perfil → al feed. Un usuario autenticado SIN perfil
       // (onboarding de Google) se queda: el login muestra el panel de completar.
       router.replace(getNextFromSearchParams(searchParams, "/"));
-    } else if (user && hasProfile === false && !isPublicRoute && !isAuthPage) {
+    } else if (user && hasProfile === false && !isPublicRoute && !isAuthPage && !isAdminRoute) {
       // Cuenta de Firebase Auth SIN documento de perfil, dentro de la app.
       // Pasa cuando el registro creó la cuenta pero la transacción del perfil
       // falló, o cuando el onboarding de Google se abandonó a medias: quedaba
@@ -105,7 +118,7 @@ const isOverlayRoute =
       startAuthTransition("exiting");
       router.replace("/login");
     }
-  }, [loading, user, hasProfile, isPublicRoute, isAuthPage, router, startAuthTransition, searchParams]);
+  }, [loading, user, hasProfile, isPublicRoute, isAuthPage, isAdminRoute, router, startAuthTransition, searchParams]);
 
   const fontStack =
     'inherit';

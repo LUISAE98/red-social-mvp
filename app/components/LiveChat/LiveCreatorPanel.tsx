@@ -63,7 +63,7 @@ import { db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
-import { formatCurrency } from "@/lib/currency/format";
+import { formatCurrency, roundReference } from "@/lib/currency/format";
 import {
   OBSBrowserSourceBanner, ChatMessageRow, ScAvatar, ModActionBtn,
   MuxLivePlaceholder, VideoPreview, DIV, FONT,
@@ -85,6 +85,16 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   // ganancia del creador no se convierte — vive en la moneda de liquidación.
   const fanPaidTotal = (base: number) =>
     pf.formatWithTax(base + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total;
+  // Referencia de esa ganancia en la moneda del creador, para la línea sutil de debajo.
+  // Null si ya mira en la de liquidación: ahí la cifra de arriba ya es la buena.
+  const netEarnedLocal = (base: number): string | null => {
+    const neto = base * WALLET_NET_RATE;
+    if (!(neto > 0) || pf.currency === SETTLEMENT_CURRENCY) return null;
+    const local = pf.fromAnchor(neto);
+    if (local == null) return null;
+    return `Recibes aproximadamente ${formatCurrency(roundReference(local, pf.currency), pf.currency, pf.locale, { code: true, approx: true })}`;
+  };
+
   const netEarned = (base: number) =>
     formatCurrency(base * WALLET_NET_RATE, SETTLEMENT_CURRENCY, pf.locale, { code: true });
   const { user } = useAuth();
@@ -963,6 +973,21 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     );
   }
 
+  /**
+   * Referencia en la moneda del creador de una cifra de dinero del panel.
+   *
+   * ⚠️ Es una REFERENCIA, con redondeo grueso y "Aprox." delante: convierte al cambio de
+   * HOY, mientras que cada ingreso entró al de SU día. La cifra en firme es la de la
+   * wallet. Devuelve null si el creador ya mira en la moneda de liquidación, porque
+   * repetir el mismo número dos veces no informa de nada.
+   */
+  const refLocal = (montoLiquidacion: number): string | null => {
+    if (!(montoLiquidacion > 0) || pf.currency === SETTLEMENT_CURRENCY) return null;
+    const local = pf.fromAnchor(montoLiquidacion);
+    if (local == null) return null;
+    return `Aprox. ${formatCurrency(roundReference(local, pf.currency), pf.currency, pf.locale, { code: true, approx: true })}`;
+  };
+
   function renderMobileStatsSection(cols: 2 | 3 = 2) {
     const CREATOR_SHARE = WALLET_NET_RATE;
     const paidSuperComments = superComments.filter(sc => sc.status === "paid" && !sc.isDeleted);
@@ -992,7 +1017,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       });
     }
 
-    const stats: Array<{ id: string; value: string; sub?: string; label: string; green?: boolean }> = [
+    const stats: Array<{ id: string; value: string; sub?: string; aprox?: string | null; label: string; green?: boolean }> = [
       { id: "ahora",    value: viewerCount.toLocaleString(intlLocale(locale)),                                         label: tLive("statViewersNow") },
       { id: "pico",     value: peakViewerCount.toLocaleString(intlLocale(locale)),                                     label: tLive("statPeakViewers") },
       { id: "unicos",   value: uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString(intlLocale(locale)) : "—",     label: tLive("statUniqueViewers") },
@@ -1001,18 +1026,18 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       { id: "likes",    value: likesCount.toLocaleString(intlLocale(locale)),                                           label: "Likes" },
       { id: "tvisto",   value: avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—",                label: tLive("statAvgWatchTime") },
       { id: "duracion", value: formatDuration(liveDurationMs),                                             label: tLive("duration") },
-      ...(donationCount > 0 ? [{ id: "donaciones",  value: fmtMoney(net(donationRevenue)), sub: tLive("donationCount", { count: donationCount }), label: tLive("statDonations") }] : []),
-      ...(superCount > 0    ? [{ id: "supercoment", value: fmtMoney(net(superRevenue)),    sub: `${superCount} SC`,                               label: tLive("superComments") }] : []),
-      ...(isPaidLive && ticketCount > 0  ? [{ id: "tickets", value: fmtMoney(net(ticketRevenue)), sub: tLive("boughtCount", { count: ticketCount }),   label: tLive("statAccessTickets") }] : []),
-      ...(hasVod && vodBuyerCount > 0    ? [{ id: "vod",     value: fmtMoney(net(vodRevenue)),    sub: tLive("boughtCount", { count: vodBuyerCount }), label: tLive("statVodRevenue") }] : []),
+      ...(donationCount > 0 ? [{ id: "donaciones",  value: fmtMoney(net(donationRevenue)), aprox: refLocal(net(donationRevenue)), sub: tLive("donationCount", { count: donationCount }), label: tLive("statDonations") }] : []),
+      ...(superCount > 0    ? [{ id: "supercoment", value: fmtMoney(net(superRevenue)),    aprox: refLocal(net(superRevenue)), sub: `${superCount} SC`,                               label: tLive("superComments") }] : []),
+      ...(isPaidLive && ticketCount > 0  ? [{ id: "tickets", value: fmtMoney(net(ticketRevenue)), aprox: refLocal(net(ticketRevenue)), sub: tLive("boughtCount", { count: ticketCount }),   label: tLive("statAccessTickets") }] : []),
+      ...(hasVod && vodBuyerCount > 0    ? [{ id: "vod",     value: fmtMoney(net(vodRevenue)),    aprox: refLocal(net(vodRevenue)), sub: tLive("boughtCount", { count: vodBuyerCount }), label: tLive("statVodRevenue") }] : []),
       ...(hasVod && vodViewCount > 0     ? [{ id: "vodviews", value: vodViewCount.toLocaleString(intlLocale(locale)),                                              label: tLive("statVodViews") }] : []),
-      ...(totalRevenue > 0  ? [{ id: "total", value: fmtMoney(net(totalRevenue)), sub: displayPeak > 0 ? `${tLive("statRecord")} ${fmtMoney(displayPeak)}` : undefined, label: tLive("statNetRevenue"), green: true }] : []),
+      ...(totalRevenue > 0  ? [{ id: "total", value: fmtMoney(net(totalRevenue)), aprox: refLocal(net(totalRevenue)), sub: displayPeak > 0 ? `${tLive("statRecord")} ${fmtMoney(displayPeak)}` : undefined, label: tLive("statNetRevenue"), green: true }] : []),
     ];
 
     return (
       <div style={{ flex: 1, overflow: "auto", padding: "4px 8px 16px" }}>
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-          {stats.map(({ id, value, sub, label, green }) => {
+          {stats.map(({ id, value, sub, aprox, label, green }) => {
             const color = green ? "#4ade80" : getTileColor(id);
             return (
               <div
@@ -1027,6 +1052,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 <span style={{ fontSize: 22, fontWeight: 700, color: "inherit", fontFamily: FONT, lineHeight: 1 }}>
                   {value}
                 </span>
+                {aprox && (
+                  <span style={{ fontSize: 8.5, color: "rgba(255,255,255,0.4)", fontFamily: FONT, lineHeight: 1.2, textAlign: "center" }}>
+                    {aprox}
+                  </span>
+                )}
                 {sub && (
                   <span style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", fontFamily: FONT, lineHeight: 1.2, textAlign: "center" }}>
                     {sub}
@@ -1080,7 +1110,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const tile: React.CSSProperties = {
       width: 70, height: 70, flexShrink: 0,
       display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center",
-      padding: "4px 5px", gap: 2,
+      padding: "4px 5px", gap: 1,
       overflow: "hidden",
     };
     const lbl: React.CSSProperties = {
@@ -1089,8 +1119,14 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
       textAlign: "center",
     };
-    const val: React.CSSProperties = { fontSize: 18, fontWeight: 700, color: "inherit", lineHeight: 1, fontFamily: FONT, textAlign: "center", flex: 1, display: "flex", alignItems: "center", justifyContent: "center", width: "100%" };
+    // ⚠️ `flex: 1` en la cifra hacía que reclamara todo el alto de la baldosa (70 px). Con
+    // la referencia en moneda local son cuatro renglones, y el resto salía de la caja: con
+    // el desbordamiento oculto se veía como texto montado unos sobre otros.
+    const val: React.CSSProperties = { fontSize: 18, fontWeight: 700, color: "inherit", lineHeight: 1.05, fontFamily: FONT, textAlign: "center", flex: "0 1 auto", display: "flex", alignItems: "center", justifyContent: "center", width: "100%" };
     const sub: React.CSSProperties = { fontSize: 9, color: "rgba(255,255,255,0.6)", fontFamily: FONT, lineHeight: 1.2, textAlign: "center" };
+    // Referencia en la moneda del creador, un punto más apagada que `sub`: acompaña a la
+    // cifra, no compite con ella.
+    const aprx: React.CSSProperties = { fontSize: 8.5, color: "rgba(255,255,255,0.4)", fontFamily: FONT, lineHeight: 1.2, textAlign: "center" };
 
     const TILE_COLORS = ["#fff", "#f97316", "#facc15", "#f472b6", "#a855f7", "#3b82f6", "#60a5fa", "#22d3ee", "#818cf8", "#f87171", "#fb923c"];
     function getTileColor(id: string) { return TILE_COLORS[itemColors[id] ?? 0] ?? "#fff"; }
@@ -1123,12 +1159,12 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       { id: "likes",    defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{likesCount.toLocaleString(intlLocale(locale))}</span><span style={lbl}>Likes</span></> },
       { id: "tvisto",   defaultX: tx(5), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}</span><span style={lbl}>{tLive("statAvgWatchTime")}</span></> },
       { id: "duracion", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{formatDuration(liveDurationMs)}</span><span style={lbl}>{tLive("duration")}</span></> },
-      ...(donationCount > 0 ? [{ id: "donaciones",  defaultX: tx(0), defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(donationRevenue))}</span><span style={sub}>{tLive("donationCount", { count: donationCount })}</span><span style={lbl}>{tLive("statDonations")}</span></> }] : []),
-      ...(superCount > 0    ? [{ id: "supercoment", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(superRevenue))}</span><span style={sub}>{superCount} SC</span><span style={lbl}>{tLive("superComments")}</span></> }] : []),
-      ...(isPaidLive && ticketCount > 0 ? [{ id: "tickets", defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(ticketRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: ticketCount })}</span><span style={lbl}>{tLive("statAccessTickets")}</span></> }] : []),
-      ...(hasVod && vodBuyerCount > 0   ? [{ id: "vod",     defaultX: tx(8), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(vodRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: vodBuyerCount })}</span><span style={lbl}>{tLive("statVodRevenue")}</span></> }] : []),
+      ...(donationCount > 0 ? [{ id: "donaciones",  defaultX: tx(0), defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(donationRevenue))}</span>{refLocal(net(donationRevenue)) && <span style={aprx}>{refLocal(net(donationRevenue))}</span>}<span style={sub}>{tLive("donationCount", { count: donationCount })}</span><span style={lbl}>{tLive("statDonations")}</span></> }] : []),
+      ...(superCount > 0    ? [{ id: "supercoment", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(superRevenue))}</span>{refLocal(net(superRevenue)) && <span style={aprx}>{refLocal(net(superRevenue))}</span>}<span style={sub}>{superCount} SC</span><span style={lbl}>{tLive("superComments")}</span></> }] : []),
+      ...(isPaidLive && ticketCount > 0 ? [{ id: "tickets", defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(ticketRevenue))}</span>{refLocal(net(ticketRevenue)) && <span style={aprx}>{refLocal(net(ticketRevenue))}</span>}<span style={sub}>{tLive("boughtCount", { count: ticketCount })}</span><span style={lbl}>{tLive("statAccessTickets")}</span></> }] : []),
+      ...(hasVod && vodBuyerCount > 0   ? [{ id: "vod",     defaultX: tx(8), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(vodRevenue))}</span>{refLocal(net(vodRevenue)) && <span style={aprx}>{refLocal(net(vodRevenue))}</span>}<span style={sub}>{tLive("boughtCount", { count: vodBuyerCount })}</span><span style={lbl}>{tLive("statVodRevenue")}</span></> }] : []),
       ...(hasVod && vodViewCount > 0    ? [{ id: "vodviews", defaultX: CELL*16 + OFFSET, defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{vodViewCount.toLocaleString(intlLocale(locale))}</span><span style={lbl}>{tLive("statVodViews")}</span></> }] : []),
-      ...(totalRevenue > 0  ? [{ id: "total", defaultX: tx(9), defaultY: R0, width: TILE2W, height: TILE, content: (() => { const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue); return <><span style={{ ...val, color: "#4ade80" }}>{fmtMoney(net(totalRevenue))}</span>{displayPeak > 0 && <span style={sub}>{tLive("statRecord")} {fmtMoney(displayPeak)}</span>}<span style={{ ...lbl, color: "#4ade80" }}>{tLive("statNetRevenue")}</span></>; })() }] : []),
+      ...(totalRevenue > 0  ? [{ id: "total", defaultX: tx(9), defaultY: R0, width: TILE2W, height: TILE, content: (() => { const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue); return <><span style={{ ...val, color: "#4ade80" }}>{fmtMoney(net(totalRevenue))}</span>{refLocal(net(totalRevenue)) && <span style={aprx}>{refLocal(net(totalRevenue))}</span>}{displayPeak > 0 && <span style={sub}>{tLive("statRecord")} {fmtMoney(displayPeak)}</span>}<span style={{ ...lbl, color: "#4ade80" }}>{tLive("statNetRevenue")}</span></>; })() }] : []),
       { id: "chart_espect", defaultX: CELL*2 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>{tLive("viewersChartLabel")}</span>{renderViewerChart()}</> },
       { id: "chart_activ",  defaultX: CELL*9 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>{tLive("audienceActivityLabel")}</span>{renderHeatmap()}</> },
     ];
@@ -1663,16 +1699,30 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                         El nombre se desplaza hacia abajo (marginTop) para quedar a la mitad del avatar de 36px,
                         y el renglón 2 queda pegado a él; el botón y las acciones se quedan arriba. */}
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: -4 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 9, minWidth: 0 }}>
-                        <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: "-0.02em", color: "#fff", fontFamily: FONT, flexShrink: 0, lineHeight: "18px" }}>
-                          {sc.username}
-                        </span>
-                        {scIsBanned && (
-                          <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 3, padding: "0px 4px", flexShrink: 0 }}>BAN</span>
+                      {/* ⚠️ Nombre, cifra y referencia van en COLUMNA. El renglón exterior es
+                          horizontal —nombre, botón Reproducir, acciones—, así que colgar de él
+                          la referencia la mandaba a la derecha, encima del importe.
+
+                          El margen superior CENTRA el bloque contra el avatar de 36 px: con un
+                          solo renglón hacen falta 9 px, pero con la referencia son dos y el
+                          bloque mide el doble, así que con esos 9 quedaba hundido. */}
+                      <div style={{ display: "flex", flexDirection: "column", marginTop: netEarnedLocal(sc.amount) ? 2 : 9, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                          <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: "-0.02em", color: "#fff", fontFamily: FONT, flexShrink: 0, lineHeight: "18px" }}>
+                            {sc.username}
+                          </span>
+                          {scIsBanned && (
+                            <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 3, padding: "0px 4px", flexShrink: 0 }}>BAN</span>
+                          )}
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "#86efac", fontFamily: FONT, flexShrink: 0 }}>
+                            +{netEarned(sc.amount)}
+                          </span>
+                        </div>
+                        {netEarnedLocal(sc.amount) && (
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontFamily: FONT, lineHeight: 1.2, marginTop: 1, whiteSpace: "nowrap" }}>
+                            {netEarnedLocal(sc.amount)}
+                          </div>
                         )}
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#86efac", fontFamily: FONT, flexShrink: 0 }}>
-                          +{netEarned(sc.amount)}
-                        </span>
                       </div>
                       <button
                         type="button"
@@ -1915,13 +1965,18 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               <ScAvatar url={playingOverlay.avatarUrl} name={playingOverlay.username} ringColor={playingOverlay.color} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT }}>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: "#fff", fontFamily: FONT }}>
                     {playingOverlay.username}
                   </span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#86efac", fontFamily: FONT }}>
                     +{netEarned(playingOverlay.amount)}
                   </span>
                 </div>
+                {netEarnedLocal(playingOverlay.amount) && (
+                  <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.4)", fontFamily: FONT, lineHeight: 1.2, marginTop: -2 }}>
+                    {netEarnedLocal(playingOverlay.amount)}
+                  </div>
+                )}
               </div>
             </div>
             {/* Fila 2: texto — 3 líneas visibles, scroll + negritas progresivas */}

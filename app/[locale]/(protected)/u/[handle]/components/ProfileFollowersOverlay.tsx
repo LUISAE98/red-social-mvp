@@ -264,7 +264,7 @@ export default function ProfileFollowersOverlay({
                 <div
                   style={{
                     fontSize: 14,
-                    fontWeight: 700,
+                    fontWeight: 500,
                     lineHeight: 1.2,
                     whiteSpace: "nowrap",
                     overflow: "hidden",

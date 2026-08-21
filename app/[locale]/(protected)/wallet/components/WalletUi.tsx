@@ -39,6 +39,7 @@ import ScheduleCalendarOverlay from "./ScheduleCalendarOverlay";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { MenuLinesIcon } from "@/components/ui";
 
 type ServiceCardTheme = { bgImage: string | null; btnBg: string; btnColor: string };
 function getServiceCardTheme(kind: string): ServiceCardTheme {
@@ -1607,24 +1608,6 @@ export function WalletList({
     </div>
   );
 }
-function FilterIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="h-4 w-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-    >
-      <path d="M4 7h16" />
-      <path d="M7 12h13" />
-      <path d="M10 17h10" />
-    </svg>
-  );
-}
-
 export function WalletFilterMenu<T extends string>({
   label = "Filtro",
   menuLabel,
@@ -1933,7 +1916,7 @@ export function WalletFilterMenu<T extends string>({
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <FilterIcon />
+        <MenuLinesIcon size={16} />
         <span className="filterButtonLabel">{label}</span>
       </button>
 

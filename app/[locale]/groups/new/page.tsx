@@ -941,7 +941,7 @@ const onCropComplete = useCallback(
                     style={{
                       margin: 0,
                       fontSize: 18,
-                      fontWeight: 600,
+                      fontWeight: 500,
                       color: "#fff",
                       lineHeight: 1.2,
                     }}

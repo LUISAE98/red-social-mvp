@@ -17,6 +17,9 @@ import {
   DONATION_MIN_AMOUNT_USD,
   PREMIUM_MIN_PRICE_USD,
   LIVE_TICKET_MIN_PRICE_USD,
+  SUPER_COMMENT_MIN_PRICE_USD,
+  SUBSCRIPTION_MIN_PRICE_USD,
+  SERVICE_MIN_PRICE_USD,
   FIXED_SERVICE_FEE_USD,
   displayCurrencyForCountry,
   isDisplayCurrency,
@@ -272,6 +275,32 @@ describe("mínimos de dinero — frontend y backend no pueden separarse", () => 
     const m = leerLedger().match(/export const DONATION_MIN_AMOUNT_USD = ([\d.]+);/);
     expect(m, "no se encontró DONATION_MIN_AMOUNT_USD en backend/src/wallet/ledger.ts").not.toBeNull();
     expect(Number(m![1])).toBe(DONATION_MIN_AMOUNT_USD);
+  });
+
+  it("SUPER_COMMENT_MIN_PRICE_USD coincide en catálogo y ledger", () => {
+    const m = leerLedger().match(/export const SUPER_COMMENT_MIN_PRICE_USD = ([0-9.]+);/);
+    expect(m, "no se encontró SUPER_COMMENT_MIN_PRICE_USD en el ledger").not.toBeNull();
+    expect(Number(m![1])).toBe(SUPER_COMMENT_MIN_PRICE_USD);
+  });
+
+  it("SUBSCRIPTION_MIN_PRICE_USD coincide en catálogo y ledger", () => {
+    const m = leerLedger().match(/export const SUBSCRIPTION_MIN_PRICE_USD = ([0-9.]+);/);
+    expect(m, "no se encontró SUBSCRIPTION_MIN_PRICE_USD en el ledger").not.toBeNull();
+    expect(Number(m![1])).toBe(SUBSCRIPTION_MIN_PRICE_USD);
+  });
+
+  it("los mínimos por experiencia coinciden en catálogo y ledger", () => {
+    // El catálogo los indexa por la clave del panel (saludo, consejo…) y el ledger por el
+    // tipo del asiento (greeting, advice…). Se comparan los VALORES, que es lo que cobra.
+    const texto = leerLedger();
+    const leer = (clave: string) => {
+      const m = texto.match(new RegExp(clave + ": *([0-9.]+),"));
+      return m ? Number(m[1]) : null;
+    };
+    expect(leer("greeting")).toBe(SERVICE_MIN_PRICE_USD.saludo);
+    expect(leer("advice")).toBe(SERVICE_MIN_PRICE_USD.consejo);
+    expect(leer("exclusive_session")).toBe(SERVICE_MIN_PRICE_USD.clase_personalizada);
+    expect(leer("live_session")).toBe(SERVICE_MIN_PRICE_USD.meet_greet_digital);
   });
 
   it("los niveles de supercomentario coinciden en frontend y backend", () => {

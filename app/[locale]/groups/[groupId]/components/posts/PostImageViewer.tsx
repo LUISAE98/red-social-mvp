@@ -2,7 +2,7 @@
 
 import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 
-import { TextButton, IconButton } from "@/components/ui";
+import { TextButton, IconButton, MenuLinesIcon } from "@/components/ui";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -1701,7 +1701,7 @@ const previewUrl = media.url;
           WebkitTouchCallout: "none",
         }}
       >
-        {/* Top bar: ⋮ izquierda | [mute, expand, ×] derecha */}
+        {/* Top bar: menú izquierda | [mute, expand, ×] derecha */}
         <div
           onTouchStart={(e) => e.stopPropagation()}
           onTouchMove={(e) => e.stopPropagation()}
@@ -1723,15 +1723,11 @@ const previewUrl = media.url;
             transition: controlsTransition,
           }}
         >
-          {/* ⋮ menú de acciones del post + PiP · AirPlay — izquierda */}
+          {/* Menú de acciones del post + PiP · AirPlay — izquierda */}
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           {showActionsMenu && onOpenActionsMenu && (
             <IconButton label={tPosts("moreOptions")} size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onOpenActionsMenu(); }} onClick={(e) => { e.stopPropagation(); onOpenActionsMenu(); }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <circle cx="12" cy="5" r="2" />
-                <circle cx="12" cy="12" r="2" />
-                <circle cx="12" cy="19" r="2" />
-              </svg>
+              <MenuLinesIcon size={22} />
             </IconButton>
           )}
           {isCurrentVideo && !mobileVideoTrueFullscreen ? (
@@ -1843,7 +1839,7 @@ const previewUrl = media.url;
             transition: controlsTransition,
           }}
         >
-          {/* Avatar + name/date + [video: ⋮ expand] */}
+          {/* Avatar + name/date + [video: menú, expand] */}
           <div
             style={{
               display: "flex",
@@ -2579,11 +2575,7 @@ const previewUrl = media.url;
 
             {showActionsMenu && onOpenActionsMenu && (
               <IconButton label={tPosts("moreOptions")} size="sm" tone="bare" shape="square" style={{ alignSelf: "flex-start", marginTop: -2 }} onClick={(e) => { e.stopPropagation(); onOpenActionsMenu(); }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <circle cx="12" cy="5" r="2" />
-                  <circle cx="12" cy="12" r="2" />
-                  <circle cx="12" cy="19" r="2" />
-                </svg>
+                <MenuLinesIcon size={18} />
               </IconButton>
             )}
           </div>

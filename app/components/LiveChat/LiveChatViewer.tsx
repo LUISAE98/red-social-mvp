@@ -17,7 +17,7 @@ import SuperCommentModal from "./SuperCommentModal";
 import { subscribeVisibleSuperComments } from "@/lib/liveChat/super-comment-service";
 import { getOrCreateGuestId } from "@/lib/guest-id";
 import type { SuperCommentConfig, SuperComment } from "@/lib/liveChat/types";
-import { DEFAULT_SUPER_COMMENT_CONFIG } from "@/lib/liveChat/types";
+import { DEFAULT_SUPER_COMMENT_CONFIG, DEFAULT_SUPER_COMMENT_TIERS } from "@/lib/liveChat/types";
 import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
@@ -107,11 +107,29 @@ export default function LiveChatViewer({
     return getOrCreateGuestId();
   }, [user]);
 
-  // Si el creador nunca guardó config, usar defaults para que el botón esté disponible en direct y rtmp
-  const effectiveConfig: SuperCommentConfig | null =
+  // Si el creador nunca guardó config, usar defaults para que el botón esté disponible en
+  // direct y rtmp.
+  //
+  // ⚠️ Los NIVELES salen siempre del catálogo y de lo guardado solo se rescata el precio.
+  // Recorrer la lista guardada dejaba fuera cualquier nivel añadido después: el creador
+  // había guardado con cinco y el sexto no aparecía nunca en el selector del fan.
+  // Mismo criterio que el panel de configuración y que `resolveTier` en el backend.
+  const conNivelesDelCatalogo = (cfg: SuperCommentConfig): SuperCommentConfig => {
+    const precios = new Map(cfg.tiers.map((t) => [t.id, t.price]));
+    return {
+      ...cfg,
+      tiers: DEFAULT_SUPER_COMMENT_TIERS.map((base) => {
+        const guardado = precios.get(base.id);
+        return { ...base, price: typeof guardado === "number" && guardado > 0 ? guardado : base.price };
+      }),
+    };
+  };
+  const configBase: SuperCommentConfig | null =
     (broadcastMode === "direct" || broadcastMode === "rtmp")
       ? (superCommentConfig ?? DEFAULT_SUPER_COMMENT_CONFIG)
       : (superCommentConfig ?? null);
+  const effectiveConfig: SuperCommentConfig | null =
+    configBase ? conNivelesDelCatalogo(configBase) : null;
 
   const scAvailable =
     (broadcastMode === "direct" || broadcastMode === "rtmp") &&
@@ -468,7 +486,7 @@ export default function LiveChatViewer({
               <div key={item.id} style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center" }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={29} />
                 <div style={{ minWidth: 0, flex: 1, fontSize: 13, lineHeight: 1.15, wordBreak: "break-word" }}>
-                  <span style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: "#fff", marginInlineEnd: 5 }}>
+                  <span style={{ fontFamily: FONT, fontSize: 13, fontWeight: 500, color: "#fff", marginInlineEnd: 5 }}>
                     {item.username}
                   </span>
                   {item.text ? (

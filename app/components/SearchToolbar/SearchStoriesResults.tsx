@@ -302,7 +302,7 @@ function StoryCard({
               style={{
                 color: "#fff",
                 fontSize: 12.5,
-                fontWeight: 600,
+                fontWeight: 500,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",

@@ -1083,13 +1083,18 @@ match /hiddenGroupTransitions/{groupId} {
       }
 
       // Configuración de supercomentarios — solo el propio usuario puede leer/escribir
+      //
+      // ⚠️ La moneda tiene que ser la de LIQUIDACIÓN. Aquí se exigía "MXN" y se quedó así
+      // tras el corte a USD: el panel pasó a guardar "USD" y la regla empezó a rechazar
+      // en silencio TODA la configuración de niveles. El creador tocaba sus precios, daba
+      // a guardar y no pasaba nada.
       match /settings/{settingId} {
         allow get: if signedIn() && request.auth.uid == uid;
         allow write: if signedIn()
           && request.auth.uid == uid
           && settingId == "superCommentConfig"
           && request.resource.data.enabled is bool
-          && request.resource.data.currency == "MXN"
+          && request.resource.data.currency == "USD"
           && request.resource.data.tiers is list
           && request.resource.data.tiers.size() >= 1
           && request.resource.data.tiers.size() <= 10;

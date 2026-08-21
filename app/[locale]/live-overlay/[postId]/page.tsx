@@ -61,7 +61,7 @@ function SCCard({ sc, fadingOut }: { sc: ActiveSuperComment; fadingOut: boolean 
         </div>
         {/* Nombre + donó */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", fontFamily: FONT, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: 20, fontWeight: 500, color: "#fff", fontFamily: FONT, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {sc.username}
           </div>
           <div style={{ fontSize: 15, fontFamily: FONT }}>

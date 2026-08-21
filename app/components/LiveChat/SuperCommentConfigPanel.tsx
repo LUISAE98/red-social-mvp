@@ -16,6 +16,7 @@ import {
   DEFAULT_SUPER_COMMENT_TIERS,
   type SuperCommentConfig,
   type SuperCommentTier,
+  aroDegradado,
 } from "@/lib/liveChat/types";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
@@ -24,8 +25,7 @@ import {
   FIXED_SERVICE_FEE_NOTE,
   SUPER_COMMENT_MIN_PRICE_USD,
 } from "@/lib/currency/catalog";
-import { formatCurrency } from "@/lib/currency/format";
-import { LocalPriceHint } from "@/components/services/config/serviceConfigKit";
+import { formatCurrency, roundReference } from "@/lib/currency/format";
 
 const FONT = "inherit";
 const PANEL_CLOSE_THRESHOLD = 130;
@@ -36,18 +36,80 @@ type Props = {
   postId: string;
 };
 
+/**
+ * Skeleton del panel mientras se lee la configuración guardada.
+ *
+ * Repite la FORMA real —encabezados, aro del nivel, casilla del precio, cargo fijo y
+ * caracteres— para que al llegar el contenido nada salte de sitio. Relleno y onda son los
+ * canónicos de vibra_style.md (`.vb-skel` + `vbSkelWave`), sin inventar variantes.
+ *
+ * Sustituye al texto Cargando configuración: la guía pide skeleton, sin spinner ni texto.
+ */
+function SkeletonNiveles() {
+  const fila = (i: number) => (
+    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+      <div className="vb-skel" style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0 }} />
+      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <div className="vb-skel" style={{ flex: 1, height: 36, borderRadius: 8 }} />
+          <div className="vb-skel" style={{ width: 62, height: 11, borderRadius: 6, flexShrink: 0 }} />
+        </div>
+        <div className="vb-skel" style={{ width: 26, height: 13, borderRadius: 6, margin: "0 auto" }} />
+      </div>
+    </div>
+  );
+  return (
+    <div>
+      {/* Encabezados de las dos columnas. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <div style={{ width: 16, flexShrink: 0 }} />
+        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)", gap: 8 }}>
+          <div className="vb-skel" style={{ width: 96, height: 10, borderRadius: 6, margin: "0 auto" }} />
+          <div className="vb-skel" style={{ width: 62, height: 10, borderRadius: 6, margin: "0 auto" }} />
+        </div>
+      </div>
+      {[0, 1, 2, 3, 4, 5].map(fila)}
+      {/* Las dos leyendas del pie. */}
+      <div className="vb-skel" style={{ width: "82%", height: 10, borderRadius: 6, marginBottom: 8 }} />
+      <div className="vb-skel" style={{ width: "64%", height: 10, borderRadius: 6 }} />
+      <style jsx>{`
+        .vb-skel {
+          background: linear-gradient(
+            100deg,
+            rgba(255, 255, 255, 0.05) 30%,
+            rgba(255, 255, 255, 0.11) 50%,
+            rgba(255, 255, 255, 0.05) 70%
+          );
+          background-size: 300% 100%;
+          animation: vbSkelWave 1.6s ease-in-out infinite;
+        }
+        @keyframes vbSkelWave {
+          0% {
+            background-position: 180% 0;
+          }
+          100% {
+            background-position: -80% 0;
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vb-skel {
+            animation: none;
+            background: rgba(255, 255, 255, 0.07);
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
 export default function SuperCommentConfigPanel({ open, onClose, postId }: Props) {
   const tLive = useTranslations("live");
   const tCommon = useTranslations("common");
   const pf = usePriceFormat();
-  const displayCurrency = pf.currency;
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
 
   const [scConfig, setScConfig] = useState<SuperCommentConfig>(DEFAULT_SUPER_COMMENT_CONFIG);
-  // Precio más alto configurado, ancla de la referencia en moneda local.
-  const nivelMasCaro = scConfig.tiers.reduce((m, t) => Math.max(m, t.price > 0 ? t.price : 0), 0) || null;
   const [loadingConfig, setLoadingConfig] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [configSaved, setConfigSaved] = useState(false);
@@ -102,24 +164,33 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
     setLoadingConfig(true);
     getSuperCommentConfig(uid)
       .then((cfg) => {
-        // Colores y CARACTERES por msg. son FIJOS (no editables): se reaplican del default por id.
-        const colorMap = Object.fromEntries(DEFAULT_SUPER_COMMENT_TIERS.map((t) => [t.id, t.color]));
-        const maxCharsMap = Object.fromEntries(DEFAULT_SUPER_COMMENT_TIERS.map((t) => [t.id, t.maxChars]));
-        // ⚠️ El precio guardado NO se convierte: vive en la moneda de liquidación, igual
-        // que el campo. Antes se leía con la moneda del documento —que podía ser "MXN"
-        // de antes del corte— y se pasaba a la de quien mira, así que al reabrir la
-        // configuración el creador se encontraba números distintos de los que puso.
+        // ⚠️ Se recorre la lista POR DEFECTO, no la guardada, y de cada nivel se rescata el
+        // precio que el creador hubiera puesto. Antes se recorría la guardada, así que un
+        // nivel NUEVO no le llegaba jamás a quien ya hubiera guardado su configuración
+        // alguna vez: se quedaba con los que había el día que guardó.
+        //
+        // De paso, esto hace que quitar un nivel del catálogo lo quite también de las
+        // configuraciones viejas, en vez de dejarlo colgando.
+        //
+        // Nombre, color, degradado y caracteres NO son editables: siempre salen del
+        // catálogo. Lo único del creador es el precio.
+        const preciosGuardados = new Map(cfg.tiers.map((t) => [t.id, t.price]));
         setScConfig({
           ...cfg,
-          tiers: cfg.tiers.map((t) => ({
-            ...t,
-            color: colorMap[t.id] ?? t.color,
-            maxChars: maxCharsMap[t.id] ?? t.maxChars,
-            price:
-              t.price > 0
-                ? Math.round(t.price * 100) / 100
-                : t.price,
-          })),
+          tiers: DEFAULT_SUPER_COMMENT_TIERS.map((base) => {
+            const guardado = preciosGuardados.get(base.id);
+            // ⚠️ El precio guardado NO se convierte: vive en la moneda de liquidación, igual
+            // que el campo. Antes se leía con la moneda del documento —que podía ser "MXN"
+            // de antes del corte— y se pasaba a la de quien mira, así que al reabrir la
+            // configuración el creador se encontraba números distintos de los que puso.
+            return {
+              ...base,
+              price:
+                typeof guardado === "number" && guardado > 0
+                  ? Math.round(guardado * 100) / 100
+                  : base.price,
+            };
+          }),
         });
       })
       .catch(() => {})
@@ -202,9 +273,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
     <div style={{ padding: "20px 20px 16px" }}>
       {/* Tiers */}
       {loadingConfig ? (
-        <div style={{ textAlign: "center", padding: "16px 0", fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
-          {tLive("scConfigLoading")}
-        </div>
+        <SkeletonNiveles />
       ) : (
         <>
           <div>
@@ -215,7 +284,10 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
                 {/* Col 1: "Fan paga" centrado SOBRE el input (spacer invisible del ancho del cargo fijo). */}
                 <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT, textAlign: "center" as const }}>
-                    {tLive("scConfigFanPays", { currency: displayCurrency })}
+                    {/* ⚠️ La moneda del CAMPO, no la de quien mira. Antes salía la del
+                        visor: el encabezado decía «Fan paga (MXN)» sobre unas casillas
+                        donde el creador teclea dólares. */}
+                    {tLive("scConfigFanPays", { currency: SETTLEMENT_CURRENCY })}
                   </span>
                   <span aria-hidden="true" style={{ visibility: "hidden" as const, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" as const, fontFamily: FONT }}>{FIXED_SERVICE_FEE_LABEL}</span>
                 </div>
@@ -234,12 +306,24 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
               // COMPRADOR —convierte, suma el 2% y redondea al paso—, así que la ganancia
               // del creador salía convertida e inflada.
               const creatorEarns = formatCurrency(base * WALLET_NET_RATE, SETTLEMENT_CURRENCY, pf.locale, { code: true });
+              // Lo que gana, en SU moneda. Null si ya mira en la de liquidación: repetir
+              // la misma cifra dos veces no informa de nada.
+              const netoLocal = pf.currency === SETTLEMENT_CURRENCY ? null : pf.fromAnchor(base * WALLET_NET_RATE);
+              const refNivel =
+                netoLocal == null
+                  ? null
+                  : formatCurrency(roundReference(netoLocal, pf.currency), pf.currency, pf.locale, { code: true, approx: true });
               const collapse = "max-height 220ms ease, opacity 220ms ease, transform 220ms ease";
               return (
                 <div key={tier.id} style={{ marginBottom: 14 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     {/* Aro del color del tier al inicio del renglón (como en el panel de compra). */}
-                    <div style={{ width: 16, height: 16, borderRadius: "50%", border: `2.5px solid ${tier.color}`, flexShrink: 0, boxSizing: "border-box" as const }} />
+                    <div style={{
+                      width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                      boxSizing: "border-box" as const,
+                      border: `2.5px solid ${tier.gradient ? "transparent" : tier.color}`,
+                      ...(tier.gradient ? aroDegradado(tier.gradient) : {}),
+                    }} />
                     <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)", gap: 8, alignItems: "center" }}>
                       {/* Col 1: Precio (editable) + el cargo fijo al final. */}
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -272,12 +356,36 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
                     </p>
                   </div>
 
-                  {/* Cuánto cobra el creador (75% de la base) — colapsa suave. */}
-                  <div style={{ maxHeight: earningsVisible ? 28 : 0, opacity: earningsVisible ? 1 : 0, transform: earningsVisible ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: collapse }}>
-                    <p style={{ margin: "5px 0 0", fontSize: 10.5, color: tier.color, fontFamily: FONT, lineHeight: 1.4 }}>
+                  {/* Cuánto cobra el creador (75% de la base) y, debajo, la referencia en
+                      su moneda — mismo estilo que en la configuración de saludos y consejos.
+                      El alto crece cuando hay referencia: si no, el colapso la recortaría. */}
+                  <div style={{ maxHeight: earningsVisible ? (refNivel ? 48 : 28) : 0, opacity: earningsVisible ? 1 : 0, transform: earningsVisible ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: collapse }}>
+                    {/* El texto va en blanco y el IMPORTE en el color del nivel: así el
+                        color identifica de qué nivel se habla sin teñir la frase entera. */}
+                    <p style={{ margin: "5px 0 0", fontSize: 10.5, color: "rgba(255,255,255,0.85)", fontFamily: FONT, lineHeight: 1.4 }}>
                       {tLive("scConfigEarnNote")}{" "}
-                      <span style={{ color: "#86efac", fontWeight: 600 }}>{creatorEarns}</span>
+                      <span
+                        style={{
+                          color: tier.color,
+                          fontWeight: 600,
+                          ...(tier.gradient
+                            ? {
+                                backgroundImage: tier.gradient,
+                                WebkitBackgroundClip: "text" as const,
+                                backgroundClip: "text" as const,
+                                WebkitTextFillColor: "transparent",
+                              }
+                            : {}),
+                        }}
+                      >
+                        {creatorEarns}
+                      </span>
                     </p>
+                    {refNivel && (
+                      <p style={{ margin: "2px 0 0", color: "rgba(255,255,255,0.45)", fontSize: 12, fontFamily: FONT, lineHeight: 1.45 }}>
+                        Aproximadamente <span style={{ fontWeight: 500 }}>{refNivel}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
               );
@@ -288,12 +396,6 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
             {FIXED_SERVICE_FEE_NOTE}
           </div>
 
-          {/* Referencia en la moneda del creador, el mismo componente que usan las
-              experiencias, el composer premium, el VOD y el ticket de live. Se toma el nivel
-              MÁS CARO como ancla: con cinco precios en pantalla, repetir la referencia en
-              cada renglón sería ruido, y el más alto es el que mejor le dice de qué tamaño
-              son sus precios. */}
-          <LocalPriceHint value={nivelMasCaro} netRate={WALLET_NET_RATE} />
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: FONT, lineHeight: 1.5 }}>
             {tLive("scConfigSavedNote")}
           </div>

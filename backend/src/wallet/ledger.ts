@@ -87,6 +87,35 @@ export const PREMIUM_MIN_PRICE_USD = 1.5;
  */
 export const LIVE_TICKET_MIN_PRICE_USD = 1.5;
 
+/**
+ * Mínimo de un supercomentario (el precio de su nivel).
+ * ⚠️ ESPEJO de `SUPER_COMMENT_MIN_PRICE_USD` en lib/currency/catalog.ts, con test de paridad.
+ */
+export const SUPER_COMMENT_MIN_PRICE_USD = 1.5;
+
+/**
+ * Mínimo de la cuota mensual de una comunidad.
+ * ⚠️ ESPEJO de `SUBSCRIPTION_MIN_PRICE_USD` en lib/currency/catalog.ts, con test de paridad.
+ */
+export const SUBSCRIPTION_MIN_PRICE_USD = 1.5;
+
+/**
+ * Mínimo por experiencia que el creador entrega, por clave de servicio.
+ *
+ * ⚠️ ESPEJO de `SERVICE_MIN_PRICE_USD` en lib/currency/catalog.ts, con test de paridad.
+ *
+ * Hasta ahora estos mínimos vivían SOLO en el panel de configuración, es decir, solo en el
+ * navegador. El precio del cobro lo lee el servidor del perfil del creador, así que no era
+ * un agujero de seguridad, pero sí dejaba pasar un precio por debajo del mínimo guardado
+ * con un cliente modificado.
+ */
+export const SERVICE_MIN_PRICE_USD: Readonly<Record<string, number>> = {
+  greeting: 3,
+  advice: 3,
+  exclusive_session: 9,
+  live_session: 9,
+};
+
 export type LedgerServiceType =
   | "supercomment"
   | "profile_donation"

@@ -336,7 +336,7 @@ export default function BuyerSessionRequestOverlay({
         </div>
       )}
       <div style={{ minWidth: 0, flex: 1 }}>
-        <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ color: "#fff", fontWeight: 500, fontSize: 13, lineHeight: 1.2, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {creatorName}
         </span>
         <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>

@@ -32,6 +32,12 @@ type MentionTextareaProps = Omit<
   mentionsDisabled?: boolean;
   maxRows?: number;
   style?: CSSProperties;
+  /**
+   * Qué hacer con Enter. Si se pasa, Enter envía y Mayús+Enter salta de línea,
+   * igual que en el DM y en el chat del live. Sin ella, Enter salta de línea y
+   * ya, que es lo que necesita un campo de edición con sus propios botones.
+   */
+  onSubmit?: () => void;
 };
 
 type Trigger = { start: number; query: string };
@@ -92,6 +98,7 @@ export default function MentionTextarea({
   maxRows = 3,
   style,
   disabled,
+  onSubmit,
   ...props
 }: MentionTextareaProps) {
   const tPosts = useTranslations("posts");
@@ -232,7 +239,24 @@ export default function MentionTextarea({
 
   const handleKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
-      if (!open || suggestions.length === 0) return;
+      // Con la lista de menciones abierta, Enter elige la mención: eso manda, y
+      // se resuelve más abajo. Sin lista abierta, Enter envía.
+      if (!open || suggestions.length === 0) {
+        if (
+          onSubmit
+          && e.key === "Enter"
+          && !e.shiftKey
+          // ⚠️ Mientras se compone con un IME —japonés, coreano, chino— Enter
+          // CONFIRMA la palabra que se está escribiendo. Sin esta guarda, esos
+          // idiomas no podrían ni terminar de escribir: el primer Enter enviaría
+          // el comentario a medias.
+          && !(e.nativeEvent as unknown as { isComposing?: boolean }).isComposing
+        ) {
+          e.preventDefault();
+          onSubmit();
+        }
+        return;
+      }
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -249,7 +273,7 @@ export default function MentionTextarea({
         closePopover();
       }
     },
-    [open, suggestions, activeIndex, selectSuggestion, closePopover]
+    [open, suggestions, activeIndex, selectSuggestion, closePopover, onSubmit]
   );
 
   return (

@@ -85,7 +85,7 @@ function GroupPreview({ group }: { group: CarouselGroup }) {
           }} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-          <span style={{ color: "#fff", fontSize: 17, fontWeight: 600, fontFamily: FONT, maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>
+          <span style={{ color: "#fff", fontSize: 17, fontWeight: 500, fontFamily: FONT, maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>
             {displayName ?? ""}
           </span>
           {/* Los costados NO reproducen: son portada. Con seis paneles a la

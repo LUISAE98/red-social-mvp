@@ -192,7 +192,7 @@ export default function AdminUsersPage() {
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: "#fff" }}>
                     {u.displayName ?? "Sin nombre"}
                   </span>
                   {u.handle && (

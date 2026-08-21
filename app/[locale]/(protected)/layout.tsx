@@ -716,7 +716,7 @@ const contentAreaClassName = isEmbed
 
 .mobileContextName {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
@@ -1366,12 +1366,56 @@ export default function PublicProfileLayout({
     setMounted(true);
   }, []);
 
+  /**
+   * Desvío del SUPERMODERADOR DE PLATAFORMA a su panel.
+   *
+   * ⚠️ No confundirlo con un moderador de COMUNIDAD, que sí es un usuario normal con su
+   * perfil y su wallet. Este es de plataforma: no tiene perfil ni lo necesita.
+   *
+   * El desvío existía SOLO en el login y en completar perfil, así que con la sesión ya
+   * abierta —o entrando por una URL directa— caía en la aplicación normal, sin perfil y sin
+   * forma de crearlo. Aquí se cubre cualquier ruta protegida.
+   *
+   * Se exige el claim Y que la sesión sea de Google, las mismas dos condiciones que el
+   * panel y el backend: si el claim viajara sin Google, el panel lo rechazaría y este
+   * desvío lo dejaría dando vueltas entre las dos pantallas.
+   */
+  const router = useRouter();
+  const [esSupermoderador, setEsSupermoderador] = useState(false);
+  useEffect(() => {
+    if (!user) {
+      // Sin sesión no hay nada que comprobar. La bandera se deja como esté: el propio
+      // layout ya cae al shell público, y escribirla aquí dispara renders en cascada.
+      return;
+    }
+    let vigente = true;
+    user
+      .getIdTokenResult()
+      .then((r) => {
+        if (!vigente) return;
+        const esMod = r.claims["role"] === "moderator" && r.signInProvider === "google.com";
+        if (!esMod) return;
+        setEsSupermoderador(true);
+        router.replace("/admin");
+      })
+      .catch(() => {});
+    return () => {
+      vigente = false;
+    };
+  }, [user, router]);
+
   // El primer render del cliente DEBE ser idéntico al del servidor. En el
   // servidor `loading` se queda en true (no hay onAuthStateChanged) → placeholder.
   // Gateamos con `!mounted` (no solo `loading`) porque en el cliente Firebase
   // resuelve la sesión antes de hidratar y `loading` ya sería false en el 1er
   // render → ramificaría al shell autenticado y no coincidiría con el servidor.
   if (!mounted || loading || authTransitionMode === "exiting") {
+    return <div style={{ minHeight: "100dvh", background: "#000" }} />;
+  }
+
+  // Un SUPERMODERADOR DE PLATAFORMA no tiene sitio en esta parte de la aplicación: no
+  // tiene perfil, ni wallet, ni servicios. Se le lleva a su panel.
+  if (esSupermoderador) {
     return <div style={{ minHeight: "100dvh", background: "#000" }} />;
   }
 

@@ -17,6 +17,7 @@ import {
   MAX_VIDEO_DURATION_PREMIUM_SECONDS,
 } from "@/lib/posts/premium";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import VibraSendIcon from "@/app/components/VibraServiceIcons/VibraSendIcon";
 import {
   useEffect,
   useMemo,
@@ -783,23 +784,26 @@ export default function GroupPostComposer({
   const cardStyle: CSSProperties = {
     borderRadius: 12,
     border: "transparent",
-    background: "rgba(255,255,255,0.022)",
+    // Sin caja: el compositor se apoya directamente sobre el fondo. Llevaba un
+    // velo blanco al 2.2% con desenfoque detrás; el desenfoque se va con él,
+    // porque sin nada que tintar era trabajo de pintado a cambio de nada.
+    background: "transparent",
     color: "#fff",
     padding: 12,
     boxSizing: "border-box",
-    backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
   };
 
-// Estilo de campo/placeholder canónico de Vibra (vibra_style.md → "Textarea"):
-// fondo rgba(255,255,255,0.06), sin borde, radio 12, padding 10px 12px, fontSize 13,
-// lineHeight 1.5. El texto tecleado va en #fff; el placeholder queda atenuado.
+// Campo de entrada al compositor. Sigue el estilo canónico de Vibra
+// (vibra_style.md → "Textarea") en medidas y tipografía, pero SIN el relleno:
+// aquí no es una caja donde se escribe, es el pie que abre el editor completo.
+// El texto tecleado va en #fff; el placeholder queda atenuado.
 const launcherButtonStyle: CSSProperties = {
   width: "100%",
   minHeight: 42,
   padding: "10px 12px",
   borderRadius: 12,
   border: "none",
-  background: "rgba(255,255,255,0.06)",
+  background: "transparent",
   color: text.trim().length > 0 ? "#fff" : "rgba(255,255,255,0.42)",
   outline: "none",
   fontSize: 13,
@@ -815,8 +819,11 @@ const launcherButtonStyle: CSSProperties = {
   textOverflow: "ellipsis",
 };
 
+  /* Misma caja que los otros dos. Llegó a tener 32 para compensar que el avión
+     dibujaba más ancho que sus vecinos; ahora dibuja lo mismo y esa
+     compensación sobra. */
   const primaryButtonStyle: CSSProperties = {
-    width: 44,
+    width: 30,
     height: 44,
     minHeight: 44,
     padding: 0,
@@ -896,19 +903,26 @@ const launcherButtonStyle: CSSProperties = {
           }}
         />
 
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        {/* Centrado, no anclado arriba. Con `flex-start` el avatar se pegaba al
+            techo de la fila mientras el campo y los botones se centraban en sus
+            44px de alto: quedaba visiblemente más alto que todo lo demás. La
+            fila es de una sola línea —el campo recorta con puntos suspensivos y
+            nunca crece—, así que centrar es seguro. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Link
             href={currentUserHref}
             style={{
               display: "inline-flex",
               flexShrink: 0,
-              marginTop: 2,
             }}
           >
+            {/* Al tamaño de los iconos del final del compositor (30), no al de
+                un avatar de cabecera: aquí solo dice de quién sale lo que se
+                escriba, no es el sujeto de la fila. */}
             <Avatar
               name={currentUserName}
               avatarUrl={currentUserAvatar}
-              size={48}
+              size={30}
             />
           </Link>
 
@@ -960,11 +974,34 @@ const launcherButtonStyle: CSSProperties = {
                       : tCommon("publish")
                 }
               >
-                <VibraNavigationIcon
-                  type="publish"
-                  size={30}
-                  strokeWidth={2.1}
-                />
+                {/* El MISMO avión que envía un mensaje directo, no el de
+                    "publicar" de la familia de navegación. Eran dos dibujos
+                    distintos para el mismo gesto y el del chat sienta mejor.
+
+                    A 24, para que DIBUJE 20.3px de ancho: exactamente lo mismo
+                    que el clip y el círculo. Poner el mismo número en los tres
+                    no sirve, porque cada dibujo llena una parte distinta de su
+                    lienzo: el círculo el 97%, el avión el 85% de ancho y el
+                    clip el 68%.
+
+                    Su ALTO queda en 18.4 y no en 20.3, y no es un descuido: el
+                    avión es un 11% más ancho que alto, así que igualar las dos
+                    medidas obligaría a estirarlo y se notaría. Se iguala el
+                    ancho, que es la medida que lo hacía verse mayor. Además va
+                    relleno, y una forma rellena pesa más a la vista que un
+                    contorno del mismo tamaño: quedarse un pelo por debajo es
+                    lo que lo empareja de verdad.
+
+                    RECTO, no inclinado. El icono trae de fábrica un giro de -20
+                    grados —así va en el chat— y aquí no funciona: al girar, la
+                    diagonal del avión ocupa más alto y más ancho que su propia
+                    caja, y al lado de un clip y un círculo rectos se leía como
+                    el icono más grande de la fila aunque midiera menos.
+
+                    Derecho tampoco hace falta subirlo: ese apaño existía porque
+                    la inclinación hundía su masa hacia abajo. Sin giro, el
+                    centro geométrico y el óptico coinciden. */}
+                <VibraSendIcon size={24} style={{ transform: "none" }} />
               </button>
 
               <button
@@ -1003,9 +1040,14 @@ const launcherButtonStyle: CSSProperties = {
                   aria-label={tLive("scheduleLive")}
                   title={tLive("scheduleLive")}
                 >
+                  {/* 21 y no 22: su círculo llena el 97% del lienzo, mientras
+                      que el avión llena el 77% y el clip el 68%. Con estos tres
+                      números los tres dibujos miden unos 20px de alto REAL, que
+                      es lo que se ve. Igualar el atributo `size` los dejaba de
+                      alturas distintas. */}
                   <svg
-                    width="22"
-                    height="22"
+                    width="21"
+                    height="21"
                     viewBox="0 0 22 22"
                     fill="none"
                   >

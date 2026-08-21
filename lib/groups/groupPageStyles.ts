@@ -67,7 +67,7 @@ export const panelStyle: CSSProperties = {
 
 export const titleStyle: CSSProperties = {
   fontSize: groupPageUi.title,
-  fontWeight: 600,
+  fontWeight: 500,
   lineHeight: 1.2,
   color: "#fff",
   letterSpacing: 0,

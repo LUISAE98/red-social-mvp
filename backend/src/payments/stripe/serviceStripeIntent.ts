@@ -20,6 +20,7 @@ import { applyCharmRounding } from "../../tax/presentment";
 import { reserveCreditAndSplit, materializeCreditOnlyPurchase } from "./chargeWithCredit";
 import { revertBuyerCreditSpend } from "../../wallet/buyerCredit";
 import { stripeIdempotencyKey } from "./idempotency";
+import { SERVICE_MIN_PRICE_USD, SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -71,6 +72,14 @@ export const createServiceStripeIntent = onCall(
     const base = Number(intent.grossAmount);
     if (!Number.isFinite(base) || base <= 0) throw new HttpsError("failed-precondition", "Precio inválido.");
 
+    // Mismo candado que en saludos: el mínimo estaba solo en el navegador.
+    const minServicio = SERVICE_MIN_PRICE_USD[String(intent.serviceType ?? "")];
+    if (minServicio != null && base < minServicio) {
+      throw new HttpsError(
+        "failed-precondition",
+        `El precio mínimo de esta experiencia es ${minServicio} ${SETTLEMENT_CURRENCY}.`
+      );
+    }
     // Precio publicado = base del creador + cargo fijo $3 (lo absorbe el comprador).
     // País fiscal: lo decide el SERVIDOR. Dos señales que el cliente no controla:
     //   · la IP del request

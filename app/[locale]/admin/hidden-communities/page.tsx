@@ -492,7 +492,7 @@ export default function HiddenCommunitiesPage() {
                       style={{
                         fontSize: 11,
                         color: c.creatorHandle ? "#a78bfa" : "#777",
-                        fontWeight: 600,
+                        fontWeight: 500,
                       }}
                     >
                       {c.creatorName ?? c.ownerId ?? tAdmin("creatorNameFallback")}

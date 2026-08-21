@@ -185,7 +185,7 @@ export function ProfileCard({
                 overflow: "hidden",
                 textAlign: "center",
                 fontFamily: fontStack,
-                fontWeight: 700,
+                fontWeight: 500,
                 letterSpacing: "-0.01em",
                 flexShrink: 0,
               }}
@@ -664,7 +664,7 @@ export function LiveRecommendationCard({
                 overflow: "hidden",
                 textAlign: "center",
                 fontFamily: fontStack,
-                fontWeight: 700,
+                fontWeight: 500,
                 letterSpacing: "-0.01em",
               }}
             >

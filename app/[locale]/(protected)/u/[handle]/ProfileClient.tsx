@@ -829,7 +829,7 @@ const ui = {
     } as CSSProperties,
     title: {
       fontSize: ui.title,
-      fontWeight: 600,
+      fontWeight: 500,
       lineHeight: 1.16,
       color: "#fff",
       letterSpacing: 0,
@@ -2182,7 +2182,7 @@ const res = (await createExclusiveSessionRequest({
       onUnblockSuccess={handleUnblockConfirmed}
       onUnblockError={handleUnblockFailed}
       buttonClassName="cover-corner-muted"
-      buttonStyle={{ ...COVER_CIRCLE_BTN_STYLE, color: "#fff", fontSize: 20 }}
+      buttonStyle={{ ...COVER_CIRCLE_BTN_STYLE, color: "#fff" }}
     />
   </div>
   )}

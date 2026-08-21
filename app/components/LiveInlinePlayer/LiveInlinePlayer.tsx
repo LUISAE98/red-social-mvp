@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import { frasePorVoz } from "@/lib/liveChat/super-comment-service";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
-import { useTranslations } from "next-intl";
+import { useTranslations , useLocale } from "next-intl";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Hls from "hls.js";
 import { auth } from "@/lib/firebase";
@@ -123,6 +124,7 @@ export default function LiveInlinePlayer({
   initialMuted = true,
   onMutedChange,
 }: Props) {
+  const locale = useLocale();
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
   const pf = usePriceFormat();
@@ -201,7 +203,7 @@ export default function LiveInlinePlayer({
 
     if (!isViewerOpenRef.current && durationSecs >= TTS_MIN_DURATION_SECS) {
       if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
-      const fullText = `${sc.username} dijo: ${sc.text}`;
+      const fullText = frasePorVoz(sc, locale);
       const elapsed = sc.displaySeconds - durationSecs;
       const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
       const startChar = Math.floor(progressRatio * fullText.length);
@@ -672,7 +674,7 @@ export default function LiveInlinePlayer({
             </div>
             {/* Nombre + monto */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: FONT, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: "#fff", fontFamily: FONT, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {activeSC.username}
               </div>
               <div style={{ fontSize: 10, fontFamily: FONT }}>

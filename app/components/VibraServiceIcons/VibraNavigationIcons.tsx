@@ -464,6 +464,13 @@ publish: {
 
 attachMedia: {
   label: "Adjuntar multimedia",
+  /* 🚨 El dibujo va CENTRADO en el lienzo. No lo muevas sin recolocarlo. 🚨
+     Estaba pegado arriba y a la izquierda: ocupaba de 3.5 a 17.5 en las dos
+     direcciones dentro de un lienzo de 24, o sea centrado en (10.5, 11) cuando
+     el centro es (12, 12). Ese desvío de 1.5 y 1 unidad se traducía, al tamaño
+     del compositor, en unos 2px a la izquierda y 1.25px arriba: el icono se veía
+     más alto que sus vecinos y el hueco a un lado y al otro no era el mismo.
+     Todas las coordenadas están corridas +1.5 en X y +1 en Y. */
   icon: (
     <svg
       className="vibraAttachMediaIcon"
@@ -471,8 +478,8 @@ attachMedia: {
       aria-hidden="true"
     >
       <rect
-        x="3.5"
-        y="4"
+        x="5"
+        y="5"
         width="14"
         height="14"
         rx="2.4"
@@ -481,17 +488,17 @@ attachMedia: {
         strokeWidth="2.2"
       />
 
-      <circle cx="7.2" cy="8.2" r="1.6" fill="#22c55e" />
+      <circle cx="8.7" cy="9.2" r="1.6" fill="#22c55e" />
 
       <path
         d="
-          M3.5 15.8
-          L8 11.2
-          L10.5 13.8
-          L14.2 10
-          L17.5 13.5
-          V18
-          H3.5
+          M5 16.8
+          L9.5 12.2
+          L12 14.8
+          L15.7 11
+          L19 14.5
+          V19
+          H5
           Z
         "
         fill="#22c55e"

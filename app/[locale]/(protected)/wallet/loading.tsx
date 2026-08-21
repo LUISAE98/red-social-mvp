@@ -14,10 +14,12 @@
  * - Los datos (`useOwnerWalletData`) viven en el LAYOUT, no en cada pestaña, así
  *   que moverse entre finanzas, estadísticas, calendario, pendientes e historial
  *   no carga nada — no hay espera que rellenar.
- * - Ese movimiento ya tiene su animación: el `motion.div` con `key={pathname}`
- *   del layout desliza la pestaña nueva desde el lado que corresponde. Un
- *   skeleton en medio partía el deslizamiento en dos y se leía como un cambio
- *   de página entera.
+ * - Ese movimiento ya tiene su animación, y vive en `WalletSectionShell`, o
+ *   sea DENTRO de esta frontera: la pestaña nueva se desliza desde el lado que
+ *   corresponde en cuanto su contenido está listo. Ponerla fuera, en el layout,
+ *   era el error de antes — el deslizamiento arrancaba con este fallback en
+ *   pantalla y lo que se deslizaba era una caja vacía. Un skeleton aquí lo
+ *   partiría en dos y se leería como un cambio de página entera.
  *
  * Si algún día una pestaña de la wallet carga sus propios datos, su skeleton va
  * DENTRO de esa página, no aquí.

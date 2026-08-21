@@ -19,6 +19,7 @@ import { applyCharmRounding } from "../../tax/presentment";
 import { reserveCreditAndSplit, materializeCreditOnlyPurchase } from "./chargeWithCredit";
 import { revertBuyerCreditSpend } from "../../wallet/buyerCredit";
 import { stripeIdempotencyKey } from "./idempotency";
+import { SERVICE_MIN_PRICE_USD, SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -55,6 +56,17 @@ export const createGreetingStripeIntent = onCall(
     }
     const base = Number(intent.grossAmount);
     if (!Number.isFinite(base) || base <= 0) throw new HttpsError("failed-precondition", "Precio inválido.");
+    // ⚠️ El mínimo vivía SOLO en el panel del creador, o sea solo en el navegador. El
+    // precio lo lee el servidor de su perfil, así que no era un agujero de seguridad, pero
+    // con un cliente modificado se podía dejar guardado un precio por debajo y el cobro
+    // pasaba igual.
+    const minServicio = SERVICE_MIN_PRICE_USD[String(intent.serviceType ?? "greeting")];
+    if (minServicio != null && base < minServicio) {
+      throw new HttpsError(
+        "failed-precondition",
+        `El precio mínimo de esta experiencia es ${minServicio} ${SETTLEMENT_CURRENCY}.`
+      );
+    }
 
     // Precio publicado = base del creador + cargo fijo $3 (lo absorbe el comprador).
     // País fiscal: lo decide el SERVIDOR. Dos señales que el cliente no controla:

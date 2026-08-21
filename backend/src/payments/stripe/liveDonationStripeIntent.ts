@@ -192,6 +192,11 @@ export const createLiveDonationStripeIntent = onCall(
         displaySeconds: DONATION_DISPLAY_SECS,
         amount: base,
         currency: SETTLEMENT_CURRENCY,
+        // Lo que el donador pagó DE VERDAD y en qué moneda. `amount` es la base del
+        // creador y no sirve para dirigirse a él: la voz del live leía esa base —7— y
+        // encima la llamaba pesos, cuando había pagado 148.99 MXN.
+        presentmentAmount: presentment?.amount ?? charge.chargedAmount,
+        presentmentCurrency: presentment?.currency ?? charge.settlementCurrency,
         status: "paid",
         hidden: false,
         isDeleted: false,

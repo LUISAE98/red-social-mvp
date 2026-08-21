@@ -554,8 +554,10 @@ export { toggleStoryLike } from "./storyLikes";
 export {
   onCommentCountCreated,
   onCommentCountDeleted,
+  onCommentSoftDeleted,
   onReplyCountCreated,
   onReplyCountDeleted,
+  onReplySoftDeleted,
 } from "./commentCounters";
 
 // Publicaciones y miembros: contadores guardados en el documento del perfil o de

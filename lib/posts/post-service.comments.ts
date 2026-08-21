@@ -410,40 +410,15 @@ export async function deletePostComment(params: {
     return;
   }
 
-const postRef = doc(db, "posts", params.postId);
-const postSnap = await getDoc(postRef);
-
-if (!postSnap.exists()) {
-  return;
-}
-
-const postData = postSnap.data() as Record<string, unknown>;
-const currentCounts =
-  postData.counts && typeof postData.counts === "object"
-    ? (postData.counts as Record<string, unknown>)
-    : {};
-
-const currentComments =
-  typeof currentCounts.comments === "number" ? currentCounts.comments : 0;
-
-const currentLikes =
-  typeof currentCounts.likes === "number" ? currentCounts.likes : 0;
-
-const currentSaves =
-  typeof currentCounts.saves === "number" ? currentCounts.saves : 0;
-
+// El contador del post NO se toca desde aqui: lo lleva el disparador
+// `onCommentSoftDeleted`. Esta escritura seguia estando y ya no la permiten las
+// reglas, asi que reventaba DESPUES de haber marcado el comentario: quedaba
+// borrado en la base, la interfaz se quedaba en el catch mostrandolo, y a partir
+// de ahi tampoco se podia editar —editar exige que no este borrado—. Un solo
+// fallo que se veia como dos.
 await updateDoc(commentRef, {
   isDeleted: true,
   deletedAt: serverTimestamp(),
-  updatedAt: serverTimestamp(),
-});
-
-await updateDoc(postRef, {
-  counts: {
-    comments: Math.max(0, currentComments - 1),
-    likes: currentLikes,
-    saves: currentSaves,
-  },
   updatedAt: serverTimestamp(),
 });
 
@@ -680,33 +655,13 @@ export async function createPostCommentReply(params: {
       throw new Error("El comentario ya no existe.");
     }
 
-    const freshPostData = freshPostSnap.data() as Record<string, unknown>;
-    const freshPostCounts =
-      freshPostData.counts && typeof freshPostData.counts === "object"
-        ? (freshPostData.counts as Record<string, unknown>)
-        : {};
-
-    const freshPostComments =
-      typeof freshPostCounts.comments === "number" ? freshPostCounts.comments : 0;
-
-    const freshPostLikes =
-      typeof freshPostCounts.likes === "number" ? freshPostCounts.likes : 0;
-
-    const freshPostSaves =
-      typeof freshPostCounts.saves === "number" ? freshPostCounts.saves : 0;
-
-    const freshCommentData = freshCommentSnap.data() as Record<string, unknown>;
-    const freshCommentCounts =
-      freshCommentData.counts && typeof freshCommentData.counts === "object"
-        ? (freshCommentData.counts as Record<string, unknown>)
-        : {};
-
-    const freshReplies =
-      typeof freshCommentCounts.replies === "number" ? freshCommentCounts.replies : 0;
-
-    const freshCommentLikes =
-      typeof freshCommentCounts.likes === "number" ? freshCommentCounts.likes : 0;
-
+    // Los contadores —el de respuestas del comentario y el de comentarios del
+    // post— NO se escriben aquí: los lleva el servidor. Estaban dentro de esta
+    // misma transacción, así que su denegación no se llevaba por delante el
+    // contador, sino la RESPUESTA ENTERA: no se podía responder.
+    //
+    // El freno sí sigue aquí, y tiene que seguir: la regla `canCreateReply`
+    // exige que se gaste en el mismo lote atómico que la respuesta.
     // El contador va DESPUÉS de todas las lecturas de la transacción: Firestore
     // exige leer antes de escribir.
     aplicarFreno(transaction, freno);
@@ -728,22 +683,6 @@ export async function createPostCommentReply(params: {
         : {}),
     });
 
-    transaction.update(commentRef, {
-      counts: {
-        replies: freshReplies + 1,
-        likes: freshCommentLikes,
-      },
-      updatedAt: serverTimestamp(),
-    });
-
-    transaction.update(postRef, {
-      counts: {
-        comments: freshPostComments + 1,
-        likes: freshPostLikes,
-        saves: freshPostSaves,
-      },
-      updatedAt: serverTimestamp(),
-    });
   });
 
   clearPostCommentsCache(params.postId);
@@ -769,75 +708,20 @@ export async function deletePostCommentReply(params: {
     params.replyId
   );
 
-  const commentRef = doc(db, "posts", params.postId, "comments", params.commentId);
-  const postRef = doc(db, "posts", params.postId);
+  // Mismo caso que el borrado de comentario: los DOS contadores —el de respuestas
+  // del comentario y el de comentarios del post— los lleva ahora el servidor, con
+  // `onReplySoftDeleted`. Aqui iban dentro de la transaccion, asi que su denegacion
+  // tumbaba la operacion entera y la respuesta ni siquiera se marcaba.
+  //
+  // Sin contadores que leer, ya no hay nada que hacer en transaccion: es una sola
+  // escritura sobre un solo documento.
+  const replySnap = await getDoc(replyRef);
+  if (!replySnap.exists()) return;
 
-  await runTransaction(db, async (transaction) => {
-    const freshReplySnap = await transaction.get(replyRef);
-    const freshCommentSnap = await transaction.get(commentRef);
-    const freshPostSnap = await transaction.get(postRef);
-
-    if (!freshReplySnap.exists()) {
-      return;
-    }
-
-    if (!freshCommentSnap.exists()) {
-      throw new Error("El comentario ya no existe.");
-    }
-
-    if (!freshPostSnap.exists()) {
-      throw new Error("La publicación ya no existe.");
-    }
-
-    const freshCommentData = freshCommentSnap.data() as Record<string, unknown>;
-    const freshCommentCounts =
-      freshCommentData.counts && typeof freshCommentData.counts === "object"
-        ? (freshCommentData.counts as Record<string, unknown>)
-        : {};
-
-    const freshReplies =
-      typeof freshCommentCounts.replies === "number" ? freshCommentCounts.replies : 0;
-
-    const freshCommentLikes =
-      typeof freshCommentCounts.likes === "number" ? freshCommentCounts.likes : 0;
-
-    const freshPostData = freshPostSnap.data() as Record<string, unknown>;
-    const freshPostCounts =
-      freshPostData.counts && typeof freshPostData.counts === "object"
-        ? (freshPostData.counts as Record<string, unknown>)
-        : {};
-
-    const freshPostComments =
-      typeof freshPostCounts.comments === "number" ? freshPostCounts.comments : 0;
-
-    const freshPostLikes =
-      typeof freshPostCounts.likes === "number" ? freshPostCounts.likes : 0;
-
-    const freshPostSaves =
-      typeof freshPostCounts.saves === "number" ? freshPostCounts.saves : 0;
-
-    transaction.update(replyRef, {
-      isDeleted: true,
-      deletedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    transaction.update(commentRef, {
-      counts: {
-        replies: Math.max(0, freshReplies - 1),
-        likes: freshCommentLikes,
-      },
-      updatedAt: serverTimestamp(),
-    });
-
-    transaction.update(postRef, {
-      counts: {
-        comments: Math.max(0, freshPostComments - 1),
-        likes: freshPostLikes,
-        saves: freshPostSaves,
-      },
-      updatedAt: serverTimestamp(),
-    });
+  await updateDoc(replyRef, {
+    isDeleted: true,
+    deletedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
 
   clearPostCommentsCache(params.postId);

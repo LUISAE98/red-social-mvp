@@ -114,7 +114,7 @@ export default function OwnerSidebarFollowedProfiles({
                   <div
                     style={{
                       fontSize: 13,
-                      fontWeight: 550,
+                      fontWeight: 500,
                       letterSpacing: "-0.08px",
                       color: "rgba(255,255,255,0.94)",
                       whiteSpace: "nowrap",
