@@ -503,7 +503,19 @@ export default function ReelStorySlide({
     const el = bottomStackRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(([entry]) => {
-      if (entry) setBottomStackH(entry.contentRect.height);
+      if (!entry) return;
+      const alto = entry.contentRect.height;
+      // ⚠️ Solo se guarda si cambio de verdad, y el umbral es UN PIXEL.
+      //
+      // `contentRect.height` es un decimal, y este bloque se anima al abrir y
+      // cerrar el contexto: durante la transicion el observador dispara en cada
+      // fotograma con alturas que difieren en milesimas, y cada una provocaba un
+      // render. Encadenados, React los cuenta como actualizaciones anidadas y
+      // corta con "Maximum update depth exceeded".
+      //
+      // El velo que se alimenta de esta medida se dibuja redondeado a pixeles
+      // enteros, asi que las milesimas no pintaban nada de todos modos.
+      setBottomStackH((prev) => (Math.abs(prev - alto) < 1 ? prev : alto));
     });
     ro.observe(el);
     return () => ro.disconnect();
