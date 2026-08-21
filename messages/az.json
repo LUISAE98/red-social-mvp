@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Videonu götür",
     "imagesLabel": "Şəkillər",
     "removeImageAria": "Şəkli götür",
-    "addImagesButton": "Şəkil əlavə et"
+    "addImagesButton": "Şəkil əlavə et",
+    "liveTicketAccessCount": "{count, plural, one {# nəfərin bu yayıma çıxışı var} other {# nəfərin bu yayıma çıxışı var}}",
+    "premiumViewedCount": "{count, plural, one {# nəfər bu paylaşımı artıq görüb} other {# nəfər bu paylaşımı artıq görüb}}",
+    "liveTicketAuthorTitleShort": "Biletli yayım"
   },
   "wallet": {
     "onboardingTitle": "Həvəsini yeni <vibra>əlaqə</vibra> yollarına çevir",

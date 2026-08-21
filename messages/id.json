@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Hapus video",
     "imagesLabel": "Gambar",
     "removeImageAria": "Hapus gambar",
-    "addImagesButton": "Tambahkan gambar"
+    "addImagesButton": "Tambahkan gambar",
+    "liveTicketAccessCount": "{count, plural, other {# orang punya akses ke siaran ini}}",
+    "premiumViewedCount": "{count, plural, other {# orang sudah melihat postingan ini}}",
+    "liveTicketAuthorTitleShort": "Siaran bertiket"
   },
   "wallet": {
     "onboardingTitle": "Ubah passionmu jadi cara-cara baru untuk <vibra>terhubung</vibra>",

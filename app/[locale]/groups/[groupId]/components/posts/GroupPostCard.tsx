@@ -3186,23 +3186,50 @@ style={{
             </svg>
           ) : (
             <>
-              {!isMobile && (
-                <svg
-                  width="52" height="52" viewBox="0 0 22 22" fill="none"
-                  style={{
-                    flexShrink: 0, position: "relative", zIndex: 1,
-                    animation: "livePulseIcon 2s ease-in-out infinite",
-                    // Con ticket, el punto sube junto con el botón del dueño para que
-                    // no quede detrás del card de ticket (mismo desplazamiento).
-                    transform: (isOwner || isOwnPost) && post.requiresPayment === true ? "translateY(-28px)" : undefined,
-                  }}
-                >
-                  <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
-                  <circle cx="11" cy="11" r="6" fill="#ef4444" />
-                </svg>
-              )}
+              <svg
+                width="52" height="52" viewBox="0 0 22 22" fill="none"
+                style={{
+                  flexShrink: 0, position: "relative", zIndex: 1,
+                  animation: "livePulseIcon 2s ease-in-out infinite",
+                  // En LAPTOP, con ticket, el punto sube junto con el botón del
+                  // dueño para no quedar detrás del card del ticket, que allí
+                  // sigue viviendo sobre la portada. En celular ese card se movió
+                  // fuera, así que no hay nada que esquivar y el punto se queda
+                  // en el centro.
+                  transform:
+                    !isMobile && (isOwner || isOwnPost) && post.requiresPayment === true
+                      ? "translateY(-28px)"
+                      : undefined,
+                }}
+              >
+                <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
+                <circle cx="11" cy="11" r="6" fill="#ef4444" />
+              </svg>
               {(isOwner || isOwnPost) && post.postType === "live" && (
-                <div style={{ position: "absolute", top: post.requiresPayment === true ? (isMobile ? "57%" : "calc(50% + 10px)") : (isMobile ? "62%" : "calc(50% + 38px)"), left: "50%", transform: isMobile ? "translate(-50%, -50%)" : "translateX(-50%)", zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <div style={{
+                  position: "absolute",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  // ⚠️ En celular, con ticket, el botón se ancla al BORDE INFERIOR
+                  // de la portada, no a un porcentaje. El punto rojo está centrado
+                  // y mide 52: con un porcentaje, en una portada corta el botón le
+                  // caía encima igualmente, porque el 68% de poca altura sigue
+                  // estando cerca del centro. Anclado abajo queda debajo del punto
+                  // mida lo que mida la portada.
+                  ...(isMobile && post.requiresPayment === true
+                    ? { bottom: 14 }
+                    : {
+                        top: post.requiresPayment === true
+                          ? "calc(50% + 10px)"
+                          : (isMobile ? "62%" : "calc(50% + 38px)"),
+                        ...(isMobile ? { transform: "translate(-50%, -50%)" } : {}),
+                      }),
+                  zIndex: 2,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 8,
+                }}>
                   {(activeLiveData?.liveStreamId || activeLiveData?.broadcastMode) ? (
                     <>
                       <button
@@ -3295,8 +3322,12 @@ style={{
             {isLiveBlockedByTicket ? tFeed("streamStarted") : tFeed("waitingStart")}
           </div>
 
-          {/* Ticket overlay — parte inferior de la portada */}
-          {post.requiresPayment === true && !liveAccessBlocked && (
+          {/* Ticket overlay — parte inferior de la portada.
+              SOLO en laptop. En celular el botón de comprar vive fuera de la
+              portada, y dejar el aviso encima del video separaba las dos mitades
+              del mismo mensaje: el precio arriba, tapando la imagen, y el botón
+              abajo. Ahora el aviso baja a acompañar a su botón. */}
+          {!isMobile && post.requiresPayment === true && !liveAccessBlocked && (
             <LiveTicketPanel
               ticketPrice={post.oneTimePrice ?? activeLiveData?.ticketPrice ?? null}
               isAuthor={isOwnPost || isOwner}
@@ -3349,6 +3380,23 @@ style={{
           </svg>
           {tPosts("liveTicketBuyForPrice", { price: (post.oneTimePrice ?? activeLiveData?.ticketPrice) ? priceFmt.formatWithTax((post.oneTimePrice ?? activeLiveData?.ticketPrice ?? 0) + FIXED_SERVICE_FEE_USD, { baseCurrency: post.currency ?? activeLiveData?.currency ?? SETTLEMENT_CURRENCY }).total : tPosts("liveTicketPriceUndefined") })}
         </button>
+      )}
+
+      {/* El aviso del ticket, DEBAJO de su botón. En celular no va sobre la
+          portada: ahí tapaba el video y quedaba lejos del botón que lo resuelve. */}
+      {isMobile && post.requiresPayment === true && !liveAccessBlocked && (
+        <div style={{ marginTop: -2, marginBottom: 12 }}>
+          <LiveTicketPanel
+            ticketPrice={post.oneTimePrice ?? activeLiveData?.ticketPrice ?? null}
+            isAuthor={isOwnPost || isOwner}
+            onBuyTicket={() => { if (!ensureSignedInToPay()) return; livePaidRef.current = false; setLivePayOpen(true); }}
+            highlighted={liveTicketShake}
+            paid={hasLiveTicketAccess}
+            memberFree={memberHasFreeAccess}
+            unlockCount={post.liveTicketCount ?? 0}
+            isMobile={isMobile}
+          />
+        </div>
       )}
       {/* Title */}
       {activeLiveData?.title && (

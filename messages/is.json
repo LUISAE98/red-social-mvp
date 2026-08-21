@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Fjarlægja myndband",
     "imagesLabel": "Myndir",
     "removeImageAria": "Fjarlægja mynd",
-    "addImagesButton": "Bæta við myndum"
+    "addImagesButton": "Bæta við myndum",
+    "liveTicketAccessCount": "{count, plural, one {# aðili hefur aðgang að þessari útsendingu} other {# aðilar hafa aðgang að þessari útsendingu}}",
+    "premiumViewedCount": "{count, plural, one {# aðili hefur þegar séð þessa færslu} other {# aðilar hafa þegar séð þessa færslu}}",
+    "liveTicketAuthorTitleShort": "Útsending með miða"
   },
   "wallet": {
     "onboardingTitle": "Breyttu ástríðunni þinni í nýjar leiðir til að <vibra>tengjast</vibra>",

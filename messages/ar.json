@@ -1067,7 +1067,10 @@
     "removeVideoAria": "إزالة الفيديو",
     "imagesLabel": "الصور",
     "removeImageAria": "إزالة الصورة",
-    "addImagesButton": "إضافة صور"
+    "addImagesButton": "إضافة صور",
+    "liveTicketAccessCount": "{count, plural, zero {لا أحد لديه إمكانية الوصول إلى هذا البث} one {شخص واحد لديه إمكانية الوصول إلى هذا البث} two {شخصان لديهما إمكانية الوصول إلى هذا البث} few {# أشخاص لديهم إمكانية الوصول إلى هذا البث} many {# شخصًا لديهم إمكانية الوصول إلى هذا البث} other {# شخص لديه إمكانية الوصول إلى هذا البث}}",
+    "premiumViewedCount": "{count, plural, zero {لم يشاهد أحد هذا المنشور بعد} one {شخص واحد شاهد هذا المنشور} two {شخصان شاهدا هذا المنشور} few {# أشخاص شاهدوا هذا المنشور} many {# شخصًا شاهدوا هذا المنشور} other {# شخص شاهد هذا المنشور}}",
+    "liveTicketAuthorTitleShort": "بث بتذكرة"
   },
   "wallet": {
     "onboardingTitle": "حوّل شغفك إلى طرق جديدة لـ<vibra>التواصل</vibra>",

@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Video entfernen",
     "imagesLabel": "Bilder",
     "removeImageAria": "Bild entfernen",
-    "addImagesButton": "Bilder hinzufügen"
+    "addImagesButton": "Bilder hinzufügen",
+    "liveTicketAccessCount": "{count, plural, one {# Person hat Zugang zu diesem Stream} other {# Personen haben Zugang zu diesem Stream}}",
+    "premiumViewedCount": "{count, plural, one {# Person hat diesen Beitrag schon gesehen} other {# Personen haben diesen Beitrag schon gesehen}}",
+    "liveTicketAuthorTitleShort": "Stream mit Ticket"
   },
   "wallet": {
     "onboardingTitle": "Mach deine Leidenschaft zu neuen Wegen, dich zu <vibra>verbinden</vibra>",

@@ -81,22 +81,6 @@ export function SidebarMessagesIcon({ size = 18, strokeWidth = 1.75 }: IconProps
   );
 }
 
-// Experiencias — estrella de 5 puntas
-export function SidebarExperiencesIcon({ size = 18, strokeWidth = 1.75 }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" style={BASE} aria-hidden>
-      <path
-        d="M12 4L14.1 9.2L19.6 9.5L15.3 13.1L16.7 18.5L12 15.5L7.3 18.5L8.7 13.1L4.4 9.5L9.9 9.2Z"
-        fill="none"
-        stroke={g}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 // Configuración — MISMO engrane que el subnav del perfil (VibraSubNavIcons →
 // `settings`), para que el ajuste se vea igual en los dos lugares donde vive.
 // Aquí el color es un parámetro porque el módulo del sidebar lo pide en blanco;
@@ -132,17 +116,6 @@ export function SidebarSettingsIcon({
           strokeLinejoin="round"
         />
       </g>
-    </svg>
-  );
-}
-
-// Reloj — usado en Historial de wallet
-export function SidebarClockIcon({ size = 18, strokeWidth = 1.75 }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" style={BASE} aria-hidden>
-      <circle cx="12" cy="12" r="8.2" fill="none" stroke={g} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M12 7.5V12.5" fill="none" stroke={g} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M12 12.5L15.2 14.3" fill="none" stroke={g} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

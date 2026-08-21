@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Ta bort video",
     "imagesLabel": "Bilder",
     "removeImageAria": "Ta bort bild",
-    "addImagesButton": "Lägg till bilder"
+    "addImagesButton": "Lägg till bilder",
+    "liveTicketAccessCount": "{count, plural, one {# person har tillgång till den här sändningen} other {# personer har tillgång till den här sändningen}}",
+    "premiumViewedCount": "{count, plural, one {# person har redan sett det här inlägget} other {# personer har redan sett det här inlägget}}",
+    "liveTicketAuthorTitleShort": "Sändning med biljett"
   },
   "wallet": {
     "onboardingTitle": "Gör din passion till nya sätt att <vibra>knyta kontakt</vibra>",

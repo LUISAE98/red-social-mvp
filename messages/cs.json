@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Odebrat video",
     "imagesLabel": "Obrázky",
     "removeImageAria": "Odebrat obrázek",
-    "addImagesButton": "Přidat obrázky"
+    "addImagesButton": "Přidat obrázky",
+    "liveTicketAccessCount": "{count, plural, one {# člověk má přístup k tomuto vysílání} few {# lidé mají přístup k tomuto vysílání} other {# lidí má přístup k tomuto vysílání}}",
+    "premiumViewedCount": "{count, plural, one {# člověk už viděl tento příspěvek} few {# lidé už viděli tento příspěvek} other {# lidí už vidělo tento příspěvek}}",
+    "liveTicketAuthorTitleShort": "Vysílání se vstupenkou"
   },
   "wallet": {
     "onboardingTitle": "Proměň to, co tě baví, v nové způsoby, jak se <vibra>spojit</vibra>",

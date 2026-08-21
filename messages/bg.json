@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Премахни видеото",
     "imagesLabel": "Изображения",
     "removeImageAria": "Премахни изображението",
-    "addImagesButton": "Добави изображения"
+    "addImagesButton": "Добави изображения",
+    "liveTicketAccessCount": "{count, plural, one {# човек има достъп до това предаване} other {# души имат достъп до това предаване}}",
+    "premiumViewedCount": "{count, plural, one {# човек вече видя тази публикация} other {# души вече видяха тази публикация}}",
+    "liveTicketAuthorTitleShort": "Предаване с билет"
   },
   "wallet": {
     "onboardingTitle": "Превърни страстта си в нови начини да се <vibra>свързваш</vibra>",

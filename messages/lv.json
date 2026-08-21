@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Noņemt video",
     "imagesLabel": "Attēli",
     "removeImageAria": "Noņemt attēlu",
-    "addImagesButton": "Pievienot attēlus"
+    "addImagesButton": "Pievienot attēlus",
+    "liveTicketAccessCount": "{count, plural, zero {# cilvēku ir piekļuve šai pārraidei} one {# cilvēkam ir piekļuve šai pārraidei} other {# cilvēkiem ir piekļuve šai pārraidei}}",
+    "premiumViewedCount": "{count, plural, zero {# cilvēku jau redzējuši šo ierakstu} one {# cilvēks jau redzējis šo ierakstu} other {# cilvēki jau redzējuši šo ierakstu}}",
+    "liveTicketAuthorTitleShort": "Pārraide ar biļeti"
   },
   "wallet": {
     "onboardingTitle": "Pārvērt savu aizraušanos jaunos veidos, kā <vibra>veidot saikni</vibra>",

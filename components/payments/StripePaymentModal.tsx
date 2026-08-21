@@ -125,6 +125,14 @@ const ID_CVC = "vibra-stripe-card-cvc";
 
 const BLUE = "#009ee3";
 // 💵 USD. Respaldo para cuando el creador no configuró sus propios montos sugeridos.
+/**
+ * Montos sugeridos cuando quien invoca el modal no trae los suyos.
+ *
+ * La donación de PERFIL pasa los que el creador configuró; la de LIVE usa estos. ⚠️ El
+ * live los tenía repetidos a mano con estos mismos valores, así que cambiar aquí no le
+ * habría llegado. Si algún día el live debe respetar también los del creador, el cambio
+ * es pasarle `donationPresets`, no volver a escribir la lista.
+ */
 const DEFAULT_DONATION_PRESETS_USD = [3, 7, 15, 30];
 
 const STRIPE_STYLE = {
@@ -628,15 +636,23 @@ export default function StripePaymentModal({
     setSubmitting(true);
     setError(null);
     // Marca el pago como exitoso (pantalla verde o cierre, según successMessage).
+    //
+    // ⚠️ La pantalla verde se pone en el MISMO tick que `onPaid`, no 300 ms después.
+    // Antes había un hueco: `onPaid` ya había cambiado el contenido de debajo —el candado
+    // se abría, el precio desaparecía— mientras el formulario seguía desvaneciéndose, así
+    // que durante ese tercio de segundo se veía asomar otro panel bajo el que se iba.
+    //
+    // No se retrasa `onPaid` para cerrar el hueco por el otro lado: si el modal se
+    // desmontara dentro de esos 300 ms, el aviso del pago no llegaría nunca y el padre se
+    // quedaría sin enterarse de una compra ya cobrada. La transición no se pierde: la
+    // tarjeta verde entra con su propia animación de aparición.
     const markPaid = (resultStatus?: string) => {
       setWasHold(resultStatus === "requires_capture");
       if (successMessage || holdSuccessMessage) {
         setPaid(true);
-        onPaidRef.current();
-        window.setTimeout(() => setShowSuccess(true), 300);
-      } else {
-        onPaidRef.current();
+        setShowSuccess(true);
       }
+      onPaidRef.current();
     };
     try {
       // El SALDO A FAVOR cubre el 100%: sin tarjeta. El backend materializa la compra
@@ -1209,7 +1225,10 @@ export default function StripePaymentModal({
             : { position: "relative", width: isNarrow || forceStacked ? "min(100%, 440px)" : "min(100%, 660px)", maxHeight: "92vh", overflowY: "auto", background: "#fff", borderRadius: 16, boxShadow: "0 24px 72px rgba(0,0,0,0.4)", color: "#3a3f4a", opacity: entered ? 1 : 0, transform: entered ? "translateY(0) scale(1)" : "translateY(10px) scale(0.985)", transition: "opacity 220ms ease, transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "opacity, transform" }}>
         <style>{keyframes}</style>
         {showSuccess ? successView : autoPaying ? processingView : countryBlocked ? blockedNotice : (
-          <div style={{ opacity: paid ? 0 : 1, transition: "opacity 280ms ease" }}>
+          <div>
+            {/* Sin desvanecido: al cobrar, `paid` y `showSuccess` se ponen en el mismo
+                tick, así que esta rama ya no llega a pintarse con el pago hecho. Una
+                opacidad atada a `paid` haría creer que hay una transición que no ocurre. */}
             <div style={{ display: "grid", gridTemplateColumns: stacked ? "1fr" : "1.05fr 1fr", alignItems: "stretch" }}>
               {leftColumn}
               {rightColumn}

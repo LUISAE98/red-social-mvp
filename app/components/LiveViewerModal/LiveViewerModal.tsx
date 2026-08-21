@@ -36,7 +36,7 @@ import TaxNote from "@/components/payments/TaxNote";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import { createLiveAccessStripeIntent, createLiveDonationStripeIntent } from "@/lib/stripe/stripePayments";
 import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
-import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, DONATION_MIN_AMOUNT_USD } from "@/lib/currency/catalog";
 import {
   DonationPanel, CHAT_FLOAT_W, FONT, VOD_PLAYBACK_RATES,
   desktopHorizontalSize, desktopStorySize,
@@ -66,10 +66,14 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const tPosts = useTranslations("posts");
   const pf = usePriceFormat();
   const formatMoney = pf.format;
-  // Monto que MUESTRA una donación/súper comentario = total que pagó el fan (base + $3 +
-  // IVA) en MXN. `baseCurrency:"MXN"` evita el bug ×FX (tratar el MXN como USD → 1095).
-  const fanPaidTotal = (baseMxn: number) =>
-    pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total;
+  // Lo que MUESTRA una donación o un súper comentario es el total que pagó el fan: la base
+  // del creador más el cargo fijo, la conversión y el impuesto.
+  //
+  // ⚠️ La base se interpreta SIEMPRE en la moneda de liquidación. Fiarse de la moneda
+  // guardada en el documento traería de vuelta el fallo de multiplicar por el tipo de
+  // cambio un importe que ya estaba en dólares.
+  const fanPaidTotal = (base: number) =>
+    pf.formatWithTax(base + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total;
   const { user } = useAuth();
   const { relationship, follow } = useSocialRelationship(user?.uid ?? null, post.authorId ?? null);
   const showFollowBtn = !!user && !!post.authorId && user.uid !== post.authorId && !relationship.isFollowing;
@@ -2230,7 +2234,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       amount={null}
       amountCurrency={SETTLEMENT_CURRENCY}
       amountEditable
-      donationPresets={[3, 7, 15, 30]}
+      minBaseAmount={DONATION_MIN_AMOUNT_USD}
       donationCustomInclusive
       createIntent={async (args) => {
         liveDonatePaidAmountRef.current = args.amount ?? null;

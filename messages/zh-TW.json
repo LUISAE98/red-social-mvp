@@ -1067,7 +1067,10 @@
     "removeVideoAria": "移除影片",
     "imagesLabel": "圖片",
     "removeImageAria": "移除圖片",
-    "addImagesButton": "新增圖片"
+    "addImagesButton": "新增圖片",
+    "liveTicketAccessCount": "{count, plural, other {# 人可以觀看這場直播}}",
+    "premiumViewedCount": "{count, plural, other {已有 # 人看過這則貼文}}",
+    "liveTicketAuthorTitleShort": "售票直播"
   },
   "wallet": {
     "onboardingTitle": "把你的熱情變成全新的<vibra>連結方式</vibra>",

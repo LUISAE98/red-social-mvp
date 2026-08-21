@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Видеог хасах",
     "imagesLabel": "Зургууд",
     "removeImageAria": "Зургийг хасах",
-    "addImagesButton": "Зураг нэмэх"
+    "addImagesButton": "Зураг нэмэх",
+    "liveTicketAccessCount": "{count, plural, one {# хүн энэ нэвтрүүлэгт нэвтрэх эрхтэй} other {# хүн энэ нэвтрүүлэгт нэвтрэх эрхтэй}}",
+    "premiumViewedCount": "{count, plural, one {# хүн энэ нийтлэлийг үзсэн} other {# хүн энэ нийтлэлийг үзсэн}}",
+    "liveTicketAuthorTitleShort": "Тасалбартай нэвтрүүлэг"
   },
   "wallet": {
     "onboardingTitle": "Хүсэл тэмүүллээ <vibra>холбогдох</vibra> шинэ арга болго",

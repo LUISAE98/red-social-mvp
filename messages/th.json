@@ -1067,7 +1067,10 @@
     "removeVideoAria": "ลบวิดีโอ",
     "imagesLabel": "รูปภาพ",
     "removeImageAria": "ลบรูปภาพ",
-    "addImagesButton": "เพิ่มรูปภาพ"
+    "addImagesButton": "เพิ่มรูปภาพ",
+    "liveTicketAccessCount": "{count, plural, other {มี # คนเข้าถึงการถ่ายทอดนี้ได้}}",
+    "premiumViewedCount": "{count, plural, other {มี # คนเห็นโพสต์นี้แล้ว}}",
+    "liveTicketAuthorTitleShort": "ถ่ายทอดแบบมีบัตร"
   },
   "wallet": {
     "onboardingTitle": "เปลี่ยนสิ่งที่คุณรักให้เป็นวิธีใหม่ ๆ ในการ<vibra>เชื่อมต่อ</vibra>",

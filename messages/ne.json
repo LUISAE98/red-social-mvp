@@ -1067,7 +1067,10 @@
     "removeVideoAria": "भिडियो हटाउनुहोस्",
     "imagesLabel": "छविहरू",
     "removeImageAria": "छवि हटाउनुहोस्",
-    "addImagesButton": "छविहरू थप्नुहोस्"
+    "addImagesButton": "छविहरू थप्नुहोस्",
+    "liveTicketAccessCount": "{count, plural, one {# जनासँग यो प्रसारणको पहुँच छ} other {# जनासँग यो प्रसारणको पहुँच छ}}",
+    "premiumViewedCount": "{count, plural, one {# जनाले यो पोस्ट हेरिसके} other {# जनाले यो पोस्ट हेरिसके}}",
+    "liveTicketAuthorTitleShort": "टिकट भएको प्रसारण"
   },
   "wallet": {
     "onboardingTitle": "आफ्नो रुचिलाई <vibra>जोडिने</vibra> नयाँ तरिकाहरूमा परिणत गर्नुहोस्",

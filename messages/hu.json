@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Videó eltávolítása",
     "imagesLabel": "Képek",
     "removeImageAria": "Kép eltávolítása",
-    "addImagesButton": "Képek hozzáadása"
+    "addImagesButton": "Képek hozzáadása",
+    "liveTicketAccessCount": "{count, plural, one {# személy fér hozzá ehhez az adáshoz} other {# személy fér hozzá ehhez az adáshoz}}",
+    "premiumViewedCount": "{count, plural, one {# személy már látta ezt a bejegyzést} other {# személy már látta ezt a bejegyzést}}",
+    "liveTicketAuthorTitleShort": "Adás jeggyel"
   },
   "wallet": {
     "onboardingTitle": "Alakítsd a szenvedélyed új módokká, hogy <vibra>kapcsolódj</vibra>",

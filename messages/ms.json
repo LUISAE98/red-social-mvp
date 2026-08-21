@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Buang video",
     "imagesLabel": "Imej",
     "removeImageAria": "Buang imej",
-    "addImagesButton": "Tambah imej"
+    "addImagesButton": "Tambah imej",
+    "liveTicketAccessCount": "{count, plural, other {# orang mempunyai akses ke siaran ini}}",
+    "premiumViewedCount": "{count, plural, other {# orang sudah melihat kiriman ini}}",
+    "liveTicketAuthorTitleShort": "Siaran bertiket"
   },
   "wallet": {
     "onboardingTitle": "Ubah minat anda menjadi cara baharu untuk <vibra>berhubung</vibra>",

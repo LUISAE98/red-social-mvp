@@ -64,16 +64,6 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 export const FONT = 'inherit';
 export const DIV = "1px solid rgba(255,255,255,0.12)";
 
-export const STATUS_LABEL_KEYS: Record<string, string> = {
-  draft: "statusDraft",
-  scheduled: "statusScheduled",
-  upcoming: "statusUpcoming",
-  live: "statusLive",
-  ended: "statusEnded",
-  cancelled: "statusCancelled",
-  error: "statusError",
-};
-
 export type Props = {
   open: boolean;
   onClose: () => void;

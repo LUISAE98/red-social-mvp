@@ -1067,7 +1067,10 @@
     "removeVideoAria": "ވީޑިއޯ ނަގާ",
     "imagesLabel": "ފޮޓޯތައް",
     "removeImageAria": "ފޮޓޯ ނަގާ",
-    "addImagesButton": "ފޮޓޯ އިތުރުކުރައްވާ"
+    "addImagesButton": "ފޮޓޯ އިތުރުކުރައްވާ",
+    "liveTicketAccessCount": "{count, plural, one {# މީހަކަށް މި ފޮނުވުމަށް ވަދެވޭ} other {# މީހުންނަށް މި ފޮނުވުމަށް ވަދެވޭ}}",
+    "premiumViewedCount": "{count, plural, one {# މީހަކު މި ޕޯސްޓް ބަލައިފި} other {# މީހުން މި ޕޯސްޓް ބަލައިފި}}",
+    "liveTicketAuthorTitleShort": "ޓިކެޓާއެކު ފޮނުވުން"
   },
   "wallet": {
     "onboardingTitle": "ތިޔަބޭފުޅާގެ ޝައުޤުވެރިކަން <vibra>ގުޅުމުގެ</vibra> އައު މަގުތަކަކަށް ބަދަލުކުރައްވާ",

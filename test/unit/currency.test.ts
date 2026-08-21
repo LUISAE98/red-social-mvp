@@ -16,6 +16,7 @@ import {
   FX_CONVERSION_FEE,
   DONATION_MIN_AMOUNT_USD,
   PREMIUM_MIN_PRICE_USD,
+  LIVE_TICKET_MIN_PRICE_USD,
   FIXED_SERVICE_FEE_USD,
   displayCurrencyForCountry,
   isDisplayCurrency,
@@ -271,6 +272,32 @@ describe("mínimos de dinero — frontend y backend no pueden separarse", () => 
     const m = leerLedger().match(/export const DONATION_MIN_AMOUNT_USD = ([\d.]+);/);
     expect(m, "no se encontró DONATION_MIN_AMOUNT_USD en backend/src/wallet/ledger.ts").not.toBeNull();
     expect(Number(m![1])).toBe(DONATION_MIN_AMOUNT_USD);
+  });
+
+  it("los niveles de supercomentario coinciden en frontend y backend", () => {
+    // El backend resuelve el precio del COBRO y el frontend solo lo muestra. Si se
+    // separan, el fan ve un precio y paga otro — que es justo lo que advierte el
+    // comentario de `DEFAULT_TIERS`, hasta ahora sin nada que lo comprobara.
+    const precios = (texto: string) =>
+      Array.from(texto.matchAll(/id: "(t[0-9])",[^}]*?price: ([0-9.]+)/g)).map(
+        (m) => `${m[1]}:${m[2]}`
+      );
+    const leer = (rel: string) =>
+      readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+    const back = precios(
+      leer("../../backend/src/payments/stripe/superCommentStripeIntent.ts")
+    );
+    const front = precios(leer("../../lib/liveChat/types.ts"));
+    expect(back.length, "no se encontraron niveles en el backend").toBeGreaterThan(0);
+    expect(front).toEqual(back);
+  });
+
+  it("LIVE_TICKET_MIN_PRICE_USD coincide en catálogo y ledger", () => {
+    // El cobro del ticket valida contra el del ledger; el composer, contra el del
+    // catálogo. Si se separan, el creador publica una entrada que el servidor rechaza.
+    const m = leerLedger().match(/export const LIVE_TICKET_MIN_PRICE_USD = ([0-9.]+);/);
+    expect(m, "no se encontró LIVE_TICKET_MIN_PRICE_USD en backend/src/wallet/ledger.ts").not.toBeNull();
+    expect(Number(m![1])).toBe(LIVE_TICKET_MIN_PRICE_USD);
   });
 
   it("PREMIUM_MIN_PRICE_USD coincide en catálogo y ledger", () => {

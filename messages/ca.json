@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Treu el vídeo",
     "imagesLabel": "Imatges",
     "removeImageAria": "Treu la imatge",
-    "addImagesButton": "Afegeix imatges"
+    "addImagesButton": "Afegeix imatges",
+    "liveTicketAccessCount": "{count, plural, one {# persona té accés a aquesta transmissió} other {# persones tenen accés a aquesta transmissió}}",
+    "premiumViewedCount": "{count, plural, one {# persona ja ha vist aquesta publicació} other {# persones ja han vist aquesta publicació}}",
+    "liveTicketAuthorTitleShort": "Transmissió amb tiquet"
   },
   "wallet": {
     "onboardingTitle": "Converteix la teva passió en noves maneres de <vibra>connectar</vibra>",

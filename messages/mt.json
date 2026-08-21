@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Neħħi l-vidjo",
     "imagesLabel": "Immaġni",
     "removeImageAria": "Neħħi l-immaġni",
-    "addImagesButton": "Żid immaġni"
+    "addImagesButton": "Żid immaġni",
+    "liveTicketAccessCount": "{count, plural, one {# persuna għandha aċċess għal dan ix-xandir} two {# persuni għandhom aċċess għal dan ix-xandir} few {# persuni għandhom aċċess għal dan ix-xandir} many {# persuni għandhom aċċess għal dan ix-xandir} other {# persuni għandhom aċċess għal dan ix-xandir}}",
+    "premiumViewedCount": "{count, plural, one {# persuna diġà rat din il-post} two {# persuni diġà raw din il-post} few {# persuni diġà raw din il-post} many {# persuni diġà raw din il-post} other {# persuni diġà raw din il-post}}",
+    "liveTicketAuthorTitleShort": "Xandira bil-biljett"
   },
   "wallet": {
     "onboardingTitle": "Ibdel il-passjoni tiegħek f'modi ġodda kif <vibra>tagħmel konnessjoni</vibra>",

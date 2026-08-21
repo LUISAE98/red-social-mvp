@@ -25,51 +25,6 @@ export interface LegalDocMeta {
   sourceFile: string;
 }
 
-export const LEGAL_DOCS: Record<LegalDocId, LegalDocMeta> = {
-  terms: {
-    id: "terms",
-    titleKey: "terms",
-    docNumber: 1,
-    sourceFile: "docs/legal/01-terminos-y-condiciones.md",
-  },
-  privacy: {
-    id: "privacy",
-    titleKey: "privacy",
-    docNumber: 3,
-    sourceFile: "docs/legal/03-aviso-privacidad-integral.md",
-  },
-  cookies: {
-    id: "cookies",
-    titleKey: "cookies",
-    docNumber: 5,
-    sourceFile: "docs/legal/05-politica-cookies.md",
-  },
-  community: {
-    id: "community",
-    titleKey: "community",
-    docNumber: 6,
-    sourceFile: "docs/legal/06-normas-comunidad.md",
-  },
-  refunds: {
-    id: "refunds",
-    titleKey: "refunds",
-    docNumber: 7,
-    sourceFile: "docs/legal/07-politica-reembolsos.md",
-  },
-  ip: {
-    id: "ip",
-    titleKey: "ip",
-    docNumber: 12,
-    sourceFile: "docs/legal/12-propiedad-intelectual-dmca.md",
-  },
-  age: {
-    id: "age",
-    titleKey: "age",
-    docNumber: 13,
-    sourceFile: "docs/legal/13-verificacion-edad.md",
-  },
-};
-
 // Orden en que aparecen los enlaces en el footer del login (audiencia 🌐/❤️,
 // "Completo"). Si más adelante otra superficie necesita otro subconjunto, se
 // define su propio arreglo en vez de reordenar este.

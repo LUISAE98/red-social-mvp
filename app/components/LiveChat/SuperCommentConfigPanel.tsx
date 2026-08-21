@@ -19,7 +19,13 @@ import {
 } from "@/lib/liveChat/types";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
-import { FIXED_SERVICE_FEE_USD, SUPER_COMMENT_MIN_PRICE_USD } from "@/lib/currency/catalog";
+import {
+  FIXED_SERVICE_FEE_LABEL,
+  FIXED_SERVICE_FEE_NOTE,
+  SUPER_COMMENT_MIN_PRICE_USD,
+} from "@/lib/currency/catalog";
+import { formatCurrency } from "@/lib/currency/format";
+import { LocalPriceHint } from "@/components/services/config/serviceConfigKit";
 
 const FONT = "inherit";
 const PANEL_CLOSE_THRESHOLD = 130;
@@ -33,16 +39,15 @@ type Props = {
 export default function SuperCommentConfigPanel({ open, onClose, postId }: Props) {
   const tLive = useTranslations("live");
   const tCommon = useTranslations("common");
-  const {
-    format: formatMoney,
-    toDisplayForInput,
-    currency: displayCurrency,
-  } = usePriceFormat();
+  const pf = usePriceFormat();
+  const displayCurrency = pf.currency;
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
 
   const [scConfig, setScConfig] = useState<SuperCommentConfig>(DEFAULT_SUPER_COMMENT_CONFIG);
+  // Precio más alto configurado, ancla de la referencia en moneda local.
+  const nivelMasCaro = scConfig.tiers.reduce((m, t) => Math.max(m, t.price > 0 ? t.price : 0), 0) || null;
   const [loadingConfig, setLoadingConfig] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [configSaved, setConfigSaved] = useState(false);
@@ -100,7 +105,10 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
         // Colores y CARACTERES por msg. son FIJOS (no editables): se reaplican del default por id.
         const colorMap = Object.fromEntries(DEFAULT_SUPER_COMMENT_TIERS.map((t) => [t.id, t.color]));
         const maxCharsMap = Object.fromEntries(DEFAULT_SUPER_COMMENT_TIERS.map((t) => [t.id, t.maxChars]));
-        // El precio se guarda en MXN; solo eso edita el creador.
+        // ⚠️ El precio guardado NO se convierte: vive en la moneda de liquidación, igual
+        // que el campo. Antes se leía con la moneda del documento —que podía ser "MXN"
+        // de antes del corte— y se pasaba a la de quien mira, así que al reabrir la
+        // configuración el creador se encontraba números distintos de los que puso.
         setScConfig({
           ...cfg,
           tiers: cfg.tiers.map((t) => ({
@@ -109,7 +117,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
             maxChars: maxCharsMap[t.id] ?? t.maxChars,
             price:
               t.price > 0
-                ? Math.round(toDisplayForInput(t.price, cfg.currency ?? SETTLEMENT_CURRENCY) * 100) / 100
+                ? Math.round(t.price * 100) / 100
                 : t.price,
           })),
         });
@@ -141,8 +149,9 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
     setSavingConfig(true);
     setConfigSaved(false);
     try {
-      // Mexico-only: el creador teclea en MXN y se GUARDA TAL CUAL en MXN (sin conversión
-      // a USD). Es la base — el fan paga base + $3 + IVA y el creador recibe 75% de la base.
+      // El creador teclea en la moneda de liquidación y se guarda TAL CUAL. Es la base: el
+      // fan paga base + cargo fijo + conversión + impuesto, y el creador recibe el 75% de
+      // la base.
       const configToSave: SuperCommentConfig = {
         ...scConfig,
         currency: SETTLEMENT_CURRENCY,
@@ -203,12 +212,12 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
               {/* Spacer del aro del tier (alinea con el aro de los renglones). */}
               <div style={{ width: 16, flexShrink: 0 }} />
               <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)", gap: 8 }}>
-                {/* Col 1: "Fan paga" centrado SOBRE el input (spacer invisible del ancho de "+ $3 MXN"). */}
+                {/* Col 1: "Fan paga" centrado SOBRE el input (spacer invisible del ancho del cargo fijo). */}
                 <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT, textAlign: "center" as const }}>
                     {tLive("scConfigFanPays", { currency: displayCurrency })}
                   </span>
-                  <span aria-hidden="true" style={{ visibility: "hidden" as const, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" as const, fontFamily: FONT }}>+ $3 MXN</span>
+                  <span aria-hidden="true" style={{ visibility: "hidden" as const, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" as const, fontFamily: FONT }}>{FIXED_SERVICE_FEE_LABEL}</span>
                 </div>
                 {/* Col 2: "Caracteres por mensaje" en DOS renglones, centrado sobre el número. */}
                 <span style={{ display: "block", maxWidth: 74, margin: "0 auto", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT, textAlign: "center" as const, lineHeight: 1.25 }}>
@@ -217,11 +226,14 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
               </div>
             </div>
             {scConfig.tiers.map((tier) => {
-              // Mexico-only: tier.price es la BASE en MXN (lo que teclea el creador).
-              const priceMxn = tier.price > 0 ? tier.price : 0;
-              const belowMin = priceMxn > 0 && priceMxn < SUPER_COMMENT_MIN_PRICE_USD;
-              const earningsVisible = priceMxn >= SUPER_COMMENT_MIN_PRICE_USD;
-              const creatorEarns = formatMoney(priceMxn * WALLET_NET_RATE, { baseCurrency: SETTLEMENT_CURRENCY, code: true });
+              // `tier.price` es la BASE del creador, en la moneda de liquidación.
+              const base = tier.price > 0 ? tier.price : 0;
+              const belowMin = base > 0 && base < SUPER_COMMENT_MIN_PRICE_USD;
+              const earningsVisible = base >= SUPER_COMMENT_MIN_PRICE_USD;
+              // ⚠️ NO se usa `formatMoney` (= `pf.format`): ese calcula el precio del
+              // COMPRADOR —convierte, suma el 2% y redondea al paso—, así que la ganancia
+              // del creador salía convertida e inflada.
+              const creatorEarns = formatCurrency(base * WALLET_NET_RATE, SETTLEMENT_CURRENCY, pf.locale, { code: true });
               const collapse = "max-height 220ms ease, opacity 220ms ease, transform 220ms ease";
               return (
                 <div key={tier.id} style={{ marginBottom: 14 }}>
@@ -229,7 +241,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
                     {/* Aro del color del tier al inicio del renglón (como en el panel de compra). */}
                     <div style={{ width: 16, height: 16, borderRadius: "50%", border: `2.5px solid ${tier.color}`, flexShrink: 0, boxSizing: "border-box" as const }} />
                     <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)", gap: 8, alignItems: "center" }}>
-                      {/* Col 1: Precio (editable) + "+ $3 MXN" al final. */}
+                      {/* Col 1: Precio (editable) + el cargo fijo al final. */}
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                         <input
                           type="number" min={1} value={tier.price || ""}
@@ -244,7 +256,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
                             boxSizing: "border-box" as const,
                           }}
                         />
-                        <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" as const, fontFamily: FONT }}>+ $3 MXN</span>
+                        <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" as const, fontFamily: FONT }}>{FIXED_SERVICE_FEE_LABEL}</span>
                       </div>
                       {/* Col 2: Caracteres FIJOS (no editables): solo el número, sin caja, centrado. */}
                       <div style={{ textAlign: "center" as const, color: "rgba(255,255,255,0.55)", fontSize: 13, fontFamily: FONT }}>
@@ -273,8 +285,15 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
           </div>
           {/* Leyenda del cargo fijo de Stripe (aplica a todos los tiers). */}
           <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", fontFamily: FONT, marginBottom: 12, lineHeight: 1.5 }}>
-            Se suman ${FIXED_SERVICE_FEE_USD} MXN por el cargo de procesamiento de Stripe.
+            {FIXED_SERVICE_FEE_NOTE}
           </div>
+
+          {/* Referencia en la moneda del creador, el mismo componente que usan las
+              experiencias, el composer premium, el VOD y el ticket de live. Se toma el nivel
+              MÁS CARO como ancla: con cinco precios en pantalla, repetir la referencia en
+              cada renglón sería ruido, y el más alto es el que mejor le dice de qué tamaño
+              son sus precios. */}
+          <LocalPriceHint value={nivelMasCaro} netRate={WALLET_NET_RATE} />
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: FONT, lineHeight: 1.5 }}>
             {tLive("scConfigSavedNote")}
           </div>

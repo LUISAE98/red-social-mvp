@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Alisin ang video",
     "imagesLabel": "Mga larawan",
     "removeImageAria": "Alisin ang larawan",
-    "addImagesButton": "Magdagdag ng larawan"
+    "addImagesButton": "Magdagdag ng larawan",
+    "liveTicketAccessCount": "{count, plural, one {# tao ang may access sa stream na ito} other {# tao ang may access sa stream na ito}}",
+    "premiumViewedCount": "{count, plural, one {# tao na ang nakakita sa post na ito} other {# tao na ang nakakita sa post na ito}}",
+    "liveTicketAuthorTitleShort": "Stream na may ticket"
   },
   "wallet": {
     "onboardingTitle": "Gawing bagong paraan ng <vibra>pagkonekta</vibra> ang hilig mo",

@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Odstrani video",
     "imagesLabel": "Slike",
     "removeImageAria": "Odstrani sliko",
-    "addImagesButton": "Dodaj slike"
+    "addImagesButton": "Dodaj slike",
+    "liveTicketAccessCount": "{count, plural, one {# oseba ima dostop do tega prenosa} two {# osebi imata dostop do tega prenosa} few {# osebe imajo dostop do tega prenosa} other {# oseb ima dostop do tega prenosa}}",
+    "premiumViewedCount": "{count, plural, one {# oseba je to objavo že videla} two {# osebi sta to objavo že videli} few {# osebe so to objavo že videle} other {# oseb je to objavo že videlo}}",
+    "liveTicketAuthorTitleShort": "Prenos z vstopnico"
   },
   "wallet": {
     "onboardingTitle": "Spremeni to, kar te veseli, v nove načine <vibra>povezovanja</vibra>",

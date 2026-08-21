@@ -88,11 +88,15 @@ export default function SuperCommentModal({
   const creditState = useBuyerCredit(isGuest ? null : (userId ?? null));
   const creditBalance = isGuest ? 0 : creditState.balance;
   const [useCredit, setUseCredit] = useState(false);
-  const tierTotalMxn = selectedTier
+  // Total del nivel en la moneda de LIQUIDACIÓN, que es en la que vive el saldo a favor.
+  // ⚠️ Se llamaba `tierTotalMxn`. El nombre venía de la época del peso y ya no describía
+  // lo que hay dentro: un nombre así invita a tratarlo como pesos y a multiplicarlo por el
+  // tipo de cambio, que es exactamente el fallo que se ha estado limpiando.
+  const totalDelNivel = selectedTier
     ? Math.round(((selectedTier.price + FIXED_SERVICE_FEE_USD) * (1 + pf.taxRate) + Number.EPSILON) * 100) / 100
     : 0;
-  const creditApplied = useCredit && creditBalance > 0 ? Math.min(creditBalance, tierTotalMxn) : 0;
-  const creditCoversAll = useCredit && creditBalance > 0 && selectedTier != null && creditBalance >= tierTotalMxn;
+  const creditApplied = useCredit && creditBalance > 0 ? Math.min(creditBalance, totalDelNivel) : 0;
+  const creditCoversAll = useCredit && creditBalance > 0 && selectedTier != null && creditBalance >= totalDelNivel;
   // Error del pago directo (un clic, sin pasarela). Se muestra en rojo sobre Enviar.
   const [directError, setDirectError] = useState<string | null>(null);
   // Animación de entrada/salida por transform (no keyframes: más fiable en el 1er montaje).

@@ -1067,7 +1067,10 @@
     "removeVideoAria": "වීඩියෝව ඉවත් කරන්න",
     "imagesLabel": "රූප",
     "removeImageAria": "රූපය ඉවත් කරන්න",
-    "addImagesButton": "රූප එක් කරන්න"
+    "addImagesButton": "රූප එක් කරන්න",
+    "liveTicketAccessCount": "{count, plural, one {පුද්ගලයන් # දෙනෙකුට මෙම විකාශයට ප්‍රවේශය ඇත} other {පුද්ගලයන් # දෙනෙකුට මෙම විකාශයට ප්‍රවේශය ඇත}}",
+    "premiumViewedCount": "{count, plural, one {පුද්ගලයන් # දෙනෙකු මෙම පළකිරීම දැක ඇත} other {පුද්ගලයන් # දෙනෙකු මෙම පළකිරීම දැක ඇත}}",
+    "liveTicketAuthorTitleShort": "ටිකට් සහිත විකාශය"
   },
   "wallet": {
     "onboardingTitle": "ඔබේ ආශාව <vibra>සම්බන්ධ වීමේ</vibra> නව මාර්ග බවට පත් කරන්න",

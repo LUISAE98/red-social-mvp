@@ -472,19 +472,6 @@ export function PlaceholderRow({
   );
 }
 
-export function EmptyRows({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <PlaceholderRow title={title} subtitle={subtitle} meta="Vacío" />
-    </div>
-  );
-}
 function buildRowSubtitle(row: WalletServiceItem, labels: {
   sourceLabel: string | null;
   forTarget: string;

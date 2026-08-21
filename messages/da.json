@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Fjern video",
     "imagesLabel": "Billeder",
     "removeImageAria": "Fjern billede",
-    "addImagesButton": "Tilføj billeder"
+    "addImagesButton": "Tilføj billeder",
+    "liveTicketAccessCount": "{count, plural, one {# person har adgang til denne udsendelse} other {# personer har adgang til denne udsendelse}}",
+    "premiumViewedCount": "{count, plural, one {# person har allerede set dette opslag} other {# personer har allerede set dette opslag}}",
+    "liveTicketAuthorTitleShort": "Udsendelse med billet"
   },
   "wallet": {
     "onboardingTitle": "Gør din passion til nye måder at <vibra>skabe kontakt</vibra> på",

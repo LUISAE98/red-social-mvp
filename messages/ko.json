@@ -1067,7 +1067,10 @@
     "removeVideoAria": "동영상 제거",
     "imagesLabel": "이미지",
     "removeImageAria": "이미지 제거",
-    "addImagesButton": "이미지 추가"
+    "addImagesButton": "이미지 추가",
+    "liveTicketAccessCount": "{count, plural, other {#명이 이 방송에 접근할 수 있어요}}",
+    "premiumViewedCount": "{count, plural, other {#명이 이 게시물을 이미 봤어요}}",
+    "liveTicketAuthorTitleShort": "티켓제 방송"
   },
   "wallet": {
     "onboardingTitle": "당신의 열정을 새로운 <vibra>연결</vibra>의 방법으로",

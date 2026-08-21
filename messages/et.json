@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Eemalda video",
     "imagesLabel": "Pildid",
     "removeImageAria": "Eemalda pilt",
-    "addImagesButton": "Lisa pilte"
+    "addImagesButton": "Lisa pilte",
+    "liveTicketAccessCount": "{count, plural, one {# inimesel on juurdepääs sellele ülekandele} other {# inimesel on juurdepääs sellele ülekandele}}",
+    "premiumViewedCount": "{count, plural, one {# inimene on seda postitust juba näinud} other {# inimest on seda postitust juba näinud}}",
+    "liveTicketAuthorTitleShort": "Piletiga ülekanne"
   },
   "wallet": {
     "onboardingTitle": "Muuda oma kirg uuteks viisideks <vibra>sidemeid luua</vibra>",

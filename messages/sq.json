@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Hiq videon",
     "imagesLabel": "Imazhe",
     "removeImageAria": "Hiq imazhin",
-    "addImagesButton": "Shto imazhe"
+    "addImagesButton": "Shto imazhe",
+    "liveTicketAccessCount": "{count, plural, one {# person ka qasje në këtë transmetim} other {# persona kanë qasje në këtë transmetim}}",
+    "premiumViewedCount": "{count, plural, one {# person e ka parë tashmë këtë postim} other {# persona e kanë parë tashmë këtë postim}}",
+    "liveTicketAuthorTitleShort": "Transmetim me biletë"
   },
   "wallet": {
     "onboardingTitle": "Kthe pasionin tënd në mënyra të reja për t'u <vibra>lidhur</vibra>",

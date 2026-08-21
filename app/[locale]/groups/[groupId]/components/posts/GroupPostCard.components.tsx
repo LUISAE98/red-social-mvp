@@ -377,7 +377,10 @@ export function LiveTicketPanel({
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontSize: 12.5, fontWeight: 600, color: titleColor, lineHeight: 1.3, fontFamily: fontStack }}>
           {isAuthor
-            ? tPosts("liveTicketAuthorTitle")
+            // En celular, la frase larga parte en dos renglones y descuadra el
+            // aviso, que ahí ya vive fuera de la portada y compite por el ancho
+            // con el contador de accesos. En laptop hay sitio y se queda.
+            ? tPosts(isMobile ? "liveTicketAuthorTitleShort" : "liveTicketAuthorTitle")
             : isPaid ? tPosts("liveTicketPaidTitle")
             : isMemberFree ? tPosts("liveTicketMemberFreeTitle")
             : tPosts("liveTicketRequiredTitle")}
@@ -402,14 +405,22 @@ export function LiveTicketPanel({
         </div>
       )}
 
-      {/* Igual que en post premium y VOD: quien ya tiene su entrada no necesita botón, y
-          ese hueco quedaba vacío. Se le dice cuánta gente más la compró. Un solo renglón,
-          alineado abajo. Sin ventas no se enseña. */}
-      {isPaid && !isMobile && unlockCount > 0 && (
+      {/* Igual que en post premium y VOD: quien ya tiene su entrada no necesita
+          botón, y ese hueco quedaba vacío. Se le dice cuánta gente más tiene
+          acceso, que es lo que de verdad le interesa a quien ya pagó: con
+          cuántos va a compartir la transmisión. Sin ventas no se enseña.
+
+          En CELULAR también, ahora que el aviso vive fuera de la portada: ahí ya
+          no compite con el video, y el hueco a la derecha del botón estaba
+          igual de vacío. */}
+      {isPaid && unlockCount > 0 && (
         <div
           style={{
             flexShrink: 0,
-            alignSelf: "flex-end",
+            // A la altura del TÍTULO, no del pie. El aviso tiene dos renglones
+            // y el de arriba es el que dice de qué va; colgado del de abajo se
+            // emparejaba con la letra pequeña y se leía como una nota al pie.
+            alignSelf: "flex-start",
             marginInlineEnd: 4,
             whiteSpace: "nowrap",
             fontSize: 10,
@@ -418,7 +429,7 @@ export function LiveTicketPanel({
             fontFamily: fontStack,
           }}
         >
-          {tPosts("liveTicketBuyCount", { count: unlockCount })}
+          {tPosts("liveTicketAccessCount", { count: unlockCount })}
         </div>
       )}
 

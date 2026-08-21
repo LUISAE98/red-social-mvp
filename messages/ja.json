@@ -1067,7 +1067,10 @@
     "removeVideoAria": "動画を削除",
     "imagesLabel": "画像",
     "removeImageAria": "画像を削除",
-    "addImagesButton": "画像を追加"
+    "addImagesButton": "画像を追加",
+    "liveTicketAccessCount": "{count, plural, other {#人がこの配信にアクセスできます}}",
+    "premiumViewedCount": "{count, plural, other {#人がこの投稿をすでに見ました}}",
+    "liveTicketAuthorTitleShort": "チケット制の配信"
   },
   "wallet": {
     "onboardingTitle": "あなたの情熱を、新しい<vibra>つながり方</vibra>に変えましょう",

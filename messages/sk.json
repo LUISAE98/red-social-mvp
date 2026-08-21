@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Odstrániť video",
     "imagesLabel": "Obrázky",
     "removeImageAria": "Odstrániť obrázok",
-    "addImagesButton": "Pridať obrázky"
+    "addImagesButton": "Pridať obrázky",
+    "liveTicketAccessCount": "{count, plural, one {# človek má prístup k tomuto vysielaniu} few {# ľudia majú prístup k tomuto vysielaniu} other {# ľudí má prístup k tomuto vysielaniu}}",
+    "premiumViewedCount": "{count, plural, one {# človek už videl tento príspevok} few {# ľudia už videli tento príspevok} other {# ľudí už videlo tento príspevok}}",
+    "liveTicketAuthorTitleShort": "Vysielanie so vstupenkou"
   },
   "wallet": {
     "onboardingTitle": "Zmeň to, čo ťa baví, na nové spôsoby, ako sa <vibra>spájať</vibra>",

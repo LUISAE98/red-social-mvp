@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Fjern video",
     "imagesLabel": "Bilder",
     "removeImageAria": "Fjern bilde",
-    "addImagesButton": "Legg til bilder"
+    "addImagesButton": "Legg til bilder",
+    "liveTicketAccessCount": "{count, plural, one {# person har tilgang til denne sendingen} other {# personer har tilgang til denne sendingen}}",
+    "premiumViewedCount": "{count, plural, one {# person har allerede sett dette innlegget} other {# personer har allerede sett dette innlegget}}",
+    "liveTicketAuthorTitleShort": "Sending med billett"
   },
   "wallet": {
     "onboardingTitle": "Gjør din passion til nye måter å <vibra>skape kontakt</vibra> på",

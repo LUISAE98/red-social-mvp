@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Videoyu kaldır",
     "imagesLabel": "Görseller",
     "removeImageAria": "Görseli kaldır",
-    "addImagesButton": "Görsel ekle"
+    "addImagesButton": "Görsel ekle",
+    "liveTicketAccessCount": "{count, plural, one {# kişinin bu yayına erişimi var} other {# kişinin bu yayına erişimi var}}",
+    "premiumViewedCount": "{count, plural, one {# kişi bu gönderiyi zaten gördü} other {# kişi bu gönderiyi zaten gördü}}",
+    "liveTicketAuthorTitleShort": "Biletli yayın"
   },
   "wallet": {
     "onboardingTitle": "Tutkunu yeni <vibra>bağ kurma</vibra> yollarına dönüştür",

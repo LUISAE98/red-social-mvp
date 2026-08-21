@@ -30,7 +30,6 @@ import CoverSearchBar from "@/app/components/CoverSearch/CoverSearchBar";
 import SearchDateFilterMenu from "@/app/components/SearchToolbar/SearchDateFilterMenu";
 import SearchSubnav from "@/app/components/SearchToolbar/SearchSubnav";
 import GroupsSearchToolbar from "@/app/components/SearchToolbar/GroupsSearchToolbar";
-import AddStoryCircle from "@/app/components/Stories/AddStoryCircle";
 import StoryCircle from "@/app/components/Stories/StoryCircle";
 import MessagePolicySetting from "@/components/chat/MessagePolicySetting";
 import type { MessagePolicy } from "@/lib/chat/types";
@@ -643,13 +642,8 @@ export default function SimuladorBotones() {
           archivo: "app/components/Stories/StoryCircle.tsx",
           hace: "Abre la historia. El aro cambia según sea saludo o consejo.",
         },
-        {
-          id: "add-story",
-          boton: <AddStoryCircle type="saludo" label="Añadir" ariaLabel="Añadir historia" onClick={noop} />,
-          ubicacion: "Primer sitio del carrusel de historias",
-          archivo: "app/components/Stories/AddStoryCircle.tsx",
-          hace: "Abre el compositor para grabar una historia nueva.",
-        },
+        /* Aquí había una ficha de `AddStoryCircle`, el círculo de "añadir" del
+           carrusel. El carrusel dejó de usarlo y el componente se retiró. */
         {
           id: "buscar-grupos",
           boton: (

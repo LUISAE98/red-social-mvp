@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Bain an físeán",
     "imagesLabel": "Íomhánna",
     "removeImageAria": "Bain an íomhá",
-    "addImagesButton": "Cuir íomhánna leis"
+    "addImagesButton": "Cuir íomhánna leis",
+    "liveTicketAccessCount": "{count, plural, one {Tá rochtain ag # duine ar an tsruth seo} two {Tá rochtain ag # dhuine ar an tsruth seo} few {Tá rochtain ag # dhuine ar an tsruth seo} many {Tá rochtain ag # nduine ar an tsruth seo} other {Tá rochtain ag # duine ar an tsruth seo}}",
+    "premiumViewedCount": "{count, plural, one {Chonaic # duine an postáil seo cheana} two {Chonaic # dhuine an postáil seo cheana} few {Chonaic # dhuine an postáil seo cheana} many {Chonaic # nduine an postáil seo cheana} other {Chonaic # duine an postáil seo cheana}}",
+    "liveTicketAuthorTitleShort": "Sruth le ticéad"
   },
   "wallet": {
     "onboardingTitle": "Athraigh do phaisean ina bhealaí nua chun <vibra>ceangal a dhéanamh</vibra>",

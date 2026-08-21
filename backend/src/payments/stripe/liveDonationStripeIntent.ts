@@ -7,7 +7,7 @@
 // el creador recibe 75% de la base. Cada llamada = una donación nueva.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
+import { SETTLEMENT_CURRENCY, DONATION_MIN_AMOUNT_USD } from "../../wallet/ledger";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
@@ -27,6 +27,7 @@ if (admin.apps.length === 0) {
 }
 const db = admin.firestore();
 const REGION = "us-central1";
+const MIN_DONATION = DONATION_MIN_AMOUNT_USD; // mínimo por donación (moneda de liquidación)
 const MAX_DONATION = 100000; // tope de seguridad
 const DONATION_COLOR = "#3b82f6"; // anillo del avatar en el chat (igual que el flujo MP)
 const DONATION_DISPLAY_SECS = 15;
@@ -51,10 +52,21 @@ export const createLiveDonationStripeIntent = onCall(
     const postId = String(data.postId ?? "").trim(); // el live es un post
     if (!postId) throw new HttpsError("invalid-argument", "Falta el id del en vivo.");
 
-    // `amount` = BASE del creador (MXN). El $3 y el IVA se suman aquí.
+    // `amount` = BASE del creador, en la moneda de liquidación. El cargo fijo, la
+    // conversión y el impuesto se suman aquí.
     const base = round2(Number(data.amount));
     if (!Number.isFinite(base) || base <= 0) {
       throw new HttpsError("invalid-argument", "Monto de la donación inválido.");
+    }
+    // ⚠️ El mínimo NO se validaba aquí, solo que fuera mayor que cero — la donación de
+    // perfil sí lo hacía, con el mismo importe. Dos caminos para el mismo gesto y solo uno
+    // con candado: por este se colaba una donación de un céntimo, que además Stripe acaba
+    // rechazando con un error genérico.
+    if (base < MIN_DONATION) {
+      throw new HttpsError(
+        "invalid-argument",
+        `El monto mínimo de contribución es ${MIN_DONATION} ${SETTLEMENT_CURRENCY}.`
+      );
     }
     if (base > MAX_DONATION) {
       throw new HttpsError("invalid-argument", "El monto de la donación es demasiado alto.");

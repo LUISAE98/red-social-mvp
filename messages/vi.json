@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Gỡ video",
     "imagesLabel": "Hình ảnh",
     "removeImageAria": "Gỡ ảnh",
-    "addImagesButton": "Thêm ảnh"
+    "addImagesButton": "Thêm ảnh",
+    "liveTicketAccessCount": "{count, plural, other {# người có quyền xem buổi phát này}}",
+    "premiumViewedCount": "{count, plural, other {# người đã xem bài đăng này}}",
+    "liveTicketAuthorTitleShort": "Buổi phát có vé"
   },
   "wallet": {
     "onboardingTitle": "Biến đam mê của bạn thành những cách <vibra>kết nối</vibra> mới",

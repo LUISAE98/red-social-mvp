@@ -18,9 +18,6 @@ export type ActiveSuperComment = {
 export const MAX_POST_IMAGES = 10;
 export const MAX_POST_VIDEOS = 3;
 
-export const POST_IMAGE_MEDIA_TYPE = "image";
-export const POST_VIDEO_MEDIA_TYPE = "video";
-
 export type PostMediaType = "image" | "video";
 
 export type PostMedia = {

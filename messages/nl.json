@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Video verwijderen",
     "imagesLabel": "Afbeeldingen",
     "removeImageAria": "Afbeelding verwijderen",
-    "addImagesButton": "Afbeeldingen toevoegen"
+    "addImagesButton": "Afbeeldingen toevoegen",
+    "liveTicketAccessCount": "{count, plural, one {# persoon heeft toegang tot deze uitzending} other {# personen hebben toegang tot deze uitzending}}",
+    "premiumViewedCount": "{count, plural, one {# persoon heeft dit bericht al gezien} other {# personen hebben dit bericht al gezien}}",
+    "liveTicketAuthorTitleShort": "Uitzending met ticket"
   },
   "wallet": {
     "onboardingTitle": "Maak van je passie nieuwe manieren om te <vibra>verbinden</vibra>",

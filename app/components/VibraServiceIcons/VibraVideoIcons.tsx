@@ -12,16 +12,6 @@ type IconProps = {
   strokeWidth?: number;
 };
 
-// ── Cerrar (X) ────────────────────────────────────────────────────────────────
-export function VideoCloseIcon({ size = 20, color = "currentColor", strokeWidth = 2.5 }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" aria-hidden="true">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-
 // ── Mute (altavoz con X) ──────────────────────────────────────────────────────
 export function VideoMuteIcon({ size = 20, color = "currentColor", strokeWidth = 2 }: IconProps) {
   return (
@@ -106,74 +96,6 @@ export function VideoSpeedIcon({ speed = 1, size = 20, color = "currentColor" }:
   );
 }
 
-// ── Contador de espectadores ──────────────────────────────────────────────────
-function formatViewerCount(n: number): string {
-  if (n >= 1_000_000) {
-    const v = n / 1_000_000;
-    return `${v % 1 === 0 ? v : v.toFixed(1)} mill`;
-  }
-  if (n >= 1_000) {
-    const v = n / 1_000;
-    return `${v % 1 === 0 ? v : v.toFixed(1)} mil`;
-  }
-  return n.toString();
-}
-
-type ViewerBadgeProps = {
-  count: number;
-  style?: React.CSSProperties;
-};
-export function VideoViewerBadge({ count, style }: ViewerBadgeProps) {
-  return (
-    <div style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      background: "rgba(0,0,0,0.55)",
-      borderRadius: 7,
-      border: "1px solid rgba(255,255,255,0.12)",
-      padding: "5px 10px 5px 8px",
-      fontFamily: "inherit", fontSize: 12, fontWeight: 600,
-      color: "rgba(255,255,255,0.88)",
-      backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
-      ...style,
-    }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-      {formatViewerCount(count)}
-    </div>
-  );
-}
-
-// ── Badge EN VIVO ─────────────────────────────────────────────────────────────
-// Punto rojo pulsante + texto "EN VIVO". Usar como componente inline, no como SVG.
-type LiveBadgeProps = {
-  style?: React.CSSProperties;
-};
-export function VideoLiveBadge({ style }: LiveBadgeProps) {
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 6,
-      background: "rgba(239,68,68,0.88)",
-      borderRadius: 7, padding: "5px 11px 5px 8px",
-      fontFamily: "inherit", fontSize: 11, fontWeight: 700,
-      letterSpacing: "0.06em", color: "#fff",
-      backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
-      ...style,
-    }}>
-      <span style={{
-        width: 7, height: 7, borderRadius: "50%",
-        background: "#fff", flexShrink: 0,
-        animation: "videoBadgePulse 1.4s ease-in-out infinite",
-      }} />
-      <style>{`@keyframes videoBadgePulse{0%,100%{opacity:1}50%{opacity:0.35}}`}</style>
-      EN VIVO
-    </span>
-  );
-}
-
 // ── Play ──────────────────────────────────────────────────────────────────────
 export function VideoPlayIcon({ size = 26, color = "currentColor" }: IconProps) {
   return (
@@ -209,18 +131,6 @@ export function VideoAirPlayIcon({ size = 20, color = "currentColor", strokeWidt
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2" />
       <polygon points="12 15 17 21 7 21 12 15" fill={color} stroke="none" />
-    </svg>
-  );
-}
-
-// ── Google Cast ───────────────────────────────────────────────────────────────
-export function VideoCastIcon({ size = 20, color = "currentColor", strokeWidth = 2 }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2 16.1A5 5 0 0 1 5.9 20" />
-      <path d="M2 12.05A9 9 0 0 1 9.95 20" />
-      <path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6" />
-      <line x1="2" y1="20" x2="2.01" y2="20" />
     </svg>
   );
 }

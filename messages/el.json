@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Αφαίρεση βίντεο",
     "imagesLabel": "Εικόνες",
     "removeImageAria": "Αφαίρεση εικόνας",
-    "addImagesButton": "Πρόσθεσε εικόνες"
+    "addImagesButton": "Πρόσθεσε εικόνες",
+    "liveTicketAccessCount": "{count, plural, one {# άτομο έχει πρόσβαση σε αυτή τη μετάδοση} other {# άτομα έχουν πρόσβαση σε αυτή τη μετάδοση}}",
+    "premiumViewedCount": "{count, plural, one {# άτομο έχει ήδη δει αυτή τη δημοσίευση} other {# άτομα έχουν ήδη δει αυτή τη δημοσίευση}}",
+    "liveTicketAuthorTitleShort": "Μετάδοση με εισιτήριο"
   },
   "wallet": {
     "onboardingTitle": "Μετάτρεψε το πάθος σου σε νέους τρόπους να <vibra>συνδέεσαι</vibra>",

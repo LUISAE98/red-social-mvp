@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Usuń film",
     "imagesLabel": "Obrazy",
     "removeImageAria": "Usuń obraz",
-    "addImagesButton": "Dodaj obrazy"
+    "addImagesButton": "Dodaj obrazy",
+    "liveTicketAccessCount": "{count, plural, one {# osoba ma dostęp do tej transmisji} few {# osoby mają dostęp do tej transmisji} many {# osób ma dostęp do tej transmisji} other {# osoby ma dostęp do tej transmisji}}",
+    "premiumViewedCount": "{count, plural, one {# osoba już zobaczyła ten post} few {# osoby już zobaczyły ten post} many {# osób już zobaczyło ten post} other {# osoby już zobaczyło ten post}}",
+    "liveTicketAuthorTitleShort": "Transmisja z biletem"
   },
   "wallet": {
     "onboardingTitle": "Zamień swoją pasję w nowe sposoby na <vibra>kontakt</vibra>",

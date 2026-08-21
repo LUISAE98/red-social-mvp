@@ -63,6 +63,7 @@ import { db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
+import { formatCurrency } from "@/lib/currency/format";
 import {
   OBSBrowserSourceBanner, ChatMessageRow, ScAvatar, ModActionBtn,
   MuxLivePlaceholder, VideoPreview, DIV, FONT,
@@ -74,15 +75,18 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const tLive = useTranslations("live");
   const locale = useLocale();
   const pf = usePriceFormat();
-  const formatMoney = pf.format;
-  // El monto guardado (`amount`) es la BASE del creador en MXN. Para MOSTRAR:
-  //  · fanPaidTotal = lo que pagó el fan (base + $3 + IVA) — lo que "donó".
+  // El monto guardado (`amount`) es la BASE del creador, en la moneda de liquidación.
+  // Para MOSTRAR:
+  //  · fanPaidTotal = lo que pagó el fan (base + cargo fijo + conversión + impuesto).
   //  · netEarned    = lo que gana el creador (75% de la base).
-  // `baseCurrency:"MXN"` evita tratar el MXN como USD (bug ×FX → 1095).
-  const fanPaidTotal = (baseMxn: number) =>
-    pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total;
-  const netEarned = (baseMxn: number) =>
-    formatMoney(baseMxn * WALLET_NET_RATE, { baseCurrency: SETTLEMENT_CURRENCY, code: true });
+  //
+  // ⚠️ `netEarned` NO usa `formatMoney` (= `pf.format`). Ese calcula el precio del
+  // COMPRADOR: convierte a la moneda de quien mira, suma el 2% y redondea al paso. La
+  // ganancia del creador no se convierte — vive en la moneda de liquidación.
+  const fanPaidTotal = (base: number) =>
+    pf.formatWithTax(base + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total;
+  const netEarned = (base: number) =>
+    formatCurrency(base * WALLET_NET_RATE, SETTLEMENT_CURRENCY, pf.locale, { code: true });
   const { user } = useAuth();
   const { messages, deleteMessage } = useLiveChat(open ? post.id : null, 50);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -970,8 +974,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const superRevenue = actualSCs.reduce((sum, sc) => sum + sc.amount, 0);
     const totalRevenue = donationRevenue + superRevenue + ticketRevenue + vodRevenue;
     const net = (n: number) => n * CREATOR_SHARE;
-    const currency = liveData?.currency ?? SETTLEMENT_CURRENCY;
-    const fmtMoney = (n: number) => formatMoney(n, { baseCurrency: currency, code: true });
+    // ⚠️ Ingresos del CREADOR: no se convierten. `formatMoney` (= `pf.format`) calcula el
+    // precio del comprador —convierte, suma el 2% y redondea al paso—, así que estas
+    // cifras salían infladas y en otra moneda.
+    const fmtMoney = (n: number) => formatCurrency(n, SETTLEMENT_CURRENCY, pf.locale, { code: true });
     const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue);
     const isPaidLive = liveData?.accessType === "paid";
     const hasVod = post.requiresPayment === true;
@@ -1047,7 +1053,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const superRevenue = actualSCs.reduce((sum, sc) => sum + sc.amount, 0);
     const isPaidLive = liveData?.accessType === "paid";
     const hasVod = post.requiresPayment === true;
-    const currency = liveData?.currency ?? SETTLEMENT_CURRENCY;
 
     const totalRevenue = donationRevenue + superRevenue + ticketRevenue + vodRevenue;
     const avgRevenuePerViewer = uniqueViewerCount > 0 ? totalRevenue / uniqueViewerCount : 0;
@@ -1061,8 +1066,9 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
     const CREATOR_SHARE = WALLET_NET_RATE; // plataforma retiene 25%
     const net = (amount: number) => amount * CREATOR_SHARE;
+    // ⚠️ Ingresos del creador: no se convierten. Ver la nota del otro `fmtMoney`.
     const fmtMoney = (amount: number) =>
-      formatMoney(amount, { baseCurrency: currency, code: true });
+      formatCurrency(amount, SETTLEMENT_CURRENCY, pf.locale, { code: true });
 
     const wideCard: React.CSSProperties = {
       width: 700, height: 140, flexShrink: 0, alignSelf: "flex-end",

@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Elimină videoclipul",
     "imagesLabel": "Imagini",
     "removeImageAria": "Elimină imaginea",
-    "addImagesButton": "Adaugă imagini"
+    "addImagesButton": "Adaugă imagini",
+    "liveTicketAccessCount": "{count, plural, one {# persoană are acces la această transmisiune} few {# persoane au acces la această transmisiune} other {# de persoane au acces la această transmisiune}}",
+    "premiumViewedCount": "{count, plural, one {# persoană a văzut deja această postare} few {# persoane au văzut deja această postare} other {# de persoane au văzut deja această postare}}",
+    "liveTicketAuthorTitleShort": "Transmisiune cu bilet"
   },
   "wallet": {
     "onboardingTitle": "Transformă-ți pasiunea în noi moduri de a te <vibra>conecta</vibra>",

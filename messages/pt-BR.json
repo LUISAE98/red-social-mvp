@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Remover vídeo",
     "imagesLabel": "Imagens",
     "removeImageAria": "Remover imagem",
-    "addImagesButton": "Adicionar imagens"
+    "addImagesButton": "Adicionar imagens",
+    "liveTicketAccessCount": "{count, plural, one {# pessoa tem acesso a esta transmissão} other {# pessoas têm acesso a esta transmissão}}",
+    "premiumViewedCount": "{count, plural, one {# pessoa já viu esta publicação} other {# pessoas já viram esta publicação}}",
+    "liveTicketAuthorTitleShort": "Transmissão com ingresso"
   },
   "wallet": {
     "onboardingTitle": "Transforme sua paixão em novas formas de <vibra>conectar</vibra>",

@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Pašalinti vaizdo įrašą",
     "imagesLabel": "Paveikslėliai",
     "removeImageAria": "Pašalinti paveikslėlį",
-    "addImagesButton": "Pridėti paveikslėlių"
+    "addImagesButton": "Pridėti paveikslėlių",
+    "liveTicketAccessCount": "{count, plural, one {# žmogus turi prieigą prie šios transliacijos} few {# žmonės turi prieigą prie šios transliacijos} many {# žmogaus turi prieigą prie šios transliacijos} other {# žmonių turi prieigą prie šios transliacijos}}",
+    "premiumViewedCount": "{count, plural, one {# žmogus jau matė šį įrašą} few {# žmonės jau matė šį įrašą} many {# žmogaus jau matė šį įrašą} other {# žmonių jau matė šį įrašą}}",
+    "liveTicketAuthorTitleShort": "Transliacija su bilietu"
   },
   "wallet": {
     "onboardingTitle": "Paversk tai, ką myli, naujais būdais <vibra>užmegzti ryšį</vibra>",

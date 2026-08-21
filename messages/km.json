@@ -1067,7 +1067,10 @@
     "removeVideoAria": "ដកវីដេអូ",
     "imagesLabel": "រូបភាព",
     "removeImageAria": "ដករូបភាព",
-    "addImagesButton": "បន្ថែមរូបភាព"
+    "addImagesButton": "បន្ថែមរូបភាព",
+    "liveTicketAccessCount": "{count, plural, other {មានមនុស្ស # នាក់អាចចូលមើលការផ្សាយនេះ}}",
+    "premiumViewedCount": "{count, plural, other {មានមនុស្ស # នាក់បានឃើញការបង្ហោះនេះហើយ}}",
+    "liveTicketAuthorTitleShort": "ការផ្សាយមានសំបុត្រ"
   },
   "wallet": {
     "onboardingTitle": "ប្រែក្លាយចំណង់ចំណូលចិត្តរបស់អ្នកទៅជាមធ្យោបាយថ្មីដើម្បី<vibra>ភ្ជាប់ទំនាក់ទំនង</vibra>",

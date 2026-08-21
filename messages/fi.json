@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Poista video",
     "imagesLabel": "Kuvat",
     "removeImageAria": "Poista kuva",
-    "addImagesButton": "Lisää kuvia"
+    "addImagesButton": "Lisää kuvia",
+    "liveTicketAccessCount": "{count, plural, one {# henkilöllä on pääsy tähän lähetykseen} other {# henkilöllä on pääsy tähän lähetykseen}}",
+    "premiumViewedCount": "{count, plural, one {# henkilö on jo nähnyt tämän julkaisun} other {# henkilöä on jo nähnyt tämän julkaisun}}",
+    "liveTicketAuthorTitleShort": "Lähetys lipulla"
   },
   "wallet": {
     "onboardingTitle": "Tee intohimostasi uusia tapoja <vibra>luoda yhteyksiä</vibra>",

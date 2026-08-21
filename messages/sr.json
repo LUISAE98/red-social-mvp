@@ -1067,7 +1067,10 @@
     "removeVideoAria": "Ukloni video",
     "imagesLabel": "Slike",
     "removeImageAria": "Ukloni sliku",
-    "addImagesButton": "Dodaj slike"
+    "addImagesButton": "Dodaj slike",
+    "liveTicketAccessCount": "{count, plural, one {# особа има приступ овом преносу} few {# особе имају приступ овом преносу} other {# особа има приступ овом преносу}}",
+    "premiumViewedCount": "{count, plural, one {# особа је већ видела ову објаву} few {# особе су већ виделе ову објаву} other {# особа је већ видело ову објаву}}",
+    "liveTicketAuthorTitleShort": "Пренос с улазницом"
   },
   "wallet": {
     "onboardingTitle": "Pretvori ono što voliš u nove načine <vibra>povezivanja</vibra>",
