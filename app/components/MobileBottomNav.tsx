@@ -569,6 +569,26 @@ export default function MobileBottomNav({
     return items;
   }, [pathname, menuHref, handle, showWallet]);
 
+  /**
+   * En qué columna está la pestaña activa. Es lo único que necesita la burbuja
+   * para colocarse: la rejilla reparte columnas iguales, así que con el índice
+   * basta y no hay que medir nada.
+   *
+   * Manda `pendingHref` cuando lo hay —el destino que acabas de tocar—, igual
+   * que el resaltado del icono. Así la burbuja arranca con el toque y no
+   * espera a que la ruta termine de cambiar.
+   *
+   * Devuelve -1 si ninguna coincide (una ruta que no está en la barra); ahí la
+   * burbuja se esconde en vez de quedarse marcando una pestaña que no toca.
+   */
+  const activeIndex = useMemo(() => {
+    if (pendingHref !== null) {
+      const i = nav.findIndex((item) => item.href === pendingHref);
+      if (i >= 0) return i;
+    }
+    return nav.findIndex((item) => item.active);
+  }, [nav, pendingHref]);
+
   return (
     <>
       <style jsx>{`
@@ -618,10 +638,6 @@ export default function MobileBottomNav({
              el fondo tan ahumado, el volumen lo dan las sombras; el borde solo
              tiene que insinuar dónde acaba. */
           border: 1px solid rgba(255, 255, 255, 0.06);
-          /* El volumen sale de cuatro capas: filo de luz arriba, sombra propia
-             abajo (las dos por dentro, son el grosor del cristal) y dos sombras
-             fuera, una corta y pegada y otra larga y difusa, que es lo que
-             separa la píldora del contenido y la hace flotar. */
           box-shadow:
             inset 0 1px 0 rgba(255, 255, 255, 0.08),
             inset 0 -1px 0 rgba(0, 0, 0, 0.22),
@@ -654,12 +670,72 @@ export default function MobileBottomNav({
           padding: 5px 6px;
           background: transparent;
           box-sizing: border-box;
+          /* Ancla de la burbuja, que va en posición absoluta dentro. */
+          position: relative;
           transform: translateZ(0);
           -webkit-transform: translateZ(0);
         }
 
+        /* ── Burbuja del elemento activo ──────────────────────────────────────
+           Se desliza de un icono a otro en vez de aparecer y desaparecer.
+
+           No se mide nada con JavaScript: la rejilla reparte columnas IGUALES,
+           así que la burbuja mide una columna y se mueve tantas columnas como
+           diga el índice activo. Medir con ResizeObserver habría añadido un
+           frame de retraso —la burbuja saldría del sitio viejo— y encima pelea
+           con el encogido de la barra, que es un transform y no dispara
+           recálculo de tamaño.
+
+           El carril ocupa exactamente el área de contenido de .nav, así que
+           "una columna" es aquí el 100% dividido entre el número de elementos,
+           sin restar rellenos a mano. */
+        .navBubbleTrack {
+          position: absolute;
+          inset: 5px 6px;
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        .navBubble {
+          width: calc(100% / var(--mobile-nav-count));
+          height: 100%;
+          display: flex;
+          align-items: center;
+          /* Solo se anima el transform: no provoca recálculo de layout, así que
+             el deslizamiento va suelto también en un teléfono modesto. */
+          transform: translateX(calc(var(--mobile-nav-active) * 100%));
+          transition: transform 340ms cubic-bezier(0.32, 0.72, 0, 1);
+          will-change: transform;
+        }
+
+        /* La forma va en un hijo: así el que se mueve mide justo una columna y
+           el visible puede llevar su propio margen sin ensuciar la cuenta. */
+        /* Abraza al icono y su etiqueta, que juntos miden unos 41px dentro de
+           una casilla de 62. A toda la altura de la casilla la burbuja se leía
+           como un bloque, no como un selector. */
+        .navBubbleShape {
+          flex: 1;
+          min-width: 0;
+          height: 46px;
+          margin: 0 5px;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.10);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+        }
+
+        /* Sin sesión no hay pestaña activa que marcar. */
+        .navBubbleTrack[data-hidden="true"] .navBubble {
+          opacity: 0;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .navBubble { transition: none; }
+        }
+
         .item {
           position: relative;
+          /* Por encima de la burbuja, que va en z-index 0. */
+          z-index: 1;
           height: 62px;
           display: grid;
           place-items: center;
@@ -799,8 +875,22 @@ export default function MobileBottomNav({
             className="nav"
             style={{
               "--mobile-nav-count": nav.length,
+              /* Índice de la pestaña activa. Con `pendingHref` la burbuja sale
+                 hacia el destino EN CUANTO tocas, sin esperar a que la ruta
+                 cambie: es lo que hace que se sienta inmediata. */
+              "--mobile-nav-active": Math.max(0, activeIndex),
             } as React.CSSProperties}
           >
+            <div
+              className="navBubbleTrack"
+              data-hidden={activeIndex < 0 ? "true" : undefined}
+              aria-hidden="true"
+            >
+              <div className="navBubble">
+                <div className="navBubbleShape" />
+              </div>
+            </div>
+
             {nav.map((item, idx) => {
               const isActive = pendingHref !== null
                 ? item.href === pendingHref
