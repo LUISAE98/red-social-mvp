@@ -80,6 +80,13 @@ function toItems(docs: Array<{ id: string; data: () => unknown }>, uid?: string 
       "[reelLives] la consulta no devolvio ningun live. O no hay ninguno transmitiendo, o ninguno tiene liveData.status=='live' Y liveData.allowLoggedOutViewers==true",
     );
   }
+  if (out.length > 0) {
+    console.info(
+      `[reelLives] ${out.length} live(s) listos para el feed:`,
+      out.map((p) => p.id),
+      descartados.length ? { descartados } : "",
+    );
+  }
   // El mas reciente primero. El orden definitivo lo decide la mezcla por cuota;
   // este solo hace que la lista sea estable entre avisos.
   return out.sort((a, b) => liveStartedAtMs(b) - liveStartedAtMs(a)).map(liveItem);

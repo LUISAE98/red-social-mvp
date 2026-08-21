@@ -161,6 +161,16 @@ export function useReelFeed(uid: string | null | undefined) {
       mixByQuota(splitLanes([...ranked, ...rankedLives], laneOfItem)),
       authorOfItem,
     );
+    if (lives.length > 0) {
+      const posiciones = mixed
+        .map((it, i) => (it.kind === "live" ? i : -1))
+        .filter((i) => i >= 0);
+      console.info(
+        `[useReelFeed] ${lives.length} live(s) disponibles, colocados en las posiciones`,
+        posiciones,
+        `de ${mixed.length}`,
+      );
+    }
     for (const item of mixed) {
       if (item.kind === "live") {
         placedLivesRef.current.add(item.key);
