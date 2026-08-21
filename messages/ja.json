@@ -254,6 +254,7 @@
     "reportSentDesc": "運営チームが確認します。コミュニティを安全に保つためのご協力ありがとうございます。",
     "reportSubmitError": "通報の送信中にエラーが発生しました、もう一度お試しください。",
     "noStoriesYet": "まだストーリーがありません。",
+    "noReelsYet": "まだストーリーがありません。",
     "storyNothingToPublish": "ここに公開できるものはまだありません。",
     "storyAddStories": "ストーリーを追加",
     "storyNeedsBuyerPermission": "依頼はありますが、購入者が公開を許可していません。",

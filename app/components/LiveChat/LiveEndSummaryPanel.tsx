@@ -9,7 +9,13 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
-import { FIXED_SERVICE_FEE_USD, PREMIUM_MIN_PRICE_USD } from "@/lib/currency/catalog";
+import {
+  FIXED_SERVICE_FEE_LABEL,
+  FIXED_SERVICE_FEE_NOTE,
+  PREMIUM_MIN_PRICE_USD,
+} from "@/lib/currency/catalog";
+import { formatCurrency } from "@/lib/currency/format";
+import { LocalPriceHint } from "@/components/services/config/serviceConfigKit";
 import type { Post } from "@/lib/posts/types";
 import { finalizeVodSettings } from "@/lib/posts/post-service";
 
@@ -32,13 +38,14 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
   const tCommon = useTranslations("common");
   const tWallet = useTranslations("wallet");
   const tLive = useTranslations("live");
-  const { format: formatMoney, toDisplayForInput, currency: displayCurrency } =
-    usePriceFormat();
+  const priceFmt = usePriceFormat();
   const liveData = post.liveData;
   const defaultPaid = liveData?.accessType === "paid";
-  // El precio guardado está en MXN (ancla); lo mostramos en la moneda del creador.
+  // ⚠️ NO se convierte. El precio guardado y el campo viven los DOS en la moneda de
+  // liquidación. Antes se leía como si fuera MXN y se pasaba a la moneda de quien mira:
+  // al reabrir el panel, el creador veía un número que no era el que había puesto.
   const defaultPrice = liveData?.ticketPrice
-    ? String(Math.round(toDisplayForInput(liveData.ticketPrice, "MXN") * 100) / 100)
+    ? String(Math.round(liveData.ticketPrice * 100) / 100)
     : "";
 
   const [isMobile, setIsMobile] = useState(false);
@@ -52,8 +59,8 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
   const [saving, setSaving] = useState(false);
   const { toast: summaryToast, showToast: showSummaryToast } = useVibraToast();
 
-  // Precio del VOD (MXN base). Mismo sistema que experiencias/premium/ticket:
-  // mínimo en rojo, cuánto ganas (75%), leyenda del $3 — todos con colapso suave.
+  // Precio del VOD, en la moneda de liquidación. Mismo sistema que experiencias, premium
+  // y ticket: mínimo en rojo, cuánto ganas (75%) y la leyenda del cargo fijo.
   const vodPriceNum = parseFloat(priceInput);
   const vodHasValidPrice =
     priceInput.trim() !== "" && Number.isFinite(vodPriceNum) && vodPriceNum > 0;
@@ -114,8 +121,8 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
 
   async function handleConfirm() {
     if (saving) return;
-    // Mexico-only: el creador teclea en MXN y GUARDAMOS TAL CUAL en MXN (sin conversión
-    // a USD). Es la base — el backend cobra base + $3 + IVA (VOD = post premium, postAccess).
+    // El creador teclea en la moneda de liquidación y se guarda TAL CUAL. Es la base: el
+    // backend le suma el cargo fijo, la conversión y el impuesto (VOD = post premium).
     const typedPrice = vodAvailable && vodPaid ? (parseFloat(priceInput) || null) : null;
     if (vodAvailable && vodPaid && (!typedPrice || typedPrice <= 0)) {
       showSummaryToast(tWallet("payErrorInvalidAmount"), "error");
@@ -229,7 +236,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
             }}
           >
             <div style={{ paddingTop: 2, paddingBottom: 14 }}>
-              {/* Campo canónico vibra_style.md; el "+ $3" y la moneda van FUERA del placeholder. */}
+              {/* Campo canónico vibra_style.md; el cargo fijo y la moneda van FUERA del placeholder. */}
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 <input
                   type="number"
@@ -247,7 +254,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
                     boxSizing: "border-box",
                   }}
                 />
-                <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", fontFamily: FONT }}>+ $3</span>
+                <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", fontFamily: FONT }}>{FIXED_SERVICE_FEE_LABEL}</span>
                 <span style={{ color: "#a855f7", fontSize: 20, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap", fontFamily: FONT }}>{SETTLEMENT_CURRENCY}</span>
               </div>
 
@@ -258,12 +265,16 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
                 </div>
                 <div style={{ maxHeight: vodEarningsVisible ? 24 : 0, opacity: vodEarningsVisible ? 1 : 0, transform: vodEarningsVisible ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease" }}>
                   <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.45, fontFamily: FONT }}>
-                    Ganas <strong style={{ color: "#a855f7", fontWeight: 700 }}>{formatMoney(vodEarnings ?? 0, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</strong> por cada desbloqueo
+                    Ganas <strong style={{ color: "#a855f7", fontWeight: 700 }}>{formatCurrency(vodEarnings ?? 0, SETTLEMENT_CURRENCY, priceFmt.locale, { code: true })}</strong> por cada desbloqueo
                   </span>
                 </div>
                 <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, lineHeight: 1.4, fontFamily: FONT, marginTop: 3 }}>
-                  Se suman ${FIXED_SERVICE_FEE_USD} MXN por el cargo de procesamiento de Stripe.
+                  {FIXED_SERVICE_FEE_NOTE}
                 </div>
+                {/* Referencia en la moneda del creador, el mismo componente que usan las
+                    experiencias y el composer premium. El precio SIEMPRE se fija en la de
+                    liquidación; esto solo lo ayuda a ubicarse. */}
+                <LocalPriceHint value={vodHasValidPrice ? vodPriceNum : null} netRate={WALLET_NET_RATE} />
               </div>
             </div>
           </div>

@@ -254,6 +254,7 @@
     "reportSentDesc": "Déanfaidh ár bhfoireann athbhreithniú air. Go raibh maith agat as an bpobal a choinneáil sábháilte.",
     "reportSubmitError": "Tharla earráid agus an tuairisc á seoladh, bain triail eile as.",
     "noStoriesYet": "Níl aon scéal ann go fóill.",
+    "noReelsYet": "Níl aon scéal ann go fóill.",
     "storyNothingToPublish": "Níl aon rud le foilsiú anseo go fóill.",
     "storyAddStories": "Cuir scéalta leis",
     "storyNeedsBuyerPermission": "Tá orduithe agat, ach níor cheadaigh an ceannaitheoir iad a fhoilsiú.",

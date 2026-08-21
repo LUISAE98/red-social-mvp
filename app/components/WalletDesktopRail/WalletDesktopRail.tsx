@@ -578,7 +578,11 @@ export default function WalletDesktopRail({
           color: rgba(255, 255, 255, 0.68);
           opacity: 0.82;
           filter: saturate(0.65) brightness(0.96);
-          transform: translateY(3.5px);
+          /* El renglón ya centra con align-items: center. Había aquí un empujón
+             manual de 3.5px que bajaba TODOS los iconos por debajo de su texto:
+             sobre un icono de 22 es casi un sexto de su alto, y por eso se veían
+             descolgados. Sin él, el centro óptico del icono cae en la línea
+             media del texto, que es donde toca. */
           margin-inline-end: 8px;
           transition:
             color 180ms ease,
@@ -806,6 +810,11 @@ export default function WalletDesktopRail({
                         key={item.key}
                         href={item.href}
                         className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
+                        // ⚠️ Sin este display:flex, icono y texto se alinean por
+                        // la línea base y el icono se dispara hacia arriba. Va
+                        // inline por lo mismo que en el menú: el className es un
+                        // template literal y styled-jsx no le pone su hash.
+                        style={{ display: "flex", alignItems: "center", minWidth: 0 }}
                       >
                         <span className="walletIcon" aria-hidden="true">
                           <VibraNavigationIcon type={item.icon} size={21} />

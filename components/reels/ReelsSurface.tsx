@@ -223,7 +223,7 @@ export default function ReelsSurface({
     return (
       <div style={fullScreenCenter}>
         <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, textAlign: "center" }}>
-          {tCommon("noStoriesYet")}
+          {tCommon("noReelsYet")}
         </span>
       </div>
     );

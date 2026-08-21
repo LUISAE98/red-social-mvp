@@ -254,6 +254,7 @@
     "reportSentDesc": "Meie tiim vaatab selle üle. Aitäh, et aitad kogukonda turvalisena hoida.",
     "reportSubmitError": "Teate saatmisel tekkis viga, proovi uuesti.",
     "noStoriesYet": "Lugusid veel pole.",
+    "noReelsYet": "Lugusid veel pole.",
     "storyNothingToPublish": "Siin pole veel midagi avaldada.",
     "storyAddStories": "Lisa lugusid",
     "storyNeedsBuyerPermission": "Sul on tellimusi, kuid ostja ei lubanud neid avaldada.",

@@ -1024,7 +1024,20 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   if (isPaidLive && accessChecked && !hasAccess) {
     const ticketPrice = Number(post.oneTimePrice ?? liveData?.ticketPrice ?? 0);
-    const currency = liveData?.currency ?? SETTLEMENT_CURRENCY;
+    // ⚠️ El TOTAL que se va a cobrar, no la base. Antes se enseñaba `ticketPrice` a secas:
+    // sin el cargo fijo, sin impuesto y sin el redondeo comercial. El comprador leía un
+    // precio aquí y la pasarela le pedía otro más alto.
+    //
+    // Tampoco se usa ya la moneda guardada en el documento como base: el importe vive
+    // SIEMPRE en la de liquidación, y confiar en la del documento resucitaba el fallo de
+    // enseñar dólares con etiqueta de pesos en los live creados antes del corte.
+    const ticketTotal =
+      ticketPrice > 0
+        ? pf.formatWithTax(ticketPrice + FIXED_SERVICE_FEE_USD, {
+            baseCurrency: SETTLEMENT_CURRENCY,
+            code: true,
+          }).total
+        : null;
 
     return createPortal(
       <div style={{
@@ -1092,7 +1105,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           marginBottom: 28,
         }}>
           <span style={{ fontSize: 36, fontWeight: 800, color: "#a855f7", letterSpacing: "-0.02em" }}>
-            {formatMoney(ticketPrice, { baseCurrency: currency, code: true })}
+            {ticketTotal}
           </span>
           {/* 🧾 IVA — "+ impuestos" (solo compradores en México). */}
           <TaxNote color="rgba(255,255,255,0.4)" align="center" />
@@ -1114,7 +1127,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             minWidth: 200,
           }}
         >
-          {`Pagar ${formatMoney(ticketPrice, { baseCurrency: currency, code: true })}`}
+          {`Pagar ${ticketTotal ?? ""}`}
         </button>
 
         <span style={{

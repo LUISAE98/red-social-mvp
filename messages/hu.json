@@ -254,6 +254,7 @@
     "reportSentDesc": "A csapatunk átnézi. Köszönjük, hogy segítesz biztonságban tartani a közösséget.",
     "reportSubmitError": "Hiba történt a jelentés küldése közben, próbáld újra.",
     "noStoriesYet": "Még nincsenek történetek.",
+    "noReelsYet": "Még nincsenek történetek.",
     "storyNothingToPublish": "Itt még nincs mit közzétenni.",
     "storyAddStories": "Történetek hozzáadása",
     "storyNeedsBuyerPermission": "Vannak megrendeléseid, de a vásárló nem engedélyezte a közzétételt.",

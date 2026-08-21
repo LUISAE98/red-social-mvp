@@ -250,10 +250,13 @@ premiumUnlocked: {
     label: "Mis experiencias",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path
-          stroke={gradientStroke}
-          d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z"
-        />
+        <g transform="translate(12 12) scale(0.9) translate(-12 -11.97)">
+          <path
+            stroke={gradientStroke}
+            vectorEffect="non-scaling-stroke"
+            d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z"
+          />
+        </g>
       </svg>
     ),
   },
@@ -293,13 +296,13 @@ premiumUnlocked: {
         <rect
           stroke={gradientStroke}
           x="4.5"
-          y="5.8"
+          y="6"
           width="15"
           height="14"
           rx="2.2"
         />
-        <path stroke={gradientStroke} d="M8 3.8v4" />
-        <path stroke={gradientStroke} d="M16 3.8v4" />
+        <path stroke={gradientStroke} d="M8 4.2v4" />
+        <path stroke={gradientStroke} d="M16 4.2v4" />
         <path stroke={gradientStroke} d="M4.5 10h15" />
         <path stroke={gradientStroke} d="M8.2 14h.1" />
         <path stroke={gradientStroke} d="M12 14h.1" />
@@ -312,11 +315,12 @@ premiumUnlocked: {
     label: "Pendientes",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-
-        <path stroke={gradientStroke} d="M5 6.8h14" />
-        <path stroke={gradientStroke} d="M5 12h9" />
-        <path stroke={gradientStroke} d="M5 17.2h6" />
-        <path stroke={gradientStroke} d="m15.2 17.2 2 2 4-5" />
+        <g transform="translate(12 12) scale(1.22) translate(-12 -13)">
+          <path stroke={gradientStroke} vectorEffect="non-scaling-stroke" d="M5 6.8h14" />
+          <path stroke={gradientStroke} vectorEffect="non-scaling-stroke" d="M5 12h9" />
+          <path stroke={gradientStroke} vectorEffect="non-scaling-stroke" d="M5 17.2h6" />
+          <path stroke={gradientStroke} vectorEffect="non-scaling-stroke" d="m15.2 17.2 2 2 4-5" />
+        </g>
       </svg>
     ),
   },

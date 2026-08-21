@@ -441,18 +441,27 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
 
   if (ready && stories.length === 0 && liveEntities.length === 0) {
     return (
-      <div
-        style={{
-          padding: "14px 16px 10px",
-          marginBottom: 14,
-          color: "rgba(255,255,255,0.45)",
-          fontSize: 12.5,
-          lineHeight: 1.5,
-          fontFamily: fontStack,
-        }}
-      >
-        {tCommon("noStoriesYet")}
-      </div>
+      <>
+        {/* En laptop no se anuncia el vacío: ni el texto NI el hueco que ocupaba.
+            Se esconde con `display: none` y no devolviendo null en JS a
+            propósito — el punto de corte se queda en CSS, así que el primer
+            pintado ya es el correcto y no hay parpadeo al hidratar. */}
+        <style>{`
+          .vbReelsEmpty {
+            padding: 14px 16px 10px;
+            margin-bottom: 14px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 12.5px;
+            line-height: 1.5;
+          }
+          @media (min-width: 769px) {
+            .vbReelsEmpty { display: none; }
+          }
+        `}</style>
+        <div className="vbReelsEmpty" style={{ fontFamily: fontStack }}>
+          {tCommon("noReelsYet")}
+        </div>
+      </>
     );
   }
 

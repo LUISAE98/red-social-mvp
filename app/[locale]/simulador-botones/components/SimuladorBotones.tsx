@@ -39,7 +39,6 @@ import LegalLinksFooter from "@/components/legal/LegalLinksFooter";
 import ImageCropperModal from "@/components/media/ImageCropperModal";
 import PaymentSuccessCard from "@/components/payments/PaymentSuccessCard";
 import FollowStateButton from "@/components/profile/FollowStateButton";
-import DonationAccessButton from "@/components/services/DonationAccessButton";
 import ServicePublishedSuccess from "@/components/services/ServicePublishedSuccess";
 import { Button } from "@/components/ui";
 import ConfirmPanel from "@/components/ui/ConfirmPanel";
@@ -679,42 +678,9 @@ export default function SimuladorBotones() {
       titulo: "Monetización y cierre de compra",
       intro: "Entrada a las donaciones y las pantallas de después de pagar.",
       filas: [
-        {
-          id: "don-general",
-          boton: (
-            <DonationAccessButton
-              donation={{
-                mode: "general",
-                enabled: true,
-                visible: true,
-                currency: SETTLEMENT_CURRENCY,
-                suggestedAmounts: [50, 100, 250],
-              }}
-              onClick={noop}
-            />
-          ),
-          ubicacion: "Esquina del perfil y de la comunidad",
-          archivo: "components/services/DonationAccessButton.tsx — mode general",
-          hace: "Abre el panel de contribución con el mínimo configurado. Solo aparece si las donaciones están activas y visibles.",
-        },
-        {
-          id: "don-boda",
-          boton: (
-            <DonationAccessButton
-              donation={{
-                mode: "wedding",
-                enabled: true,
-                visible: true,
-                currency: SETTLEMENT_CURRENCY,
-                suggestedAmounts: [500],
-              }}
-              onClick={noop}
-            />
-          ),
-          ubicacion: "Perfiles con mesa de regalos de boda",
-          archivo: "components/services/DonationAccessButton.tsx — mode wedding",
-          hace: "La misma entrada con el copy y el acento de boda.",
-        },
+        /* Aquí había dos fichas de `DonationAccessButton`, la entrada a las
+           donaciones de Mercado Pago. Se retiró con el resto de ese flujo, cuyo
+           callable de backend ya no existía. */
         {
           id: "pago-ok",
           boton: (

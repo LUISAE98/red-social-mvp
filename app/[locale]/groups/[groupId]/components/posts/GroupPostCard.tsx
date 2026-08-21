@@ -1971,10 +1971,18 @@ function renderBlurredMediaBackdrop(
       // no se le vuelve a cobrar.
       viewerHasLiveTicket: hasLiveTicketAccess,
     },
-    // Precio en la moneda del viewer (mismo hook que el resto de la UI).
-    (price, currency) =>
+    // El TOTAL que se va a cobrar, en la moneda del comprador: base + cargo fijo +
+    // conversión + impuesto, con el redondeo comercial. Antes convertía la BASE a secas,
+    // así que este mensaje prometía un precio y la pasarela pedía otro más alto.
+    //
+    // ⚠️ La moneda guardada en el documento se IGNORA a propósito: el importe vive siempre
+    // en la de liquidación, y fiarse de la del documento resucita el fallo de enseñar
+    // dólares con etiqueta de pesos en el contenido creado antes del corte.
+    (price) =>
       typeof price === "number" && price > 0
-        ? priceFmt.format(price, { baseCurrency: currency })
+        ? priceFmt.formatWithTax(price + FIXED_SERVICE_FEE_USD, {
+            baseCurrency: SETTLEMENT_CURRENCY,
+          }).total
         : null
   );
 
@@ -3291,7 +3299,6 @@ style={{
           {post.requiresPayment === true && !liveAccessBlocked && (
             <LiveTicketPanel
               ticketPrice={post.oneTimePrice ?? activeLiveData?.ticketPrice ?? null}
-              currency={post.currency ?? activeLiveData?.currency ?? null}
               isAuthor={isOwnPost || isOwner}
               onBuyTicket={() => { if (!ensureSignedInToPay()) return; livePaidRef.current = false; setLivePayOpen(true); }}
               overlay
@@ -3942,6 +3949,40 @@ const mediaRatio = mediaAspectRatios[media.url] ?? mediaAspectRatios[feedMediaUr
 const shouldContainTile = shouldContainMedia(mediaRatio);
 const mediaObjectFit = "cover";
 const mediaScale = 1;
+
+        // ⚠️ Video de PAGO sin comprar. El blindaje del backend saca el
+        // playbackId y la URL reproducible del documento del post
+        // (protectedPlayback.ts), así que aquí `playbackUrl` viene vacía: la
+        // rama de video de abajo no entra y la de imagen intentaba pintar
+        // `media.url`, que también se fue con el blindaje. Resultado, un
+        // rectángulo negro con el botón de play encima.
+        //
+        // Lo que SÍ sobrevive es la miniatura, firmada y de vida larga
+        // justamente para que haga de portada del muro de pago. Se pinta ella,
+        // y el desenfoque se lo aplica el contenedor del carrusel.
+        if (media.type === "video" && !media.playbackUrl && media.thumbnailUrl) {
+          return (
+            <Image
+              src={media.thumbnailUrl}
+              alt={media.altText || `Video ${index + 1} de la publicación`}
+              draggable={false}
+              fill
+              style={{
+                zIndex: 1,
+                objectFit: mediaObjectFit as CSSProperties["objectFit"],
+                background: "#050505",
+                touchAction: "pan-y",
+              }}
+              onError={() => {
+                setFailedMediaUrls((prev) => ({
+                  ...prev,
+                  [media.thumbnailUrl as string]: true,
+                }));
+              }}
+            />
+          );
+        }
+
         if (media.type === "video" && media.playbackUrl) {
           return (
             <>
@@ -4445,7 +4486,6 @@ padding: "0 0 2px 0",
     state={premiumState}
     onOpenPayment={() => { if (ensureSignedInToPay()) setPaymentPanelOpen(true); }}
     oneTimePrice={post.oneTimePrice}
-    currency={post.currency}
     unlockCount={post.premiumUnlockCount ?? 0}
     countWhenLocked={
       post.premium?.accessMode === "public" && post.premium?.freeFor === "none"

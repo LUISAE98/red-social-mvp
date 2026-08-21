@@ -7,7 +7,7 @@
 // Modelo SOLO MÉXICO: el comprador paga (base + $3) + IVA; el creador recibe 75% de la base.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
+import { SETTLEMENT_CURRENCY, LIVE_TICKET_MIN_PRICE_USD } from "../../wallet/ledger";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
@@ -68,10 +68,19 @@ export const createLiveAccessStripeIntent = onCall(
     if (authorId === uid) throw new HttpsError("failed-precondition", "Es tu propio en vivo.");
 
     const liveData = (post.liveData ?? {}) as Record<string, unknown>;
-    // La base del creador se trata en MXN (Mexico-only, igual que el resto de servicios).
+    // La base del creador va en la moneda de liquidación, igual que el resto de servicios.
     const base = round2(Number(post.oneTimePrice ?? liveData.ticketPrice ?? 0));
     if (!Number.isFinite(base) || base <= 0) {
       throw new HttpsError("failed-precondition", "Precio de ticket inválido.");
+    }
+    // ⚠️ El mínimo vivía SOLO en el composer. Quien se saltara la interfaz podía dejar una
+    // entrada a un céntimo, y entonces el rechazo lo daba Stripe con un error genérico que
+    // no dice nada útil ni al comprador ni al creador. El candado tiene que estar aquí.
+    if (base < LIVE_TICKET_MIN_PRICE_USD) {
+      throw new HttpsError(
+        "failed-precondition",
+        `El precio mínimo de una entrada es ${LIVE_TICKET_MIN_PRICE_USD} ${SETTLEMENT_CURRENCY}.`
+      );
     }
 
     const groupId = post.groupId ? String(post.groupId) : null;

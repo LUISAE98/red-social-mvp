@@ -254,6 +254,7 @@
     "reportSentDesc": "Tiimimme käy sen läpi. Kiitos, että autat pitämään yhteisön turvallisena.",
     "reportSubmitError": "Ilmoitusta lähetettäessä tapahtui virhe, yritä uudelleen.",
     "noStoriesYet": "Tarinoita ei ole vielä.",
+    "noReelsYet": "Tarinoita ei ole vielä.",
     "storyNothingToPublish": "Täällä ei ole vielä julkaistavaa.",
     "storyAddStories": "Lisää tarinoita",
     "storyNeedsBuyerPermission": "Sinulla on tilauksia, mutta ostaja ei sallinut niiden julkaisua.",

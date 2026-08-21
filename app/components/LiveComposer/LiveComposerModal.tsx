@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_LABEL } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_LABEL, FIXED_SERVICE_FEE_NOTE } from "@/lib/currency/catalog";
+import { LocalPriceHint } from "@/components/services/config/serviceConfigKit";
+import { formatCurrency } from "@/lib/currency/format";
 import { TextButton, IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react";
@@ -9,7 +11,7 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
-import { FIXED_SERVICE_FEE_USD, LIVE_TICKET_MIN_PRICE_USD } from "@/lib/currency/catalog";
+import { LIVE_TICKET_MIN_PRICE_USD } from "@/lib/currency/catalog";
 import { createPortal } from "react-dom";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -105,8 +107,7 @@ export default function LiveComposerModal({
   const { toast: liveComposerToast, showToast: showLiveComposerToast } = useVibraToast();
   const [accessType, setAccessType] = useState<"free" | "paid">("free");
   const [ticketPrice, setTicketPrice] = useState("");
-  const { format: formatMoney, toDisplayForInput, currency: displayCurrency } =
-    usePriceFormat();
+  const priceFmt = usePriceFormat();
   const [paidAccessMode, setPaidAccessMode] = useState<"everyone_pays" | "members_free_non_members_pay">("everyone_pays");
   const [calendarOpen, setCalendarOpen] = useState(false);
 
@@ -215,10 +216,12 @@ export default function LiveComposerModal({
     setCoverFile(null);
     setVisibilityMode(ld.visibilityMode ?? deriveDefaultVisibility(contextType, groupVisibility ?? null));
     setAccessType(ld.accessType ?? "free");
+    // ⚠️ NO se convierte: el precio guardado y el campo viven los dos en la moneda de
+    // liquidación. Antes se leía con la moneda guardada —que podía ser "MXN" de la época
+    // anterior— y se pasaba a la de quien mira: al reabrir, el creador se encontraba un
+    // número distinto del que había puesto.
     setTicketPrice(
-      ld.ticketPrice != null
-        ? String(Math.round(toDisplayForInput(ld.ticketPrice, ld.currency ?? SETTLEMENT_CURRENCY) * 100) / 100)
-        : ""
+      ld.ticketPrice != null ? String(Math.round(ld.ticketPrice * 100) / 100) : ""
     );
     setPaidAccessMode(ld.paidAccessMode ?? "everyone_pays");
     setBroadcastGroupIds(ld.broadcastGroupIds ?? []);
@@ -351,10 +354,14 @@ export default function LiveComposerModal({
         groupVisibility === "private" &&
         effectiveMode !== "members_only";
       const effectivePaidAccessMode = canHaveMemberExemption ? paidAccessMode : "everyone_pays";
-      // Mexico-only: el creador teclea en MXN y se guarda TAL CUAL en MXN (sin
-      // conversión a USD). Es la base — el backend cobra base + $3 + IVA.
+      // El creador teclea en la moneda de LIQUIDACIÓN y se guarda tal cual. Es la base:
+      // el backend le suma el cargo fijo, la conversión y el impuesto del comprador.
+      //
+      // ⚠️ Aquí se guardaba `"MXN"` a mano junto a un importe que ya iba en dólares. Es
+      // el mismo fallo que se limpió en 33 sitios del backend, colado por una escritura
+      // del cliente: el documento decía pesos y el número eran dólares.
       const finalTicketPrice = accessType === "paid" ? priceNum : null;
-      const finalCurrency = accessType === "paid" ? "MXN" : null;
+      const finalCurrency = accessType === "paid" ? SETTLEMENT_CURRENCY : null;
       const finalPaidAccessMode = accessType === "paid" ? effectivePaidAccessMode : null;
 
       // Strip "__profile__" from community IDs before saving; it's stored separately as broadcast sentinel
@@ -582,7 +589,7 @@ export default function LiveComposerModal({
         }}
       >
           {/* Presentación IGUAL a experiencias/premium: el campo es un input autónomo
-              (estilo canónico vibra_style.md); el "+ $3" y la moneda van FUERA, como
+              (estilo canónico vibra_style.md); el cargo fijo y la moneda van FUERA, como
               hermanos en la fila (no dentro del placeholder). */}
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
             <input
@@ -634,15 +641,20 @@ export default function LiveComposerModal({
               <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.45, fontFamily: fontStack }}>
                 Ganas{" "}
                 <strong style={{ color: "#a855f7", fontWeight: 700 }}>
-                  {formatMoney(ticketEarnings ?? 0, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}
+                  {formatCurrency(ticketEarnings ?? 0, SETTLEMENT_CURRENCY, priceFmt.locale, { code: true })}
                 </strong>{" "}
                 por cada entrada
               </span>
             </div>
 
             <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, lineHeight: 1.4, fontFamily: fontStack, marginTop: 3 }}>
-              Se suman ${FIXED_SERVICE_FEE_USD} MXN por el cargo de procesamiento de Stripe.
+              {FIXED_SERVICE_FEE_NOTE}
             </div>
+
+            {/* Referencia en la moneda del creador, el mismo componente que usan las
+                experiencias, el composer premium y el panel del VOD. El precio SIEMPRE se
+                fija en la de liquidación; esto solo lo ayuda a ubicarse. */}
+            <LocalPriceHint value={ticketHasValidPrice ? ticketPriceNum : null} netRate={WALLET_NET_RATE} />
           </div>
 
           {/* "Quién paga": aparece de inmediato al elegir entrada de pago en una comunidad

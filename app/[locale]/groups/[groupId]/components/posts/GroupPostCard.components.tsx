@@ -34,6 +34,47 @@ import { fontStack, getInitials, formatMediaDuration } from "./GroupPostCard.uti
  *
  * La referencia en su moneda vive en el panel, bajo el estado de la publicación.
  */
+/**
+ * Lo que el creador lleva REUNIDO con este contenido: su parte por cada desbloqueo,
+ * multiplicada por las veces que se ha desbloqueado.
+ *
+ * Devuelve dos frases distintas según haya o no conversión de moneda de por medio, y la
+ * diferencia no es cosmética:
+ *
+ *  · Sin conversión (mira en la moneda de liquidación) → cifra EXACTA, sin "aproximado"
+ *    y sin redondeo grueso. Es la suma real de su 75% de cada venta, y puede enseñarse
+ *    tal cual porque no hay ningún tipo de cambio que la mueva.
+ *  · Con conversión → REFERENCIA: redondeo grueso y "aproximado" delante. Convierte al
+ *    cambio de HOY, pero cada venta entró al de SU día, así que la cifra en firme es la
+ *    de la wallet y esta solo sirve para ubicarse.
+ *
+ * ⚠️ Da por hecho que todas las ventas fueron al precio actual. Si el creador cambió el
+ * precio a mitad de camino, el acumulado se desvía; la cifra buena sigue siendo la del
+ * ledger, que guarda lo cobrado en cada compra.
+ *
+ * Sin ventas devuelve null: un "acumulado de 0" no le dice nada a quien acaba de publicar.
+ */
+function etiquetaAcumulado(
+  netoPorUnidad: number | null,
+  unlockCount: number,
+  pf: ReturnType<typeof usePriceFormat>
+): string | null {
+  if (netoPorUnidad == null || netoPorUnidad <= 0 || unlockCount <= 0) return null;
+  const total = netoPorUnidad * unlockCount;
+
+  if (pf.currency === SETTLEMENT_CURRENCY) {
+    return `Acumulado de ${formatCurrency(total, SETTLEMENT_CURRENCY, pf.locale, { code: true })}`;
+  }
+
+  const local = pf.fromAnchor(total);
+  if (local == null) return null;
+  return `Acumulado aproximado de ${formatCurrency(
+    roundReference(local, pf.currency),
+    pf.currency,
+    pf.locale,
+    { code: true, approx: true }
+  )}`;
+}
 function GananciaCreador({ neto }: { neto: number }) {
   const pf = usePriceFormat();
   const tPosts = useTranslations("posts");
@@ -54,7 +95,6 @@ export function PremiumPostPanel({
   onOpenPayment,
   overlay = false,
   oneTimePrice,
-  currency,
   unlockCount = 0,
   countWhenLocked = false,
   isMobile = false,
@@ -64,7 +104,6 @@ export function PremiumPostPanel({
   onOpenPayment?: () => void;
   overlay?: boolean;
   oneTimePrice?: number | null;
-  currency?: string | null;
   unlockCount?: number;
   /** VOD con ticket (live grabado): usa su propia imagen de desbloqueo. */
   isVod?: boolean;
@@ -93,16 +132,9 @@ export function PremiumPostPanel({
       ? Math.round(oneTimePrice * WALLET_NET_RATE * 100) / 100 // = round2 del ledger
       : null;
 
-  // Referencia de la ganancia en la moneda del creador. Null si ya mira en la de
-  // liquidación: repetir la misma cifra dos veces no informa de nada.
-  const netoLocal =
-    netEarnings != null && priceFmt.currency !== SETTLEMENT_CURRENCY
-      ? priceFmt.fromAnchor(netEarnings)
-      : null;
-  const referenciaLocal =
-    netoLocal != null
-      ? `Aproximadamente ${formatCurrency(roundReference(netoLocal, priceFmt.currency), priceFmt.currency, priceFmt.locale, { code: true, approx: true })}`
-      : null;
+  // Lo que lleva reunido con esta publicación. A la derecha ve lo que gana por cada
+  // desbloqueo; aquí, la suma. Ver `etiquetaAcumulado`.
+  const referenciaLocal = etiquetaAcumulado(netEarnings, unlockCount, priceFmt);
 
   return (
     <div
@@ -230,7 +262,7 @@ export function PremiumPostPanel({
         >
           <VibraNavigationIcon type="premiumCrown" size={17} />
           {/* Monto ya con todo incluido: (base + $3) + IVA. La pasarela desglosa solo el IVA. */}
-          {tPosts("premiumUnlockForPrice", { price: priceFmt.formatWithTax((oneTimePrice ?? 0) + FIXED_SERVICE_FEE_USD, { baseCurrency: currency ?? SETTLEMENT_CURRENCY }).total })}
+          {tPosts("premiumUnlockForPrice", { price: priceFmt.formatWithTax((oneTimePrice ?? 0) + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total })}
         </button>
       )}
     </div>
@@ -239,7 +271,6 @@ export function PremiumPostPanel({
 
 export function LiveTicketPanel({
   ticketPrice,
-  currency,
   isAuthor,
   onBuyTicket,
   overlay = false,
@@ -250,7 +281,6 @@ export function LiveTicketPanel({
   isMobile = false,
 }: {
   ticketPrice: number | null;
-  currency: string | null;
   isAuthor: boolean;
   onBuyTicket: () => void;
   overlay?: boolean;
@@ -266,20 +296,34 @@ export function LiveTicketPanel({
   // El comprador ve el precio YA con todo incluido: (base + $3) + IVA.
   // La pasarela desglosa solo el IVA (recibe amount = base + $3).
   const priceLabel = ticketPrice
-    ? priceFmt.formatWithTax(ticketPrice + FIXED_SERVICE_FEE_USD, { baseCurrency: currency ?? SETTLEMENT_CURRENCY }).total
+    ? priceFmt.formatWithTax(ticketPrice + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total
     : tPosts("liveTicketPriceUndefined");
+
+  // Lo que lleva reunido con este live. Mismo ayudante que el panel de post premium, para
+  // que las dos tarjetas no puedan decir cosas distintas. Ver `etiquetaAcumulado`.
+  const acumuladoLocal = etiquetaAcumulado(
+    isAuthor && typeof ticketPrice === "number" && ticketPrice > 0
+      ? ticketPrice * WALLET_NET_RATE
+      : null,
+    unlockCount,
+    priceFmt
+  );
 
   const isPaid = paid && !isAuthor;
   const isMemberFree = memberFree && !isAuthor;
-  const borderColor = isPaid
-    ? "rgba(239,68,68,0.45)"
-    : "rgba(168,85,255,0.32)";
-  // Mismo fondo que el panel de desbloqueo de post premium (degradado morado + imagen).
-  const premiumUnlockBg =
+  // ⚠️ El panel es SIEMPRE el mismo, pagado o no: mismo degradado morado, mismo borde y
+  // mismo acento que el de post premium y VOD. Lo que cambia es la INFORMACIÓN, no el
+  // color.
+  //
+  // Antes, al comprar la entrada se volvía rojo oscuro con acentos rojos. El rojo en esta
+  // interfaz significa problema —error de pago, contenido bloqueado—, así que el momento
+  // de mayor satisfacción del comprador se le presentaba con el color de una advertencia.
+  // En premium y VOD nunca fue así, y no había razón para que aquí lo fuera.
+  const borderColor = "rgba(168,85,255,0.32)";
+  const bgColor =
     "linear-gradient(160deg, rgba(79,70,255,0.38), rgba(168,85,255,0.32) 55%, rgba(139,92,246,0.28)), linear-gradient(rgba(0,0,0,0.62), rgba(0,0,0,0.62)), url('/desbloquearcontenido.webp') center / cover no-repeat";
-  const bgColor = isPaid ? "rgba(20,5,5,0.88)" : premiumUnlockBg;
-  const iconStroke = isPaid ? "#fca5a5" : "#a855f7";
-  const titleColor = isPaid ? "#fca5a5" : "#a855f7";
+  const iconStroke = "#a855f7";
+  const titleColor = "#a855f7";
   // Ganancia del creador (75% de la base), como en el panel de post premium.
   const netEarnings =
     isAuthor && typeof ticketPrice === "number" && ticketPrice > 0
@@ -313,7 +357,7 @@ export function LiveTicketPanel({
         border: `1px solid ${borderColor}`,
         borderRadius: 12,
         overflow: "hidden",
-        background: premiumUnlockBg,
+        background: bgColor,
         padding: "10px 12px",
         display: "flex",
         alignItems: "center",
@@ -339,17 +383,42 @@ export function LiveTicketPanel({
             : tPosts("liveTicketRequiredTitle")}
         </div>
         <div style={{ fontSize: 10, color: "#fff", lineHeight: 1.4, marginTop: 2, fontFamily: fontStack }}>
-          {isPaid
-            ? tPosts("liveTicketAlreadyHaveAccess")
-            : isMemberFree
-              ? tPosts("liveTicketMemberFreeAccess")
-              : tPosts("liveTicketBuyCount", { count: unlockCount })}
+          {/* Al CREADOR no se le invita a comprar su propia entrada: se le dice cuánto
+              lleva reunido, igual que en post premium y VOD. Sin ventas todavía no se
+              enseña nada: un "acumulado de 0" no informa. */}
+          {isAuthor
+            ? acumuladoLocal
+            : isPaid
+              ? tPosts("liveTicketAlreadyHaveAccess")
+              : isMemberFree
+                ? tPosts("liveTicketMemberFreeAccess")
+                : tPosts("liveTicketBuyCount", { count: unlockCount })}
         </div>
       </div>
 
       {netEarnings !== null && (
         <div style={{ flexShrink: 0, textAlign: "end", marginInlineEnd: 4 }}>
           <GananciaCreador neto={netEarnings} />
+        </div>
+      )}
+
+      {/* Igual que en post premium y VOD: quien ya tiene su entrada no necesita botón, y
+          ese hueco quedaba vacío. Se le dice cuánta gente más la compró. Un solo renglón,
+          alineado abajo. Sin ventas no se enseña. */}
+      {isPaid && !isMobile && unlockCount > 0 && (
+        <div
+          style={{
+            flexShrink: 0,
+            alignSelf: "flex-end",
+            marginInlineEnd: 4,
+            whiteSpace: "nowrap",
+            fontSize: 10,
+            lineHeight: 1.35,
+            color: "rgba(255,255,255,0.55)",
+            fontFamily: fontStack,
+          }}
+        >
+          {tPosts("liveTicketBuyCount", { count: unlockCount })}
         </div>
       )}
 

@@ -254,6 +254,7 @@
     "reportSentDesc": "Ekipi ynë do ta shqyrtojë. Faleminderit që ndihmon ta mbajmë komunitetin të sigurt.",
     "reportSubmitError": "Ndodhi një gabim gjatë dërgimit të raportit, provo sërish.",
     "noStoriesYet": "Ende nuk ka histori.",
+    "noReelsYet": "Ende nuk ka histori.",
     "storyNothingToPublish": "Ende nuk ka asgjë për të publikuar këtu.",
     "storyAddStories": "Shto histori",
     "storyNeedsBuyerPermission": "Ke porosi, por blerësi nuk lejoi publikimin e tyre.",

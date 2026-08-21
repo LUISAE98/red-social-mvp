@@ -76,6 +76,17 @@ export const DONATION_MIN_AMOUNT_USD = 3;
  */
 export const PREMIUM_MIN_PRICE_USD = 1.5;
 
+/**
+ * Mínimo de una entrada a una transmisión en vivo.
+ *
+ * ⚠️ ESPEJO de `LIVE_TICKET_MIN_PRICE_USD` en lib/currency/catalog.ts, con test de paridad.
+ *
+ * Se guarda aparte de `PREMIUM_MIN_PRICE_USD` aunque hoy valgan lo mismo: son dos
+ * decisiones de producto distintas y unificarlas haría que cambiar una moviera la otra
+ * sin que nadie lo pidiera.
+ */
+export const LIVE_TICKET_MIN_PRICE_USD = 1.5;
+
 export type LedgerServiceType =
   | "supercomment"
   | "profile_donation"
