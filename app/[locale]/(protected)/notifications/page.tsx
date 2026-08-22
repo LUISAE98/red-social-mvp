@@ -158,7 +158,9 @@ export default function NotificationsPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 16px 16px 8px;
+          /* El aire del título es el mismo en toda la plataforma: 8 arriba y
+             10 abajo, contando ya los 8 que pone .notifPage. */
+          padding: 0 16px 10px;
         }
         /* El aspecto sale de ".vibra-page-title" (globals.css), que es la
            medida común de todos los títulos de sección. Aquí ya no se

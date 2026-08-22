@@ -90,7 +90,7 @@ export default function AdminRefundsPage() {
     try {
       const res = await devCaptureAndCredit(pi);
       setDevMsgType("success");
-      setDevMsg(`Capturado y acreditado $${(res.credited ?? 0).toFixed(2)} (${res.externalReference}), ahora el comprador puede pedir efectivo.`);
+      setDevMsg(`Cobro capturado (${res.externalReference}). El creador ya puede rechazar y el comprador pedir su devolución.`);
       setDevPi("");
     } catch (e: unknown) {
       setDevMsgType("error");
@@ -208,7 +208,7 @@ export default function AdminRefundsPage() {
           reembolsable, para poder probar el cash-out sin esperar el día-6 ni el rechazo. */}
       <div style={{ padding: "12px 14px", background: "#0d0d0d", border: "1px dashed #2a2a2a", borderRadius: 10, marginBottom: 18 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: "#666", marginBottom: 8, letterSpacing: "0.04em" }}>
-          🧪 PRUEBA — capturar hold + acreditar (pega el <code>pi_…</code> del dashboard de Stripe)
+          🧪 PRUEBA — capturar el cobro retenido (pega el <code>pi_…</code> del dashboard de Stripe)
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <input
@@ -223,7 +223,7 @@ export default function AdminRefundsPage() {
             disabled={devBusy || !devPi.trim()}
             style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #2a2a2a", background: "#1a1a1a", color: "#aaa", fontSize: 12, fontWeight: 600, cursor: devBusy ? "wait" : "pointer", whiteSpace: "nowrap" }}
           >
-            {devBusy ? "…" : "Capturar + acreditar"}
+            {devBusy ? "…" : "Capturar cobro"}
           </button>
         </div>
       </div>

@@ -598,7 +598,7 @@ const pageWrapper: CSSProperties = {
   // Sin hueco abajo ni min-height de pantalla: el clearance del nav lo reserva
   // `.mainCol` del layout protegido, y este wrap no tiene fondo propio que
   // estirar. Los dos juntos dejaban vacío al final de la lista.
-  padding: "28px 16px 0",
+  padding: "8px 16px 0",
   fontFamily: fontStack,
   color: "#fff",
   boxSizing: "border-box",
@@ -610,7 +610,7 @@ const pageWrapper: CSSProperties = {
  * sección: aquí iba en 22/800 con su propio tracking y desentonaba con el resto.
  */
 const pageTitle: CSSProperties = {
-  margin: "0 0 24px",
+  margin: "0 0 10px",
 };
 
 const section: CSSProperties = {

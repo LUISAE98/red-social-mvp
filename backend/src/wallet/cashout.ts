@@ -22,7 +22,6 @@ import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "../payments/stripe/stripeClient";
 import { spendBuyerCredit, revertBuyerCreditSpend } from "./buyerCredit";
 import { capturePaymentIntentForRef } from "../payments/stripe/holdCapture";
-import { refundExperienceToCredit } from "./refundToCredit";
 import { requirePlatformMod } from "../authz";
 import { assertAccountNotBanned } from "../accountStatus";
 
@@ -258,8 +257,13 @@ export const dismissCashoutNotice = onCall(
 
 /**
  * 🧪 HELPER DE PRUEBA (solo-moderador). Dado el `pi_...` de Stripe que ves en el dashboard,
- * CAPTURA el hold de una experiencia (lo cobra de verdad) y emite el crédito de devolución
- * reembolsable — para poder probar el cash-out sin esperar el día-6 ni el rechazo real.
+ * CAPTURA el hold de una experiencia — lo cobra de verdad, y a partir de ahí el cargo es
+ * reembolsable. Sirve para probar el flujo de devolución sin esperar al día 6.
+ *
+ * ⚠️ Solo captura. NO emite el crédito: eso le toca al flujo real (el creador rechaza o se
+ * agota el plazo, y el comprador pide la devolución). Cuando hacía las dos cosas, dejaba la
+ * experiencia esperando entrega con el comprador ya reembolsado.
+ *
  * Atajo de QA; NO forma parte del flujo de producción.
  */
 export const devCaptureAndCredit = onCall(
@@ -305,11 +309,18 @@ export const devCaptureAndCredit = onCall(
       await expRef.set({ paymentStatus: "paid", paidAt: now, updatedAt: now }, { merge: true });
     }
 
-    // 2) Emitir el crédito de devolución (reembolsable, con el cargo Stripe detrás).
-    const credited = await refundExperienceToCredit({ buyerId, creatorId, sourceType, sourceId });
-
-    logger.info("dev_capture_and_credit", { externalReference, buyerId, credited });
-    return { ok: true, externalReference, buyerId, credited };
+    // ⚠️ AQUÍ SE ACABA. La herramienta ya NO emite el crédito.
+    //
+    // Antes capturaba y acreditaba de una vez, y eso dejaba un estado imposible: la
+    // experiencia seguía en `pending` —el creador todavía podía grabarla y entregarla— y el
+    // comprador ya tenía el dinero de vuelta como saldo. Si el creador entregaba, el
+    // comprador se quedaba con el saludo Y con el importe.
+    //
+    // El crédito pertenece al flujo REAL: el creador rechaza (o se agota el plazo) y el
+    // comprador pide la devolución. Este atajo solo adelanta la captura, que es lo único
+    // que de otro modo obligaría a esperar al día 6.
+    logger.info("dev_capture_hold", { externalReference, buyerId, creatorId });
+    return { ok: true, externalReference, buyerId, credited: 0 };
   }
 );
 

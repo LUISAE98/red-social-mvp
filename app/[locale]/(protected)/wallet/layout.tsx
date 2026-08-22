@@ -67,7 +67,9 @@ export default function WalletLayout({
         .walletHeader {
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          /* Los mismos 10px que separan al título de lo que viene debajo en
+             guardados, notificaciones y el resto. */
+          gap: 10px;
           margin-bottom: 6px;
         }
 

@@ -132,7 +132,9 @@ export default function MessagesPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 16px 4px 8px;
+          /* Mismo aire que el resto de títulos: 8 arriba (los pone .msgPage)
+             y 10 abajo. */
+          padding: 0 4px 10px;
         }
         /* El aspecto sale de ".vibra-page-title" (globals.css). */
         .msgRequests {

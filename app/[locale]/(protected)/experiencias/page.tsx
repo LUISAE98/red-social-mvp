@@ -499,8 +499,8 @@ export default function ExperienciasPage() {
   // Sin hueco abajo: el clearance del nav lo reserva `.mainCol` del layout
   // protegido y los 48px que había aquí se le sumaban.
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 12px 0", width: "100%", boxSizing: "border-box" }}>
-      <h1 className="vibra-page-title" style={{ margin: "4px 2px 14px" }}>
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: "8px 12px 0", width: "100%", boxSizing: "border-box" }}>
+      <h1 className="vibra-page-title" style={{ margin: "0 0 10px" }}>
         {tNav("tabExperiences")}
       </h1>
 
