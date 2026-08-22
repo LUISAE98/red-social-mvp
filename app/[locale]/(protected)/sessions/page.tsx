@@ -547,7 +547,7 @@ export default function SessionsPage() {
 
   return (
     <div style={pageWrapper}>
-      <h1 style={pageTitle}>{tSessions("pageTitle")}</h1>
+      <h1 className="vibra-page-title" style={pageTitle}>{tSessions("pageTitle")}</h1>
 
       {loading ? (
         <CardsSkeleton count={3} height={116} />
@@ -604,10 +604,12 @@ const pageWrapper: CSSProperties = {
   boxSizing: "border-box",
 };
 
+/**
+ * Solo lo que NO es tipografía. El tamaño, el grosor y el color salen de
+ * `.vibra-page-title` (globals.css), la medida común de todos los títulos de
+ * sección: aquí iba en 22/800 con su propio tracking y desentonaba con el resto.
+ */
 const pageTitle: CSSProperties = {
-  fontSize: 22,
-  fontWeight: 800,
-  letterSpacing: "-0.03em",
   margin: "0 0 24px",
 };
 

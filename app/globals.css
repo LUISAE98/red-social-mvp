@@ -421,6 +421,31 @@ body::-webkit-scrollbar-button {
   background-color: rgba(168, 85, 255, 0);
 }
 
+/* ── Título de página ──────────────────────────────────────────────────────
+   La fuente ÚNICA del encabezado de cada sección: guardados, notificaciones,
+   mensajes, experiencias, sesiones, wallet.
+
+   Antes cada pantalla se lo inventaba —600, 700 y 800 de grosor; 20, 22 y 44 de
+   tamaño; tres tracking distintos— y moverse por el menú era ver cambiar la
+   tipografía de sitio en sitio. La medida buena es la de guardados y vive aquí,
+   en una clase, para que no pueda volver a divergir: las pantallas la usan, no
+   la copian.
+
+   El tamaño es elástico a propósito: encoge en pantallas estrechas sin bajar de
+   21 ni pasar de 23. Los tres valores del clamp crecieron a la vez —también el
+   vw del medio—, para que la elasticidad se mantenga igual de progresiva. */
+.vibra-page-title {
+  margin: 0;
+  max-width: 100%;
+  min-width: 0;
+  font-size: clamp(21px, 2.53vw, 23px);
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 /* ── Primitivos de UI (components/ui) ──────────────────────────────────────
    Hover/active/foco que los estilos inline no pueden expresar. El anillo de
    foco visible es requisito de accesibilidad (#14). */

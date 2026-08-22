@@ -71,14 +71,12 @@ export default function WalletLayout({
           margin-bottom: 6px;
         }
 
-        .walletTitle {
-          margin: 0;
-          font-size: 44px;
-          line-height: 0.98;
-          letter-spacing: -0.04em;
-          font-weight: 700;
-          color: #ffffff;
-        }
+        /* El aspecto sale de ".vibra-page-title" (globals.css), como el de
+           guardados, notificaciones o experiencias. Este era el que más se
+           separaba —44px y 700— y hacía que entrar a la wallet se sintiera como
+           cambiar de aplicación. Su tamaño elástico ya encoge solo en pantallas
+           estrechas, así que la variante de móvil que había abajo tampoco hace
+           falta. */
 
         /* Recorta el deslizamiento de llegada de la pestaña, que entra desde
            fuera del ancho. La animación en si la pone WalletSectionShell, ya
@@ -106,9 +104,6 @@ export default function WalletLayout({
             margin-bottom: 4px;
           }
 
-          .walletTitle {
-            font-size: 34px;
-          }
         }
       `}</style>
 
@@ -119,7 +114,7 @@ export default function WalletLayout({
                 la wallet aún no es un panel sino una invitación a empezar. */}
             {monetizationLoaded && !showOnboarding ? (
               <>
-                <h1 className="walletTitle">Wallet</h1>
+                <h1 className="vibra-page-title">Wallet</h1>
                 <WalletSubNav activeTab={activeTab} />
               </>
             ) : null}

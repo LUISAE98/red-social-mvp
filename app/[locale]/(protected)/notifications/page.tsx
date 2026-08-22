@@ -107,7 +107,7 @@ export default function NotificationsPage() {
     <RefreshableArea onRefresh={refresh}>
     <div className="notifPage">
       <div className="notifPageHead">
-        <h1 className="notifPageTitle">{t("title")}</h1>
+        <h1 className="vibra-page-title">{t("title")}</h1>
         {unreadCount > 0 ? (
           <TextButton tone="brand" className="notifPageMarkAll" onClick={() => markAllRead()}>
             {t("markAllRead")}
@@ -160,12 +160,9 @@ export default function NotificationsPage() {
           justify-content: space-between;
           padding: 16px 16px 8px;
         }
-        .notifPageTitle {
-          font-size: 20px;
-          font-weight: 600;
-          color: #fff;
-          margin: 0;
-        }
+        /* El aspecto sale de ".vibra-page-title" (globals.css), que es la
+           medida común de todos los títulos de sección. Aquí ya no se
+           repite ni el tamaño ni el grosor: se heredan. */
         /* El aspecto sale de TextButton; aquí solo queda el subrayado al pasar. */
         .notifPageMarkAll:hover {
           text-decoration: underline;

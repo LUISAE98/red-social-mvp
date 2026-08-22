@@ -78,7 +78,7 @@ export default function MessagesPage() {
   return (
     <div className="msgPage">
       <div className="msgPageHead">
-        <h1 className="msgPageTitle">{tNav("tabMessages")}</h1>
+        <h1 className="vibra-page-title">{tNav("tabMessages")}</h1>
       </div>
 
       <ConversationList
@@ -134,12 +134,7 @@ export default function MessagesPage() {
           justify-content: space-between;
           padding: 16px 4px 8px;
         }
-        .msgPageTitle {
-          font-size: 20px;
-          font-weight: 600;
-          color: #fff;
-          margin: 0;
-        }
+        /* El aspecto sale de ".vibra-page-title" (globals.css). */
         .msgRequests {
           margin-top: 18px;
         }

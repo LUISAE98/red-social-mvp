@@ -18,6 +18,8 @@ import { resolveCashout, devCaptureAndCredit, type CashoutRequestDoc } from "@/l
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast, type ToastType } from "@/lib/hooks/useVibraToast";
 import { useAdminPreview } from "../context";
+import { formatCurrency } from "@/lib/currency/format";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useConfirm } from "@/lib/hooks/useConfirm";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -37,8 +39,15 @@ const STATUS_META: Record<string, { label: string; color: string; dot: string }>
   rejected: { label: "Rechazada", color: "#f87171", dot: "#f87171" },
 };
 
+/**
+ * Importes del panel de devoluciones, SIEMPRE con el código de moneda.
+ *
+ * ⚠️ Sin él salía un `$1,234.56` a secas. Todo lo que se ve aquí está en la moneda de
+ * liquidación, pero un moderador mexicano lee ese símbolo como pesos y aprueba una
+ * devolución creyendo que son diecisiete veces menos de lo que es.
+ */
 function money(n: number, locale: string): string {
-  return `$${(n ?? 0).toLocaleString(intlLocale(locale), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatCurrency(n ?? 0, SETTLEMENT_CURRENCY, locale, { code: true });
 }
 
 function rel(date: Date | null): string {

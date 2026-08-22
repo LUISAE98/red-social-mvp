@@ -817,18 +817,6 @@ const shellStyle: CSSProperties = {
       }
     : null;
 
-  const titleStyle: CSSProperties = {
-    margin: 0,
-    maxWidth: "100%",
-    minWidth: 0,
-    fontSize: "clamp(18px, 2.2vw, 20px)",
-    fontWeight: 600,
-    lineHeight: 1.1,
-    color: "#fff",
-    overflowWrap: "anywhere",
-    wordBreak: "break-word",
-  };
-
   const subtitleStyle: CSSProperties = {
     margin: 0,
     maxWidth: "100%",
@@ -934,7 +922,7 @@ const visiblePosts = useMemo(() => {
       <section style={shellStyle}>
         <div style={headerStyle}>
           <div style={titleRowStyle}>
-            <h2 style={titleStyle}>{tSaved("title")}</h2>
+            <h2 className="vibra-page-title">{tSaved("title")}</h2>
           </div>
           <p style={subtitleStyle}>{tSaved("loginToView")}</p>
         </div>
@@ -972,7 +960,7 @@ return (
     <div ref={titleWrapRef} style={titleWrapStyle}>
       <div style={headerStyle}>
         <div style={titleRowStyle}>
-          <h2 style={titleStyle}>{tSaved("title")}</h2>
+          <h2 className="vibra-page-title">{tSaved("title")}</h2>
         </div>
       </div>
     </div>
