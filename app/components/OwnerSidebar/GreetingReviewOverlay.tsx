@@ -159,7 +159,7 @@ export default function GreetingReviewOverlay({
   // Panel de datos plegado/desplegado. La cámara NO se toca al plegarlo: sigue
   // grabando. Queda una pestaña con la flecha para volver a abrirlo a media
   // grabación, por si el creador necesita releer la petición.
-  const [infoOpen, setInfoOpen] = useState(true);
+  const [infoOpenState, setInfoOpen] = useState(true);
   const [, setSheetExpanded] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
@@ -2015,11 +2015,32 @@ export default function GreetingReviewOverlay({
   /** `bleed` saca la franja de tiempo hacia los lados. En laptop el chrome vive
    *  dentro de un contenedor estrechado 56px por lado para no comerse las
    *  pestañas, y sin esto el degradado del pie se cortaba a media pantalla. */
-  const renderVpControls = (bleed = 0) => (
+  /**
+   * Ampliar y silenciar. Van sueltos porque en el visor de laptop NO viven dentro
+   * del panel: se pintan fuera, junto al tache. Dentro caían sobre la esquina del
+   * video, y en un saludo vertical se comían justo la cara.
+   */
+  const vpTopButtons = (
+    <>
+      <IconButton label={tCommon("fullscreen")} size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onClick={async (e) => { e.stopPropagation(); const v = playbackVideoRef.current; if (!v) return; try { if (typeof v.requestFullscreen === "function") await v.requestFullscreen(); else if (typeof (v as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen === "function") (v as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen(); } catch { /* ignored */ } }}>
+        <VideoExpandIcon size={22} />
+      </IconButton>
+      <IconButton label={vpMuted ? tCommon("unmute") : tCommon("muteLabel")} size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onClick={(e) => { e.stopPropagation(); setVpMuted((m) => !m); showVPChrome(); scheduleVPChromeHide(); }}>
+        {vpMuted ? <VideoMuteIcon size={22} /> : <VideoUnmuteIcon size={22} />}
+      </IconButton>
+    </>
+  );
+
+  const renderVpControls = (bleed = 0, conBotonesArriba = true, cazadorDesde = 0) => (
     <div style={{ position: "absolute", inset: 0, zIndex: 5, pointerEvents: "none" }}>
-      {/* Click catcher — toggle chrome */}
+      {/* El cazador de clics que enseña y esconde los controles.
+          `cazadorDesde` lo aparta del canto donde vive la flecha de plegar. Antes
+          eso se conseguía estrechando la franja ENTERA, pero entonces el play y la
+          barra de tiempo se centraban sobre una franja recortada y quedaban
+          corridos hacia un lado. Apartar solo el cazador deja la flecha pulsable
+          sin descentrar nada. */}
       <div
-        style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "auto", cursor: "pointer" }}
+        style={{ position: "absolute", top: 0, bottom: 0, insetInlineEnd: 0, insetInlineStart: cazadorDesde, zIndex: 0, pointerEvents: "auto", cursor: "pointer" }}
         onClick={() => {
           if (vpChromeVisible) {
             if (vpChromeTimerRef.current !== null) window.clearTimeout(vpChromeTimerRef.current);
@@ -2038,20 +2059,18 @@ export default function GreetingReviewOverlay({
         transition: "opacity 220ms ease",
         pointerEvents: "none",
       }}>
-        {/* Top-insetInlineEnd: fullscreen + mute */}
+        {/* Ampliar y silenciar, arriba a la derecha del video. En el visor de
+            laptop se piden APAGADOS: allí se pintan fuera, junto al tache. */}
+        {conBotonesArriba && (
         <div style={{
           position: "absolute", top: 0, insetInlineEnd: 0,
           padding: "10px 12px",
           display: "flex", alignItems: "center", gap: 10,
           pointerEvents: "auto",
         }}>
-          <IconButton label={tCommon("fullscreen")} size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onClick={async (e) => { e.stopPropagation(); const v = playbackVideoRef.current; if (!v) return; try { if (typeof v.requestFullscreen === "function") await v.requestFullscreen(); else if (typeof (v as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen === "function") (v as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen(); } catch { /* ignored */ } }}>
-            <VideoExpandIcon size={22} />
-          </IconButton>
-          <IconButton label={vpMuted ? tCommon("unmute") : tCommon("muteLabel")} size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onClick={(e) => { e.stopPropagation(); setVpMuted((m) => !m); showVPChrome(); scheduleVPChromeHide(); }}>
-            {vpMuted ? <VideoMuteIcon size={22} /> : <VideoUnmuteIcon size={22} />}
-          </IconButton>
+          {vpTopButtons}
         </div>
+        )}
 
         {/* Center: skip-10 | play/pause | skip+10 */}
         <div style={{
@@ -2741,11 +2760,57 @@ export default function GreetingReviewOverlay({
 
   // ─── DESKTOP CAMERA VIEW ─────────────────────────────────────────────────────
   if (viewState === "camera" && !isMobile) {
+    /**
+     * ¿El saludo viene vertical? Un saludo grabado con el celular lo está, y el
+     * visor de laptop lo trataba como si fuera apaisado.
+     *
+     * Se decide con la proporción real del archivo, no con una suposición: por
+     * debajo de 1 es más alto que ancho. Mientras no se sabe (null), apaisado,
+     * que es lo de antes y lo que graba una webcam.
+     */
+    const esVertical = vpAspect !== null && vpAspect < 1;
+
+    // Alto del panel. Se saca a una constante porque en vertical el ANCHO se
+    // deduce de él, y las dos medidas tienen que salir del mismo sitio.
+    const panelHeight = "min(86dvh, 826px)";
+
+    const INFO_W_VERTICAL = 270;
+    /**
+     * Cuánto se mete el negro de la ficha sobre el video antes de desaparecer.
+     * Corto a propósito: lo justo para que no haya un canto duro, sin llegar a
+     * ensombrecer al que sale en el saludo.
+     */
+    const VERTICAL_FADE = 34;
+    /** Dónde termina el negro opaco: justo en el borde izquierdo del video. */
+    const VERTICAL_FADE_STOP = `${((INFO_W_VERTICAL / (INFO_W_VERTICAL + VERTICAL_FADE)) * 100).toFixed(2)}%`;
+
     // Ancho del panel de datos. Es UNA sola medida usada en tres sitios (velo,
     // contenido y posición de la flecha) para que los tres se muevan juntos.
-    const infoWidth = "clamp(230px, 26%, 320px)";
+    //
+    // En vertical se estrecha y se fija: el panel entero ya es angosto, y un
+    // porcentaje sobre un ancho pequeño dejaría la ficha ilegible. Fijarlo
+    // además permite que la cuenta del ancho total cuadre exactamente.
+    const infoWidth = esVertical ? `${INFO_W_VERTICAL}px` : "clamp(230px, 26%, 320px)";
     // Lo que queda a la vista al plegar: una pestaña con la flecha.
     const infoTab = 56;
+
+    const infoOpen = infoOpenState;
+
+    /**
+     * Ancho del panel entero.
+     *
+     * Apaisado: el de siempre, 1180.
+     *
+     * Vertical: la ficha MÁS el ancho que el video ocupa de verdad a esa altura
+     * (alto × proporción). Así el hueco que queda a la izquierda del video es
+     * exactamente la ficha —ni un pixel de más—, que es lo que hace que el
+     * difuminado solo roce el canto del video en vez de comerse medio saludo.
+     */
+    const panelMaxWidth = esVertical
+      // Plegada la ficha, su columna deja de existir y el panel se queda con el
+      // puro saludo: nada de un margen negro donde antes había datos.
+      ? `calc(${infoOpen ? INFO_W_VERTICAL : 0}px + ${panelHeight} * ${vpAspect})`
+      : "1180px";
 
     // El pie apila rechazar, subir video y el botón rojo. Cada piso mide lo que
     // ocupa un botón de acción (40) más el aire entre ellos, contado desde 28.
@@ -2753,18 +2818,43 @@ export default function GreetingReviewOverlay({
     // Ahora los dos van en la misma fila, así que el rojo solo sube un piso.
     const FOOTER_RECORD_BOTTOM = FOOTER_REJECT_BOTTOM + 40 + 14;
 
-    // Los controles del video traen un cazador de clics a `inset: 0`, así que
-    // tal cual se tragan las pestañas laterales y no dejan plegar ni desplegar
-    // nada durante la previsualización. Aquí se encierran en la franja central,
-    // entre las dos pestañas: los clics de los bordes vuelven a llegar a las
-    // flechas, y de paso los iconos de pantalla completa y silencio dejan de
-    // caer justo encima de la pestaña del prompter.
+    // La pestaña del prompter solo existe mientras se graba; en la revisión de un
+    // video ya entregado no hay nada que leer, así que ese borde queda libre.
+    const hayPestanaPrompter = !viewMode && !buyerViewMode && !uploadSucceeded;
+
+    /**
+     * ¿Hay un video en pantalla ahora mismo? Ampliar y silenciar actúan sobre él,
+     * así que con la cámara en vivo no pintan nada y no deben salir. Las dos
+     * condiciones son las mismas que deciden qué video se monta más abajo.
+     */
+    const mostrandoVideo = (viewMode || buyerViewMode)
+      ? !!viewMp4Url
+      : (!!recordedBlobUrl && recordPhase === "done" && !uploadSucceeded);
+
+    /**
+     * La franja de los controles se ciñe EXACTAMENTE al video.
+     *
+     * De ahí sale el centro del play y de los saltos de 10, y de ahí sale también
+     * el ancho de la barra de tiempo. Si la franja se recorta por un lado —como
+     * se hacía para dejar sitio a las pestañas—, todo lo de dentro se corre hacia
+     * el otro: el play deja de estar en el medio del saludo y la barra no llega
+     * al canto. Lo que necesita apartarse de la flecha es el cazador de clics, y
+     * ese se aparta solo, con `cazadorDesde`.
+     */
+    const videoDesde = esVertical ? (infoOpen ? INFO_W_VERTICAL : 0) : infoTab;
+    const videoHasta = esVertical ? (hayPestanaPrompter ? infoTab : 0) : infoTab;
+
+    // Plegada, la flecha de reabrir cae ENCIMA del video; abierta vive sobre la
+    // ficha y no le estorba a nadie.
+    const cazadorDesde = esVertical && !infoOpen ? infoTab : 0;
+
     const videoChrome = (
       <div style={{
         position: "absolute", top: 0, bottom: 0,
-        insetInlineStart: infoTab, insetInlineEnd: infoTab,
+        insetInlineStart: videoDesde,
+        insetInlineEnd: videoHasta,
       }}>
-        {renderVpControls(infoTab)}
+        {renderVpControls(esVertical ? 0 : infoTab, false, cazadorDesde)}
       </div>
     );
 
@@ -2837,31 +2927,58 @@ export default function GreetingReviewOverlay({
         <div
           style={{
             width: "100%",
-            maxWidth: 1180,
+            maxWidth: panelMaxWidth,
+            // Se anima al plegar y al desplegar la ficha, pero NO en el primer
+            // ancho: ese se planta ya correcto mientras el panel está invisible.
+            // Ver `anchoAnimable`.
+            transition: anchoAnimable
+              ? "max-width 300ms cubic-bezier(0.4, 0, 0.2, 1)"
+              : undefined,
             display: "flex",
             flexDirection: "column",
             alignItems: "flex-end",
             gap: 8,
-            animation: panelClosing
-              ? `vibraGreetingPanelOut ${PANEL_CLOSE_MS}ms cubic-bezier(0.4, 0, 1, 1) forwards`
-              : "vibraGreetingPanelPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+            // Nada se ve hasta saber la forma. El video sigue cargando debajo:
+            // es él quien la averigua, así que ocultarlo es lo que la trae.
+            opacity: esperandoOrientacion ? 0 : 1,
+            animation: esperandoOrientacion
+              ? undefined
+              : panelClosing
+                ? `vibraGreetingPanelOut ${PANEL_CLOSE_MS}ms cubic-bezier(0.4, 0, 1, 1) forwards`
+                : "vibraGreetingPanelPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
           }}
         >
-          <IconButton
-            label={tCommon("closeAriaLabel")}
-            size="sm"
-            tone="bare"
-            shape="square"
-            style={{ boxShadow: "none" }}
-            onClick={(e) => { e.stopPropagation(); handleAnimatedClose(); }}
+          {/* La fila de arriba, FUERA del panel: ampliar, silenciar y cerrar.
+              Ampliar y silenciar vivían encima de la esquina del video, donde
+              tapaban imagen —y en un saludo vertical, justo la cara—. Aquí no
+              tapan nada y quedan agrupados con el tache, que es la otra cosa que
+              se hace sobre el visor y no sobre el saludo.
+
+              Tampoco se desvanecen ya con el resto de controles: sobre el fondo
+              oscuro se leen siempre, y un botón que se esconde solo obliga a
+              mover el ratón para encontrarlo. */}
+          <div
+            style={{ display: "flex", alignItems: "center", gap: 2 }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M6 6L18 18M18 6L6 18"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-              />
-            </svg>
-          </IconButton>
+            {mostrandoVideo ? vpTopButtons : null}
+
+            <IconButton
+              label={tCommon("closeAriaLabel")}
+              size="sm"
+              tone="bare"
+              shape="square"
+              style={{ boxShadow: "none" }}
+              onClick={(e) => { e.stopPropagation(); handleAnimatedClose(); }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M6 6L18 18M18 6L6 18"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                />
+              </svg>
+            </IconButton>
+          </div>
 
         {/* UN SOLO panel de grabación. La información ya no es un panel
             hermano: va superpuesta sobre su lado izquierdo, para que el video
@@ -2872,7 +2989,7 @@ export default function GreetingReviewOverlay({
           style={{
             position: "relative",
             width: "100%",
-            height: "min(86dvh, 826px)",
+            height: panelHeight,
             overflow: "hidden",
             background: "#000",
             boxSizing: "border-box",
@@ -2896,10 +3013,30 @@ export default function GreetingReviewOverlay({
             bottom: 0,
             zIndex: 6,
             pointerEvents: "none",
-            width: (infoOpen && !sampleMode) ? infoWidth : infoTab,
+            // En vertical el velo cubre la ficha ENTERA y se pasa VERTICAL_FADE px
+            // sobre el video. Ese sobrante es el difuminado: sin él, la ficha
+            // termina en negro opaco y el video empieza de golpe, que es la línea
+            // divisoria que se veía.
+            width: (infoOpen && !sampleMode)
+              ? (esVertical ? `${INFO_W_VERTICAL + VERTICAL_FADE}px` : infoWidth)
+              : infoTab,
             transition: "width 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+            // ⚠️ DOS paradas de color, no más: con tres o cuatro, cada cambio de
+            // pendiente se ve como una banda.
+            //
+            // En vertical el negro tiene que ser OPACO DEL TODO hasta el canto
+            // del video —no 0.94, que ya dejaba un escalón contra el fondo del
+            // panel— y caer a nada en un tramo CORTO justo después. La parada va
+            // exactamente en la proporción que ocupa la ficha dentro del velo,
+            // así que la costura queda donde empieza el video, ni antes ni
+            // después.
             background: infoOpen
-              ? "linear-gradient(to right, rgba(0,0,0,0.90), rgba(0,0,0,0))"
+              ? (esVertical
+                  ? `linear-gradient(to right, #000 ${VERTICAL_FADE_STOP}, rgba(0,0,0,0))`
+                  : "linear-gradient(to right, rgba(0,0,0,0.90), rgba(0,0,0,0))")
+              // Plegada, los dos modos llevan la MISMA pestaña difuminada: no hay
+              // ficha que tapar, solo hace falta el sombreado que deja leer la
+              // flecha sobre la imagen.
               : "linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0))",
           }}
         />
@@ -2946,14 +3083,18 @@ export default function GreetingReviewOverlay({
             </div>
             <div style={{ flexShrink: 0 }}>{divider}</div>
 
-            {/* La zona que rueda arranca DEBAJO de la línea. El colchón de abajo
-                la separa de la barra de tiempo del reproductor, que aparece y
-                desaparece sobre el video. */}
+            {/* La zona que rueda arranca DEBAJO de la línea. En horizontal el
+                colchón de abajo la separa de la barra de tiempo, que aparece y
+                desaparece SOBRE el panel. En vertical la barra vive solo sobre el
+                video y nunca lo pisa, así que no hay de qué apartarse: el colchón
+                se queda quieto y el contenido deja de dar saltos. */}
             <div style={{
               flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden",
               display: "flex", flexDirection: "column", gap: 16, minWidth: 0,
-              paddingBottom: vpChromeVisible ? 56 : 8,
-              transition: "padding-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+              paddingBottom: esVertical ? 8 : (vpChromeVisible ? 56 : 8),
+              transition: esVertical
+                ? undefined
+                : "padding-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
               ...slideStyle,
             }}>
               {earningRow}
@@ -2964,8 +3105,12 @@ export default function GreetingReviewOverlay({
               flexShrink: 0, paddingTop: 8,
               display: "flex", flexDirection: "column", gap: 8,
               // Se aparta de la barra de tiempo cuando el reproductor la enseña.
-              paddingBottom: vpChromeVisible ? 48 : 0,
-              transition: "padding-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+              // En vertical NO: la barra no llega al panel, así que subir y bajar
+              // el botón de descargar sería moverlo por nada.
+              paddingBottom: esVertical ? 0 : (vpChromeVisible ? 48 : 0),
+              transition: esVertical
+                ? undefined
+                : "padding-bottom 300ms cubic-bezier(0.4, 0, 0.2, 1)",
             }}>
               {(viewMode || buyerViewMode) ? (
                 <>
@@ -3268,7 +3413,15 @@ export default function GreetingReviewOverlay({
             <div style={{ position: "relative", height: "100%", width: "100%" }}>
               {(viewMode || buyerViewMode) ? (
                 viewMp4Url ? (
-                  <div style={{ position: "relative", height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{
+                    position: "relative", height: "100%", width: "100%",
+                    display: "flex", alignItems: "center",
+                    // En vertical el video se apoya en el canto derecho y todo el
+                    // hueco sobrante queda a la izquierda, que es donde vive la
+                    // ficha. Se usa flex-end y no una posición fija para que en
+                    // árabe y hebreo se vaya al otro lado con la ficha.
+                    justifyContent: esVertical ? "flex-end" : "center",
+                  }}>
                     <video
                       ref={playbackVideoRef}
                       src={viewMp4Url}
@@ -3286,8 +3439,17 @@ export default function GreetingReviewOverlay({
                       onPause={() => setVpPlaying(false)}
                       onEnded={() => setVpPlaying(false)}
                       style={{
-                        height: "100%", width: "100%",
-                        objectFit: "cover", background: "#000",
+                        height: "100%",
+                        // ⚠️ Aquí estaba la avería. Un vertical dentro de un marco
+                        // apaisado con `cover` se amplía hasta llenarlo y se pierde
+                        // casi todo por los lados: eso es el "zoom" que se veía.
+                        // Con el ancho automático el video pide el suyo propio y el
+                        // marco ya viene estrechado a su medida, así que `contain`
+                        // no deja franjas negras: cae clavado.
+                        width: esVertical ? "auto" : "100%",
+                        maxWidth: "100%",
+                        objectFit: esVertical ? "contain" : "cover",
+                        background: "#000",
                       }}
                     />
                     {videoChrome}
