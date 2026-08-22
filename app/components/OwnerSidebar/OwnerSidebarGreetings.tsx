@@ -1966,7 +1966,14 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         serviceKind={incomingSessionOverlayData.serviceKind}
         earning={
           incomingSessionOverlayData.req.priceSnapshot != null && incomingSessionOverlayData.req.priceSnapshot > 0
-            ? formatMoney(incomingSessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { baseCurrency: incomingSessionOverlayData.req.currency ?? SETTLEMENT_CURRENCY, code: true })
+            ? pf.formatAnchor(incomingSessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { code: true })
+            : null
+        }
+        earningLocal={
+          incomingSessionOverlayData.req.priceSnapshot != null &&
+          incomingSessionOverlayData.req.priceSnapshot > 0 &&
+          pf.currency !== SETTLEMENT_CURRENCY
+            ? pf.formatPlain(incomingSessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { baseCurrency: SETTLEMENT_CURRENCY, code: true })
             : null
         }
         busy={!!busyMap[incomingSessionOverlayData.id]}

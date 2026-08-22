@@ -40,6 +40,12 @@ export type SessionRequestOverlayProps = {
   requestId: string;
   serviceKind: "meet_greet" | "exclusive_session";
   earning: string | null;
+  /**
+   * Referencia de esa ganancia en la moneda del creador. Va DEBAJO y más pequeña: la cifra
+   * que manda es la de liquidación, esta solo lo ayuda a ubicarse. Null si ya mira en la
+   * moneda de liquidación, porque sería repetir el mismo número.
+   */
+  earningLocal?: string | null;
   busy: boolean;
   ownerCalendarItems: WalletServiceItem[];
   getInitials: (name?: string | null) => string;

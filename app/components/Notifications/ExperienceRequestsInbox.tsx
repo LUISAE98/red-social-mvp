@@ -141,7 +141,7 @@ export default function ExperienceRequestsInbox({
   const tWallet = useTranslations("wallet");
   const tServices = useTranslations("services");
   const tCommon = useTranslations("common");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
 
   const {
     greetingsByBucket,
@@ -248,10 +248,28 @@ export default function ExperienceRequestsInbox({
     return out.sort((a, b) => b.ms - a.ms); // más nueva arriba
   }, [greetingsByBucket, meetGreetsByBucket, exclusiveByBucket]);
 
-  const earningOf = (price?: number | null, currency?: string | null): string | null =>
-    price != null && price > 0
-      ? formatMoney(price * WALLET_NET_RATE, { code: true, baseCurrency: (currency as "MXN" | "USD") ?? SETTLEMENT_CURRENCY })
-      : null;
+  /**
+   * Lo que el creador se lleva por esta solicitud: el 75% de la base, en la moneda de
+   * LIQUIDACIÓN y con una referencia en la suya debajo.
+   *
+   * ⚠️ Antes salía con `format`, que es el precio del COMPRADOR: convertía a la moneda de
+   * quien mira, sumaba el 2% y redondeaba al escalón. Al creador se le prometían unos pesos
+   * que no iba a recibir, y encima con la etiqueta de su moneda en vez de la del cobro.
+   *
+   * Tampoco se usa ya la moneda guardada en el documento: la base vive siempre en la de
+   * liquidación, y fiarse de la del documento resucita el fallo de leer dólares como pesos.
+   */
+  const earningOf = (price?: number | null): { usd: string; local: string | null } | null => {
+    if (price == null || price <= 0) return null;
+    const neto = price * WALLET_NET_RATE;
+    return {
+      usd: pf.formatAnchor(neto, { code: true }),
+      local:
+        pf.currency === SETTLEMENT_CURRENCY
+          ? null
+          : pf.formatPlain(neto, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
+    };
+  };
 
   // ── Handlers de saludo ─────────────────────────────────────────────────────
   const handleGreeting = async (id: string, action: "accept" | "reject") => {
@@ -458,7 +476,7 @@ export default function ExperienceRequestsInbox({
           const r = { id: item.id, data: item.data };
           const req = r.data;
           const buyer = userMiniMap[req.buyerId] ?? null;
-              const earning = earningOf(req.priceSnapshot, req.currency);
+              const earning = earningOf(req.priceSnapshot);
               // Tarjeta con imagen de fondo (+ degradado para legibilidad) y layout
               // horizontal: info a la izquierda, monto + botón "Ver solicitud" a la
               // derecha. Cada tipo tiene su imagen y su color de botón.
@@ -550,8 +568,10 @@ export default function ExperienceRequestsInbox({
                       flexShrink: 0,
                     }}
                   >
+                    {/* Solo la moneda de liquidación: en la lista no cabe una segunda cifra
+                        sin volverla ruidosa, y el desglose completo está en el detalle. */}
                     {earning ? (
-                      <span style={{ ...styles.earning, fontSize: 12.1 }}>{earning}</span>
+                      <span style={{ ...styles.earning, fontSize: 12.1 }}>{earning.usd}</span>
                     ) : null}
                     <button
                       type="button"
@@ -586,7 +606,7 @@ export default function ExperienceRequestsInbox({
         const r = { id: item.id, data: item.data, kind: item.sessionKind };
         {
               const req = r.data;
-              const earning = earningOf(req.priceSnapshot, req.currency);
+              const earning = earningOf(req.priceSnapshot);
               // Mismo estilo que saludo/consejo: imagen de fondo por tipo + layout
               // horizontal. El botón conserva su texto de proceso (agendar/reagendar).
               const cardImage =
@@ -653,8 +673,10 @@ export default function ExperienceRequestsInbox({
                       flexShrink: 0,
                     }}
                   >
+                    {/* Solo la moneda de liquidación: en la lista no cabe una segunda cifra
+                        sin volverla ruidosa, y el desglose completo está en el detalle. */}
                     {earning ? (
-                      <span style={{ ...styles.earning, fontSize: 12.1 }}>{earning}</span>
+                      <span style={{ ...styles.earning, fontSize: 12.1 }}>{earning.usd}</span>
                     ) : null}
                     <button
                       type="button"
@@ -712,7 +734,8 @@ export default function ExperienceRequestsInbox({
           request={sessionOverlay.req}
           requestId={sessionOverlay.id}
           serviceKind={sessionOverlay.serviceKind}
-          earning={earningOf(sessionOverlay.req.priceSnapshot, sessionOverlay.req.currency)}
+          earning={earningOf(sessionOverlay.req.priceSnapshot)?.usd ?? null}
+          earningLocal={earningOf(sessionOverlay.req.priceSnapshot)?.local ?? null}
           busy={busy}
           ownerCalendarItems={[]}
           getInitials={getInitials}

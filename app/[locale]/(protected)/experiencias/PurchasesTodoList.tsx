@@ -6,7 +6,7 @@
 // comunidad + monto + fecha + estado).
 
 import Image from "next/image";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import { TextButton } from "@/components/ui";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -307,7 +307,16 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
               ) : (
                 <>
                   <span style={{ color: "#fff", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: refunded ? "line-through" : "none", opacity: refunded ? 0.6 : 1 }}>
-                    {formatMoney(d.grossAmount, { baseCurrency: d.currency ?? SETTLEMENT_CURRENCY })}
+                    {/* ⚠️ Lo que el comprador PAGÓ, no la base del creador. `grossAmount` es
+                        la base: sin el cargo fijo, sin el impuesto y sin el redondeo
+                        comercial. Convertirla a secas enseñaba 690 MXN por una compra de
+                        810.99. Si se guardó el cobro real se usa tal cual; si no, se
+                        recompone con el mismo cálculo de la pasarela. */}
+                    {cobroReal
+                      ? formatCurrency(cobroReal.monto, cobroReal.moneda, pf.locale)
+                      : pf.formatWithTax(d.grossAmount + FIXED_SERVICE_FEE_USD, {
+                          baseCurrency: SETTLEMENT_CURRENCY,
+                        }).total}
                   </span>
                   {refunded && (
                     <span style={{ fontSize: 10, fontWeight: 600, color: ledgerStatusColor(d.status as LedgerStatus) }}>

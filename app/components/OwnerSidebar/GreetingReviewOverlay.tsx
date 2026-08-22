@@ -147,11 +147,6 @@ export default function GreetingReviewOverlay({
 
   /** De la moneda en que se cobró, a USD. Si no hay tasa se devuelve el monto
    *  tal cual antes que inventar una cifra. */
-  const toUsd = useCallback((amount: number, from: string): number => {
-    if (!from || from === ANCHOR_CURRENCY) return amount;
-    const usd = convertToAnchor(amount, from as DisplayCurrency, exchangeRates.rates);
-    return usd ?? amount;
-  }, [exchangeRates]);
   const [mounted, setMounted] = useState(false);
   /** Neto del creador, SIEMPRE en USD. Antes se guardaba ya formateado y en la
    *  moneda de la oferta, lo que además hacía que la suma final de varios
@@ -304,6 +299,21 @@ export default function GreetingReviewOverlay({
   const [vpMuted, setVpMuted] = useState(false);
   const [vpReady, setVpReady] = useState(false);
   const [vpChromeVisible, setVpChromeVisible] = useState(true);
+  /**
+   * Proporción REAL del archivo (ancho / alto), leída de sus metadatos.
+   *
+   * Hace falta porque un saludo grabado con el celular viene vertical, y el
+   * visor de laptop lo metía en un marco apaisado con `objectFit: cover`: la
+   * imagen se ampliaba hasta llenarlo y se perdía casi todo por los lados. Con
+   * la proporción se puede estrechar el marco hasta la del propio video, que es
+   * lo que hace que se vea entero y sin recortar.
+   *
+   * null mientras no se sabe: hasta entonces se asume apaisado, que es como se
+   * comportaba antes y es lo que graba una webcam.
+   */
+  const [vpAspect, setVpAspect] = useState<number | null>(null);
+  /** Se agotó la espera de la orientación; se abre en horizontal y a correr. */
+  const [vpAspectVencido, setVpAspectVencido] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -350,9 +360,10 @@ export default function GreetingReviewOverlay({
         ? req.priceSnapshot
         : null;
     if (snapshot != null) {
-      const snapNet = snapshot * WALLET_NET_RATE;
-      const snapCur = (typeof req.currency === "string" && req.currency) || "MXN";
-      setEarningUsd(toUsd(snapNet, snapCur));
+      // ⚠️ NO se convierte: el precio guardado ya vive en la moneda de liquidación. Antes
+      // se leía con la moneda del documento y, a falta de ella, se daba "MXN" por supuesto,
+      // así que un neto de 30 USD se dividía entre el tipo de cambio y salía como 1.76.
+      setEarningUsd(snapshot * WALLET_NET_RATE);
     }
 
     const source = req.source ?? "group";
@@ -393,11 +404,9 @@ export default function GreetingReviewOverlay({
         : [offering.memberPrice, offering.publicPrice, offering.price];
       const rawPrice = priceCandidates.find((v): v is number => typeof v === "number" && v > 0) ?? null;
       if (rawPrice == null || rawPrice <= 0) return;
-      const net = rawPrice * WALLET_NET_RATE;
-      const cur = typeof offering.currency === "string" ? offering.currency : "MXN";
-      setEarningUsd(toUsd(net, cur));
+      setEarningUsd(rawPrice * WALLET_NET_RATE); // ya en moneda de liquidación
     }).catch(() => {});
-  }, [currentIndex, items, toUsd]);
+  }, [currentIndex, items]);
 
   // Attach stream to video element after camera activates
   useEffect(() => {
@@ -501,7 +510,24 @@ export default function GreetingReviewOverlay({
     setVpCurrentTime(0);
     setVpDuration(0);
     setVpReady(false);
+    setVpAspect(null);
+    setVpAspectVencido(false);
   }, [currentIndex, recordedBlobUrl]);
+
+  /**
+   * Plazo para dejar de esperar la orientación.
+   *
+   * El panel no se pinta hasta saber si el saludo es vertical u horizontal, para
+   * no abrirlo con una forma y corregirla a la vista. Pero esa espera no puede
+   * ser eterna: si los metadatos no llegan —red caída, archivo que no responde—,
+   * al segundo y medio se abre igual, en horizontal, que es como se comportaba
+   * antes. Más vale un panel con la forma equivocada que ningún panel.
+   */
+  useEffect(() => {
+    if (vpAspect !== null) return;
+    const id = window.setTimeout(() => setVpAspectVencido(true), 1500);
+    return () => window.clearTimeout(id);
+  }, [vpAspect, currentIndex]);
 
 
   function getRecordingMessage(seconds: number, type: string): string | null {
@@ -667,10 +693,45 @@ export default function GreetingReviewOverlay({
     ? `https://image.mux.com/${req.muxPlaybackId}/thumbnail.jpg`
     : null;
 
+  /**
+   * ¿Todavía no sabemos si el saludo es vertical u horizontal?
+   *
+   * Solo aplica a un video ya entregado: la cámara en vivo de una laptop es
+   * apaisada y no hay nada que esperar. Mientras dure, el visor de laptop no se
+   * pinta — abrir en horizontal y corregir a vertical medio segundo después es
+   * el flashazo que hay que evitar.
+   */
+  const esperandoOrientacion =
+    (viewMode || buyerViewMode)
+    && !!viewMp4Url
+    && vpAspect === null
+    && !vpAspectVencido;
+
+  /**
+   * Permiso para ANIMAR el ancho del panel.
+   *
+   * El ancho cambia por dos motivos muy distintos y solo uno debe verse. Al
+   * abrir, pasa del valor por defecto al que pide la orientación: eso ocurre
+   * mientras el panel aún está invisible y animarlo sería justo el flashazo.
+   * Al plegar la ficha, en cambio, el panel se estrecha a la vista y ahí sí
+   * tiene que deslizarse.
+   *
+   * Por eso el permiso llega un poco DESPUÉS de que el panel aparezca: el primer
+   * ancho se planta sin animación y todos los siguientes se animan.
+   */
+  const [anchoAnimable, setAnchoAnimable] = useState(false);
+  useEffect(() => {
+    if (esperandoOrientacion) { setAnchoAnimable(false); return; }
+    const id = window.setTimeout(() => setAnchoAnimable(true), 280);
+    return () => window.clearTimeout(id);
+  }, [esperandoOrientacion]);
+
   const typeLabel = req.type === "consejo" ? tWallet("typeLabelAdvice") : tWallet("typeLabelGreeting");
+  // Solo el tipo: «Saludo» o «Consejo». El prefijo describía la acción, que ya se entiende
+  // por los botones de abajo.
   const titleText = viewMode
     ? `${tServices("viewRequest")} ${typeLabel}`
-    : `${tServices("readMessage")} ${typeLabel}`;
+    : typeLabel;
 
   // El título del estudio ya no depende del tipo: va fuera de los paneles.
 
@@ -2495,10 +2556,14 @@ export default function GreetingReviewOverlay({
               ref={playbackVideoRef}
               src={viewMp4Url}
               poster={viewThumbnailUrl ?? undefined}
+              // Sin esto el navegador guarda por delante lo justo para arrancar, y
+              // en cuanto se acaba ese primer trozo la imagen se queda quieta
+              // esperando el siguiente. Un saludo dura medio minuto: cabe entero.
+              preload="auto"
               autoPlay playsInline
               disablePictureInPicture
               onContextMenu={(e) => e.preventDefault()}
-              onLoadedMetadata={(e) => { const d = e.currentTarget.duration; setVpDuration(Number.isFinite(d) && d > 0 ? d : 0); setVpReady(true); }}
+              onLoadedMetadata={(e) => { const d = e.currentTarget.duration; setVpDuration(Number.isFinite(d) && d > 0 ? d : 0); const w = e.currentTarget.videoWidth; const h = e.currentTarget.videoHeight; if (w > 0 && h > 0) setVpAspect(w / h); setVpReady(true); }}
               onLoadedData={() => setVpReady(true)}
               onTimeUpdate={(e) => setVpCurrentTime(e.currentTarget.currentTime)}
               onPlay={() => { setVpPlaying(true); scheduleVPChromeHide(); }}
@@ -3208,10 +3273,13 @@ export default function GreetingReviewOverlay({
                       ref={playbackVideoRef}
                       src={viewMp4Url}
                       poster={viewThumbnailUrl ?? undefined}
+                      // Ver la nota del visor de celular: sin carga anticipada, la
+                      // imagen se para en cuanto se agota el primer trozo.
+                      preload="auto"
                       autoPlay playsInline
                       disablePictureInPicture
                       onContextMenu={(e) => e.preventDefault()}
-                      onLoadedMetadata={(e) => { const d = e.currentTarget.duration; setVpDuration(Number.isFinite(d) && d > 0 ? d : 0); setVpReady(true); }}
+                      onLoadedMetadata={(e) => { const d = e.currentTarget.duration; setVpDuration(Number.isFinite(d) && d > 0 ? d : 0); const w = e.currentTarget.videoWidth; const h = e.currentTarget.videoHeight; if (w > 0 && h > 0) setVpAspect(w / h); setVpReady(true); }}
                       onLoadedData={() => setVpReady(true)}
                       onTimeUpdate={(e) => setVpCurrentTime(e.currentTarget.currentTime)}
                       onPlay={() => setVpPlaying(true)}
@@ -3538,14 +3606,19 @@ export default function GreetingReviewOverlay({
               </span>
               <button type="button" onClick={handleClose} aria-label={tCommon("closeAriaLabel")} style={{ border: "none", background: "none", color: "rgba(255,255,255,0.86)", cursor: "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4, width: 40, height: 40, fontSize: 28, fontWeight: 300, lineHeight: 1, fontFamily: fontStack }}>×</button>
             </div>
-            <div style={slideStyle}>{buyerRow}</div>
+            <div style={slideStyle}>
+              {/* La ganancia va a la DERECHA, a la altura del avatar, igual que en sesión
+                  exclusiva y tiempo contigo. Antes colgaba debajo y alineada a la izquierda. */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>{buyerRow}</div>
+                {earningRow}
+              </div>
+            </div>
           </div>
 
           {/* Scrollable content + actions inline */}
           <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "0 18px", paddingBottom: "calc(20px + var(--vb-safe-bottom, 0px))" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14, ...slideStyle }}>
-              {earningRow}
-              {earningRow ? divider : null}
               {infoSection}
               {readOnly ? (
                 <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 14, marginTop: 6 }}>
@@ -3644,7 +3717,12 @@ export default function GreetingReviewOverlay({
           </div>
 
           <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 20px", display: "grid", gap: 16, alignContent: "start", ...slideStyle }}>
-            {buyerRow}
+            {/* La ganancia va a la DERECHA, a la altura del avatar, igual que en sesión
+                exclusiva y tiempo contigo. Antes colgaba debajo y alineada a la izquierda. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>{buyerRow}</div>
+              {earningRow}
+            </div>
             {infoSection}
 
             {/* Actions */}

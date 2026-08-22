@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
@@ -173,7 +173,7 @@ const SESSION_STATUS_KEY_MAP: Record<string, string> = {
 function SessionCard({ session }: { session: BuyerSession }) {
   const tSessions = useTranslations("sessions");
   const locale = useLocale();
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [joiningBusy, setJoiningBusy] = useState(false);
@@ -385,7 +385,12 @@ function SessionCard({ session }: { session: BuyerSession }) {
             <div style={detailRow}>
               <span style={detailLabel}>{tSessions("priceLabel")}</span>
               <span style={detailValue}>
-                {formatMoney(session.priceSnapshot, { baseCurrency: session.currency ?? SETTLEMENT_CURRENCY })}
+                {/* ⚠️ Esta pantalla es del COMPRADOR (filtra por `buyerId`), así que el
+                    precio es lo que PAGÓ: base + cargo fijo + conversión + impuesto, con el
+                    redondeo comercial. `priceSnapshot` es solo la base del creador. */}
+                {pf.formatWithTax(session.priceSnapshot + FIXED_SERVICE_FEE_USD, {
+                  baseCurrency: SETTLEMENT_CURRENCY,
+                }).total}
               </span>
             </div>
           ) : null}

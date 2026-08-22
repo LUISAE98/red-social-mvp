@@ -67,6 +67,7 @@ import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import { useTranslations, useLocale } from "next-intl";
 import { capitalizeFirst, formatDateTime, formatTime } from "@/lib/i18n/dateTime";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -118,7 +119,8 @@ export default function OwnerSidebarMyGroups({
   const tSessions = useTranslations("sessions");
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  const formatMoney = pf.format;
   const pathname = usePathname();
   const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -1725,7 +1727,14 @@ maxWidth: 220,
           serviceKind={sessionOverlayData.serviceKind}
           earning={
             sessionOverlayData.req.priceSnapshot != null && sessionOverlayData.req.priceSnapshot > 0
-              ? formatMoney(sessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { baseCurrency: getRequestCurrency(sessionOverlayData.req), code: true })
+              ? pf.formatAnchor(sessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { code: true })
+              : null
+          }
+          earningLocal={
+            sessionOverlayData.req.priceSnapshot != null &&
+            sessionOverlayData.req.priceSnapshot > 0 &&
+            pf.currency !== SETTLEMENT_CURRENCY
+              ? pf.formatPlain(sessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { baseCurrency: SETTLEMENT_CURRENCY, code: true })
               : null
           }
           busy={!!meetGreetBusyMap[sessionOverlayData.id]}

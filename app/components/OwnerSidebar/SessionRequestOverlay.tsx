@@ -44,6 +44,7 @@ export default function SessionRequestOverlay({
   requestId,
   serviceKind,
   earning,
+  earningLocal,
   busy,
   ownerCalendarItems,
   getInitials,
@@ -267,11 +268,14 @@ export default function SessionRequestOverlay({
 
   const isRescheduleRequested = status === "reschedule_requested";
   const sessionTypeLabel = isExclusive ? tServices("exclusiveSession") : tServices("liveSession");
+  // Solo el tipo: «Sesión exclusiva» o «Tiempo contigo». El prefijo describía la acción,
+  // que ya se entiende por los botones. Se conserva en el reagendado, donde SÍ distingue
+  // de qué va el panel.
   const panelTitle = readOnly
     ? tServices("viewRequest")
     : isRescheduleRequested
     ? `${tServices("reschedule")} ${sessionTypeLabel}`
-    : `${tServices("schedule")} ${sessionTypeLabel}`;
+    : sessionTypeLabel;
 
   useBodyScrollLock(visible);
 
@@ -317,10 +321,28 @@ export default function SessionRequestOverlay({
             {getMeetGreetStatusLabel(status, tSessions)}
           </div>
         </div>
+        {/* Mismo estilo que en saludos y consejos: rótulo, cifra en la moneda de
+            liquidación y, debajo, la referencia en la del creador — más pequeña y en el
+            mismo verde apagado, porque es una referencia y no lo que se cobra.
+            La posición sí es la de aquí: a la derecha, a la altura del avatar. */}
         {earning && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, gap: 2 }}>
+          <div style={{ display: "grid", gap: 4, justifyItems: "end", flexShrink: 0, minWidth: 0 }}>
             <span style={{ color: "#86efac", fontWeight: 500, fontSize: 11, letterSpacing: "0.01em", lineHeight: 1 }}>{tWallet("yourEarning")}</span>
-            <span style={{ color: "#86efac", fontWeight: 700, fontSize: 20, letterSpacing: "-0.03em", lineHeight: 1 }}>{earning}</span>
+            <span style={{
+              color: "#86efac", fontWeight: 700, fontSize: 20,
+              letterSpacing: "-0.03em", lineHeight: 1.1,
+              whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums",
+            }}>
+              {earning}
+            </span>
+            {earningLocal && (
+              <span style={{
+                color: "rgba(134,239,172,0.72)", fontWeight: 500, fontSize: 11,
+                lineHeight: 1.2, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums",
+              }}>
+                {tWallet("approxAmount", { amount: earningLocal })}
+              </span>
+            )}
           </div>
         )}
       </div>
