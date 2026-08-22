@@ -437,10 +437,10 @@ export default function SuperCommentModal({
                           </span>
                           <span style={{ flex: 1, minWidth: 0 }}>
                             <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#fff" }}>Crédito disponible</span>
-                            <span style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>{pf.format(creditBalance, { baseCurrency: SETTLEMENT_CURRENCY, code: true })} disponible</span>
+                            <span style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>{pf.formatPlain(creditBalance, { baseCurrency: SETTLEMENT_CURRENCY, code: true })} disponible</span>
                           </span>
                           {useCredit && creditApplied > 0 && (
-                            <span style={{ fontSize: 13, fontWeight: 700, color: "#3b82f6", whiteSpace: "nowrap" }}>−{pf.format(creditApplied, { baseCurrency: SETTLEMENT_CURRENCY })}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#3b82f6", whiteSpace: "nowrap" }}>−{pf.formatPlain(creditApplied, { baseCurrency: SETTLEMENT_CURRENCY })}</span>
                           )}
                         </button>
                         {useCredit && (

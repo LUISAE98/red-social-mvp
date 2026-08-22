@@ -117,7 +117,7 @@ export default function ExperienciasPage() {
     const ok = await confirm({
       title: tWallet("cashoutRequestTitle"),
       body: tWallet("cashoutConfirmBody"),
-      highlight: pf.format(credit.balance, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
+      highlight: pf.formatPlain(credit.balance, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
       confirmLabel: tCommon("confirm"),
       tone: "neutral",
     });
@@ -526,7 +526,7 @@ export default function ExperienciasPage() {
             </div>
           </div>
           <span style={{ fontSize: 18, fontWeight: 700, color: "#22c55e", whiteSpace: "nowrap", flexShrink: 0 }}>
-            {pf.format(credit.balance, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}
+            {pf.formatPlain(credit.balance, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}
           </span>
         </div>
       ) : null}
@@ -564,7 +564,7 @@ export default function ExperienciasPage() {
             {cashoutBusy
               ? tWallet("cashoutSending")
               : tWallet("cashoutRequest", {
-                  amount: pf.format(credit.balance, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
+                  amount: pf.formatPlain(credit.balance, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
                 })}
           </TextButton>
           {cashoutError && (

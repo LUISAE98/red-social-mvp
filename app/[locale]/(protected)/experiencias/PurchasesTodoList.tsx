@@ -11,6 +11,7 @@ import { TextButton } from "@/components/ui";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { formatCurrency } from "@/lib/currency/format";
 import {
   ledgerStatusColor,
   ledgerStatusLabelKey,
@@ -29,7 +30,8 @@ type TodoTypeFilter = LedgerServiceType | "all";
 export default function PurchasesTodoList({ uid }: { uid: string | null | undefined }) {
   const tCommon = useTranslations("common");
   const tWallet = useTranslations("wallet");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  const formatMoney = pf.format;
   const { purchases, userMiniMap, groupMetaMap, loading } = useAllPurchases(uid);
 
   // Filtro por servicio: solo se ofrecen los tipos presentes (sin filtros vacíos).
@@ -209,6 +211,14 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
         const returnedToCredit = d.refundDestination === "credit";
         const returnedToCard = d.refundDestination === "card";
         const isReturn = returnedToCredit || returnedToCard;
+        // ⚠️ Si se guardó lo que DE VERDAD se cobró —importe y moneda del cargo— se usa tal
+        // cual, sin reconvertir. `refundedAmount` va en la moneda de liquidación y pasarlo
+        // otra vez por la fórmula del comprador le suma el 2% y lo redondea al paso: una
+        // devolución de 810.99 MXN se enseñaba como 825.
+        const cobroReal =
+          typeof d.presentmentAmount === "number" && d.presentmentAmount > 0 && d.presentmentCurrency
+            ? { monto: d.presentmentAmount, moneda: d.presentmentCurrency }
+            : null;
         const returnAmount = typeof d.refundedAmount === "number" ? d.refundedAmount : d.grossAmount;
         // Facturable/seleccionable solo si está pagada y NO facturada aún.
         const selectable = selecting && !refunded && !invoiced;
@@ -289,7 +299,10 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
               {isReturn ? (
                 // Devuelto: cifra en verde con "+" (lo que volvió al saldo/tarjeta). No tachado.
                 <span style={{ color: "#4ade80", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
-                  +{formatMoney(returnAmount, { baseCurrency: d.currency ?? SETTLEMENT_CURRENCY })}
+                  +
+                  {cobroReal
+                    ? formatCurrency(cobroReal.monto, cobroReal.moneda, pf.locale)
+                    : formatMoney(returnAmount, { baseCurrency: d.currency ?? SETTLEMENT_CURRENCY })}
                 </span>
               ) : (
                 <>

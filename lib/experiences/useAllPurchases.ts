@@ -27,6 +27,13 @@ export type PurchaseData = {
   // Devolución: destino del reembolso + monto devuelto (para "· Devuelto en crédito/tarjeta").
   refundDestination?: "credit" | "card";
   refundedAmount?: number;
+  /**
+   * Importe y moneda REALES del cargo (lo que el comprador vio en su tarjeta). `grossAmount`
+   * y `refundedAmount` van en la moneda de liquidación y hay que convertirlos para
+   * mostrarlos; estos ya están en la del comprador y no se tocan.
+   */
+  presentmentAmount?: number;
+  presentmentCurrency?: string;
   creatorId: string;
   channelType: "profile" | "group";
   channelId: string | null;

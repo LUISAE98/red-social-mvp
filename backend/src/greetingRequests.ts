@@ -607,6 +607,17 @@ export const respondGreetingRequest = onCall(
       // nunca volvió. Cuando el cobro ya se capturó, la vía correcta es la devolución
       // (`refund_requested` → crédito), no revertir la reserva.
       const { canceled, alreadyCaptured } = await cancelPaymentIntentForRef(externalReference);
+      // 🧾 El documento tiene que reflejar lo que pasó en Stripe. Antes se cancelaba la
+      // retención y `paymentStatus` se quedaba en "authorized", así que para el resto del
+      // sistema el cobro seguía vivo: el barrido del día 6 lo recogía en cada pasada y el
+      // botón de «pedir devolución» seguía ofreciéndose por un dinero ya devuelto.
+      if (canceled) {
+        await reqRef.update({
+          paymentStatus: "canceled",
+          holdCanceledAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
       if (!canceled) {
         logger.warn("greeting_reject_hold_no_cancelado", {
           requestId,

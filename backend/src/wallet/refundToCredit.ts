@@ -69,6 +69,13 @@ export async function mirrorCardReturnPurchase(params: {
       postId: null,
       refundDestination: "card",
       refundedAmount: total,
+      // 💵 Lo que de VERDAD se le cobró y en qué moneda. `refundedAmount` va en la moneda
+      // de liquidación, y mostrarlo obliga a reconvertirlo: la interfaz lo pasaba otra vez
+      // por la fórmula del comprador —2% y redondeo al paso— y enseñaba 825 MXN por una
+      // devolución de 810.99. Con esto no hay nada que reconvertir.
+      presentmentAmount: num(pi.presentmentAmount) || null,
+      presentmentCurrency:
+        typeof pi.presentmentCurrency === "string" ? pi.presentmentCurrency : null,
       occurredAt: params.occurredAt ?? now,
       createdAt: params.occurredAt ?? now,
       updatedAt: now,

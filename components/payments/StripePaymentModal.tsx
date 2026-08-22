@@ -945,7 +945,7 @@ export default function StripePaymentModal({
                   <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" /><rect x="3" y="7" width="18" height="12" rx="2.5" /><path d="M16 12.5h3" />
                 </svg>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "start" }}>
-                  {tWallet("creditAvailable")} <span style={{ color: "#8a8f99", fontWeight: 500 }}>· {pf.format(creditBalance, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span>
+                  {tWallet("creditAvailable")} <span style={{ color: "#8a8f99", fontWeight: 500 }}>· {pf.formatPlain(creditBalance, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span>
                 </span>
                 {radio(useCredit)}
               </button>
@@ -1117,7 +1117,7 @@ export default function StripePaymentModal({
               <div style={{ display: "grid", gridTemplateRows: useCredit && creditApplied > 0 ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
                 <div style={{ overflow: "hidden", opacity: useCredit && creditApplied > 0 ? 1 : 0, transition: "opacity 240ms ease" }}>
                   <div style={{ display: "grid", gap: 5 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>{tWallet("creditAvailable")}</span><span>−{pf.format(creditApplied, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>{tWallet("creditAvailable")}</span><span>−{pf.formatPlain(creditApplied, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span></div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? tWallet("creditPayWithBalance") : tWallet("creditRemainderOnCard")}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span></div>
                   </div>
                 </div>
@@ -1139,7 +1139,7 @@ export default function StripePaymentModal({
               <div style={{ display: "grid", gridTemplateRows: useCredit && creditApplied > 0 ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
                 <div style={{ overflow: "hidden", opacity: useCredit && creditApplied > 0 ? 1 : 0, transition: "opacity 240ms ease" }}>
                   <div style={{ display: "grid", gap: 5 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>{tWallet("creditAvailable")}</span><span>−{pf.format(creditApplied, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>{tWallet("creditAvailable")}</span><span>−{pf.formatPlain(creditApplied, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span></div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? tWallet("creditPayWithBalance") : tWallet("creditRemainderOnCard")}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span></div>
                   </div>
                 </div>
