@@ -161,6 +161,11 @@ export type GreetingStatus =
 export type GreetingType = "saludo" | "consejo" | string;
 
 export type GreetingRequestDoc = {
+  /**
+   * Estado del cobro: `authorized` (retenido, sin cobrar), `paid`, `canceled` (retención
+   * liberada) o `refunded` (cobrado y devuelto a saldo). Decide si aún queda algo que devolver.
+   */
+  paymentStatus?: string | null;
   buyerId: string;
   creatorId: string;
   groupId?: string | null;

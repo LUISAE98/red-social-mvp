@@ -103,7 +103,8 @@ export default function OwnerSidebarGreetings({
   const tSessions = useTranslations("sessions");
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  const formatMoney = pf.format;
   const [busyMap, setBusyMap] = useState<BusyMap>({});
   const [errorMap, setErrorMap] = useState<TextMap>({});
   const [successMap, setSuccessMap] = useState<TextMap>({});
@@ -1872,7 +1873,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
             productType="Devolución aplicada"
             successMessage={
               refundDone.credited > 0
-                ? `Se agregaron ${formatMoney(refundDone.credited, { baseCurrency: SETTLEMENT_CURRENCY })} MXN a tu crédito disponible. Úsalo para pagar otras experiencias dentro de la plataforma, o solicita el efectivo desde Experiencias.`
+                ? `Se agregaron ${pf.formatPlain(refundDone.credited, { baseCurrency: SETTLEMENT_CURRENCY, code: true })} a tu crédito disponible. Úsalo para pagar otras experiencias dentro de la plataforma, o solicita el efectivo desde Experiencias.`
                 : "Tu solicitud de devolución se procesó. Revisa tu crédito disponible en Experiencias."
             }
             onClose={() => setRefundDone(null)}

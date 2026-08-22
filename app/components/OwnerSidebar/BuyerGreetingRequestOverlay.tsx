@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -91,12 +91,22 @@ type Props = {
   onRetry?: () => void;
 };
 
+/**
+ * Estados de pago en los que el dinero YA volvió al comprador: se liberó la retención
+ * (`canceled`) o se devolvió el cobro a saldo (`refunded`).
+ *
+ * ⚠️ Sin esto, el botón de «pedir devolución» seguía ofreciéndose tras liberar el hold: el
+ * comprador pedía la devolución de un dinero que ya tenía y con eso movía la experiencia a
+ * «en devolución», perdiendo el «intentar de nuevo».
+ */
+const PAGO_YA_DEVUELTO = ["canceled", "refunded"];
 export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAvatar, onClose, onRefund, onRetry }: Props) {
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  const formatMoney = pf.format;
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -252,7 +262,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
       {req.priceSnapshot != null && (
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
           <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>{tServices("paidLabel")}</span>
-          <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot, { baseCurrency: req.currency ?? SETTLEMENT_CURRENCY, code: true })}</span>
+          <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{pf.formatWithTax(req.priceSnapshot + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total}</span>
         </div>
       )}
     </div>
@@ -346,14 +356,18 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
 
   // Devolución SIN preguntar el motivo: un clic → el padre llama al callable y muestra el
   // panel verde de éxito (con el crédito acreditado).
+  // El dinero ya devuelto no se vuelve a pedir: solo queda «intentar de nuevo».
+  const dineroYaDevuelto = PAGO_YA_DEVUELTO.includes(String(req.paymentStatus ?? ""));
   const footerContent = req.status === "rejected" ? (
     <div style={{ display: "flex", gap: 8 }}>
       <button type="button" onClick={onRetry} style={{ ...btnPrimary, flex: 1, width: "auto", background: retryBtnBg, color: retryBtnColor }}>
         {tCommon("retry")}
       </button>
-      <button type="button" onClick={() => onRefund?.("")} style={{ ...btnSecondary, flex: 1, width: "auto" }}>
-        {tServices("requestRefund")}
-      </button>
+      {!dineroYaDevuelto && (
+        <button type="button" onClick={() => onRefund?.("")} style={{ ...btnSecondary, flex: 1, width: "auto" }}>
+          {tServices("requestRefund")}
+        </button>
+      )}
     </div>
   ) : null;
 

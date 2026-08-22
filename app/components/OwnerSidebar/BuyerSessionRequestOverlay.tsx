@@ -14,7 +14,7 @@ import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 
 type SessionRequest = MeetGreetRequestDoc | ExclusiveSessionRequestDoc;
 type ScheduledServiceKind = "meet_greet" | "exclusive_session";
@@ -206,7 +206,8 @@ export default function BuyerSessionRequestOverlay({
   const tServices = useTranslations("services");
   const tSessions = useTranslations("sessions");
   const locale = useLocale();
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  const formatMoney = pf.format;
 
   const req = item.data;
   const isExclusive = item.serviceKind === "exclusive_session";
@@ -359,7 +360,7 @@ export default function BuyerSessionRequestOverlay({
           {req.priceSnapshot != null && (
             <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
               <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>{tServices("paidLabel")}</span>
-              <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot, { baseCurrency: (req.currency ?? SETTLEMENT_CURRENCY) as DisplayCurrency, code: true })}</span>
+              <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{pf.formatWithTax(req.priceSnapshot + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total}</span>
             </div>
           )}
         </div>
