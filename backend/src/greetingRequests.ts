@@ -694,6 +694,9 @@ export const requestGreetingRefund = onCall(
 
     let creatorId = "";
     let wasPaid = false;
+    // El hold sigue vivo: no se cobró nada y hay que liberarlo (fuera de la transacción,
+    // porque hablar con Stripe dentro de una transacción de Firestore no es válido).
+    let seguiaEnHold = false;
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(reqRef);
       if (!snap.exists) throw new HttpsError("not-found", "Greeting request not found.");
@@ -705,8 +708,16 @@ export const requestGreetingRefund = onCall(
       if (gr.status !== "rejected") {
         throw new HttpsError("failed-precondition", "La solicitud no es elegible para devolución.");
       }
+      // El dinero ya volvió (retención liberada o cobro devuelto): no hay nada que devolver.
+      if (PAGO_YA_DEVUELTO.includes(String(gr.paymentStatus ?? ""))) {
+        throw new HttpsError(
+          "failed-precondition",
+          "El pago de esta solicitud ya fue devuelto."
+        );
+      }
       creatorId = String(gr.creatorId ?? "");
       wasPaid = gr.paymentStatus === "paid";
+      seguiaEnHold = gr.paymentStatus === "authorized";
 
       tx.update(reqRef, {
         status: "refund_requested" as GreetingStatus,
@@ -715,6 +726,16 @@ export const requestGreetingRefund = onCall(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     });
+
+    // 💸 DENTRO DE LA VENTANA DEL HOLD no se cobró nada, así que no hay nada que devolver:
+    // se LIBERA la retención y se acabó. Ni saldo a favor, ni solicitud al panel, ni
+    // comisión de Stripe — el dinero nunca salió de la tarjeta del comprador.
+    //
+    // ⚠️ Antes esta rama no existía: con el hold vivo, pedir devolución solo cambiaba el
+    // estado. La retención seguía en pie y el respaldo del día 6 acababa cobrándola.
+    if (seguiaEnHold) {
+      await liberarHoldMuerto(reqRef, requestId, "refund_requested");
+    }
 
     // Devolución → SALDO A FAVOR (síncrono; el trigger es respaldo). Solo si hubo cargo.
     let credited = 0;
@@ -740,12 +761,70 @@ export const HOLD_CAPTURE_DAYS = 6;
 // (Legacy: algunos módulos aún importan este nombre; queda como alias del respaldo.)
 export const GREETING_RESPONSE_DAYS = HOLD_CAPTURE_DAYS;
 
+/**
+ * Estados en los que la experiencia YA NO se va a entregar.
+ *
+ * `paymentStatus` no lo dice: sigue en "authorized" aunque el creador haya rechazado o
+ * nadie se haya conectado. Por eso el respaldo del día 6 tiene que mirar `status`.
+ */
+/**
+ * Estados de pago en los que el dinero YA volvió al comprador: la retención se liberó
+ * (`canceled`) o el cobro se devolvió a saldo (`refunded`). Pedir devolución sobre esto
+ * no tiene nada que devolver, y dejarlo pasar movía la experiencia a «en devolución» —
+ * perdiendo el «intentar de nuevo»— por un dinero que el comprador ya tenía.
+ */
+const PAGO_YA_DEVUELTO = ["canceled", "refunded"];
+
+const ESTADOS_SIN_ENTREGA = [
+  "rejected",
+  "auto_rejected_no_show",
+  "refund_requested",
+];
+
+/**
+ * Libera el hold de una experiencia que ya no se va a entregar y lo deja anotado.
+ *
+ * ⚠️ Se COMPRUEBA el resultado. Si entre medias se hubiera capturado, no se toca nada más:
+ * la vía correcta con el cobro ya hecho es la devolución a saldo, no fingir que se liberó.
+ */
+async function liberarHoldMuerto(
+  ref: FirebaseFirestore.DocumentReference,
+  id: string,
+  estado: string
+) {
+  const ahora = admin.firestore.Timestamp.now();
+  try {
+    const { canceled, alreadyCaptured } = await cancelPaymentIntentForRef(
+      `greetingRequest__${id}`
+    );
+    if (canceled) {
+      await ref.update({
+        paymentStatus: "canceled",
+        holdCanceledAt: ahora,
+        updatedAt: ahora,
+      });
+      logger.info("hold_liberado_sin_entrega", { id, estado, sourceType: "greetingRequest" });
+      return;
+    }
+    logger.warn("hold_no_liberado_sin_entrega", { id, estado, alreadyCaptured });
+  } catch (e) {
+    logger.error("hold_liberar_fallo", {
+      id,
+      estado,
+      err: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
+
 export async function autoExpirePendingGreetingRequestsHandler(): Promise<number> {
-  // Respaldo del hold: captura cualquier retención aún "authorized" cercana a expirar
-  // (Stripe libera el hold ~7 días), SIN importar el status. NO cambia el status: el
-  // creador conserva su ventana para grabar (entregar) o rechazar; esto solo ASEGURA el
-  // dinero en la plataforma. El cobro normal ocurre al grabar (muxWebhooks). Si el
-  // creador nunca entrega, el comprador podrá pedir devolución → saldo a favor (B5).
+  // Respaldo del hold: captura las retenciones aún "authorized" cercanas a expirar
+  // (Stripe las libera a los ~7 días). NO cambia el status: el creador conserva su ventana
+  // para grabar o rechazar; esto solo ASEGURA el dinero. El cobro normal ocurre al grabar.
+  //
+  // ⚠️ Se capturan las que SIGUEN VIVAS. Antes se capturaba «sin importar el status», y eso
+  // se llevaba por delante las rechazadas y las que ya tenían devolución pedida: el
+  // comprador acababa pagando en firme algo que nadie iba a entregarle, y para recuperarlo
+  // tenía que pedir devolución y conformarse con saldo a favor. Ver `ESTADOS_SIN_ENTREGA`.
   const snap = await db
     .collection("greetingRequests")
     .where("paymentStatus", "==", "authorized")
@@ -761,6 +840,22 @@ export async function autoExpirePendingGreetingRequestsHandler(): Promise<number
     snap.docs.map(async (doc) => {
       const createdMs = doc.get("createdAt")?.toMillis?.() ?? 0;
       if (createdMs > cutoffMs) return; // aún dentro de la ventana: no capturar todavía
+
+      // 🚨 NO capturar lo que ya está muerto.
+      //
+      // La consulta filtra solo por `paymentStatus == "authorized"`, y ese campo sigue
+      // diciendo "authorized" en una experiencia RECHAZADA automáticamente (nadie se
+      // conectó, el creador nunca contestó) o con devolución ya pedida. Sin esta salida,
+      // el respaldo del día 6 cobraba en firme algo que no se iba a entregar: el
+      // comprador acababa pagando una experiencia que nunca ocurrió y encima tenía que
+      // pedir devolución para recuperarlo, ya solo como saldo a favor.
+      //
+      // El hold de estos se libera solo, más abajo.
+      const estado = String(doc.get("status") ?? "");
+      if (ESTADOS_SIN_ENTREGA.includes(estado)) {
+        await liberarHoldMuerto(doc.ref, doc.id, estado);
+        return;
+      }
       try {
         await capturePaymentIntentForRef(`greetingRequest__${doc.id}`);
         await doc.ref.update({

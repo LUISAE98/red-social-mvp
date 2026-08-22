@@ -470,14 +470,17 @@ const contentAreaClassName = isEmbed
           background: rgba(255, 255, 255, 0.1);
         }
 
-        /* Accesos rápidos (notificaciones / experiencias), junto al switch de monedas.
-           Mismo margin-right que el header de home/perfil para que queden en la misma
-           posición fija (antes 72px los corría de más a la izquierda en comunidad). */
+        /* Accesos rápidos (la campanita). Misma cuenta EXACTA que en el header de
+           home/perfil, para que la campanita no salte de sitio al entrar en una
+           comunidad: se alinea con el título "Menú" del rail derecho de abajo.
+           El rail mide min(100%, 250px) centrado en esta columna y sus secciones
+           llevan 14px de relleno. Ver la nota larga en (protected)/layout.tsx. */
         .desktopHeaderQuickLinks {
           display: flex;
           align-items: center;
           gap: 18px;
-          margin-inline-end: 18px;
+          margin-inline-start: calc((100% - min(100%, 250px)) / 2 + 14px);
+          margin-inline-end: auto;
           flex: 0 0 auto;
         }
 

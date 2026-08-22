@@ -590,13 +590,23 @@ const contentAreaClassName = isEmbed
   background: rgba(255, 255, 255, 0.10);
 }
 
-/* Accesos rápidos (notificaciones / wallet), junto al switch de monedas.
-   margin-right los despega un poco de él, corriéndolos a la izquierda. */
+/* Accesos rápidos (la campanita).
+   Se alinean con el título "Menú" del rail derecho que queda justo debajo, en vez
+   de amontonarse contra el borde de la pantalla.
+
+   La cuenta no es un número a ojo, es la MISMA que sitúa ese título: el rail mide
+   min(100%, 250px) y va centrado en esta columna, así que su borde empieza a la
+   mitad de lo que sobra; sus secciones añaden 14px de relleno. Escrita así sigue
+   cuadrando en el corte de 1180px, donde la columna pasa de 280 a 260.
+
+   El margen final "auto" es el que empuja moneda, idioma y salir hasta la derecha:
+   solo se mueve la campanita. */
 .desktopHeaderQuickLinks {
   display: flex;
   align-items: center;
   gap: 18px;
-  margin-inline-end: 18px;
+  margin-inline-start: calc((100% - min(100%, 250px)) / 2 + 14px);
+  margin-inline-end: auto;
   flex: 0 0 auto;
 }
 

@@ -1146,12 +1146,30 @@ export const requestExclusiveSessionRefund = onCall(
       "solicitar devolución"
     );
 
+    // El dinero ya volvió (retención liberada o cobro devuelto): no hay nada que devolver.
+    if (PAGO_YA_DEVUELTO.includes(String((data as { paymentStatus?: string }).paymentStatus ?? ""))) {
+      throw new HttpsError(
+        "failed-precondition",
+        "El pago de esta solicitud ya fue devuelto."
+      );
+    }
+
     await ref.update({
       status: "refund_requested",
       refundReason,
       refundRequestedAt: nowTs(),
       updatedAt: nowTs(),
     });
+
+    // 💸 DENTRO DE LA VENTANA DEL HOLD no se cobró nada, así que no hay nada que devolver:
+    // se LIBERA la retención y se acabó. Ni saldo a favor, ni solicitud al panel, ni
+    // comisión de Stripe — el dinero nunca salió de la tarjeta del comprador.
+    //
+    // ⚠️ Antes esta rama no existía: con el hold vivo, pedir devolución solo cambiaba el
+    // estado. La retención seguía en pie y el respaldo del día 6 acababa cobrándola.
+    if ((data as { paymentStatus?: string }).paymentStatus === "authorized") {
+      await liberarHoldMuerto(ref, requestId, "refund_requested");
+    }
 
     // Devolución → SALDO A FAVOR (síncrono; el trigger es respaldo). Solo si hubo cargo.
     let credited = 0;
@@ -1382,6 +1400,61 @@ export const HOLD_CAPTURE_DAYS = 6;
 // (Legacy: algunos módulos aún importan este nombre; queda como alias del respaldo.)
 export const SESSION_RESPONSE_DAYS = HOLD_CAPTURE_DAYS;
 
+/**
+ * Estados en los que la experiencia YA NO se va a entregar.
+ *
+ * `paymentStatus` no lo dice: sigue en "authorized" aunque el creador haya rechazado o
+ * nadie se haya conectado. Por eso el respaldo del día 6 tiene que mirar `status`.
+ */
+/**
+ * Estados de pago en los que el dinero YA volvió al comprador: la retención se liberó
+ * (`canceled`) o el cobro se devolvió a saldo (`refunded`). Pedir devolución sobre esto
+ * no tiene nada que devolver, y dejarlo pasar movía la experiencia a «en devolución» —
+ * perdiendo el «intentar de nuevo»— por un dinero que el comprador ya tenía.
+ */
+const PAGO_YA_DEVUELTO = ["canceled", "refunded"];
+
+const ESTADOS_SIN_ENTREGA = [
+  "rejected",
+  "auto_rejected_no_show",
+  "refund_requested",
+];
+
+/**
+ * Libera el hold de una experiencia que ya no se va a entregar y lo deja anotado.
+ *
+ * ⚠️ Se COMPRUEBA el resultado. Si entre medias se hubiera capturado, no se toca nada más:
+ * la vía correcta con el cobro ya hecho es la devolución a saldo, no fingir que se liberó.
+ */
+async function liberarHoldMuerto(
+  ref: FirebaseFirestore.DocumentReference,
+  id: string,
+  estado: string
+) {
+  const ahora = admin.firestore.Timestamp.now();
+  try {
+    const { canceled, alreadyCaptured } = await cancelPaymentIntentForRef(
+      `exclusiveSessionRequest__${id}`
+    );
+    if (canceled) {
+      await ref.update({
+        paymentStatus: "canceled",
+        holdCanceledAt: ahora,
+        updatedAt: ahora,
+      });
+      logger.info("hold_liberado_sin_entrega", { id, estado, sourceType: "exclusiveSessionRequest" });
+      return;
+    }
+    logger.warn("hold_no_liberado_sin_entrega", { id, estado, alreadyCaptured });
+  } catch (e) {
+    logger.error("hold_liberar_fallo", {
+      id,
+      estado,
+      err: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
+
 export async function autoExpirePendingExclusiveSessionRequestsHandler(): Promise<number> {
   // Respaldo del hold: captura cualquier retención aún "authorized" cercana a expirar,
   // SIN importar el status. NO cambia el status: el creador conserva su ventana para
@@ -1403,6 +1476,22 @@ export async function autoExpirePendingExclusiveSessionRequestsHandler(): Promis
     snap.docs.map(async (doc) => {
       const createdMs = doc.get("createdAt")?.toMillis?.() ?? 0;
       if (createdMs > cutoffMs) return; // aún dentro de la ventana: no capturar todavía
+
+      // 🚨 NO capturar lo que ya está muerto.
+      //
+      // La consulta filtra solo por `paymentStatus == "authorized"`, y ese campo sigue
+      // diciendo "authorized" en una experiencia RECHAZADA automáticamente (nadie se
+      // conectó, el creador nunca contestó) o con devolución ya pedida. Sin esta salida,
+      // el respaldo del día 6 cobraba en firme algo que no se iba a entregar: el
+      // comprador acababa pagando una experiencia que nunca ocurrió y encima tenía que
+      // pedir devolución para recuperarlo, ya solo como saldo a favor.
+      //
+      // El hold de estos se libera solo, más abajo.
+      const estado = String(doc.get("status") ?? "");
+      if (ESTADOS_SIN_ENTREGA.includes(estado)) {
+        await liberarHoldMuerto(doc.ref, doc.id, estado);
+        return;
+      }
       try {
         await capturePaymentIntentForRef(`exclusiveSessionRequest__${doc.id}`);
         await doc.ref.update({

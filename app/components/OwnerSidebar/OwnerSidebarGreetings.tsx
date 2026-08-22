@@ -68,6 +68,18 @@ import {
   type ServiceSectionKey, type TextMap, type ToggleMap,
 } from "./OwnerSidebarGreetings.parts";
 
+/**
+ * Estados de pago en los que el dinero YA volvió al comprador, por la vía que sea.
+ *
+ *  · `canceled` — se liberó la retención: nunca se llegó a cobrar (flujo del hold vivo).
+ *  · `refunded` — se cobró y luego se devolvió como saldo a favor.
+ *
+ * ⚠️ En ninguno de los dos debe ofrecerse «pedir devolución». Solo se miraba `refunded`,
+ * así que tras liberar una retención el botón seguía ahí: el comprador pedía la devolución
+ * de un dinero que ya tenía, y con eso movía la experiencia a «En devolución» sin motivo,
+ * perdiendo de paso el «intentar de nuevo».
+ */
+const PAGO_YA_DEVUELTO = ["canceled", "refunded"];
 export default function OwnerSidebarGreetings({
   buyerPending,
   buyerDelivered,
@@ -905,7 +917,8 @@ async function handleCreatorSchedule(
     const serviceType = isExclusiveSession ? "digital_exclusive_session" : "meet_greet_digital";
     const serviceTitle = isExclusiveSession ? tServices("exclusiveSession") : tSessions("meetGreetTitle");
     const noShowExpired = isNoShowExpired(req.scheduledAt);
-    const canRequestRefund = req.status === "rejected" && req.paymentStatus !== "refunded";
+    const canRequestRefund =
+      req.status === "rejected" && !PAGO_YA_DEVUELTO.includes(String(req.paymentStatus ?? ""));
     const canRetry =
       req.status === "rejected" &&
       (!!group?.id || !!req.profileUsername || !!req.creatorUsername);
@@ -1887,7 +1900,8 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
       const { row, creatorName, creatorAvatar } = viewSessionItem;
       const req = row.data;
       const group = req.groupId ? groupMetaMap[req.groupId] ?? null : null;
-      const canRequestRefund = req.status === "rejected" && req.paymentStatus !== "refunded";
+      const canRequestRefund =
+        req.status === "rejected" && !PAGO_YA_DEVUELTO.includes(String(req.paymentStatus ?? ""));
       const creatorMini = userMiniMap[req.creatorId] ?? null;
       const canRetry =
         req.status === "rejected" &&

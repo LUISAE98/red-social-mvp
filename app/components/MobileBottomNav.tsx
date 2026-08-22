@@ -78,8 +78,15 @@ const NAV_ICON = {
  * icono: la de contorno lo traza y la rellena lo pinta. Antes eran dibujos
  * distintos —tres trazos sueltos por un lado, una silueta recortada con una
  * máscara por el otro— y no acababan de coincidir.
+ *
+ * Medidas y esquinas NO se escribieron a mano: salen de un generador que
+ * redondea cada vértice entrando y saliendo a una distancia fija por cada lado
+ * y uniendo los dos puntos con una curva cuyo control es el propio vértice.
+ * Dibuja 18.4 x 17.6 con el trazo incluido, frente a los 18.6 del cuadro de
+ * reels: la misma caja a la vista.
  */
-const HOME_PATH = "M12 3.2 21 10.6V20.6H14.4V15.2H9.6V20.6H3V10.6Z";
+const HOME_PATH =
+  "M10.68 5.18Q12 4.1 13.32 5.18L19.06 9.89Q20.3 10.9 20.3 12.5L20.3 18.3Q20.3 19.9 18.7 19.9L15.2 19.9Q14.1 19.9 14.1 18.8L14.1 16.3Q14.1 15.2 13 15.2L11 15.2Q9.9 15.2 9.9 16.3L9.9 18.8Q9.9 19.9 8.8 19.9L5.3 19.9Q3.7 19.9 3.7 18.3L3.7 12.5Q3.7 10.9 4.94 9.89Z";
 
 function NavHomeIcon() {
   return (
@@ -617,29 +624,35 @@ export default function MobileBottomNav({
              se subían. Se fueron los tres. El volumen no se pinta: tiene que
              venir del fondo, y eso es lo que hace el filtro de abajo. */
           background: rgba(6, 6, 8, 0.92);
-          /* Filo mínimo: solo dice dónde acaba la cápsula. El efecto NO va en
-             las orillas —ese fue el error de las versiones anteriores—, va en lo
-             que se ve a través. */
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          /* VOLUMEN. Todo va en los CANTOS y ni una capa sobre el relleno: los
-             degradados de blanco que hubo aquí antes daban sensación de bulto,
-             sí, pero mezclados con el negro lo volvían gris. Una línea de un
-             píxel ilumina un borde sin tocar el color de la superficie.
+          /* Borde casi invisible. Su trabajo ya no es dibujar el canto —de eso
+             se encargan las luces interiores de abajo— sino evitar que sobre un
+             fondo muy claro la cápsula se quede sin límite. Al 4% cumple sin
+             leerse como una línea. */
+          border: 1px solid rgba(255, 255, 255, 0.04);
+          /* VOLUMEN SIN CANTO GRUESO.
+             =========================
+             El grosor que se veía no era el borde: eran TRES líneas duras
+             sumadas —el borde de 1px más dos sombras interiores de 1.5px sin
+             difuminar—, casi 3px de canto pintado.
 
-             Por dentro, dos filos y una sombra que hunde la mitad inferior.
-             Por fuera, TRES sombras a distinta distancia: la corta es el punto
-             de contacto, la media da el bulto y la larga y difusa es la que hace
-             que se lea despegado del contenido. Una sola sombra da una silueta
-             plana; escalonarlas es lo que se lee como profundidad. */
+             Ahora esas dos interiores van DIFUMINADAS y con desplazamiento
+             negativo, así que no dibujan una línea sino una transición de luz
+             de un par de píxeles. El ojo lee curvatura igual —una superficie
+             curva no tiene el canto marcado, tiene un degradado hacia él— pero
+             sin ninguna arista.
+
+             El volumen que se pierde al quitar las líneas se recupera fuera:
+             las cuatro sombras exteriores suben un punto. Ahí no hay riesgo de
+             engrosar nada, porque caen sobre el contenido, no sobre la cápsula. */
           box-shadow:
-            inset 0 1.5px 0 rgba(255, 255, 255, 0.24),
-            inset 0 -1.5px 0 rgba(0, 0, 0, 0.70),
+            inset 0 2px 3px -2px rgba(255, 255, 255, 0.38),
+            inset 0 -2px 3px -2px rgba(0, 0, 0, 0.80),
             inset 0 -16px 26px -16px rgba(0, 0, 0, 0.85),
-            inset 0 14px 24px -18px rgba(255, 255, 255, 0.10),
-            0 1px 2px rgba(0, 0, 0, 0.40),
-            0 6px 12px rgba(0, 0, 0, 0.38),
-            0 16px 32px rgba(0, 0, 0, 0.50),
-            0 34px 70px rgba(0, 0, 0, 0.62);
+            inset 0 14px 24px -18px rgba(255, 255, 255, 0.12),
+            0 1px 2px rgba(0, 0, 0, 0.45),
+            0 6px 14px rgba(0, 0, 0, 0.44),
+            0 18px 36px rgba(0, 0, 0, 0.56),
+            0 38px 76px rgba(0, 0, 0, 0.66);
           /* El efecto óptico, subido de intensidad.
 
              · blur(72px): el fondo llega en manchas grandes, sin una sola
