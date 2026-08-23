@@ -538,17 +538,21 @@ export default function ExperienciasPage() {
       {cashout.latest?.status === "pending" ? (
         <div style={{ marginTop: -13, marginBottom: 16, padding: "0 8px", fontSize: 12.5, color: "#fff", textAlign: "center", lineHeight: 1.4 }}>
           {tWallet("cashoutPendingReview", {
-            amount: pf.format(cashout.latest.amount, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
+            amount: formatCurrency(cashout.latest.amount, cashout.latest.currency || SETTLEMENT_CURRENCY, pf.locale, { code: true }),
           })}
         </div>
       ) : cashout.latest?.status === "approved" ? (
         <div style={{ marginTop: -13, marginBottom: 16, padding: "0 8px", fontSize: 12.5, color: "#fff", textAlign: "center", lineHeight: 1.4 }}>
           {tWallet("cashoutApproved", {
-            amount: pf.format(cashout.latest.refundedAmount || cashout.latest.amount, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
+            amount: formatCurrency(cashout.latest.refundedAmount || cashout.latest.amount, cashout.latest.currency || SETTLEMENT_CURRENCY, pf.locale, { code: true }),
           })}
         </div>
-      ) : cashout.latest?.status === "rejected" ? (
-        cashout.latest.dismissed ? null : (
+      ) : /* ⚠️ Rechazada: se enseña el motivo, pero SIN cortar el paso a pedirla de nuevo.
+            Antes esta rama devolvía `null` al cerrar el aviso y, como el estado sigue
+            siendo «rechazada» para siempre, el botón no volvía jamás: un rechazo dejaba al
+            comprador con saldo y sin forma de pedir su dinero. */
+      cashout.latest?.status === "rejected" && !cashout.latest.dismissed ? (
+        (
           <div style={{ position: "relative", marginTop: -13, marginBottom: 16, padding: "0 30px", fontSize: 12.5, color: "#fff", textAlign: "center", lineHeight: 1.4 }}>
             {tWallet("cashoutRejected", { reason: cashout.latest.rejectionNote || "—" })}
             <IconButton label="Cerrar" size="sm" tone="bare" shape="square" style={{ position: "absolute", top: -2, insetInlineEnd: 2 }} onClick={handleDismissCashout}>

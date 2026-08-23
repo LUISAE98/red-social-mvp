@@ -974,6 +974,101 @@ también de las configuraciones viejas en vez de dejarlo colgando.
 | Las donaciones aceptan importe del comprador, con mínimo y tope | ✅ Por diseño |
 | Los dos espejos del redondeo coinciden en las 78 monedas | ✅ |
 
+
+## 8-quinquies. Devoluciones: los dos flujos (2026-08-22)
+
+Solo las **cuatro experiencias que el creador entrega** —saludo, consejo, sesión exclusiva y
+tiempo contigo— tienen devolución. El resto se cobra al instante y no hay nada que devolver.
+
+### 8-quinquies.1 Flujo 1 — la retención sigue viva
+
+```
+El comprador paga  →  se AUTORIZA, no se cobra
+El creador rechaza →  se LIBERA la retención     ← automático, sin pedir nada
+```
+
+**Nadie pide nada y no cuesta comisión**: el dinero nunca salió de la tarjeta. Se refleja como
+*"Devuelto a tu tarjeta"*.
+
+⚠️ Y no se cobra lo que ya está muerto. El respaldo del día 6 filtraba solo por
+`paymentStatus == "authorized"`, y ese campo sigue diciendo eso en una experiencia rechazada:
+capturaba en firme algo que nadie iba a entregar. Ahora salta las rechazadas y **libera su
+retención**. Ver `ESTADOS_SIN_ENTREGA`.
+
+⚠️ La cancelación se ANOTA en el documento (`paymentStatus: "canceled"`). Antes se cancelaba
+en Stripe y el documento se quedaba en `authorized`, así que para el resto del sistema el
+cobro seguía vivo: el barrido lo recogía en cada pasada y al comprador se le seguía ofreciendo
+«pedir devolución» por un dinero que ya tenía.
+
+### 8-quinquies.2 Flujo 2 — el cobro ya se capturó
+
+```
+El cobro se capturó (entrega, o respaldo del día 6)
+El creador rechaza  →  no hay retención que liberar
+El comprador PIDE la devolución  →  SALDO A FAVOR
+   · lo gasta en la plataforma (aparece en la pasarela como un medio de pago más)
+   · o pide EFECTIVO → solicitud al panel de moderación
+```
+
+El asiento del creador se revierte **como devolución**, no como pérdida. Y el rechazo por sí
+solo no revierte nada: espera a que el comprador decida entre devolución o intentar de nuevo.
+
+### 8-quinquies.3 El saldo vive en la MONEDA DEL COMPRADOR
+
+Decisión del 2026-08-22, y es la parte que más cambió.
+
+Antes el saldo se guardaba en la moneda de liquidación y se mostraba convertido. Dos
+problemas:
+
+* **No coincidía con el recibo.** Se cobraron 808.99 MXN y el saldo decía 808.91. Y al día
+  siguiente otra cifra distinta, porque el tipo de cambio se mueve.
+* **La resta de la pasarela no cuadraba.** El saldo se descontaba en la moneda de liquidación
+  y solo DESPUÉS se convertía el resto, así que lo que veía el comprador y lo que se le
+  descontaba salían de dos conversiones distintas.
+
+Ahora:
+
+```
+1. Se resuelve el TOTAL en la moneda del comprador (con su precio comercial)
+2. El saldo se descuenta EN ESA MONEDA
+3. La tarjeta cobra el resto, en esa moneda
+```
+
+Con lo que **saldo + tarjeta = total**, exacto.
+
+| | |
+|---|---|
+| Se devuelve | El importe EXACTO del recibo, en su moneda |
+| No se mueve | El saldo no cambia con el tipo de cambio |
+| Contabilidad | Se guarda también el equivalente en liquidación |
+| Monedas distintas | Se convierte con la tabla congelada; si no sirve, **no se aplica saldo** |
+
+⚠️ **El riesgo de tipo de cambio pasa a Vibra**, que es donde debe estar: una devolución es
+una deuda con el comprador y no puede encoger sola. Lo cubre el 2% de conversión ya cobrado
+en cada compra. Se descartaron a propósito la **caducidad** del saldo —en México y la UE el
+dinero de una devolución es del comprador, ponerle fecha es terreno legal delicado— y las
+**coberturas financieras**, desproporcionadas a esta escala.
+
+Para vigilarlo basta un dato: cuánto saldo vivo hay por moneda. Mientras sea pequeño frente a
+los ingresos, no hay nada que decidir.
+
+### 8-quinquies.4 Lo que se corrigió por el camino
+
+* **El importe devuelto salía inflado.** Los espejos guardaban solo el importe en moneda de
+  liquidación y la lista lo reconvertía con la fórmula del COMPRADOR —2% y redondeo al
+  escalón—: 810.99 se enseñaba como 825. Ahora se guarda el cobro real (`presentmentAmount`)
+  y se muestra tal cual, en las devoluciones a tarjeta **y** a crédito.
+* **El respaldo del trigger sumaba `+ 3`** — el cargo fijo en PESOS de antes del corte—, así
+  que devolvía de menos.
+* **La herramienta de QA capturaba Y acreditaba de una vez.** Dejaba un estado imposible: la
+  experiencia esperando entrega y el comprador ya reembolsado; si el creador entregaba, se
+  quedaba con las dos cosas. Ahora **solo captura**; el crédito lo emite el flujo real.
+* **Se podía pedir la devolución dos veces.** La segunda siempre falla —el estado ya no es
+  elegible—, así que salía el panel verde de éxito Y un aviso rojo. Se corta en el cliente y
+  se rechaza en el servidor.
+* **El panel de moderación mostraba `$1,234.56` sin moneda.** En una pantalla donde se
+  aprueban devoluciones, ese símbolo se lee como pesos.
+
 ## 9. Dependencias para operar en vivo
 
 | Qué | Estado | Bloquea |

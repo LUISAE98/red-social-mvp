@@ -140,9 +140,14 @@ export async function revertBuyerCreditSpend(
     if (amount > 0) {
       const sSnap = await tx.get(sRef);
       const next = round2(readBalance(sSnap.data()) + amount);
+      // ⚠️ Se CONSERVA la moneda del saldo. Aquí se forzaba la de liquidación, así que al
+      // revertir una reserva —rechazar un reembolso, o un cobro fallido— el importe volvía
+      // en pesos pero el documento pasaba a decir dólares. A partir de ahí todo lo que
+      // tocara ese saldo lo leía en la moneda equivocada.
+      const monedaSaldo = readCurrency(sSnap.data());
       tx.set(
         sRef,
-        { balance: next, currency: SETTLEMENT_CURRENCY, updatedAt: FieldValue.serverTimestamp() },
+        { balance: next, currency: monedaSaldo, updatedAt: FieldValue.serverTimestamp() },
         { merge: true }
       );
     }

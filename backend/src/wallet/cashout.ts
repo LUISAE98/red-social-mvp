@@ -20,6 +20,7 @@ import { FIXED_SERVICE_FEE_USD } from "./ledger";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "../payments/stripe/stripeClient";
+import { toStripeAmount } from "../tax/presentmentFormat";
 import { spendBuyerCredit, revertBuyerCreditSpend } from "./buyerCredit";
 import { capturePaymentIntentForRef } from "../payments/stripe/holdCapture";
 import { requirePlatformMod } from "../authz";
@@ -54,8 +55,17 @@ type CashoutOrigin = {
   creatorId: string;
   type: string;
   reason: string;
-  amount: number; // crédito emitido por esta devolución (MXN)
-  chargedAmount: number; // lo que se cobró originalmente (MXN) → tope de reembolso
+  amount: number; // crédito emitido por esta devolución, en la moneda del saldo
+  chargedAmount: number; // lo cobrado, en la moneda de LIQUIDACIÓN (contabilidad)
+  /**
+   * Lo cobrado EN LA MONEDA DEL CARGO, que es en la que Stripe acepta el reembolso.
+   *
+   * ⚠️ Stripe reembolsa en la moneda del cargo original. Mandarle un importe calculado en
+   * otra moneda le hace devolver una cantidad equivocada: 47.82 se interpretarían como
+   * 47.82 pesos cuando el cargo fueron 808.99 pesos.
+   */
+  chargedLocal: number;
+  chargedCurrency: string;
   stripePaymentIntentId: string;
 };
 
@@ -63,6 +73,13 @@ type CashoutOrigin = {
 async function readBalance(uid: string): Promise<number> {
   const snap = await db.doc(`users/${uid}/buyerCredit/current`).get();
   return num(snap.data()?.balance);
+}
+
+/** Moneda del saldo. Sin ella, gastarlo lo trata como si fuera de liquidación. */
+async function readBalanceCurrency(uid: string): Promise<string> {
+  const snap = await db.doc(`users/${uid}/buyerCredit/current`).get();
+  const c = snap.data()?.currency;
+  return typeof c === "string" && c ? c.toUpperCase() : SETTLEMENT_CURRENCY;
 }
 
 /**
@@ -113,6 +130,11 @@ async function buildOrigins(uid: string): Promise<CashoutOrigin[]> {
       num(pi.chargedAmount) ||
       round2(num(pi.grossAmount || pi.baseAmount) + FIXED_SERVICE_FEE_USD + num(pi.taxAmount));
 
+    // Lo cobrado en la moneda del cargo. Sin él se cae a la de liquidación, que es lo que
+    // había antes de guardar el importe presentado.
+    const cobradoLocal = num(pi.presentmentAmount);
+    const monedaCargo = str(pi.presentmentCurrency);
+
     origins.push({
       sourceType: r.sourceType,
       sourceId: r.sourceId,
@@ -121,6 +143,8 @@ async function buildOrigins(uid: string): Promise<CashoutOrigin[]> {
       reason,
       amount: round2(r.amount),
       chargedAmount: round2(chargedAmount),
+      chargedLocal: cobradoLocal > 0 ? round2(cobradoLocal) : round2(chargedAmount),
+      chargedCurrency: cobradoLocal > 0 && monedaCargo ? monedaCargo : SETTLEMENT_CURRENCY,
       stripePaymentIntentId,
     });
   }
@@ -147,6 +171,7 @@ export const requestCashout = onCall(
     await assertAccountNotBanned(uid);
 
     const balance = await readBalance(uid);
+    const monedaSaldo = await readBalanceCurrency(uid);
     if (balance <= 0) {
       throw new HttpsError(
         "failed-precondition",
@@ -169,7 +194,9 @@ export const requestCashout = onCall(
     }
 
     const origins = await buildOrigins(uid);
-    const refundable = round2(origins.reduce((s, o) => s + o.chargedAmount, 0));
+    // El tope reembolsable, en la MISMA moneda que el saldo: los importes de cada origen
+    // van en la moneda de su cargo, que es la del comprador.
+    const refundable = round2(origins.reduce((s, o) => s + (o.chargedLocal || o.chargedAmount), 0));
     if (origins.length === 0 || refundable <= 0) {
       throw new HttpsError(
         "failed-precondition",
@@ -185,8 +212,12 @@ export const requestCashout = onCall(
     const cashoutId = cashoutRef.id;
 
     // Reservar el crédito: se descuenta ahora, keyed por la solicitud (idempotente).
+    // ⚠️ En la MONEDA DEL SALDO. Sin pasarla se daba por supuesta la de liquidación, así
+    // que el saldo se convertía a dólares y de vuelta a pesos: el redondeo de ida y vuelta
+    // dejaba unos céntimos sin reservar y el saldo no llegaba a cero.
     const reserved = await spendBuyerCredit(uid, {
       amount: balance,
+      currency: monedaSaldo,
       sourceType: "cashout",
       sourceId: cashoutId,
     });
@@ -209,7 +240,8 @@ export const requestCashout = onCall(
         buyerName: str(buyer.displayName) || str(buyer.name) || str(buyer.username),
         buyerUsername: str(buyer.username),
         amount: reserved,
-        currency: SETTLEMENT_CURRENCY,
+        // La moneda del SALDO, que es en la que se le va a reembolsar.
+        currency: monedaSaldo,
         status: "pending",
         origins,
         refunds: [],
@@ -394,14 +426,18 @@ export const resolveCashout = onCall(
       if (doneKeys.has(key)) continue; // ya reembolsado en un intento previo
       if (!o.stripePaymentIntentId) continue;
 
-      const alloc = round2(Math.min(remaining, num(o.chargedAmount)));
+      // ⚠️ En la MONEDA DEL CARGO. El saldo del comprador vive en su moneda y el tope de
+      // cada origen también tiene que estarlo: comparar contra el importe en moneda de
+      // liquidación devolvía una fracción del dinero (47.82 en vez de 808.99).
+      const alloc = round2(Math.min(remaining, num(o.chargedLocal) || num(o.chargedAmount)));
       if (alloc <= 0) continue;
 
       const res = await stripeFetch<{ id?: string }>("/refunds", {
         method: "POST",
         form: {
           payment_intent: o.stripePaymentIntentId,
-          amount: Math.round(alloc * 100), // centavos
+          // Unidad mínima de la moneda del cargo (céntimos, o unidades enteras en yenes).
+          amount: toStripeAmount(alloc, o.chargedCurrency || SETTLEMENT_CURRENCY),
           reason: "requested_by_customer",
           metadata: { cashoutId, buyerId, sourceType: o.sourceType, sourceId: o.sourceId },
         },

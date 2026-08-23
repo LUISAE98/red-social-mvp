@@ -5,6 +5,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -14,6 +15,8 @@ export type LatestCashout = {
   status: "pending" | "approved" | "rejected";
   rejectionNote: string;
   refundedAmount: number;
+  /** Moneda de la solicitud: la del SALDO, que es en la que se le reembolsa. */
+  currency: string;
   dismissed: boolean;
 } | null;
 
@@ -52,6 +55,7 @@ export function useBuyerCashout(uid: string | undefined): {
                 status: ((top.data.status as "pending" | "approved" | "rejected") ?? "pending"),
                 rejectionNote: (top.data.rejectionNote as string) ?? "",
                 refundedAmount: (top.data.refundedAmount as number) ?? 0,
+                currency: (top.data.currency as string) || SETTLEMENT_CURRENCY,
                 dismissed: Boolean(top.data.buyerDismissedAt),
               }
             : null

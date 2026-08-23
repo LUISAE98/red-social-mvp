@@ -124,6 +124,11 @@ export async function refundExperienceToCredit(params: {
     {
       refundDestination: "credit",
       refundedAmount: total,
+      // 💵 Lo que de VERDAD se le cobró y en qué moneda, igual que en la devolución a
+      // tarjeta. Sin esto la lista reconvertía `refundedAmount` —que va en la moneda de
+      // liquidación— y enseñaba 825 por un crédito de 808.99.
+      presentmentAmount: emite.currency === SETTLEMENT_CURRENCY ? null : emite.amount,
+      presentmentCurrency: emite.currency === SETTLEMENT_CURRENCY ? null : emite.currency,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     { merge: true }
