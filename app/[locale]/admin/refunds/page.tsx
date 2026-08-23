@@ -19,6 +19,7 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast, type ToastType } from "@/lib/hooks/useVibraToast";
 import { useAdminPreview } from "../context";
 import { formatCurrency } from "@/lib/currency/format";
+import { useExchangeRates } from "@/lib/currency/rates";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useConfirm } from "@/lib/hooks/useConfirm";
 
@@ -46,8 +47,26 @@ const STATUS_META: Record<string, { label: string; color: string; dot: string }>
  * liquidación, pero un moderador mexicano lee ese símbolo como pesos y aprueba una
  * devolución creyendo que son diecisiete veces menos de lo que es.
  */
-function money(n: number, locale: string): string {
-  return formatCurrency(n ?? 0, SETTLEMENT_CURRENCY, locale, { code: true });
+function money(n: number, locale: string, currency?: string | null): string {
+  return formatCurrency(n ?? 0, currency || SETTLEMENT_CURRENCY, locale, { code: true });
+}
+
+/**
+ * Referencia en la moneda de LIQUIDACIÓN, para saber lo que la devolución le cuesta a la
+ * plataforma. Va debajo y en pequeño: la cifra que manda es la que se le devuelve al
+ * comprador, en su moneda.
+ */
+function refLiquidacion(
+  n: number,
+  currency: string | null | undefined,
+  locale: string,
+  tasas: Record<string, number>
+): string | null {
+  const cur = currency || SETTLEMENT_CURRENCY;
+  if (cur === SETTLEMENT_CURRENCY) return null;
+  const porCur = tasas[cur];
+  if (!(porCur > 0)) return null;
+  return `≈ ${formatCurrency(Math.round((n / porCur) * 100) / 100, SETTLEMENT_CURRENCY, locale, { code: true })}`;
 }
 
 function rel(date: Date | null): string {
@@ -77,6 +96,7 @@ export default function AdminRefundsPage() {
   const [devMsgType, setDevMsgType] = useState<ToastType>("success");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState("");
+  const tasas = useExchangeRates();
 
   const { toast, showToast } = useVibraToast();
   useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -173,7 +193,7 @@ export default function AdminRefundsPage() {
       const ok = await confirm({
         title: "Aprobar el reembolso",
         body: `Se devolvera a la tarjeta original de ${selected.buyerName || "el comprador"}. Esta accion dispara el reembolso en Stripe y no se puede deshacer.`,
-        highlight: money(selected.amount, locale),
+        highlight: money(selected.amount, locale, selected.currency),
         confirmLabel: "Reembolsar",
         tone: "danger",
       });
@@ -274,8 +294,16 @@ export default function AdminRefundsPage() {
                   </div>
                   <div style={{ textAlign: "end", flexShrink: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#34d399" }}>
-                      {money(r.amount, locale)}
+                      {money(r.amount, locale, r.currency)}
                     </div>
+                    {/* Lo que le cuesta a la plataforma. La cifra que manda es la de
+                        arriba —lo que se le devuelve al comprador, en su moneda—; esta
+                        sirve para dimensionar la salida de caja. */}
+                    {refLiquidacion(r.amount, r.currency, locale, tasas.rates) && (
+                      <div style={{ fontSize: 10.5, color: "#666", marginTop: 1 }}>
+                        {refLiquidacion(r.amount, r.currency, locale, tasas.rates)}
+                      </div>
+                    )}
                     <div style={{ fontSize: 11, color: meta.color, fontWeight: 600, marginTop: 2 }}>
                       {meta.label}
                     </div>
@@ -315,7 +343,7 @@ export default function AdminRefundsPage() {
                                 {TYPE_LABELS[o.type] ?? TYPE_LABELS[o.sourceType] ?? o.type}
                               </span>
                               <span style={{ fontSize: 12, color: "#888", whiteSpace: "nowrap" }}>
-                                {money(o.chargedAmount, locale)}
+                                {money(o.chargedLocal ?? o.chargedAmount, locale, o.chargedCurrency)}
                               </span>
                             </div>
                             <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
@@ -332,7 +360,7 @@ export default function AdminRefundsPage() {
                     {/* Estado resuelto / error */}
                     {r.status === "approved" && (
                       <div style={{ fontSize: 12, color: "#34d399" }}>
-                        Reembolsado {money(r.refundedAmount ?? r.amount, locale)} a la tarjeta original.
+                        Reembolsado {money(r.refundedAmount ?? r.amount, locale, r.currency)} a la tarjeta original.
                       </div>
                     )}
                     {r.status === "rejected" && (

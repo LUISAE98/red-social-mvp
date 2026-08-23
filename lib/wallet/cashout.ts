@@ -12,6 +12,9 @@ export type CashoutOrigin = {
   reason: string;
   amount: number;
   chargedAmount: number;
+  /** Lo cobrado EN LA MONEDA DEL CARGO, que es en la que se reembolsa. */
+  chargedLocal?: number;
+  chargedCurrency?: string;
   stripePaymentIntentId: string;
 };
 
