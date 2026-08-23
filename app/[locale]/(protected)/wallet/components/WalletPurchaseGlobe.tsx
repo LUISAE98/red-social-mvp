@@ -52,7 +52,15 @@ export default function WalletPurchaseGlobe({
   uid: string | null | undefined;
 }) {
   const tWallet = useTranslations("wallet");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
+   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
+   */
+  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
+    pf.formatAnchor(amount, { code: opts.code ?? false });
   const { points } = useWalletPurchaseGeo(uid);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const globeRef = useRef<GlobeMethods | undefined>(undefined);

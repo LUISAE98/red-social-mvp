@@ -104,7 +104,15 @@ export default function WalletTransactions({
 }) {
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
+   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
+   */
+  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
+    pf.formatAnchor(amount, { code: opts.code ?? false });
   const [filter, setFilter] = useState<Filter>("all");
   // Filtro por estado dentro de "Todos" (multi-selección, mismo menú que Pendientes/Historial).
   const [statusFilter, setStatusFilter] = useState<Array<"all" | LedgerStatus>>(["all"]);
@@ -567,7 +575,7 @@ export default function WalletTransactions({
                   color: "#fff",
                 }}
               >
-                {formatMoney(col.amount, { baseCurrency: SETTLEMENT_CURRENCY })}
+                {formatMoney(col.amount)}
               </span>
             </div>
           ))}
@@ -666,7 +674,7 @@ export default function WalletTransactions({
                       textDecoration: negative ? "line-through" : "none",
                     }}
                   >
-                    {formatMoney(amount, { baseCurrency: entry.currency ?? SETTLEMENT_CURRENCY })}
+                    {formatMoney(amount)}
                   </span>
                   <span
                     style={{

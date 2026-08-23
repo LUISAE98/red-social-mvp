@@ -124,7 +124,20 @@ export default function WalletDesktopRail({
   const t = useTranslations("nav");
   const { user } = useAuth();
   const { summary, loading: walletLoading } = useWalletFinances(user?.uid);
-  const { format } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al escalón—,
+   * así que inflaba el saldo. Es la misma cifra que la wallet, y tiene que coincidir con
+   * ella y con lo que se cobra al retirar.
+   */
+  const format = (amount: number) => pf.formatAnchor(amount, { code: true });
+  /** Referencia en la moneda del creador. Null si ya mira en la de liquidación. */
+  const refLocal = (amount: number): string | null =>
+    pf.currency === SETTLEMENT_CURRENCY
+      ? null
+      : pf.formatPlain(amount, { baseCurrency: SETTLEMENT_CURRENCY, code: true });
   const view = selectFinanceView(summary, "net");
   // Toggle de privacidad (compartido con la cartera del header).
   const balanceHidden = useBalanceHidden();
@@ -393,6 +406,17 @@ export default function WalletDesktopRail({
           color: #4ade80;
           transition: color 300ms ease;
           font-variant-numeric: tabular-nums;
+        }
+
+        .walletBalanceApprox {
+          display: block;
+          font-size: 10.5px;
+          font-weight: 500;
+          line-height: 1.2;
+          color: rgba(255, 255, 255, 0.4);
+          font-variant-numeric: tabular-nums;
+          text-align: center;
+          white-space: nowrap;
         }
 
         .walletBalanceAmount.loading {
@@ -757,9 +781,9 @@ export default function WalletDesktopRail({
                       {walletLoading ? (
                         "···"
                       ) : balanceHidden && view.available > 0 ? (
-                        <MaskedAmount formatted={format(view.available, { baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })} />
+                        <MaskedAmount formatted={format(view.available)} />
                       ) : (
-                        format(view.available, { baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })
+                        format(view.available)
                       )}
                     </span>
                     {!walletLoading && view.available > 0 ? (
@@ -792,6 +816,13 @@ export default function WalletDesktopRail({
                       </span>
                     ) : null}
                   </span>
+                  {/* Referencia en la moneda del creador. Más pequeña a propósito: la cifra
+                      que manda es la de arriba, que es la que cobra al retirar. */}
+                  {!walletLoading && !balanceHidden && refLocal(view.available) && (
+                    <span className="walletBalanceApprox">
+                      {t("approxAmountLong", { amount: refLocal(view.available) ?? "" })}
+                    </span>
+                  )}
                 </span>
               </button>
 

@@ -28,7 +28,15 @@ export default function WalletMonthComparison({
 }) {
   const locale = useLocale();
   const tWallet = useTranslations("wallet");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
+   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
+   */
+  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
+    pf.formatAnchor(amount, { code: opts.code ?? false });
   const { entries } = useWalletLedger(uid, 1000);
 
   const { current, best } = useMemo(() => {
@@ -87,7 +95,7 @@ export default function WalletMonthComparison({
       </span>
 
       <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1, color: "#fff" }}>
-        {formatMoney(current, { baseCurrency: SETTLEMENT_CURRENCY })}
+        {formatMoney(current)}
       </span>
 
       {target > 0 ? (
@@ -126,12 +134,12 @@ export default function WalletMonthComparison({
             {tWallet("goalRecordBeaten")} 🎉
           </span>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-            {tWallet("goalPrevRecord", { amount: formatMoney(target, { baseCurrency: SETTLEMENT_CURRENCY }) })}
+            {tWallet("goalPrevRecord", { amount: formatMoney(target) })}
           </span>
         </div>
       ) : (
         <span style={{ fontSize: 12.5, fontWeight: 600, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>
-          {tWallet("goalRemaining", { amount: formatMoney(remaining, { baseCurrency: SETTLEMENT_CURRENCY }), best: formatMoney(target, { baseCurrency: SETTLEMENT_CURRENCY }) })}
+          {tWallet("goalRemaining", { amount: formatMoney(remaining), best: formatMoney(target) })}
           <br />
           <span style={{ fontSize: 10.5, fontWeight: 500, color: "rgba(255,255,255,0.4)" }}>
             {tWallet("goalBestMonth", { month: bestLabel })}

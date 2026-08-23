@@ -18,7 +18,15 @@ export default function WalletMonthlyStats({
   uid: string | null | undefined;
 }) {
   const tWallet = useTranslations("wallet");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
+   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
+   */
+  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
+    pf.formatAnchor(amount, { code: opts.code ?? false });
   const { summary, loading: summaryLoading } = useWalletFinances(uid);
   const { entries, loading: ledgerLoading } = useWalletLedger(uid, 365);
   const [scope, setScope] = useState<"month" | "all">("month");
@@ -112,7 +120,7 @@ export default function WalletMonthlyStats({
             {loading ? (
               <WalletFigureSkeleton width={72} height={16} />
             ) : (
-              formatMoney(col.amount, { baseCurrency: SETTLEMENT_CURRENCY })
+              formatMoney(col.amount)
             )}
           </span>
         </button>

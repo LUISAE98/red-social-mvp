@@ -127,7 +127,15 @@ export default function WalletChannels({
   uid: string | null | undefined;
 }) {
   const tWallet = useTranslations("wallet");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
+   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
+   */
+  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
+    pf.formatAnchor(amount, { code: opts.code ?? false });
   const { entries } = useWalletLedger(uid, 1000);
 
   const [profile, setProfile] = useState<ProfileMeta | null>(null);
@@ -399,7 +407,7 @@ export default function WalletChannels({
                     {pct}%
                   </span>
                   <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.55)" }}>
-                    {formatMoney(ch.net, { code: true, baseCurrency: SETTLEMENT_CURRENCY })}
+                    {formatMoney(ch.net, { code: true })}
                   </span>
                 </div>
                 <span style={{ flexShrink: 0, marginInlineStart: 4, display: "inline-flex" }}>
@@ -425,7 +433,7 @@ export default function WalletChannels({
                           newFollowers == null ? "—" : String(newFollowers)
                         )}
                         {statRow(tWallet("channelBuyers"), String(ch.buyers))}
-                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true, baseCurrency: SETTLEMENT_CURRENCY }))}
+                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true }))}
                       </>
                     ) : ch.isSubscription ? (
                       <>
@@ -434,10 +442,10 @@ export default function WalletChannels({
                         {statRow(
                           tWallet("channelSubPrice"),
                           ch.price > 0
-                            ? tWallet("channelPerMonth", { price: formatMoney(ch.price, { baseCurrency: SETTLEMENT_CURRENCY }) })
+                            ? tWallet("channelPerMonth", { price: formatMoney(ch.price) })
                             : "—"
                         )}
-                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true, baseCurrency: SETTLEMENT_CURRENCY }))}
+                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true }))}
                       </>
                     ) : (
                       <>
@@ -446,7 +454,7 @@ export default function WalletChannels({
                           tWallet("channelNewMembers"),
                           ch.newMembers == null ? "—" : String(ch.newMembers)
                         )}
-                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true, baseCurrency: SETTLEMENT_CURRENCY }))}
+                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true }))}
                       </>
                     )}
                   </div>

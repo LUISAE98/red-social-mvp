@@ -1069,6 +1069,153 @@ los ingresos, no hay nada que decidir.
 * **El panel de moderación mostraba `$1,234.56` sin moneda.** En una pantalla donde se
   aprueban devoluciones, ese símbolo se lee como pesos.
 
+
+### 8-quinquies.5 Contracargos: lo que hay y lo que falta
+
+**Ya montado.** Al abrirse una disputa (`charge.dispute.created`) se registra en
+`stripeDisputes` para que aparezca en el panel, pero **no se le quita el acceso al
+comprador**: la disputa puede ganarse, y quitarle el contenido a quien tiene razón es peor
+que esperar. Al cerrarse perdida (`charge.dispute.closed` con `lost`) se revierte el asiento
+del creador y **se revoca el acceso**. Si se gana, no se toca nada.
+
+Cubre también los reembolsos hechos **desde el panel de Stripe**, no solo desde la
+aplicación, así que la wallet nunca queda inflada frente a lo que Stripe tiene. Deduplica
+por `event.id`, de modo que un reintento de Stripe no revierte dos veces.
+
+⏳ **PENDIENTE — responder la disputa con evidencia.** Hoy las disputas se registran pero
+nadie las contesta: hay que entrar a Stripe a mano y hay plazo. Cuando se habilite, lo que
+hace falta es reunir la evidencia que ya existe en el sistema —el recibo, la entrega, los
+indicios de país fiscal, la conversación— y subirla por API. Se deja anotado a propósito:
+mientras el volumen sea bajo se atiende a mano, pero conviene una alerta para que ninguna
+se pase de plazo.
+
+
+## 8-sexies. Retiros al creador: Global Payouts (investigación 2026-08-23)
+
+### 8-sexies.1 Por qué NO se usa Connect
+
+Es la conclusión que más ahorra tiempo, y va primero.
+
+Las **transferencias transfronterizas de Connect** solo funcionan entre plataformas y cuentas
+conectadas en **EE. UU., Reino Unido, EEE, Canadá y Suiza**. La documentación es explícita:
+
+> *"Stripe no admite transferencias transfronterizas autoservicio a países fuera de las
+> regiones listadas."*
+
+**México no está**, y no se resuelve con un formulario: hay que hablar con ventas.
+
+⚠️ El archivo `backend/src/payments/stripe/stripeConnect.ts` describe el problema al REVÉS —
+dice que la plataforma es mexicana y que por eso solo se puede pagar en México—. Es de antes
+del corte a Vibra On, LLC. Hoy el problema es el inverso: desde EE. UU. se llega a Europa y
+Canadá, pero **no a México**.
+
+Así lo resuelven otros: **Kick no usa Connect**. Paga con Stripe directo, en dólares, a una
+cuenta que Stripe admita — y el creador latinoamericano acaba abriendo una cuenta
+estadounidense con un tercero (Wallbit, Payoneer) para poder cobrar. Es pasarle el problema
+al creador.
+
+### 8-sexies.2 La vía elegida: Global Payouts
+
+Producto distinto de Connect. Manda a **más de 160 países**, el destinatario **no necesita
+cuenta de Stripe**, y una de sus aplicaciones declaradas es pagar a creadores.
+
+| | |
+|---|---|
+| Emisores | Solo **EE. UU. y Reino Unido** — la LLC lo cumple |
+| México como destino | ✅ Confirmado en la tabla oficial |
+| Moneda | **MXN** |
+| Método | Transferencia bancaria local |
+| Datos que pide | Correo y nombre (persona física) |
+
+**El creador cobra en pesos a su banco de siempre, sin abrir nada en el extranjero.** Es una
+ventaja real frente a lo que ofrece Kick.
+
+### 8-sexies.3 Lo que cuesta
+
+```
+1.50 USD fijo  +  0.25% transfronteriza  +  1% conversión a pesos
+```
+
+México está en el tramo más barato de comisión transfronteriza (**0.25%**), el mismo que
+EE. UU., Reino Unido y Canadá. Hay países al 1% y Perú al 1.25%.
+
+| Retiro | ≈ MXN | Coste | % del retiro |
+|---|---|---|---|
+| 30 USD | 508 | 1.88 | **6.25%** |
+| 50 USD | 846 | 2.13 | 4.25% |
+| 100 USD | 1,692 | 2.75 | 2.75% |
+| **295 USD** | **4,991** | **5.19** | **1.76%** |
+| 500 USD | 8,460 | 7.75 | 1.55% |
+| 1,000 USD | 16,920 | 14.00 | 1.40% |
+
+Fondear la cuenta financiera por **ACH es gratis**; por transferencia bancaria, 2 USD.
+
+⚠️ El coste es **regresivo**, igual que el cargo fijo de los cobros: cuanto más pequeño el
+retiro, más pesa. El mínimo de **5,000 MXN** cae justo donde la curva se aplana (1.76%), y
+ahora hay número que lo justifica.
+
+⚠️ Stripe cobra estas comisiones **de la cuenta financiera**, no las descuenta del envío. Hace
+falta saldo para el pago Y su comisión, o el envío falla.
+
+### 8-sexies.4 DECISIÓN: la comisión la absorbe Vibra
+
+**Al creador le llega el 75% de lo que programó, siempre.** El coste del retiro sale de la
+parte de Vibra, igual que el 0.40 USD fijo y el 2% de conversión no le tocan su parte.
+
+Es coherente con todo el modelo: el creador fija un precio y sabe exactamente qué recibe.
+
+### 8-sexies.5 Cómo se activa y cómo se prueba
+
+**Activar (cuenta real):** `Balances` → `Send` → agregar fondos a la cuenta financiera. Puede
+pedir información extra y **la verificación tarda días hábiles**.
+
+**Probar (sin cuenta bancaria):** hace falta un **sandbox**, no el "modo de prueba" clásico —
+Global Payouts usa la API v2 y el modo de prueba de siempre no la soporta. Se crea con
+`Copiar cuenta` para heredar los productos habilitados, y dentro se pulsa **Empezar** en la
+página de Transferencias internacionales.
+
+⚠️ Sin completar ese onboarding, la pantalla de Beneficiarios existe pero **crear uno falla**
+con un error genérico. Es lo que costó media tarde localizar.
+
+### 8-sexies.6 Lo que hay que construir
+
+| Objeto (API v2) | Para qué |
+|---|---|
+| `FinancialAccount` | El saldo desde el que se paga; se crea al activar |
+| `Account` con configuración de destinatario | El creador |
+| `AccountLink` | Formulario alojado por Stripe: datos, CLABE y **KYC** |
+| `PayoutMethod` | Su cuenta bancaria |
+| `OutboundPayment` | El pago |
+
+⚠️ Tres cosas que cambian cómo se programa:
+
+* Es la **API v2**, distinta de la v1 que usan todos los cobros.
+* Está en **vista previa**: SDK del canal de preview, y la API puede cambiar.
+* Los webhooks son **"thin events"**, otro formato. `stripeWebhook` no los entiende.
+
+✅ **El KYC viene resuelto**: `AccountLink` lleva al creador a un formulario de Stripe y
+vuelve. No hace falta sustituir a Didit.
+
+⚠️ El enlace del formulario **caduca a los 3 días**, o al abrirlo dos veces. Hay que poder
+regenerarlo. Y por cumplimiento **no se pueden capturar datos de tarjeta de débito a mano**:
+solo cuentas bancarias.
+
+### 8-sexies.7 Estado y bloqueo
+
+🔴 **Global Payouts no se puede usar todavía.** Stripe tiene que integrarlo, y para eso hay que
+**verificar la empresa** — lo que exige el pasaporte. Bloqueado hasta que ese trámite pase.
+
+Mientras tanto se puede programar contra el sandbox.
+
+### 8-sexies.8 Enlaces
+
+* [Global Payouts](https://docs.stripe.com/global-payouts)
+* [Empezar](https://docs.stripe.com/global-payouts/get-started)
+* [Tarifas](https://docs.stripe.com/global-payouts/pricing)
+* [Crear destinatarios y países admitidos](https://docs.stripe.com/global-payouts/recipient-creation-options)
+* [Transferencias transfronterizas de Connect](https://docs.stripe.com/connect/cross-border-payouts) — por qué NO
+* [Sandboxes](https://docs.stripe.com/sandboxes)
+
 ## 9. Dependencias para operar en vivo
 
 | Qué | Estado | Bloquea |
@@ -1086,12 +1233,9 @@ dejar el cutover a live como último paso.
 
 ## 10. Frentes abiertos
 
-🟡 **La donación en un LIVE no tiene mínimo.** El banner del feed pasa `minBaseAmount` y el
-modal lo valida; el de live no lo pasa, y `createLiveDonationStripeIntent` tampoco lo
-comprueba en el servidor. Hoy se puede intentar donar un céntimo: por debajo del mínimo de
-Stripe, así que el cobro falla con un error crudo en vez de avisar antes. Anotado el
-2026-08-19 para cuando se revise el flujo de live; **no se toca ahora a propósito**, el live
-es un frente aparte.
+✅ ~~La donación en un LIVE no tiene mínimo.~~ **CERRADO el 2026-08-21.** El mínimo se valida
+ahora en el servidor y el modal recibe `minBaseAmount`. Se cerró junto con los de los otros
+diez servicios: ver 8-quater.3.
 
 🔴 **¿Puede una plataforma US pagar a creadores en México?** El soporte dijo que sí, self-serve,
 pero **contradice la documentación**, que limita los payouts transfronterizos a US·UK·EEE·CA·CH.

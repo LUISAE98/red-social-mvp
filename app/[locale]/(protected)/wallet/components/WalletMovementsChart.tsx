@@ -105,7 +105,7 @@ export default function WalletMovementsChart({
             {tWallet(METRIC_KEY[metric])}
           </span>
           <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em" }}>
-            {fmtMoney(total, { baseCurrency: SETTLEMENT_CURRENCY })}
+            {fmtMoney(total)}
           </span>
         </div>
         {/* Era `rgba(168,85,255,0.95)`: el morado de marca con un 255 donde
@@ -227,7 +227,7 @@ export default function WalletMovementsChart({
                     {hovered.label}
                   </div>
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff" }}>
-                    {fmtMoney(hovered.amount, { baseCurrency: SETTLEMENT_CURRENCY })}
+                    {fmtMoney(hovered.amount)}
                   </div>
                 </div>
               </>

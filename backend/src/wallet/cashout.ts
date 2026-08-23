@@ -21,7 +21,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "../payments/stripe/stripeClient";
 import { toStripeAmount } from "../tax/presentmentFormat";
-import { spendBuyerCredit, revertBuyerCreditSpend } from "./buyerCredit";
+import { spendBuyerCredit, revertBuyerCreditSpend, convertirEntre } from "./buyerCredit";
 import { capturePaymentIntentForRef } from "../payments/stripe/holdCapture";
 import { requirePlatformMod } from "../authz";
 import { assertAccountNotBanned } from "../accountStatus";
@@ -395,6 +395,8 @@ export const resolveCashout = onCall(
     }
     const buyerId = str(data.buyerId);
     const total = num(data.amount);
+    // Moneda de la SOLICITUD: la del saldo del comprador, en la que se le devuelve.
+    const monedaSolicitud = str(data.currency) || SETTLEMENT_CURRENCY;
 
     // ---- RECHAZAR: revertir la reserva (saldo vuelve al comprador) ----
     if (action === "reject") {
@@ -426,10 +428,28 @@ export const resolveCashout = onCall(
       if (doneKeys.has(key)) continue; // ya reembolsado en un intento previo
       if (!o.stripePaymentIntentId) continue;
 
-      // ⚠️ En la MONEDA DEL CARGO. El saldo del comprador vive en su moneda y el tope de
-      // cada origen también tiene que estarlo: comparar contra el importe en moneda de
-      // liquidación devolvía una fracción del dinero (47.82 en vez de 808.99).
-      const alloc = round2(Math.min(remaining, num(o.chargedLocal) || num(o.chargedAmount)));
+      // ⚠️ Tope del origen EN LA MONEDA DE LA SOLICITUD.
+      //
+      // `remaining` va en la moneda del saldo y el tope de cada cargo en la SUYA. Si un
+      // comprador tiene devoluciones en dos monedas —compró desde dos países—, comparar
+      // los dos números sin convertir descuenta mal: 50 dólares restaban 50 pesos del
+      // contador, y el reparto seguía creyendo que le quedaba casi todo por devolver.
+      const monedaCargo = o.chargedCurrency || SETTLEMENT_CURRENCY;
+      const topeCargo = num(o.chargedLocal) || num(o.chargedAmount);
+      const topeEnSolicitud =
+        monedaCargo === monedaSolicitud
+          ? topeCargo
+          : await convertirEntre(topeCargo, monedaCargo, monedaSolicitud);
+      if (!(topeEnSolicitud > 0)) continue; // sin tasa utilizable: no se reparte a ciegas
+
+      const allocEnSolicitud = round2(Math.min(remaining, topeEnSolicitud));
+      if (allocEnSolicitud <= 0) continue;
+
+      // Lo que se le manda a Stripe va en la moneda del CARGO.
+      const alloc =
+        monedaCargo === monedaSolicitud
+          ? allocEnSolicitud
+          : await convertirEntre(allocEnSolicitud, monedaSolicitud, monedaCargo);
       if (alloc <= 0) continue;
 
       const res = await stripeFetch<{ id?: string }>("/refunds", {
@@ -462,8 +482,8 @@ export const resolveCashout = onCall(
           amount: alloc,
         }),
       });
-      refundedSoFar = round2(refundedSoFar + alloc);
-      remaining = round2(remaining - alloc);
+      refundedSoFar = round2(refundedSoFar + allocEnSolicitud);
+      remaining = round2(remaining - allocEnSolicitud);
     }
 
     // ⚠️ APROBADA solo si se devolvió TODO (B6-H01).

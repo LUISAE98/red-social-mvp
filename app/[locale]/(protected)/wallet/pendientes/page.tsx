@@ -95,7 +95,15 @@ function rowToFakeRequest(row: WalletServiceItem): MeetGreetRequestDoc {
 export default function WalletPendientesPage() {
   const tWallet = useTranslations("wallet");
   const tServices = useTranslations("services");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
+   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
+   */
+  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
+    pf.formatAnchor(amount, { code: opts.code ?? false });
   const { user } = useAuth();
 
   const FILTER_OPTIONS: Array<{ value: PendingFilter; label: string; emoji?: string }> = [
@@ -173,7 +181,7 @@ export default function WalletPendientesPage() {
 
   const viewItemEarning = useMemo(() => {
     if (!viewItem?.priceSnapshot || viewItem.priceSnapshot <= 0) return null;
-    return formatMoney(viewItem.priceSnapshot * WALLET_NET_RATE, { baseCurrency: viewItem.currency ?? SETTLEMENT_CURRENCY });
+    return formatMoney(viewItem.priceSnapshot * WALLET_NET_RATE);
   }, [viewItem, formatMoney]);
 
   function closeViewItem() {
@@ -315,7 +323,7 @@ export default function WalletPendientesPage() {
             {tWallet("totalToRelease")}
           </p>
           <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.03em", color: "#86efac", fontFamily: "inherit" }}>
-            {formatMoney(Math.round(totalPendingAmount * 100) / 100, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}
+            {formatMoney(Math.round(totalPendingAmount * 100) / 100, { code: true })}
           </p>
           <p style={{ margin: 0, fontSize: 13, color: "#fff", fontFamily: "inherit", fontWeight: 500 }}>
             {tWallet("pendingCount", { count: totalPendingCount })}

@@ -262,6 +262,18 @@ export const SUPER_COMMENT_MIN_PRICE_USD = 1.5;
 /** Precio MÍNIMO (base, USD) de la SUSCRIPCIÓN mensual de comunidad. Por debajo → aviso rojo. */
 export const SUBSCRIPTION_MIN_PRICE_USD = 1.5;
 
+/**
+ * Saldo mínimo para que el creador pueda pedir un retiro.
+ *
+ * El coste del retiro es REGRESIVO —1.50 USD fijos más 0.25% transfronterizo y 1% de
+ * conversión—, así que un retiro pequeño se lleva un porcentaje enorme: sobre 30 USD son
+ * más del 6%. A partir de este mínimo la curva ya está plana. Ver 8-sexies.3 del documento
+ * de integración con Stripe.
+ *
+ * ⚠️ La comisión la absorbe Vibra: al creador le llega el 75% de lo que programó, íntegro.
+ */
+export const PAYOUT_MIN_USD = 300;
+
 const CHARGE_SET: ReadonlySet<string> = new Set(CHARGE_CURRENCIES);
 const DISPLAY_SET: ReadonlySet<string> = new Set(DISPLAY_CURRENCIES);
 

@@ -61,7 +61,7 @@ function readCurrency(data: FirebaseFirestore.DocumentData | undefined): string 
  * ⚠️ Si la tabla no sirve, devuelve 0 en vez de inventar una tasa: es preferible no
  * aplicar saldo y cobrar la tarjeta entera a descontar una cantidad equivocada.
  */
-async function convertirEntre(monto: number, desde: string, hacia: string): Promise<number> {
+export async function convertirEntre(monto: number, desde: string, hacia: string): Promise<number> {
   if (!(monto > 0)) return 0;
   if (desde === hacia) return round2(monto);
   const snap = await db.doc("config/exchangeRates").get();

@@ -129,7 +129,15 @@ export default function WalletTopFans({
   uid: string | null | undefined;
 }) {
   const tWallet = useTranslations("wallet");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
+   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
+   */
+  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
+    pf.formatAnchor(amount, { code: opts.code ?? false });
   const { entries } = useWalletLedger(uid, 1000);
   const [scope, setScope] = useState<StatScope>("all");
 
@@ -262,7 +270,7 @@ export default function WalletTopFans({
                   letterSpacing: "-0.01em",
                 }}
               >
-                {formatMoney(fan.total, { baseCurrency: SETTLEMENT_CURRENCY })}
+                {formatMoney(fan.total)}
               </span>
             </div>
           );

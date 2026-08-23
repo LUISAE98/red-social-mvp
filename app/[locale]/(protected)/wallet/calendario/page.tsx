@@ -269,7 +269,15 @@ function CalendarEventCard({
 }) {
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
+   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
+   */
+  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
+    pf.formatAnchor(amount, { code: opts.code ?? false });
   const initial = (item.buyerDisplayName ?? "U").charAt(0).toUpperCase();
 
   // Variante para lives: informativa, sin comprador. La portada del live es el
@@ -508,7 +516,7 @@ function CalendarEventCard({
                 flexShrink: 0,
               }}
             >
-              +{formatMoney(Math.round(item.priceSnapshot * WALLET_NET_RATE * 100) / 100, { baseCurrency: item.currency ?? SETTLEMENT_CURRENCY, code: true })}
+              +{formatMoney(Math.round(item.priceSnapshot * WALLET_NET_RATE * 100) / 100, { code: true })}
             </span>
           ) : null}
         </div>
@@ -1196,7 +1204,7 @@ export default function WalletCalendarioPage() {
 
   const viewItemEarning =
     viewItem?.priceSnapshot != null && viewItem.priceSnapshot > 0
-      ? formatMoney(viewItem.priceSnapshot * WALLET_NET_RATE, { baseCurrency: viewItem.currency ?? SETTLEMENT_CURRENCY })
+      ? formatMoney(viewItem.priceSnapshot * WALLET_NET_RATE)
       : null;
 
   function closeViewItem() {

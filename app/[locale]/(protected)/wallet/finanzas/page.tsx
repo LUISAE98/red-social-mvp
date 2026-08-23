@@ -14,7 +14,7 @@ import {
 } from "@/lib/wallet/walletFinances";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY, PAYOUT_MIN_USD } from "@/lib/currency/catalog";
 import { useBalanceHidden, toggleBalanceHidden } from "@/lib/wallet/useBalanceHidden";
 import MaskedAmount from "@/app/components/MaskedAmount";
 import WalletFigureSkeleton from "../components/WalletFigureSkeleton";
@@ -49,7 +49,22 @@ export default function WalletFinanzasPage() {
   const tWallet = useTranslations("wallet");
   const tNav = useTranslations("nav");
   const locale = useLocale();
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: se muestra en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ Antes usaba `pf.format`, que es el precio del COMPRADOR: convierte a la moneda de
+   * quien mira, suma el 2% de conversión y redondea al escalón. Sobre un saldo de 500 USD
+   * eso son 170 pesos de más — y es la cifra que el creador considera suya. Con los retiros
+   * de por medio deja de ser cosmético: pediría retirar 8,630 y le llegarían 8,460.
+   */
+  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
+    pf.formatAnchor(amount, { code: opts.code ?? false });
+  /** Referencia en la moneda del creador, para las cifras grandes. Null si ya mira en USD. */
+  const refLocal = (amount: number): string | null =>
+    pf.currency === SETTLEMENT_CURRENCY
+      ? null
+      : pf.formatPlain(amount, { baseCurrency: SETTLEMENT_CURRENCY, code: true });
   // Ocultar saldo: mismo estado compartido y persistente que el rail derecho.
   const balanceHidden = useBalanceHidden();
   const { user } = useAuth();
@@ -61,11 +76,6 @@ export default function WalletFinanzasPage() {
 
 
   // Último día del mes en curso (fecha de disponibilidad del retiro).
-  const withdrawDate = useMemo(() => {
-    const now = new Date();
-    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { day: last.getDate(), month: formatMonthName(last, locale) };
-  }, [locale]);
 
   const view = selectFinanceView(summary, mode);
 
@@ -73,9 +83,17 @@ export default function WalletFinanzasPage() {
   // cubrir también la ventana en la que el auth aún no resuelve el usuario.
   const loadingAmounts = summaryLoading || !user?.uid;
 
-  // Botón Retirar: habilitado siempre que haya saldo. (Se quitó el candado de fin
-  // de mes; más adelante se ofrecerán retiros QUINCENALES, no mensuales.)
-  const canWithdrawNow = view.available > 0;
+  /**
+   * El retiro se habilita al alcanzar el MÍNIMO, no en una fecha.
+   *
+   * Antes dependía del fin de mes y se anunciaba con «Disponible para retirar el X de Y».
+   * Ahora el creador ve una barra que se llena y, al llegar, el botón. El motivo del mínimo
+   * es el coste del retiro, que por debajo se come un porcentaje enorme (ver `PAYOUT_MIN_USD`).
+   */
+  const canWithdrawNow = view.available >= PAYOUT_MIN_USD;
+  /** Cuánto le falta, y qué porción de la barra lleva. */
+  const faltaParaRetirar = Math.max(0, PAYOUT_MIN_USD - view.available);
+  const progresoRetiro = Math.min(1, Math.max(0, view.available / PAYOUT_MIN_USD));
 
   function handleWithdrawClick() {
     if (!canWithdrawNow) return;
@@ -203,19 +221,6 @@ export default function WalletFinanzasPage() {
           >
             <div
               style={{
-                fontSize: 12.5,
-                fontWeight: 500,
-                color: "rgba(255,255,255,0.6)",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              {tWallet("financesAvailableOn", {
-                day: withdrawDate.day,
-                month: withdrawDate.month,
-              })}
-            </div>
-            <div
-              style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -235,9 +240,9 @@ export default function WalletFinanzasPage() {
                 {loadingAmounts ? (
                   <WalletFigureSkeleton width={170} height={32} />
                 ) : balanceHidden ? (
-                  <MaskedAmount formatted={formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })} />
+                  <MaskedAmount formatted={formatMoney(view.available, { code: true })} />
                 ) : (
-                  formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })
+                  formatMoney(view.available, { code: true })
                 )}
               </div>
               <IconButton label={balanceHidden ? tNav("showAmount") : tNav("hideAmount")} size="sm" tone="bare" shape="square" onClick={toggleBalanceHidden} aria-pressed={balanceHidden}>
@@ -254,6 +259,43 @@ export default function WalletFinanzasPage() {
                 )}
               </IconButton>
             </div>
+            {/* Referencia en la moneda del creador, bajo el saldo. Deliberadamente más
+                pequeña: la cifra que manda es la de arriba, que es la que va a cobrar al
+                retirar. Esta solo lo ayuda a ubicarse, y convierte al cambio de HOY. */}
+            {!balanceHidden && !loadingAmounts && refLocal(view.available) && (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                {tWallet("approxAmountLong", { amount: refLocal(view.available) ?? "" })}
+              </div>
+            )}
+
+            {/* Progreso hacia el mínimo de retiro. Desaparece al alcanzarlo: a partir de ahí
+                lo que corresponde es el botón, no seguir midiendo. */}
+            {!loadingAmounts && !canWithdrawNow && (
+              <div style={{ width: "100%", maxWidth: 260, marginTop: 12 }}>
+                <div
+                  style={{
+                    height: 6, borderRadius: 999, overflow: "hidden",
+                    background: "rgba(255,255,255,0.08)",
+                  }}
+                >
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${Math.round(progresoRetiro * 100)}%`,
+                      borderRadius: 999,
+                      background: "linear-gradient(90deg, #a855f7, #4ade80)",
+                      // Se llena con una animación suave en cuanto entra el saldo real.
+                      transition: "width 900ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+                    }}
+                  />
+                </div>
+                <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginTop: 6, lineHeight: 1.4 }}>
+                  {tWallet("payoutProgressLabel", {
+                    amount: pf.formatAnchor(faltaParaRetirar, { code: true }),
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Alta de cuenta Stripe: habilita los retiros del creador.
@@ -319,9 +361,9 @@ export default function WalletFinanzasPage() {
                 {loadingAmounts ? (
                   <WalletFigureSkeleton width={66} height={17} />
                 ) : balanceHidden ? (
-                  <MaskedAmount formatted={formatMoney(view.pending, { baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })} />
+                  <MaskedAmount formatted={formatMoney(view.pending)} />
                 ) : (
-                  formatMoney(view.pending, { baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })
+                  formatMoney(view.pending)
                 )}
               </div>
             </div>
@@ -358,9 +400,9 @@ export default function WalletFinanzasPage() {
                 {loadingBestMonth ? (
                   <WalletFigureSkeleton width={66} height={17} />
                 ) : balanceHidden ? (
-                  <MaskedAmount formatted={formatMoney(bestMonth?.amount ?? 0, { baseCurrency: SETTLEMENT_CURRENCY })} />
+                  <MaskedAmount formatted={formatMoney(bestMonth?.amount ?? 0)} />
                 ) : (
-                  formatMoney(bestMonth?.amount ?? 0, { baseCurrency: SETTLEMENT_CURRENCY })
+                  formatMoney(bestMonth?.amount ?? 0)
                 )}
               </div>
               {loadingBestMonth ? (
@@ -406,9 +448,9 @@ export default function WalletFinanzasPage() {
                 {loadingAmounts ? (
                   <WalletFigureSkeleton width={66} height={17} />
                 ) : balanceHidden ? (
-                  <MaskedAmount formatted={formatMoney(view.lifetime, { baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })} />
+                  <MaskedAmount formatted={formatMoney(view.lifetime)} />
                 ) : (
-                  formatMoney(view.lifetime, { baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })
+                  formatMoney(view.lifetime)
                 )}
               </div>
             </div>
@@ -444,7 +486,7 @@ export default function WalletFinanzasPage() {
               <span>
                 {tWallet("financesRefunded")}:{" "}
                 <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                  {formatMoney(view.refunded, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })}
+                  {formatMoney(view.refunded, { code: true })}
                 </strong>
               </span>
             </div>
@@ -467,7 +509,7 @@ export default function WalletFinanzasPage() {
               <span>
                 {tWallet("financesTaxCollected")}:{" "}
                 <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                  {formatMoney(summary.taxCollected, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })}
+                  {formatMoney(summary.taxCollected, { code: true })}
                 </strong>
               </span>
             </div>
@@ -483,11 +525,11 @@ export default function WalletFinanzasPage() {
         open={withdrawPanelOpen}
         onClose={() => setWithdrawPanelOpen(false)}
         uid={user?.uid}
-        availableLabel={formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })}
+        availableLabel={formatMoney(view.available, { code: true })}
         // IVA 16% (creador mexicano). Las retenciones se agregarán cuando se defina
         // el modelo fiscal con la API de pagos elegida.
-        ivaLabel={formatMoney(view.available * 0.16, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })}
-        totalLabel={formatMoney(view.available * 1.16, { code: true, baseCurrency: summary.currency ?? SETTLEMENT_CURRENCY })}
+        ivaLabel={formatMoney(view.available * 0.16, { code: true })}
+        totalLabel={formatMoney(view.available * 1.16, { code: true })}
       />
     </WalletSectionShell>
   );

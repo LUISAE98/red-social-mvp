@@ -548,7 +548,15 @@ export function WalletServiceRow({
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
+   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
+   */
+  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
+    pf.formatAnchor(amount, { code: opts.code ?? false });
   const priceBase = row.currency ?? SETTLEMENT_CURRENCY;
 
   useEffect(() => {
@@ -591,7 +599,7 @@ export function WalletServiceRow({
     refundLabel: row.refundReason ? tWallet("refundLabel", { reason: row.refundReason }) : "",
     priceLabel:
       row.priceSnapshot != null
-        ? formatMoney(row.priceSnapshot, { baseCurrency: row.currency ?? SETTLEMENT_CURRENCY })
+        ? formatMoney(row.priceSnapshot)
         : null,
   });
   const meta = getWalletServiceRowMeta(row, locale);
@@ -829,7 +837,7 @@ export function WalletServiceRow({
                 </span>
                 {row.priceSnapshot != null ? (
                   <span style={{ color: isHistory && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                    +{formatMoney(Math.round(row.priceSnapshot * WALLET_NET_RATE * 100) / 100, { baseCurrency: priceBase, code: true })}
+                    +{formatMoney(Math.round(row.priceSnapshot * WALLET_NET_RATE * 100) / 100, { code: true })}
                   </span>
                 ) : null}
               </div>
@@ -901,7 +909,7 @@ export function WalletServiceRow({
                 </span>
                 {row.priceSnapshot != null ? (
                   <span style={{ color: mode === "history" && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                    +{formatMoney(Math.round(row.priceSnapshot * WALLET_NET_RATE * 100) / 100, { baseCurrency: priceBase, code: true })}
+                    +{formatMoney(Math.round(row.priceSnapshot * WALLET_NET_RATE * 100) / 100, { code: true })}
                   </span>
                 ) : null}
               </div>
@@ -1083,7 +1091,7 @@ export function WalletServiceRow({
               </span>
               {row.priceSnapshot != null ? (
                 <span style={{ color: "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                  +{formatMoney(Math.round(row.priceSnapshot * WALLET_NET_RATE * 100) / 100, { baseCurrency: priceBase, code: true })}
+                  +{formatMoney(Math.round(row.priceSnapshot * WALLET_NET_RATE * 100) / 100, { code: true })}
                 </span>
               ) : null}
             </div>
@@ -1113,7 +1121,7 @@ export function WalletServiceRow({
 
               {row.priceSnapshot != null ? (
                 <div className="walletMiniMeta">
-                  {tWallet("priceLabel", { price: formatMoney(row.priceSnapshot, { baseCurrency: priceBase }) })}
+                  {tWallet("priceLabel", { price: formatMoney(row.priceSnapshot) })}
                 </div>
               ) : null}
 

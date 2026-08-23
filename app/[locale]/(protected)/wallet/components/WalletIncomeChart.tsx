@@ -66,7 +66,15 @@ export default function WalletIncomeChart({
 }) {
   const locale = useLocale();
   const tWallet = useTranslations("wallet");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
+   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
+   */
+  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
+    pf.formatAnchor(amount, { code: opts.code ?? false });
   const { entries } = useWalletLedger(uid, 1000);
   const [viewIndex, setViewIndex] = useState(0);
   const [range, setRange] = useState<RangeKey>("30d");
@@ -226,7 +234,7 @@ export default function WalletIncomeChart({
               letterSpacing: "-0.02em",
             }}
           >
-            {formatMoney(total, { baseCurrency: SETTLEMENT_CURRENCY })}
+            {formatMoney(total)}
           </span>
         </div>
 
@@ -366,7 +374,7 @@ export default function WalletIncomeChart({
                     {hovered.label}
                   </div>
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff" }}>
-                    {formatMoney(hovered.amount, { baseCurrency: SETTLEMENT_CURRENCY })}
+                    {formatMoney(hovered.amount)}
                   </div>
                 </div>
               </>

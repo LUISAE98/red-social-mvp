@@ -88,7 +88,15 @@ export default function WalletTickets({
 }) {
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  /**
+   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
+   *
+   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
+   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
+   */
+  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
+    pf.formatAnchor(amount, { code: opts.code ?? false });
   const { entries, loading } = useWalletLedger(uid, LEDGER_WINDOW);
 
   const [visibleCount, setVisibleCount] = useState(PAGE);
@@ -330,7 +338,7 @@ export default function WalletTickets({
             {isLoading ? (
               <WalletFigureSkeleton width={72} height={16} />
             ) : (
-              formatMoney(totalMoney, { code: true, baseCurrency: SETTLEMENT_CURRENCY })
+              formatMoney(totalMoney, { code: true })
             )}
           </span>
         </div>
@@ -431,7 +439,7 @@ export default function WalletTickets({
                       textShadow: "0 1px 3px rgba(0,0,0,0.75)",
                     }}
                   >
-                    {formatMoney(row.amount, { baseCurrency: SETTLEMENT_CURRENCY })}
+                    {formatMoney(row.amount)}
                   </span>
                   <span
                     style={{
