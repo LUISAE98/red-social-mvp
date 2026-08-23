@@ -9,6 +9,7 @@
 // CVV (Stripe off-session; el cobro de guardadas se conecta en S3c).
 
 import { createPortal } from "react-dom";
+import { useExchangeRates } from "@/lib/currency/rates";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { intlLocale } from "@/i18n/locales";
 import { useTranslations } from "next-intl";
@@ -19,7 +20,7 @@ import { auth, db } from "@/lib/firebase";
 import { repriceStripeIntentForCard } from "@/lib/stripe/stripePayments";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { taxRateForCountry } from "@/lib/tax/config";
-import { formatCurrency } from "@/lib/currency/format";
+import { formatCurrency, convertToAnchor } from "@/lib/currency/format";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
 import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
 import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
@@ -236,6 +237,7 @@ export default function StripePaymentModal({
 
   // Saldo a favor del comprador (MXN). Solo cuentas reales (un invitado no tiene crédito).
   const credit = useBuyerCredit(isGuest ? null : (auth.currentUser?.uid ?? null));
+  const tasas = useExchangeRates();
   const creditBalance = isGuest ? 0 : credit.balance;
   const [useCredit, setUseCredit] = useState(false);
 
@@ -252,8 +254,20 @@ export default function StripePaymentModal({
       ? Math.round((creditChargedBaseMxn * (1 + pf.taxRate) + Number.EPSILON) * 100) / 100
       : null;
   const creditEnabled = allowCredit && !isGuest && creditBalance > 0;
+
+  // 💱 El saldo vive en la MONEDA DEL COMPRADOR y el total de arriba en la de liquidación.
+  // Para restar hay que ponerlos en la misma: se pasa el saldo a la de liquidación con la
+  // conversión SIMPLE, sin el 2% ni redondeo comercial —no es un precio, es dinero que ya
+  // tiene—. El backend hace la resta definitiva en la moneda del comprador; esto es la
+  // estimación para pintar el desglose.
+  const saldoEnLiquidacion =
+    credit.currency && credit.currency !== SETTLEMENT_CURRENCY
+      ? (convertToAnchor(creditBalance, credit.currency as DisplayCurrency, tasas.rates) ?? 0)
+      : creditBalance;
   const creditApplied =
-    useCredit && creditEnabled && estTotalMxn != null ? Math.min(creditBalance, estTotalMxn) : 0;
+    useCredit && creditEnabled && estTotalMxn != null
+      ? Math.min(saldoEnLiquidacion, estTotalMxn)
+      : 0;
   const remainderAfterCredit =
     estTotalMxn != null ? Math.round((estTotalMxn - creditApplied + Number.EPSILON) * 100) / 100 : null;
   // El saldo cubre el 100% → no hace falta tarjeta.
@@ -945,7 +959,7 @@ export default function StripePaymentModal({
                   <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" /><rect x="3" y="7" width="18" height="12" rx="2.5" /><path d="M16 12.5h3" />
                 </svg>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "start" }}>
-                  {tWallet("creditAvailable")} <span style={{ color: "#8a8f99", fontWeight: 500 }}>· {pf.formatPlain(creditBalance, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}</span>
+                  {tWallet("creditAvailable")} <span style={{ color: "#8a8f99", fontWeight: 500 }}>· {formatCurrency(creditBalance, credit.currency || SETTLEMENT_CURRENCY, pf.locale, { code: true })}</span>
                 </span>
                 {radio(useCredit)}
               </button>

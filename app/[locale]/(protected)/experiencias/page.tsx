@@ -6,6 +6,7 @@
 // alimentado por el hook autocontenido useMyExperiences. Ver docs de experiencias.
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { formatCurrency } from "@/lib/currency/format";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { TextButton, IconButton } from "@/components/ui";
 import { useCfError } from "@/lib/i18n/cfError";
@@ -117,7 +118,7 @@ export default function ExperienciasPage() {
     const ok = await confirm({
       title: tWallet("cashoutRequestTitle"),
       body: tWallet("cashoutConfirmBody"),
-      highlight: pf.formatPlain(credit.balance, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
+      highlight: formatCurrency(credit.balance, credit.currency || SETTLEMENT_CURRENCY, pf.locale, { code: true }),
       confirmLabel: tCommon("confirm"),
       tone: "neutral",
     });
@@ -526,7 +527,7 @@ export default function ExperienciasPage() {
             </div>
           </div>
           <span style={{ fontSize: 18, fontWeight: 700, color: "#22c55e", whiteSpace: "nowrap", flexShrink: 0 }}>
-            {pf.formatPlain(credit.balance, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}
+            {formatCurrency(credit.balance, credit.currency || SETTLEMENT_CURRENCY, pf.locale, { code: true })}
           </span>
         </div>
       ) : null}
@@ -564,7 +565,7 @@ export default function ExperienciasPage() {
             {cashoutBusy
               ? tWallet("cashoutSending")
               : tWallet("cashoutRequest", {
-                  amount: pf.formatPlain(credit.balance, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
+                  amount: formatCurrency(credit.balance, credit.currency || SETTLEMENT_CURRENCY, pf.locale, { code: true }),
                 })}
           </TextButton>
           {cashoutError && (

@@ -28,6 +28,8 @@ import {
   settleEarning,
   reverseEarning,
   type LedgerServiceType,
+  SETTLEMENT_CURRENCY,
+  FIXED_SERVICE_FEE_USD,
 } from "./ledger";
 import { issueBuyerCredit } from "./buyerCredit";
 
@@ -49,17 +51,33 @@ function round2(n: number): number {
  * saldo a favor en una devolución. Fuente autoritativa: el `chargedAmount` del
  * paymentIntent; si faltara, se reconstruye del doc de dominio (base + $3 + IVA).
  */
+/**
+ * Lo que se le cobró al comprador, para devolvérselo como saldo.
+ *
+ * Devuelve el importe en SU moneda cuando se guardó (`presentmentAmount`), que es lo que
+ * vio en el recibo. Si no, cae al de liquidación.
+ */
 async function resolveChargedAmount(
   sourceType: string,
   sourceId: string,
   after: Record<string, unknown>
-): Promise<number> {
+): Promise<{ amount: number; currency: string }> {
   const piSnap = await db.collection("paymentIntents").doc(`${sourceType}__${sourceId}`).get();
+  const local = num(piSnap.get("presentmentAmount"));
+  const monedaLocal = piSnap.get("presentmentCurrency");
+  if (local > 0 && typeof monedaLocal === "string" && monedaLocal) {
+    return { amount: local, currency: monedaLocal };
+  }
   const charged = num(piSnap.get("chargedAmount"));
-  if (charged > 0) return charged;
+  if (charged > 0) return { amount: charged, currency: SETTLEMENT_CURRENCY };
+  // ⚠️ Respaldo por si no hay intent. Sumaba 3 a pelo — el cargo fijo en PESOS de antes
+  // del corte a dólares—, así que devolvía de menos.
   const base = num(after.priceSnapshot);
   const tax = num(after.taxAmount);
-  return base > 0 ? round2(base + 3 + tax) : 0;
+  return {
+    amount: base > 0 ? round2(base + FIXED_SERVICE_FEE_USD + tax) : 0,
+    currency: SETTLEMENT_CURRENCY,
+  };
 }
 function str(v: unknown): string | null {
   return typeof v === "string" && v.trim().length > 0 ? v : null;
@@ -406,11 +424,12 @@ async function handleRequestLifecycle(params: {
       after.paymentStatus === "paid" || after.paymentStatus === "simulated_paid";
     const buyerId = str(after.buyerId);
     if (isPaid && buyerId) {
-      const total = await resolveChargedAmount(params.sourceType, params.requestId, after);
-      if (total > 0) {
+      const cobrado = await resolveChargedAmount(params.sourceType, params.requestId, after);
+      if (cobrado.amount > 0) {
         // Idempotente por (sourceType, sourceId): no duplica el crédito.
         await issueBuyerCredit(buyerId, {
-          amount: total,
+          amount: cobrado.amount,
+          currency: cobrado.currency,
           sourceType: params.sourceType,
           sourceId: params.requestId,
         });

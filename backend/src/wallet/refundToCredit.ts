@@ -104,8 +104,18 @@ export async function refundExperienceToCredit(params: {
   const total = num(piSnap.get("chargedAmount"));
   if (total <= 0) return 0;
 
+  // 💱 Se devuelve EXACTAMENTE lo que se le cobró, en SU moneda. `chargedAmount` va en la
+  // de liquidación y, mostrado en pesos, nunca coincidía con el cargo: 47.82 USD salían
+  // como 808.91 cuando el recibo decía 808.99, y al día siguiente como otra cifra distinta.
+  const cobradoLocal = num(piSnap.get("presentmentAmount"));
+  const monedaLocal = piSnap.get("presentmentCurrency");
+  const emite =
+    cobradoLocal > 0 && typeof monedaLocal === "string" && monedaLocal
+      ? { amount: cobradoLocal, currency: monedaLocal }
+      : { amount: total, currency: SETTLEMENT_CURRENCY };
+
   // Saldo a favor por el total pagado. Idempotente por (sourceType, sourceId).
-  await issueBuyerCredit(buyerId, { amount: total, sourceType, sourceId });
+  await issueBuyerCredit(buyerId, { amount: emite.amount, currency: emite.currency, sourceType, sourceId });
 
   // Marca el espejo de compras (Entregados → "Todo") como DEVUELTO A CRÉDITO, con el monto
   // acreditado, para mostrar "+$X · Devuelto en crédito" (no facturable). El doc del espejo

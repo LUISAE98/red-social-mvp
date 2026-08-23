@@ -14,7 +14,7 @@
 //  - Si el crédito cubre el 100% → NO hay cargo a Stripe: se materializa la compra directo.
 
 import { spendBuyerCredit } from "../../wallet/buyerCredit";
-import { resolvePresentment, type Presentment } from "../../tax/presentment";
+import { resolvePresentment, type Presentment, toStripeAmount } from "../../tax/presentment";
 import { applyApprovedPaymentToSource, upsertPaymentIntentStatus } from "../reconcile";
 
 function round2(n: number): number {
@@ -28,6 +28,11 @@ export type CreditSplit = {
   remainderMxn: number;
   /** Presentación del RESTANTE (lo que se cobra a la tarjeta). null si crédito cubrió todo. */
   presentment: Presentment | null;
+  /**
+   * El saldo aplicado EN LA MONEDA DEL COMPRADOR: la cifra que se le resta en pantalla.
+   * `creditApplied` es su equivalente en la de liquidación, para la contabilidad.
+   */
+  creditAppliedLocal: number;
 };
 
 /**
@@ -45,23 +50,57 @@ export async function reserveCreditAndSplit(params: {
   /** Precio comercial exacto en la moneda del comprador (…,99). Ver `applyCharmRounding`. */
   displayAmount?: number | null;
 }): Promise<CreditSplit> {
-  let creditApplied = 0;
+  // 1) El TOTAL en la moneda del comprador, ya con su precio comercial. Se resuelve
+  //    ANTES de tocar el saldo: es la cifra que él ve y contra la que hay que restar.
+  const totalPres = await resolvePresentment(
+    params.totalMxn,
+    params.displayCurrency,
+    params.displayAmount ?? null
+  );
+
+  // 2) El saldo se gasta EN ESA MISMA MONEDA.
+  //
+  //    ⚠️ Antes se descontaba en la de liquidación y solo DESPUÉS se convertía el resto.
+  //    Con eso, el saldo que veía el comprador y el descuento que se le aplicaba salían de
+  //    dos conversiones distintas, y la resta de la pasarela —total menos saldo, resto a la
+  //    tarjeta— no cuadraba por céntimos. Restando en su moneda, cuadra exacta.
+  let creditAppliedLocal = 0;
   if (params.applyCredit && params.uid) {
-    creditApplied = await spendBuyerCredit(params.uid, {
-      amount: params.totalMxn,
+    creditAppliedLocal = await spendBuyerCredit(params.uid, {
+      amount: totalPres.amount,
+      currency: totalPres.currency,
       sourceType: params.sourceType,
       sourceId: params.sourceId,
     });
   }
-  const remainderMxn = round2(params.totalMxn - creditApplied);
-  // ⚠️ El importe exacto SOLO se usa si no se aplicó saldo a favor. Con crédito de por
-  // medio lo que queda es un residuo (total − crédito), no un precio: forzarle el precio
-  // comercial cobraría de más, y crédito + tarjeta sumarían más de lo que el comprador aceptó.
-  const exacto = creditApplied === 0 ? params.displayAmount ?? null : null;
-  const presentment = remainderMxn > 0
-    ? await resolvePresentment(remainderMxn, params.displayCurrency, exacto)
-    : null;
-  return { creditApplied, remainderMxn: Math.max(0, remainderMxn), presentment };
+
+  // 3) Lo que queda para la tarjeta, en la moneda del comprador.
+  const remainderLocal = round2(totalPres.amount - creditAppliedLocal);
+
+  // 4) Su equivalente en liquidación, en PROPORCIÓN al total. Reconvertir el residuo por
+  //    separado metería un segundo redondeo y el reparto dejaría de sumar el total.
+  const proporcion = totalPres.amount > 0 ? remainderLocal / totalPres.amount : 0;
+  const remainderMxn = round2(params.totalMxn * proporcion);
+  const creditApplied = round2(params.totalMxn - remainderMxn);
+
+  // 5) El cobro a la tarjeta reusa la MISMA cotización del total: no se vuelve a resolver,
+  //    porque una segunda consulta podría traer otra tasa y separar las dos cifras.
+  const presentment: Presentment | null =
+    remainderLocal > 0
+      ? {
+          ...totalPres,
+          amount: remainderLocal,
+          amountForStripe: toStripeAmount(remainderLocal, totalPres.currency),
+          settlementEquivalent: remainderMxn,
+        }
+      : null;
+
+  return {
+    creditApplied,
+    creditAppliedLocal,
+    remainderMxn: Math.max(0, remainderMxn),
+    presentment,
+  };
 }
 
 /**

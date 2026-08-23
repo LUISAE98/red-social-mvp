@@ -113,6 +113,15 @@ export default function OwnerSidebarGreetings({
   const [viewDeliveredItem, setViewDeliveredItem] = useState<{ item: { id: string; data: GreetingRequestDoc }; sourceName: string; sourceAvatar: string | null } | null>(null);
   const [viewSessionItem, setViewSessionItem] = useState<{ row: ScheduledRow; creatorName: string; creatorAvatar: string | null } | null>(null);
   // Panel de éxito (mismo diseño que el de pago) tras pedir devolución.
+  /**
+   * Evita mandar DOS veces la misma devolución.
+   *
+   * ⚠️ La segunda llamada siempre falla —tras la primera el estado ya es `refund_requested`
+   * y deja de ser elegible—, así que al comprador le salía el panel verde de «devolución
+   * aplicada» y encima un aviso rojo diciendo que no era elegible. Las dos cosas eran
+   * ciertas: la primera funcionó y la segunda sobraba.
+   */
+  const devolucionEnCurso = useRef(false);
   const [refundDone, setRefundDone] = useState<{ credited: number; name: string | null; avatar: string | null } | null>(null);
   const [incomingSessionOverlayData, setIncomingSessionOverlayData] = useState<{
     id: string;
@@ -1837,6 +1846,8 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           sourceAvatar={viewItem.sourceAvatar}
           onClose={() => setViewItem(null)}
           onRefund={async () => {
+            if (devolucionEnCurso.current) return;
+            devolucionEnCurso.current = true;
             try {
               const res = await requestGreetingRefund({ requestId: viewItem.item.id, refundReason: null });
               const nm = viewItem.sourceName; const av = viewItem.sourceAvatar;
@@ -1844,6 +1855,8 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
               setRefundDone({ credited: (res as unknown as { credited?: number })?.credited ?? 0, name: nm, avatar: av });
             } catch (e) {
               showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tServices("errorRequestRefund"), "error");
+            } finally {
+              devolucionEnCurso.current = false;
             }
           }}
           onRetry={() => {
