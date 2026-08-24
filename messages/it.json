@@ -274,7 +274,8 @@
     "pinError": "Impossibile fissare o rimuovere il post.",
     "viewsCountAriaLabel": "{count, plural, one {# visualizzazione} other {# visualizzazioni}}",
     "addFlameToStory": "Mi piace questa storia",
-    "removeFlameFromStory": "Togli mi piace da questa storia"
+    "removeFlameFromStory": "Togli mi piace da questa storia",
+    "following": "Segui"
   },
   "groups": {
     "title": "Community",
@@ -290,7 +291,7 @@
     "hiddenShort": "NS",
     "join": "Unisciti",
     "joinError": "Impossibile unirsi",
-    "joined": "Membro",
+    "joined": "Sei membro",
     "leaveConfirm": "Vuoi davvero uscire da questa community?",
     "loadError": "Errore nel caricamento delle community",
     "loginRequired": "Accedi per vedere le community",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Biglietto VOD",
     "financesPendingAmount": "Importo da rilasciare",
     "financesBestMonth": "Mese migliore",
+    "financesLocalApproxNote": "Gli importi in {currency} sono approssimativi, convertiti al cambio di oggi. Quello che ti viene liquidato è l'importo in USD.",
     "financesCommissionNet": "Questi importi includono già la detrazione della commissione Vibra del 25 %.",
     "financesCommissionGross": "Da questi importi non è ancora stata detratta la commissione Vibra del 25 %.",
     "statEarned": "Guadagnato {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Annulla la selezione",
     "invoiceDone": "Fatto",
     "filterStatusAllValue": "Tutti i movimenti",
+    "payoutProgressLabel": "Ti mancano {amount} per poter prelevare",
+    "payoutProgressReady": "Ora puoi prelevare il tuo saldo",
+    "approxAmountLong": "Circa {amount}",
+    "walletCurrencyLabel": "Valuta di visualizzazione",
     "withdrawButton": "Preleva",
     "withdrawComingSoon": "I prelievi saranno disponibili molto presto",
     "onboardingUTitle": "Vivi esperienze uniche con le persone che <vibra>ammiri</vibra>",

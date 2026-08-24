@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { cellToBoundary, cellToLatLng, latLngToCell } from "h3-js";
 import type { GlobeMethods } from "react-globe.gl";
 import { useWalletPurchaseGeo } from "@/lib/wallet/walletPurchaseGeo";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
 
 type GlobeComponent = typeof import("react-globe.gl").default;
 
@@ -52,15 +52,9 @@ export default function WalletPurchaseGlobe({
   uid: string | null | undefined;
 }) {
   const tWallet = useTranslations("wallet");
-  const pf = usePriceFormat();
-  /**
-   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
-   *
-   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
-   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
-   */
-  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
-    pf.formatAnchor(amount, { code: opts.code ?? false });
+  // Dinero del CREADOR, en USD o en su moneda según el switch de la wallet.
+  // Formateador único: ver `useWalletMoney`.
+  const { formatMoney } = useWalletMoney();
   const { points } = useWalletPurchaseGeo(uid);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const globeRef = useRef<GlobeMethods | undefined>(undefined);

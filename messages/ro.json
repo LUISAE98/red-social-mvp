@@ -274,7 +274,8 @@
     "pinError": "Publicația nu a putut fi fixată sau defixată.",
     "viewsCountAriaLabel": "{count, plural, one {# vizualizare} few {# vizualizări} other {# de vizualizări}}",
     "addFlameToStory": "Apreciază această poveste",
-    "removeFlameFromStory": "Retrage aprecierea acestei povești"
+    "removeFlameFromStory": "Retrage aprecierea acestei povești",
+    "following": "Urmărești"
   },
   "groups": {
     "title": "Comunități",
@@ -290,7 +291,7 @@
     "hiddenShort": "AS",
     "join": "Alătură-te",
     "joinError": "Nu te-ai putut alătura",
-    "joined": "Membru",
+    "joined": "Ești membru",
     "leaveConfirm": "Sigur vrei să părăsești această comunitate?",
     "loadError": "Eroare la încărcarea comunităților",
     "loginRequired": "Conectează-te ca să vezi comunitățile",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Bilet VOD",
     "financesPendingAmount": "Sumă de eliberat",
     "financesBestMonth": "Cea mai bună lună",
+    "financesLocalApproxNote": "Sumele în {currency} sunt aproximative, convertite la cursul de azi. Ție ți se plătește suma în USD.",
     "financesCommissionNet": "Aceste sume includ deja comisionul Vibra de 25 % reținut.",
     "financesCommissionGross": "Din aceste sume nu s-a scăzut încă comisionul Vibra de 25 %.",
     "statEarned": "Câștigat {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Șterge selecția",
     "invoiceDone": "Gata",
     "filterStatusAllValue": "Toate operațiunile",
+    "payoutProgressLabel": "Mai ai nevoie de {amount} ca să poți retrage",
+    "payoutProgressReady": "Acum poți retrage soldul tău",
+    "approxAmountLong": "Aproximativ {amount}",
+    "walletCurrencyLabel": "Moneda de afișare",
     "withdrawButton": "Retrage",
     "withdrawComingSoon": "Retragerile vor fi disponibile foarte curând",
     "onboardingUTitle": "Trăiește experiențe unice cu oamenii pe care îi <vibra>admiri</vibra>",

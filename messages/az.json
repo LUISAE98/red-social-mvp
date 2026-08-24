@@ -274,7 +274,8 @@
     "pinError": "Paylaşımı sabitləmək və ya sabitliyini götürmək mümkün olmadı.",
     "viewsCountAriaLabel": "{count, plural, one {# baxış} other {# baxış}}",
     "addFlameToStory": "Bu hekayəni bəyən",
-    "removeFlameFromStory": "Bu hekayənin bəyənməsini götür"
+    "removeFlameFromStory": "Bu hekayənin bəyənməsini götür",
+    "following": "İzlənilir"
   },
   "groups": {
     "title": "İcmalar",
@@ -290,7 +291,7 @@
     "hiddenShort": "GZ",
     "join": "Qoşul",
     "joinError": "Qoşulmaq mümkün olmadı",
-    "joined": "Üzv",
+    "joined": "Üzvsən",
     "leaveConfirm": "Bu icmanı tərk etmək istədiyinə əminsən?",
     "loadError": "İcmalar yüklənərkən xəta baş verdi",
     "loginRequired": "İcmaları görmək üçün daxil ol",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD bileti",
     "financesPendingAmount": "Sərbəst buraxılacaq məbləğ",
     "financesBestMonth": "Ən yaxşı ay",
+    "financesLocalApproxNote": "{currency} məbləğləri təxminidir, bugünkü məzənnə ilə çevrilir. Sizə ödənilən USD məbləğidir.",
     "financesCommissionNet": "Bu məbləğlərdən Vibra-nın 25% komissiyası artıq tutulub.",
     "financesCommissionGross": "Bu məbləğlərdən Vibra-nın 25% komissiyası hələ tutulmayıb.",
     "statEarned": "{scope} qazanılan",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Seçimi təmizlə",
     "invoiceDone": "Hazırdır",
     "filterStatusAllValue": "Bütün hərəkətlər",
+    "payoutProgressLabel": "Çıxarış üçün daha {amount} lazımdır",
+    "payoutProgressReady": "Balansınızı indi çıxara bilərsiniz",
+    "approxAmountLong": "Təxminən {amount}",
+    "walletCurrencyLabel": "Göstərmə valyutası",
     "withdrawButton": "Çıxar",
     "withdrawComingSoon": "Çıxarışlar çox yaxında əlçatan olacaq",
     "onboardingUTitle": "<vibra>Heyran olduğun</vibra> insanlarla unikal təcrübələr yaşa",

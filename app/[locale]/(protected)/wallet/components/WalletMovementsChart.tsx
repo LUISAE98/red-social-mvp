@@ -4,8 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { TextButton } from "@/components/ui";
 import type { LedgerEntry, LedgerStatus } from "@/lib/wallet/walletLedger";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
 
 // Un tramo del eje X: una semana o un mes, con su etiqueta y su predicado de fecha.
 export type ChartBucket = { key: string; label: string; test: (d: Date) => boolean };
@@ -43,7 +42,9 @@ export default function WalletMovementsChart({
   buckets: ChartBucket[];
 }) {
   const tWallet = useTranslations("wallet");
-  const { format: fmtMoney } = usePriceFormat();
+  // ⚠️ Antes `pf.format`, el precio del COMPRADOR: inflaba las barras y el total frente
+  // a lo que de verdad se liquida. Ahora la lectura común de la wallet.
+  const { formatMoney: fmtMoney } = useWalletMoney();
   const [metricIdx, setMetricIdx] = useState(0);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const metric = METRICS[metricIdx];

@@ -274,7 +274,8 @@
     "pinError": "Postitust ei õnnestunud kinnitada ega lahti võtta.",
     "viewsCountAriaLabel": "{count, plural, one {# vaatamine} other {# vaatamist}}",
     "addFlameToStory": "Meeldib see lugu",
-    "removeFlameFromStory": "Eemalda meeldimine sellelt loolt"
+    "removeFlameFromStory": "Eemalda meeldimine sellelt loolt",
+    "following": "Jälgid"
   },
   "groups": {
     "title": "Kogukonnad",
@@ -290,7 +291,7 @@
     "hiddenShort": "PE",
     "join": "Liitu",
     "joinError": "Liitumine ebaõnnestus",
-    "joined": "Liige",
+    "joined": "Oled liige",
     "leaveConfirm": "Kas soovid kindlasti sellest kogukonnast lahkuda?",
     "loadError": "Kogukondade laadimisel tekkis viga",
     "loginRequired": "Logi sisse, et kogukondi näha",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD-pilet",
     "financesPendingAmount": "Summa vabastamiseks",
     "financesBestMonth": "Parim kuu",
+    "financesLocalApproxNote": "Summad valuutas {currency} on ligikaudsed, need teisendatakse tänase kursiga. Sulle makstakse välja USD summa.",
     "financesCommissionNet": "Nendest summadest on Vibra 25% teenustasu juba maha arvatud.",
     "financesCommissionGross": "Nendest summadest pole Vibra 25% teenustasu veel maha arvatud.",
     "statEarned": "Teenitud {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Tühista valik",
     "invoiceDone": "Valmis",
     "filterStatusAllValue": "Kõik tehingud",
+    "payoutProgressLabel": "Väljamakseni on puudu {amount}",
+    "payoutProgressReady": "Saad oma saldo nüüd välja võtta",
+    "approxAmountLong": "Ligikaudu {amount}",
+    "walletCurrencyLabel": "Kuvamisvaluuta",
     "withdrawButton": "Võta välja",
     "withdrawComingSoon": "Väljamaksed tulevad saadavale üsna pea",
     "onboardingUTitle": "Ela läbi ainulaadseid kogemusi inimestega, keda <vibra>imetled</vibra>",

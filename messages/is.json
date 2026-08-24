@@ -274,7 +274,8 @@
     "pinError": "Ekki tókst að festa eða losa færsluna.",
     "viewsCountAriaLabel": "{count, plural, one {# áhorf} other {# áhorf}}",
     "addFlameToStory": "Líka við þessa sögu",
-    "removeFlameFromStory": "Fjarlægja læk af þessari sögu"
+    "removeFlameFromStory": "Fjarlægja læk af þessari sögu",
+    "following": "Fylgist með"
   },
   "groups": {
     "title": "Samfélög",
@@ -290,7 +291,7 @@
     "hiddenShort": "FL",
     "join": "Ganga í",
     "joinError": "Ekki tókst að ganga í",
-    "joined": "Meðlimur",
+    "joined": "Þú ert meðlimur",
     "leaveConfirm": "Ertu viss um að þú viljir yfirgefa þetta samfélag?",
     "loadError": "Villa við að hlaða samfélögum",
     "loginRequired": "Skráðu þig inn til að sjá samfélög",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD-miði",
     "financesPendingAmount": "Upphæð til að losa",
     "financesBestMonth": "Besti mánuðurinn",
+    "financesLocalApproxNote": "Upphæðirnar í {currency} eru áætlaðar, umreiknaðar á gengi dagsins. Það sem greitt er út til þín er upphæðin í USD.",
     "financesCommissionNet": "Þessar upphæðir innihalda þegar frádrátt á 25% þóknun Vibra.",
     "financesCommissionGross": "25% þóknun Vibra hefur ekki enn verið dregin frá þessum upphæðum.",
     "statEarned": "Áunnið {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Hreinsa val",
     "invoiceDone": "Lokið",
     "filterStatusAllValue": "Allar hreyfingar",
+    "payoutProgressLabel": "Þig vantar {amount} til að geta tekið út",
+    "payoutProgressReady": "Þú getur tekið út inneignina þína núna",
+    "approxAmountLong": "Um það bil {amount}",
+    "walletCurrencyLabel": "Birtingargjaldmiðill",
     "withdrawButton": "Taka út",
     "withdrawComingSoon": "Úttektir verða í boði mjög fljótlega",
     "onboardingUTitle": "Upplifðu einstakar stundir með fólkinu sem þú <vibra>dáist að</vibra>",

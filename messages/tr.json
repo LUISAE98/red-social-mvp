@@ -274,7 +274,8 @@
     "pinError": "Gönderi sabitlenemedi veya sabitlemesi kaldırılamadı.",
     "viewsCountAriaLabel": "{count, plural, one {# görüntülenme} other {# görüntülenme}}",
     "addFlameToStory": "Bu hikâyeyi beğen",
-    "removeFlameFromStory": "Bu hikâyenin beğenisini kaldır"
+    "removeFlameFromStory": "Bu hikâyenin beğenisini kaldır",
+    "following": "Takip ediliyor"
   },
   "groups": {
     "title": "Topluluklar",
@@ -290,7 +291,7 @@
     "hiddenShort": "GZ",
     "join": "Katıl",
     "joinError": "Katılınamadı",
-    "joined": "Üye",
+    "joined": "Üyesin",
     "leaveConfirm": "Bu topluluktan ayrılmak istediğine emin misin?",
     "loadError": "Topluluklar yüklenirken hata oluştu",
     "loginRequired": "Toplulukları görmek için giriş yap",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD bileti",
     "financesPendingAmount": "Serbest bırakılacak tutar",
     "financesBestMonth": "En iyi ay",
+    "financesLocalApproxNote": "{currency} tutarları yaklaşıktır, bugünkü kurla çevrilir. Sana ödenen tutar USD cinsindendir.",
     "financesCommissionNet": "Bu tutarlara %25 Vibra komisyonu kesintisi zaten dahildir.",
     "financesCommissionGross": "Bu tutarlardan %25 Vibra komisyonu henüz kesilmedi.",
     "statEarned": "{scope} kazanılan",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Seçimi temizle",
     "invoiceDone": "Tamam",
     "filterStatusAllValue": "Tüm hareketler",
+    "payoutProgressLabel": "Çekim yapabilmen için {amount} kaldı",
+    "payoutProgressReady": "Bakiyeni şimdi çekebilirsin",
+    "approxAmountLong": "Yaklaşık {amount}",
+    "walletCurrencyLabel": "Görüntüleme para birimi",
     "withdrawButton": "Çek",
     "withdrawComingSoon": "Para çekme çok yakında kullanıma açılacak",
     "onboardingUTitle": "<vibra>Hayran olduğun</vibra> kişilerle eşsiz deneyimler yaşa",

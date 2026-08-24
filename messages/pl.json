@@ -274,7 +274,8 @@
     "pinError": "Nie udało się przypiąć ani odpiąć posta.",
     "viewsCountAriaLabel": "{count, plural, one {# wyświetlenie} few {# wyświetlenia} many {# wyświetleń} other {# wyświetlenia}}",
     "addFlameToStory": "Polub tę historię",
-    "removeFlameFromStory": "Usuń polubienie tej historii"
+    "removeFlameFromStory": "Usuń polubienie tej historii",
+    "following": "Obserwujesz"
   },
   "groups": {
     "title": "Społeczności",
@@ -290,7 +291,7 @@
     "hiddenShort": "UK",
     "join": "Dołącz",
     "joinError": "Nie udało się dołączyć",
-    "joined": "Członek",
+    "joined": "Jesteś członkiem",
     "leaveConfirm": "Czy na pewno chcesz opuścić tę społeczność?",
     "loadError": "Błąd podczas wczytywania społeczności",
     "loginRequired": "Zaloguj się, aby zobaczyć społeczności",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Bilet VOD",
     "financesPendingAmount": "Kwota do zwolnienia",
     "financesBestMonth": "Najlepszy miesiąc",
+    "financesLocalApproxNote": "Kwoty w {currency} są przybliżone, przeliczone po dzisiejszym kursie. Wypłacana jest kwota w USD.",
     "financesCommissionNet": "Te kwoty uwzględniają już potrąconą prowizję Vibra w wysokości 25 %.",
     "financesCommissionGross": "Od tych kwot nie odjęto jeszcze prowizji Vibra w wysokości 25 %.",
     "statEarned": "Zarobione {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Wyczyść zaznaczenie",
     "invoiceDone": "Gotowe",
     "filterStatusAllValue": "Wszystkie operacje",
+    "payoutProgressLabel": "Do wypłaty brakuje {amount}",
+    "payoutProgressReady": "Możesz już wypłacić swoje saldo",
+    "approxAmountLong": "Około {amount}",
+    "walletCurrencyLabel": "Waluta wyświetlania",
     "withdrawButton": "Wypłać",
     "withdrawComingSoon": "Wypłaty będą dostępne już wkrótce",
     "onboardingUTitle": "Przeżywaj wyjątkowe chwile z ludźmi, których <vibra>podziwiasz</vibra>",

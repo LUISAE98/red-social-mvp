@@ -274,7 +274,8 @@
     "pinError": "No s'ha pogut fixar ni desfixar la publicació.",
     "viewsCountAriaLabel": "{count, plural, one {# visualització} other {# visualitzacions}}",
     "addFlameToStory": "M'agrada aquesta història",
-    "removeFlameFromStory": "Treu el m'agrada d'aquesta història"
+    "removeFlameFromStory": "Treu el m'agrada d'aquesta història",
+    "following": "Seguint"
   },
   "groups": {
     "title": "Comunitats",
@@ -290,7 +291,7 @@
     "hiddenShort": "OC",
     "join": "Uneix-t'hi",
     "joinError": "No t'hi has pogut unir",
-    "joined": "Membre",
+    "joined": "Ets membre",
     "leaveConfirm": "Segur que vols sortir d'aquesta comunitat?",
     "loadError": "Error en carregar les comunitats",
     "loginRequired": "Inicia la sessió per veure les comunitats",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Entrada VOD",
     "financesPendingAmount": "Import per alliberar",
     "financesBestMonth": "Millor mes",
+    "financesLocalApproxNote": "Els imports en {currency} són aproximats, es converteixen al tipus de canvi d'avui. El que se't liquida és l'import en USD.",
     "financesCommissionNet": "Aquests imports ja tenen descomptada la comissió del 25% de Vibra.",
     "financesCommissionGross": "A aquests imports encara no se'ls ha descomptat la comissió del 25% de Vibra.",
     "statEarned": "Guanyat {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Neteja la selecció",
     "invoiceDone": "Fet",
     "filterStatusAllValue": "Tots els moviments",
+    "payoutProgressLabel": "Et falten {amount} per poder retirar",
+    "payoutProgressReady": "Ja pots retirar el teu saldo",
+    "approxAmountLong": "Aproximadament {amount}",
+    "walletCurrencyLabel": "Moneda de lectura",
     "withdrawButton": "Retira",
     "withdrawComingSoon": "Les retirades estaran disponibles molt aviat",
     "onboardingUTitle": "Viu experiències úniques amb la gent que <vibra>admires</vibra>",

@@ -421,6 +421,47 @@ body::-webkit-scrollbar-button {
   background-color: rgba(168, 85, 255, 0);
 }
 
+/* ── Puntos de "trabajando" ────────────────────────────────────────────────
+   Los tres puntos que sustituyen al texto de un botón mientras su acción está
+   en vuelo. Antes ahí se escribía "Procesando…": una palabra larga que ensancha
+   el botón, cambia de idioma a idioma y le grita al usuario algo que ya sabe.
+   Tres puntos que laten dicen lo mismo sin mover nada.
+
+   Cada punto entra un tercio de ciclo después que el anterior, que es lo que se
+   lee como onda y no como parpadeo. */
+.vibra-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 1em;
+}
+.vibra-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: vibraDotPulse 1.05s ease-in-out infinite;
+}
+.vibra-dots i:nth-child(2) { animation-delay: 0.15s; }
+.vibra-dots i:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes vibraDotPulse {
+  0%, 70%, 100% { opacity: 0.32; transform: translateY(0); }
+  35%           { opacity: 1;    transform: translateY(-2px); }
+}
+
+/* Quien pidió menos movimiento no ve el salto, pero sí que algo ocurre. */
+@media (prefers-reduced-motion: reduce) {
+  .vibra-dots i {
+    animation: vibraDotFade 1.05s ease-in-out infinite;
+  }
+  @keyframes vibraDotFade {
+    0%, 70%, 100% { opacity: 0.32; }
+    35%           { opacity: 1; }
+  }
+}
+
 /* ── Título de página ──────────────────────────────────────────────────────
    La fuente ÚNICA del encabezado de cada sección: guardados, notificaciones,
    mensajes, experiencias, sesiones, wallet.

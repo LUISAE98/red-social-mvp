@@ -4,8 +4,7 @@ import { useMemo } from "react";
 import { intlLocale } from "@/i18n/locales";
 import { useTranslations, useLocale } from "next-intl";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
 
 function formatMonthLabel(year: number, month: number, locale: string): string {
   try {
@@ -28,15 +27,9 @@ export default function WalletMonthComparison({
 }) {
   const locale = useLocale();
   const tWallet = useTranslations("wallet");
-  const pf = usePriceFormat();
-  /**
-   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
-   *
-   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
-   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
-   */
-  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
-    pf.formatAnchor(amount, { code: opts.code ?? false });
+  // Dinero del CREADOR, en USD o en su moneda según el switch de la wallet.
+  // Formateador único: ver `useWalletMoney`.
+  const { formatMoney } = useWalletMoney();
   const { entries } = useWalletLedger(uid, 1000);
 
   const { current, best } = useMemo(() => {

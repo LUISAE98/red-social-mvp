@@ -274,7 +274,8 @@
     "pinError": "A bejegyzést nem sikerült kitűzni vagy levenni.",
     "viewsCountAriaLabel": "{count, plural, one {# megtekintés} other {# megtekintés}}",
     "addFlameToStory": "Tetszik ez a történet",
-    "removeFlameFromStory": "Tetszés visszavonása"
+    "removeFlameFromStory": "Tetszés visszavonása",
+    "following": "Követed"
   },
   "groups": {
     "title": "Közösségek",
@@ -290,7 +291,7 @@
     "hiddenShort": "RE",
     "join": "Csatlakozás",
     "joinError": "A csatlakozás nem sikerült",
-    "joined": "Tag",
+    "joined": "Tag vagy",
     "leaveConfirm": "Biztosan kilépsz ebből a közösségből?",
     "loadError": "Hiba a közösségek betöltésekor",
     "loginRequired": "Jelentkezz be a közösségek megtekintéséhez",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD jegy",
     "financesPendingAmount": "Felszabadítandó összeg",
     "financesBestMonth": "Legjobb hónap",
+    "financesLocalApproxNote": "A {currency} összegek hozzávetőlegesek, a mai árfolyamon átszámítva. A kifizetés az USD összeg alapján történik.",
     "financesCommissionNet": "Ezek az összegek már tartalmazzák a Vibra 25%-os jutalékának levonását.",
     "financesCommissionGross": "Ezekből az összegekből még nem vontuk le a Vibra 25%-os jutalékát.",
     "statEarned": "Megkeresve {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Kijelölés törlése",
     "invoiceDone": "Kész",
     "filterStatusAllValue": "Minden tétel",
+    "payoutProgressLabel": "Még {amount} hiányzik a kifizetéshez",
+    "payoutProgressReady": "Már kiveheted az egyenleged",
+    "approxAmountLong": "Körülbelül {amount}",
+    "walletCurrencyLabel": "Megjelenítési pénznem",
     "withdrawButton": "Kifizetés",
     "withdrawComingSoon": "A kifizetések nagyon hamar elérhetők lesznek",
     "onboardingUTitle": "Élj át egyedi élményeket azokkal, akiket <vibra>csodálsz</vibra>",

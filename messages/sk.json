@@ -274,7 +274,8 @@
     "pinError": "Príspevok sa nepodarilo pripnúť ani odopnúť.",
     "viewsCountAriaLabel": "{count, plural, one {# zhliadnutie} few {# zhliadnutia} other {# zhliadnutí}}",
     "addFlameToStory": "Dať lajk tomuto príbehu",
-    "removeFlameFromStory": "Odobrať lajk tomuto príbehu"
+    "removeFlameFromStory": "Odobrať lajk tomuto príbehu",
+    "following": "Sledujete"
   },
   "groups": {
     "title": "Komunity",
@@ -290,7 +291,7 @@
     "hiddenShort": "SK",
     "join": "Vstúpiť",
     "joinError": "Nepodarilo sa vstúpiť",
-    "joined": "Člen",
+    "joined": "Si členom",
     "leaveConfirm": "Naozaj chceš opustiť túto komunitu?",
     "loadError": "Chyba pri načítavaní komunít",
     "loginRequired": "Prihlás sa, aby si videl komunity",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD vstupenka",
     "financesPendingAmount": "Suma na uvoľnenie",
     "financesBestMonth": "Najlepší mesiac",
+    "financesLocalApproxNote": "Sumy v {currency} sú približné, prepočítané dnešným kurzom. Vypláca sa ti suma v USD.",
     "financesCommissionNet": "Z týchto súm je už odpočítaná 25 % provízia Vibry.",
     "financesCommissionGross": "Z týchto súm ešte nie je odpočítaná 25 % provízia Vibry.",
     "statEarned": "Zarobené {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Zrušiť výber",
     "invoiceDone": "Hotovo",
     "filterStatusAllValue": "Všetky pohyby",
+    "payoutProgressLabel": "Do výberu ti chýba {amount}",
+    "payoutProgressReady": "Svoj zostatok si už môžeš vybrať",
+    "approxAmountLong": "Približne {amount}",
+    "walletCurrencyLabel": "Mena zobrazenia",
     "withdrawButton": "Vybrať",
     "withdrawComingSoon": "Výbery budú dostupné už čoskoro",
     "onboardingUTitle": "Zaži jedinečné chvíle s ľuďmi, ktorých <vibra>obdivuješ</vibra>",

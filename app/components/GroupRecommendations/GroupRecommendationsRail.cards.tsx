@@ -68,6 +68,7 @@ import {
   resolveSubscriptionEnabled, resolveSubscriptionPrice,
   type LiveRec, type LiveActionState,
 } from "./GroupRecommendationsRail.parts";
+import { RailActionButton, type RailBtnTono } from "./RailActionButton";
 
 export function ProfileCard({
   profile,
@@ -510,40 +511,28 @@ export function LiveCTAButton({
     } else if (rec.groupVisibility === "private") label = tGroups("requestAccess");
     else label = tGroups("join");
   } else {
-    label = state === "following" ? tCommon("unfollow") : tCommon("follow");
+    label = state === "following" ? tCommon("following") : tCommon("follow");
   }
 
-  const inactive = loading || state === "joined" || state === "pending" || state === "following";
-  const isPaidSub = !inactive && rec.groupId && rec.groupVisibility === "private" && rec.subscriptionEnabled;
+  const esPagoSub = Boolean(
+    rec.groupId && rec.groupVisibility === "private" && rec.subscriptionEnabled
+  );
+
+  // Igual que en las tarjetas de comunidad: solo la solicitud pendiente va
+  // en gris, porque es la única que espera a que conteste otra persona.
+  const tono: RailBtnTono =
+    state === "pending" ? "espera"
+      : state !== "joined" && esPagoSub ? "pago"
+        : "marca";
 
   return (
-    <button
-      type="button"
+    <RailActionButton
+      label={label}
+      tono={tono}
+      loading={loading}
       onClick={onClick}
-      disabled={inactive}
-      style={{
-        width: "100%",
-        borderRadius: 10,
-        padding: "7px 12px",
-        border: inactive ? "1px solid rgba(255,255,255,0.18)" : "none",
-        fontWeight: 600,
-        fontSize: 13,
-        letterSpacing: "-0.01em",
-        cursor: inactive ? "default" : "pointer",
-        background: inactive
-          ? "rgba(255,255,255,0.14)"
-          : isPaidSub
-            ? "#70aefb"
-            : "linear-gradient(135deg, #ec4899, #9333ea)",
-        color: inactive ? "rgba(255,255,255,0.70)" : "#fff",
-        fontFamily: fontStack,
-        backdropFilter: inactive ? "blur(12px)" : "none",
-        WebkitBackdropFilter: inactive ? "blur(12px)" : "none",
-        transition: "opacity 150ms ease",
-      }}
-    >
-      {loading ? tCommon("processing") : label}
-    </button>
+      fontStack={fontStack}
+    />
   );
 }
 

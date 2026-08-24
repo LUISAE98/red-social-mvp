@@ -274,7 +274,8 @@
     "pinError": "Der Beitrag konnte nicht angeheftet oder gelöst werden.",
     "viewsCountAriaLabel": "{count, plural, one {# Aufruf} other {# Aufrufe}}",
     "addFlameToStory": "Diese Story liken",
-    "removeFlameFromStory": "Like von dieser Story entfernen"
+    "removeFlameFromStory": "Like von dieser Story entfernen",
+    "following": "Folgst du"
   },
   "groups": {
     "title": "Communitys",
@@ -290,7 +291,7 @@
     "hiddenShort": "VS",
     "join": "Beitreten",
     "joinError": "Beitritt nicht möglich",
-    "joined": "Mitglied",
+    "joined": "Du bist Mitglied",
     "leaveConfirm": "Möchtest du diese Community wirklich verlassen?",
     "loadError": "Fehler beim Laden der Communitys",
     "loginRequired": "Melde dich an, um Communitys zu sehen",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD-Ticket",
     "financesPendingAmount": "Freizugebender Betrag",
     "financesBestMonth": "Bester Monat",
+    "financesLocalApproxNote": "Die Beträge in {currency} sind Näherungswerte, sie werden zum heutigen Kurs umgerechnet. Ausgezahlt wird dir der Betrag in USD.",
     "financesCommissionNet": "In diesen Beträgen ist der Abzug der Vibra-Provision von 25 % bereits enthalten.",
     "financesCommissionGross": "Von diesen Beträgen wurde die Vibra-Provision von 25 % noch nicht abgezogen.",
     "statEarned": "Verdient {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Auswahl aufheben",
     "invoiceDone": "Fertig",
     "filterStatusAllValue": "Alle Bewegungen",
+    "payoutProgressLabel": "Dir fehlen noch {amount} bis zur Auszahlung",
+    "payoutProgressReady": "Du kannst dein Guthaben jetzt auszahlen",
+    "approxAmountLong": "Ungefähr {amount}",
+    "walletCurrencyLabel": "Anzeigewährung",
     "withdrawButton": "Auszahlen",
     "withdrawComingSoon": "Auszahlungen sind in Kürze verfügbar",
     "onboardingUTitle": "Erlebe einzigartige Momente mit den Menschen, die du <vibra>bewunderst</vibra>",

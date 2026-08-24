@@ -61,6 +61,7 @@ import type {
   RecommendationProfileCard,
   RecommendationRailContext,
 } from "./types";
+import { RailActionButton, type RailBtnTono } from "./RailActionButton";
 
 // Module-level profile cache — survives navigation in the same tab
 export type ProfileCacheEntry = { profiles: RecommendationProfileCard[]; cachedAt: number };
@@ -808,7 +809,6 @@ export function JoinButton({
   /** Precio mensual TODO-INCLUIDO (base + $3 + IVA) ya formateado; null si no se conoce. */
   subscribePriceLabel?: string | null;
 }) {
-  const tCommon = useTranslations("common");
   const tGroups = useTranslations("groups");
 
   const label =
@@ -824,37 +824,21 @@ export function JoinButton({
             : tGroups("requestAccess")
           : tGroups("join");
 
-  const isInactive = loading || state === "joined" || state === "pending";
-  const isPaid = !isInactive && state === "request" && isPaidSubscriptionPrivate;
+  // Solo la solicitud a la espera va en gris: es lo único que depende de que
+  // otro conteste. Ser miembro es un logro, así que conserva el color.
+  const tono: RailBtnTono =
+    state === "pending" ? "espera"
+      : state === "request" && isPaidSubscriptionPrivate ? "pago"
+        : "marca";
 
   return (
-    <button
-      type="button"
+    <RailActionButton
+      label={label}
+      tono={tono}
+      loading={loading}
       onClick={onClick}
-      disabled={isInactive}
-      style={{
-        width: "100%",
-        borderRadius: 10,
-        padding: "7px 12px",
-        border: isInactive ? "1px solid rgba(255,255,255,0.18)" : "none",
-        fontWeight: 600,
-        fontSize: 13,
-        letterSpacing: "-0.01em",
-        cursor: isInactive ? "default" : "pointer",
-        background: isInactive
-          ? "rgba(255,255,255,0.14)"
-          : isPaid
-            ? "#70aefb"
-            : "linear-gradient(135deg, #ec4899, #9333ea)",
-        color: isInactive ? "rgba(255,255,255,0.70)" : "#fff",
-        fontFamily: fontStack,
-        backdropFilter: isInactive ? "blur(12px)" : "none",
-        WebkitBackdropFilter: isInactive ? "blur(12px)" : "none",
-        transition: "opacity 150ms ease",
-      }}
-    >
-      {loading ? tCommon("processing") : label}
-    </button>
+      fontStack={fontStack}
+    />
   );
 }
 
@@ -868,34 +852,17 @@ export function FollowButton({
   loading: boolean;
 }) {
   const tCommon = useTranslations("common");
-  const isInactive = loading || isFollowing;
 
   return (
-    <button
-      type="button"
+    <RailActionButton
+      // Seguir y Siguiendo van los dos con color: seguir a alguien no es una
+      // espera, se resuelve al instante. Lo que cambia es la palabra.
+      label={isFollowing ? tCommon("following") : tCommon("follow")}
+      tono="marca"
+      loading={loading}
       onClick={onClick}
-      disabled={isInactive}
-      style={{
-        width: "100%",
-        borderRadius: 10,
-        padding: "7px 12px",
-        border: isInactive ? "1px solid rgba(255,255,255,0.18)" : "none",
-        fontWeight: 600,
-        fontSize: 13,
-        letterSpacing: "-0.01em",
-        cursor: isInactive ? "default" : "pointer",
-        background: isInactive
-          ? "rgba(255,255,255,0.14)"
-          : "linear-gradient(135deg, #ec4899, #9333ea)",
-        color: isInactive ? "rgba(255,255,255,0.70)" : "#fff",
-        fontFamily: fontStack,
-        backdropFilter: isInactive ? "blur(12px)" : "none",
-        WebkitBackdropFilter: isInactive ? "blur(12px)" : "none",
-        transition: "opacity 150ms ease",
-      }}
-    >
-      {loading ? tCommon("processing") : isFollowing ? tCommon("unfollow") : tCommon("follow")}
-    </button>
+      fontStack={fontStack}
+    />
   );
 }
 

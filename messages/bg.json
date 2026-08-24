@@ -274,7 +274,8 @@
     "pinError": "Публикацията не беше закачена или откачена.",
     "viewsCountAriaLabel": "{count, plural, one {# гледане} other {# гледания}}",
     "addFlameToStory": "Харесай тази история",
-    "removeFlameFromStory": "Премахни харесването на тази история"
+    "removeFlameFromStory": "Премахни харесването на тази история",
+    "following": "Следвате"
   },
   "groups": {
     "title": "Общности",
@@ -290,7 +291,7 @@
     "hiddenShort": "СК",
     "join": "Влез",
     "joinError": "Влизането не беше успешно",
-    "joined": "Член",
+    "joined": "Вие сте член",
     "leaveConfirm": "Сигурен ли си, че искаш да напуснеш тази общност?",
     "loadError": "Грешка при зареждането на общностите",
     "loginRequired": "Влез, за да видиш общностите",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD билет",
     "financesPendingAmount": "Сума за освобождаване",
     "financesBestMonth": "Най-добър месец",
+    "financesLocalApproxNote": "Сумите в {currency} са приблизителни, преобразуват се по днешния курс. Изплаща ви се сумата в USD.",
     "financesCommissionNet": "От тези суми вече е приспадната комисионата на Vibra от 25 %.",
     "financesCommissionGross": "От тези суми още не е приспадната комисионата на Vibra от 25 %.",
     "statEarned": "Спечелено {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Изчисти избора",
     "invoiceDone": "Готово",
     "filterStatusAllValue": "Всички движения",
+    "payoutProgressLabel": "Остават {amount} до възможността за теглене",
+    "payoutProgressReady": "Вече можете да изтеглите баланса си",
+    "approxAmountLong": "Приблизително {amount}",
+    "walletCurrencyLabel": "Валута на показване",
     "withdrawButton": "Изтегли",
     "withdrawComingSoon": "Тегленията ще бъдат достъпни съвсем скоро",
     "onboardingUTitle": "Изживей уникални моменти с хората, на които се <vibra>възхищаваш</vibra>",

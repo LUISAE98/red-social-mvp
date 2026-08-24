@@ -274,7 +274,8 @@
     "pinError": "មិនអាចខ្ទាស់ ឬដកខ្ទាស់ការបង្ហោះបានទេ។",
     "viewsCountAriaLabel": "{count, plural, other {# ការមើល}}",
     "addFlameToStory": "ចូលចិត្តរឿងនេះ",
-    "removeFlameFromStory": "ដកការចូលចិត្តចេញពីរឿងនេះ"
+    "removeFlameFromStory": "ដកការចូលចិត្តចេញពីរឿងនេះ",
+    "following": "កំពុងតាមដាន"
   },
   "groups": {
     "title": "សហគមន៍",
@@ -290,7 +291,7 @@
     "hiddenShort": "លាក់",
     "join": "ចូលរួម",
     "joinError": "មិនអាចចូលរួមបានទេ",
-    "joined": "សមាជិក",
+    "joined": "អ្នកជាសមាជិក",
     "leaveConfirm": "តើអ្នកប្រាកដថាចង់ចាកចេញពីសហគមន៍នេះមែនទេ?",
     "loadError": "មានកំហុសក្នុងការផ្ទុកសហគមន៍",
     "loginRequired": "ចូលគណនីដើម្បីមើលសហគមន៍",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "សំបុត្រ VOD",
     "financesPendingAmount": "ចំនួនត្រូវចេញ",
     "financesBestMonth": "ខែល្អបំផុត",
+    "financesLocalApproxNote": "ចំនួនជា {currency} គឺប្រហាក់ប្រហែល ដោយបម្លែងតាមអត្រាប្តូរប្រាក់ថ្ងៃនេះ។ អ្វីដែលបង់ជូនអ្នកគឺចំនួនជា USD។",
     "financesCommissionNet": "ចំនួនទឹកប្រាក់ទាំងនេះបានរួមបញ្ចូលការកាត់កម្រៃជើងសារ Vibra 25% រួចហើយ។",
     "financesCommissionGross": "កម្រៃជើងសារ Vibra 25% មិនទាន់ត្រូវបានកាត់ចេញពីចំនួនទឹកប្រាក់ទាំងនេះនៅឡើយទេ។",
     "statEarned": "បានរកបាន {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "សម្អាតការជ្រើសរើស",
     "invoiceDone": "រួចរាល់",
     "filterStatusAllValue": "ចលនាទាំងអស់",
+    "payoutProgressLabel": "នៅខ្វះ {amount} ទៀតទើបអាចដកប្រាក់បាន",
+    "payoutProgressReady": "អ្នកអាចដកសមតុល្យរបស់អ្នកបានហើយ",
+    "approxAmountLong": "ប្រហែល {amount}",
+    "walletCurrencyLabel": "រូបិយប័ណ្ណបង្ហាញ",
     "withdrawButton": "ដកប្រាក់",
     "withdrawComingSoon": "ការដកប្រាក់នឹងអាចប្រើបានក្នុងពេលឆាប់ៗនេះ",
     "onboardingUTitle": "រស់នៅជាមួយបទពិសោធន៍ពិសេសជាមួយមនុស្សដែលអ្នក<vibra>កោតសរសើរ</vibra>",

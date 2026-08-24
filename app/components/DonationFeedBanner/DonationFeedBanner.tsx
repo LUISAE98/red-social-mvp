@@ -528,6 +528,7 @@ export default function DonationFeedBanner({
           return createDonationStripeIntent({
             creatorId: creatorId ?? "",
             amount: args.amount,
+            exactTotalLocal: args.exactTotalLocal ?? null,
             saveCard: args.saveCard,
             taxCountry: args.taxCountry,
             groupId: groupId ?? null,

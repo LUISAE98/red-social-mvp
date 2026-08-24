@@ -13,12 +13,12 @@ import {
   selectFinanceView,
 } from "@/lib/wallet/walletFinances";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { SETTLEMENT_CURRENCY, PAYOUT_MIN_USD } from "@/lib/currency/catalog";
+import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
+import { PAYOUT_MIN_USD } from "@/lib/currency/catalog";
 import { useBalanceHidden, toggleBalanceHidden } from "@/lib/wallet/useBalanceHidden";
 import MaskedAmount from "@/app/components/MaskedAmount";
 import WalletFigureSkeleton from "../components/WalletFigureSkeleton";
-import CurrencySwitcher from "@/app/components/CurrencySwitcher";
+import WalletCurrencyToggle from "../components/WalletCurrencyToggle";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import WithdrawFiscalPanel from "../components/WithdrawFiscalPanel";
@@ -45,26 +45,55 @@ function formatMonthName(date: Date, locale: string): string {
   }
 }
 
+/**
+ * Anima un importe desde 0 hasta su valor, como un contador.
+ *
+ * Se usa en el saldo de la wallet: aparecer de golpe hace que el creador no registre la
+ * cifra, y verla subir la convierte en el foco de la pantalla — que es lo que es.
+ *
+ * ⚠️ Respeta `prefers-reduced-motion`: a quien pide menos movimiento se le entrega el valor
+ * final de una vez, sin animación.
+ */
+function useContador(valor: number, activo: boolean, duracionMs = 1100): number {
+  const [mostrado, setMostrado] = useState(0);
+  const previo = useRef(0);
+  useEffect(() => {
+    if (!activo) return;
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || !Number.isFinite(valor)) {
+      // En el siguiente cuadro, no en el cuerpo del efecto: escribir el estado de forma
+      // síncrona aquí encadena renders.
+      const t = requestAnimationFrame(() => {
+        setMostrado(valor);
+        previo.current = valor;
+      });
+      return () => cancelAnimationFrame(t);
+    }
+    const desde = previo.current;
+    const inicio = performance.now();
+    let raf = 0;
+    const paso = (t: number) => {
+      const p = Math.min(1, (t - inicio) / duracionMs);
+      // Desaceleración suave: arranca rápido y frena al final, como un marcador.
+      const e = 1 - Math.pow(1 - p, 3);
+      setMostrado(desde + (valor - desde) * e);
+      if (p < 1) raf = requestAnimationFrame(paso);
+      else previo.current = valor;
+    };
+    raf = requestAnimationFrame(paso);
+    return () => cancelAnimationFrame(raf);
+  }, [valor, activo, duracionMs]);
+  return mostrado;
+}
 export default function WalletFinanzasPage() {
   const tWallet = useTranslations("wallet");
   const tNav = useTranslations("nav");
   const locale = useLocale();
-  const pf = usePriceFormat();
-  /**
-   * Dinero del CREADOR: se muestra en la moneda de liquidación, SIN convertir.
-   *
-   * ⚠️ Antes usaba `pf.format`, que es el precio del COMPRADOR: convierte a la moneda de
-   * quien mira, suma el 2% de conversión y redondea al escalón. Sobre un saldo de 500 USD
-   * eso son 170 pesos de más — y es la cifra que el creador considera suya. Con los retiros
-   * de por medio deja de ser cosmético: pediría retirar 8,630 y le llegarían 8,460.
-   */
-  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
-    pf.formatAnchor(amount, { code: opts.code ?? false });
-  /** Referencia en la moneda del creador, para las cifras grandes. Null si ya mira en USD. */
-  const refLocal = (amount: number): string | null =>
-    pf.currency === SETTLEMENT_CURRENCY
-      ? null
-      : pf.formatPlain(amount, { baseCurrency: SETTLEMENT_CURRENCY, code: true });
+  // Dinero del CREADOR. El modo (USD o su moneda) es compartido por toda la wallet;
+  // ver `useWalletMoney` para por qué ninguna de las dos lecturas usa `pf.format`.
+  const { formatMoney, refLocal, showingLocal, localCurrency, formatSettlement } = useWalletMoney();
   // Ocultar saldo: mismo estado compartido y persistente que el rail derecho.
   const balanceHidden = useBalanceHidden();
   const { user } = useAuth();
@@ -79,6 +108,15 @@ export default function WalletFinanzasPage() {
 
   const view = selectFinanceView(summary, mode);
 
+  /**
+   * Lo retirable NO depende del interruptor neto/bruto.
+   *
+   * Ese interruptor solo cambia la LECTURA (ver el dinero antes o después de la comisión);
+   * lo que el creador puede sacar es siempre el neto. Medir la barra contra `view.available`
+   * la llenaba de más al mirar en bruto, prometiendo un retiro que no existe.
+   */
+  const disponibleNeto = selectFinanceView(summary, "net").available;
+
   // Skeleton de las cifras variables mientras cargan. Incluye `!user?.uid` para
   // cubrir también la ventana en la que el auth aún no resuelve el usuario.
   const loadingAmounts = summaryLoading || !user?.uid;
@@ -90,10 +128,26 @@ export default function WalletFinanzasPage() {
    * Ahora el creador ve una barra que se llena y, al llegar, el botón. El motivo del mínimo
    * es el coste del retiro, que por debajo se come un porcentaje enorme (ver `PAYOUT_MIN_USD`).
    */
-  const canWithdrawNow = view.available >= PAYOUT_MIN_USD;
+  const canWithdrawNow = disponibleNeto >= PAYOUT_MIN_USD;
+  /**
+   * ¿El creador completó su alta de cuenta en Stripe?
+   *
+   * 🚧 SIN CONECTAR. El alta todavía no existe (Didit se eliminó y su reemplazo, el alta de
+   * Stripe con su propio KYC, está pendiente). Mientras tanto se queda en false, que es el
+   * comportamiento seguro: la barra desaparece al llegar al mínimo y en su lugar NO aparece
+   * el botón, sino que queda a la vista el aviso morado del registro.
+   *
+   * Al conectarlo, esto pasa a leerse del documento del creador y el botón aparece solo.
+   */
+  const altaStripeCompleta = false;
+
+  // El saldo sube desde cero al entrar. La barra y el resto de cifras usan el valor real:
+  // animar todo a la vez sería ruido.
+  const disponibleAnimado = useContador(view.available, !loadingAmounts);
+
   /** Cuánto le falta, y qué porción de la barra lleva. */
-  const faltaParaRetirar = Math.max(0, PAYOUT_MIN_USD - view.available);
-  const progresoRetiro = Math.min(1, Math.max(0, view.available / PAYOUT_MIN_USD));
+  const faltaParaRetirar = Math.max(0, PAYOUT_MIN_USD - disponibleNeto);
+  const progresoRetiro = Math.min(1, Math.max(0, disponibleNeto / PAYOUT_MIN_USD));
 
   function handleWithdrawClick() {
     if (!canWithdrawNow) return;
@@ -195,9 +249,10 @@ export default function WalletFinanzasPage() {
               {toggle}
             </div>
 
-            {/* Moneda actual en blanco: recuerda en qué moneda ves las cantidades
-                y abre el panel de monedas al hacer clic. */}
-            <CurrencySwitcher color="#fff" scale={1.3} />
+            {/* En qué moneda lee el creador SU dinero. Antes aquí estaba el switch global
+                de la plataforma, que cambiaba la moneda de todo el sitio desde dentro de la
+                wallet: demasiado alcance para el sitio que ocupa. */}
+            <WalletCurrencyToggle />
 
             <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "flex-end" }}>
               {/* 🚧 BOTÓN DE RETIRO OCULTO A PROPÓSITO.
@@ -219,12 +274,21 @@ export default function WalletFinanzasPage() {
               textAlign: "center",
             }}
           >
+            {/* La cifra se centra respecto al bloque, NO respecto al par cifra+ojito:
+                el ojito es un control, no parte del monto, y si cuenta para el centrado
+                empuja el saldo a la izquierda. Por eso sale del flujo y cuelga del borde
+                derecho de la cifra, acompañándola sin desplazarla. */}
             <div
               style={{
+                position: "relative",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 12,
+                // Ancho completo + relleno simétrico: la cifra queda centrada y el ojito,
+                // que cuelga fuera de ella, cae dentro del relleno en vez de desbordar la
+                // tarjeta en pantallas angostas.
+                alignSelf: "stretch",
+                paddingInline: 34,
               }}
             >
               <div
@@ -235,6 +299,7 @@ export default function WalletFinanzasPage() {
                   lineHeight: 1.05,
                   color: "#4ade80",
                   fontVariantNumeric: "tabular-nums",
+                  position: "relative",
                 }}
               >
                 {loadingAmounts ? (
@@ -242,22 +307,24 @@ export default function WalletFinanzasPage() {
                 ) : balanceHidden ? (
                   <MaskedAmount formatted={formatMoney(view.available, { code: true })} />
                 ) : (
-                  formatMoney(view.available, { code: true })
+                  formatMoney(disponibleAnimado, { code: true })
                 )}
+                <span style={{ position: "absolute", insetInlineStart: "100%", marginInlineStart: 10, top: "50%", transform: "translateY(-50%)", display: "inline-flex" }}>
+                  <IconButton label={balanceHidden ? tNav("showAmount") : tNav("hideAmount")} size="sm" tone="bare" shape="square" onClick={toggleBalanceHidden} aria-pressed={balanceHidden}>
+                    {balanceHidden ? (
+                      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                        <line x1="1" y1="1" x2="23" y2="23"/>
+                      </svg>
+                    ) : (
+                      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                      </svg>
+                    )}
+                  </IconButton>
+                </span>
               </div>
-              <IconButton label={balanceHidden ? tNav("showAmount") : tNav("hideAmount")} size="sm" tone="bare" shape="square" onClick={toggleBalanceHidden} aria-pressed={balanceHidden}>
-                {balanceHidden ? (
-                  <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
-                  </svg>
-                ) : (
-                  <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                )}
-              </IconButton>
             </div>
             {/* Referencia en la moneda del creador, bajo el saldo. Deliberadamente más
                 pequeña: la cifra que manda es la de arriba, que es la que va a cobrar al
@@ -291,9 +358,20 @@ export default function WalletFinanzasPage() {
                 </div>
                 <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginTop: 6, lineHeight: 1.4 }}>
                   {tWallet("payoutProgressLabel", {
-                    amount: pf.formatAnchor(faltaParaRetirar, { code: true }),
+                    amount: formatMoney(faltaParaRetirar, { code: true }),
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* Mismo hueco que la barra: al alcanzar el mínimo, una desaparece y aparece el
+                otro. Nunca los dos. Si el alta de Stripe no está hecha, no hay botón — queda
+                a la vista el aviso morado del registro, que es lo que toca resolver primero. */}
+            {!loadingAmounts && canWithdrawNow && altaStripeCompleta && (
+              <div style={{ width: "100%", maxWidth: 260, marginTop: 12, animation: "vbPayoutIn 420ms cubic-bezier(0.2,0.8,0.2,1) both" }}>
+                <TextButton tone="brand" size="sm" onClick={handleWithdrawClick} style={{ width: "100%" }}>
+                  {tWallet("withdrawButton")}
+                </TextButton>
               </div>
             )}
           </div>
@@ -471,6 +549,44 @@ export default function WalletFinanzasPage() {
               : tWallet("financesCommissionGross")}
           </div>
 
+          {/* Al leer en su moneda, las cifras dejan de ser exactas: lo que se liquida está
+              en USD y esto es una conversión al cambio de hoy, que mañana será otro. Sin
+              este aviso el creador podría reclamar una diferencia que no es tal. */}
+          {showingLocal ? (
+            <div
+              style={{
+                fontSize: 11.5,
+                lineHeight: 1.45,
+                color: "rgba(255,255,255,0.42)",
+                textAlign: "center",
+                marginTop: -12,
+              }}
+            >
+              {tWallet("financesLocalApproxNote", { currency: localCurrency })}
+            </div>
+          ) : null}
+
+          {/* 🧾 Lo recaudado en impuestos. NO es del creador: Vibra lo entera a la autoridad
+              del país de cada comprador. Va justo bajo la nota de comisión porque las dos
+              explican lo mismo — qué parte de lo cobrado NO es suya— y juntas se leen de
+              corrido. Solo aparece si hubo ventas con impuesto. */}
+          {summary.taxCollected > 0 ? (
+            <div
+              title={tWallet("financesTaxCollectedHint")}
+              style={{
+                fontSize: 12,
+                color: "rgba(255,255,255,0.52)",
+                textAlign: "center",
+                marginTop: -12,
+              }}
+            >
+              {tWallet("financesTaxCollected")}:{" "}
+              <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
+                {formatMoney(summary.taxCollected, { code: true })}
+              </strong>
+            </div>
+          ) : null}
+
           {/* Devuelto (solo si hay) */}
           {view.refunded > 0 ? (
             <div
@@ -492,28 +608,6 @@ export default function WalletFinanzasPage() {
             </div>
           ) : null}
 
-          {/* 🧾 IVA cobrado (transparencia): NO es del creador, Vibra lo entera al SAT.
-              Solo aparece si hubo ventas con impuesto (hoy solo compradores en México). */}
-          {summary.taxCollected > 0 ? (
-            <div
-              title={tWallet("financesTaxCollectedHint")}
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "4px 18px",
-                fontSize: 12,
-                color: "rgba(255,255,255,0.52)",
-                paddingTop: 2,
-              }}
-            >
-              <span>
-                {tWallet("financesTaxCollected")}:{" "}
-                <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                  {formatMoney(summary.taxCollected, { code: true })}
-                </strong>
-              </span>
-            </div>
-          ) : null}
         </div>
       </WalletCard>
 
@@ -525,11 +619,14 @@ export default function WalletFinanzasPage() {
         open={withdrawPanelOpen}
         onClose={() => setWithdrawPanelOpen(false)}
         uid={user?.uid}
-        availableLabel={formatMoney(view.available, { code: true })}
+        // ⚠️ En la moneda de liquidación SIEMPRE, aunque el creador esté leyendo en la suya:
+        // de aquí salen el subtotal, el IVA y el «total a facturar» que copia a su CFDI, y
+        // una conversión al cambio de hoy no puede acabar en un comprobante fiscal.
+        availableLabel={formatSettlement(disponibleNeto, { code: true })}
         // IVA 16% (creador mexicano). Las retenciones se agregarán cuando se defina
         // el modelo fiscal con la API de pagos elegida.
-        ivaLabel={formatMoney(view.available * 0.16, { code: true })}
-        totalLabel={formatMoney(view.available * 1.16, { code: true })}
+        ivaLabel={formatSettlement(disponibleNeto * 0.16, { code: true })}
+        totalLabel={formatSettlement(disponibleNeto * 1.16, { code: true })}
       />
     </WalletSectionShell>
   );

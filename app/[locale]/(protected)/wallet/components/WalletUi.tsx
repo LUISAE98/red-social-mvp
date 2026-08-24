@@ -11,7 +11,7 @@ import {
   getWalletServiceRowMeta,
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
@@ -548,15 +548,9 @@ export function WalletServiceRow({
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
-  const pf = usePriceFormat();
-  /**
-   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
-   *
-   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
-   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
-   */
-  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
-    pf.formatAnchor(amount, { code: opts.code ?? false });
+  // Dinero del CREADOR, en USD o en su moneda según el switch de la wallet.
+  // Formateador único: ver `useWalletMoney`.
+  const { formatMoney } = useWalletMoney();
   const priceBase = row.currency ?? SETTLEMENT_CURRENCY;
 
   useEffect(() => {

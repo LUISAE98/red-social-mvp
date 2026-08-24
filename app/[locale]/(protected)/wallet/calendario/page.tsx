@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import Image from "next/image";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -11,7 +10,7 @@ import { useAuth } from "@/app/providers";
 import {
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import { useWalletData } from "../components/WalletDataContext";
 import { proposeExclusiveSessionSchedule } from "@/lib/exclusiveSession/exclusiveSessionRequests";
@@ -269,15 +268,9 @@ function CalendarEventCard({
 }) {
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
-  const pf = usePriceFormat();
-  /**
-   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
-   *
-   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
-   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
-   */
-  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
-    pf.formatAnchor(amount, { code: opts.code ?? false });
+  // Dinero del CREADOR, en USD o en su moneda según el switch de la wallet.
+  // Formateador único: ver `useWalletMoney`.
+  const { formatMoney } = useWalletMoney();
   const initial = (item.buyerDisplayName ?? "U").charAt(0).toUpperCase();
 
   // Variante para lives: informativa, sin comprador. La portada del live es el
@@ -1133,7 +1126,10 @@ export default function WalletCalendarioPage() {
   const tWalletPage = useTranslations("wallet");
   const tServices = useTranslations("services");
   const locale = useLocale();
-  const { format: formatMoney } = usePriceFormat();
+  // ⚠️ Antes `pf.format`, el precio del COMPRADOR: inflaba cada monto del calendario
+  // con el 2% de colchón FX y el redondeo comercial. Ahora la misma lectura que el resto
+  // de la wallet, y sigue su switch de moneda.
+  const { formatMoney } = useWalletMoney();
   const { user } = useAuth();
   const walletData = useWalletData();
   const { toast, showToast } = useVibraToast();

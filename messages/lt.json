@@ -274,7 +274,8 @@
     "pinError": "Nepavyko prisegti ar atsegti įrašo.",
     "viewsCountAriaLabel": "{count, plural, one {# peržiūra} few {# peržiūros} many {# peržiūros} other {# peržiūrų}}",
     "addFlameToStory": "Patinka ši istorija",
-    "removeFlameFromStory": "Pašalinti patinka nuo šios istorijos"
+    "removeFlameFromStory": "Pašalinti patinka nuo šios istorijos",
+    "following": "Sekate"
   },
   "groups": {
     "title": "Bendruomenės",
@@ -290,7 +291,7 @@
     "hiddenShort": "PA",
     "join": "Įstoti",
     "joinError": "Įstoti nepavyko",
-    "joined": "Narys",
+    "joined": "Esi narys",
     "leaveConfirm": "Ar tikrai nori palikti šią bendruomenę?",
     "loadError": "Klaida įkeliant bendruomenes",
     "loginRequired": "Prisijunk, kad pamatytum bendruomenes",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD bilietas",
     "financesPendingAmount": "Suma atlaisvinti",
     "financesBestMonth": "Geriausias mėnuo",
+    "financesLocalApproxNote": "Sumos {currency} valiuta yra apytikslės, perskaičiuotos šiandienos kursu. Tau išmokama suma USD.",
     "financesCommissionNet": "Iš šių sumų Vibra 25 % komisinis jau nuskaičiuotas.",
     "financesCommissionGross": "Iš šių sumų Vibra 25 % komisinis dar nenuskaičiuotas.",
     "statEarned": "Uždirbta {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Išvalyti pasirinkimą",
     "invoiceDone": "Atlikta",
     "filterStatusAllValue": "Visos operacijos",
+    "payoutProgressLabel": "Iki išmokėjimo trūksta {amount}",
+    "payoutProgressReady": "Jau gali atsiimti savo likutį",
+    "approxAmountLong": "Maždaug {amount}",
+    "walletCurrencyLabel": "Rodymo valiuta",
     "withdrawButton": "Išsigryninti",
     "withdrawComingSoon": "Išmokos bus prieinamos visai netrukus",
     "onboardingUTitle": "Patirk unikalias akimirkas su žmonėmis, kuriais <vibra>žaviesi</vibra>",

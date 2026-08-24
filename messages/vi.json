@@ -274,7 +274,8 @@
     "pinError": "Không ghim hoặc bỏ ghim được bài viết.",
     "viewsCountAriaLabel": "{count, plural, other {# lượt xem}}",
     "addFlameToStory": "Thích câu chuyện này",
-    "removeFlameFromStory": "Bỏ thích câu chuyện này"
+    "removeFlameFromStory": "Bỏ thích câu chuyện này",
+    "following": "Đang theo dõi"
   },
   "groups": {
     "title": "Cộng đồng",
@@ -290,7 +291,7 @@
     "hiddenShort": "ẨN",
     "join": "Tham gia",
     "joinError": "Không tham gia được",
-    "joined": "Thành viên",
+    "joined": "Bạn là thành viên",
     "leaveConfirm": "Bạn có chắc muốn rời khỏi cộng đồng này không?",
     "loadError": "Lỗi khi tải cộng đồng",
     "loginRequired": "Đăng nhập để xem cộng đồng",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Vé VOD",
     "financesPendingAmount": "Số tiền sẽ giải ngân",
     "financesBestMonth": "Tháng tốt nhất",
+    "financesLocalApproxNote": "Số tiền bằng {currency} chỉ là ước tính, quy đổi theo tỷ giá hôm nay. Khoản được chi trả cho bạn là số tiền bằng USD.",
     "financesCommissionNet": "Các số tiền này đã trừ 25% hoa hồng của Vibra.",
     "financesCommissionGross": "Các số tiền này chưa trừ 25% hoa hồng của Vibra.",
     "statEarned": "Thu nhập {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Bỏ chọn",
     "invoiceDone": "Xong",
     "filterStatusAllValue": "Tất cả các khoản",
+    "payoutProgressLabel": "Còn thiếu {amount} để có thể rút",
+    "payoutProgressReady": "Bạn có thể rút số dư của mình rồi",
+    "approxAmountLong": "Khoảng {amount}",
+    "walletCurrencyLabel": "Tiền tệ hiển thị",
     "withdrawButton": "Rút tiền",
     "withdrawComingSoon": "Tính năng rút tiền sẽ sớm có mặt",
     "onboardingUTitle": "Sống những trải nghiệm độc nhất cùng người bạn <vibra>ngưỡng mộ</vibra>",

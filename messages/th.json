@@ -274,7 +274,8 @@
     "pinError": "ปักหมุดหรือเลิกปักหมุดโพสต์ไม่สำเร็จ",
     "viewsCountAriaLabel": "{count, plural, other {# การดู}}",
     "addFlameToStory": "ถูกใจสตอรีนี้",
-    "removeFlameFromStory": "เอาถูกใจออกจากสตอรีนี้"
+    "removeFlameFromStory": "เอาถูกใจออกจากสตอรีนี้",
+    "following": "กำลังติดตาม"
   },
   "groups": {
     "title": "ชุมชน",
@@ -290,7 +291,7 @@
     "hiddenShort": "ซ",
     "join": "เข้าร่วม",
     "joinError": "เข้าร่วมไม่สำเร็จ",
-    "joined": "สมาชิก",
+    "joined": "คุณเป็นสมาชิก",
     "leaveConfirm": "แน่ใจหรือไม่ว่าต้องการออกจากชุมชนนี้",
     "loadError": "เกิดข้อผิดพลาดขณะโหลดชุมชน",
     "loginRequired": "เข้าสู่ระบบเพื่อดูชุมชน",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "ตั๋ว VOD",
     "financesPendingAmount": "ยอดที่รอปล่อย",
     "financesBestMonth": "เดือนที่ดีที่สุด",
+    "financesLocalApproxNote": "จำนวนเงินใน {currency} เป็นค่าโดยประมาณ แปลงตามอัตราแลกเปลี่ยนวันนี้ สิ่งที่จ่ายให้คุณคือจำนวนเงินใน USD",
     "financesCommissionNet": "ยอดเหล่านี้หักค่าธรรมเนียม Vibra 25% แล้ว",
     "financesCommissionGross": "ยอดเหล่านี้ยังไม่ได้หักค่าธรรมเนียม Vibra 25%",
     "statEarned": "รายได้{scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "ล้างการเลือก",
     "invoiceDone": "เสร็จสิ้น",
     "filterStatusAllValue": "ธุรกรรมทั้งหมด",
+    "payoutProgressLabel": "ยังขาดอีก {amount} จึงจะถอนได้",
+    "payoutProgressReady": "คุณถอนยอดคงเหลือได้แล้ว",
+    "approxAmountLong": "ประมาณ {amount}",
+    "walletCurrencyLabel": "สกุลเงินที่แสดง",
     "withdrawButton": "ถอนเงิน",
     "withdrawComingSoon": "การถอนเงินจะเปิดให้ใช้เร็ว ๆ นี้",
     "onboardingUTitle": "สัมผัสประสบการณ์พิเศษกับคนที่คุณ<vibra>ชื่นชม</vibra>",

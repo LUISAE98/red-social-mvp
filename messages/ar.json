@@ -274,7 +274,8 @@
     "pinError": "تعذّر تثبيت المنشور أو إلغاء تثبيته.",
     "viewsCountAriaLabel": "{count, plural, zero {# مشاهدة} one {مشاهدة واحدة} two {مشاهدتان} few {# مشاهدات} many {# مشاهدة} other {# مشاهدة}}",
     "addFlameToStory": "أعجبني هذه القصة",
-    "removeFlameFromStory": "إزالة الإعجاب من هذه القصة"
+    "removeFlameFromStory": "إزالة الإعجاب من هذه القصة",
+    "following": "تتابعه"
   },
   "groups": {
     "title": "المجتمعات",
@@ -290,7 +291,7 @@
     "hiddenShort": "مخ",
     "join": "انضمام",
     "joinError": "تعذّر الانضمام",
-    "joined": "عضو",
+    "joined": "أنت عضو",
     "leaveConfirm": "هل أنت متأكد أنك تريد مغادرة هذا المجتمع؟",
     "loadError": "حدث خطأ أثناء تحميل المجتمعات",
     "loginRequired": "سجّل الدخول لعرض المجتمعات",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "تذكرة VOD",
     "financesPendingAmount": "المبلغ المطلوب الإفراج عنه",
     "financesBestMonth": "أفضل شهر",
+    "financesLocalApproxNote": "المبالغ بـ {currency} تقريبية، فهي محوّلة بسعر صرف اليوم. ما يُسدَّد لك هو المبلغ بالدولار الأمريكي.",
     "financesCommissionNet": "هذه المبالغ مخصوم منها بالفعل عمولة Vibra البالغة 25%.",
     "financesCommissionGross": "لم تُخصم بعد من هذه المبالغ عمولة Vibra البالغة 25%.",
     "statEarned": "المُحقَّق {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "مسح التحديد",
     "invoiceDone": "تم",
     "filterStatusAllValue": "كل الحركات",
+    "payoutProgressLabel": "يتبقى {amount} حتى تتمكن من السحب",
+    "payoutProgressReady": "يمكنك سحب رصيدك الآن",
+    "approxAmountLong": "تقريبًا {amount}",
+    "walletCurrencyLabel": "عملة العرض",
     "withdrawButton": "سحب",
     "withdrawComingSoon": "ستتاح عمليات السحب قريبًا جدًا",
     "onboardingUTitle": "عِش تجارب فريدة مع من <vibra>تُعجب بهم</vibra>",

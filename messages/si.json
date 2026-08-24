@@ -274,7 +274,8 @@
     "pinError": "පළ කිරීම අමුණන්න හෝ ඉවත් කරන්න නොහැකි විය.",
     "viewsCountAriaLabel": "{count, plural, one {නැරඹීම් #} other {නැරඹීම් #}}",
     "addFlameToStory": "මෙම කතාවට කැමතියි",
-    "removeFlameFromStory": "මෙම කතාවේ කැමැත්ත ඉවත් කරන්න"
+    "removeFlameFromStory": "මෙම කතාවේ කැමැත්ත ඉවත් කරන්න",
+    "following": "අනුගමනය කරමින්"
   },
   "groups": {
     "title": "ප්‍රජාවන්",
@@ -290,7 +291,7 @@
     "hiddenShort": "සැඟ",
     "join": "එක් වන්න",
     "joinError": "එක් විය නොහැකි විය",
-    "joined": "සාමාජික",
+    "joined": "ඔබ සාමාජිකයෙක්",
     "leaveConfirm": "ඔබට මෙම ප්‍රජාවෙන් ඉවත් වීමට අවශ්‍ය බව විශ්වාසද?",
     "loadError": "ප්‍රජාවන් පූරණය කිරීමේ දෝෂයකි",
     "loginRequired": "ප්‍රජාවන් බැලීමට පිවිසෙන්න",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD ප්‍රවේශපත්‍රය",
     "financesPendingAmount": "නිකුත් කිරීමට මුදල",
     "financesBestMonth": "හොඳම මාසය",
+    "financesLocalApproxNote": "{currency} වලින් ඇති මුදල් අද විනිමය අනුපාතයෙන් පරිවර්තනය කළ ආසන්න අගයන් වේ. ඔබට ගෙවනු ලබන්නේ USD මුදලයි.",
     "financesCommissionNet": "මෙම මුදල්වල දැනටමත් Vibra කොමිස් 25% අඩු කිරීම ඇතුළත් වේ.",
     "financesCommissionGross": "මෙම මුදල්වලින් Vibra කොමිස් 25% තවම අඩු කර නැත.",
     "statEarned": "{scope} උපයාගත්",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "තේරීම හිස් කරන්න",
     "invoiceDone": "අවසන්",
     "filterStatusAllValue": "සියලු චලනයන්",
+    "payoutProgressLabel": "මුදල් ලබා ගැනීමට තව {amount} ක් අවශ්‍යයි",
+    "payoutProgressReady": "දැන් ඔබට ඔබේ ශේෂය ලබා ගත හැකියි",
+    "approxAmountLong": "දළ වශයෙන් {amount}",
+    "walletCurrencyLabel": "පෙන්වන මුදල් ඒකකය",
     "withdrawButton": "ආපසු ගන්න",
     "withdrawComingSoon": "මුදල් ආපසු ගැනීම් ඉතා ඉක්මනින් ලබා ගත හැක",
     "onboardingUTitle": "ඔබ <vibra>අගය කරන</vibra> අය සමඟ අද්විතීය අත්දැකීම් විඳින්න",

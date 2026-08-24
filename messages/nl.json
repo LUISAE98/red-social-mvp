@@ -274,7 +274,8 @@
     "pinError": "De post kon niet worden vastgezet of losgemaakt.",
     "viewsCountAriaLabel": "{count, plural, one {# weergave} other {# weergaven}}",
     "addFlameToStory": "Dit verhaal leuk vinden",
-    "removeFlameFromStory": "Vind-ik-leuk verwijderen"
+    "removeFlameFromStory": "Vind-ik-leuk verwijderen",
+    "following": "Volgend"
   },
   "groups": {
     "title": "Community's",
@@ -290,7 +291,7 @@
     "hiddenShort": "VB",
     "join": "Lid worden",
     "joinError": "Lid worden mislukt",
-    "joined": "Lid",
+    "joined": "Je bent lid",
     "leaveConfirm": "Weet je zeker dat je deze community wilt verlaten?",
     "loadError": "Fout bij het laden van de community's",
     "loginRequired": "Log in om community's te bekijken",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD-ticket",
     "financesPendingAmount": "Vrij te geven bedrag",
     "financesBestMonth": "Beste maand",
+    "financesLocalApproxNote": "De bedragen in {currency} zijn bij benadering, omgerekend tegen de koers van vandaag. Wat aan jou wordt uitbetaald, is het bedrag in USD.",
     "financesCommissionNet": "In deze bedragen is de Vibra-commissie van 25 % al verrekend.",
     "financesCommissionGross": "Van deze bedragen is de Vibra-commissie van 25 % nog niet afgetrokken.",
     "statEarned": "Verdiend {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Selectie wissen",
     "invoiceDone": "Klaar",
     "filterStatusAllValue": "Alle transacties",
+    "payoutProgressLabel": "Je hebt nog {amount} nodig om te kunnen uitbetalen",
+    "payoutProgressReady": "Je kunt je saldo nu uitbetalen",
+    "approxAmountLong": "Ongeveer {amount}",
+    "walletCurrencyLabel": "Weergavevaluta",
     "withdrawButton": "Uitbetalen",
     "withdrawComingSoon": "Uitbetalingen zijn heel binnenkort beschikbaar",
     "onboardingUTitle": "Beleef unieke ervaringen met de mensen die je <vibra>bewondert</vibra>",

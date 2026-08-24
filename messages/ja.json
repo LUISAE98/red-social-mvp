@@ -274,7 +274,8 @@
     "pinError": "投稿をピン留めまたは解除できませんでした。",
     "viewsCountAriaLabel": "{count, plural, other {# 回視聴}}",
     "addFlameToStory": "このストーリーにいいね",
-    "removeFlameFromStory": "このストーリーのいいねを取り消す"
+    "removeFlameFromStory": "このストーリーのいいねを取り消す",
+    "following": "フォロー中"
   },
   "groups": {
     "title": "コミュニティ",
@@ -290,7 +291,7 @@
     "hiddenShort": "非",
     "join": "参加する",
     "joinError": "参加できませんでした",
-    "joined": "メンバー",
+    "joined": "メンバーです",
     "leaveConfirm": "このコミュニティから退出してもよろしいですか？",
     "loadError": "コミュニティの読み込み中にエラーが発生しました",
     "loginRequired": "コミュニティを見るにはログインしてください",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VODチケット",
     "financesPendingAmount": "確定予定の金額",
     "financesBestMonth": "最高の月",
+    "financesLocalApproxNote": "{currency} の金額は本日のレートで換算した概算です。実際に支払われるのは USD の金額です。",
     "financesCommissionNet": "これらの金額からはVibraの手数料25%がすでに差し引かれています。",
     "financesCommissionGross": "これらの金額からはVibraの手数料25%がまだ差し引かれていません。",
     "statEarned": "{scope}の収益",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "選択を解除",
     "invoiceDone": "完了",
     "filterStatusAllValue": "すべての取引",
+    "payoutProgressLabel": "出金できるまであと {amount}",
+    "payoutProgressReady": "残高を出金できます",
+    "approxAmountLong": "約 {amount}",
+    "walletCurrencyLabel": "表示通貨",
     "withdrawButton": "出金",
     "withdrawComingSoon": "出金機能はまもなく利用できます",
     "onboardingUTitle": "<vibra>憧れの人</vibra>と特別な体験を",

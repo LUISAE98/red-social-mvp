@@ -274,7 +274,8 @@
     "pinError": "Příspěvek se nepodařilo připnout ani odepnout.",
     "viewsCountAriaLabel": "{count, plural, one {# zhlédnutí} few {# zhlédnutí} other {# zhlédnutí}}",
     "addFlameToStory": "Dát lajk tomuto příběhu",
-    "removeFlameFromStory": "Odebrat lajk tomuto příběhu"
+    "removeFlameFromStory": "Odebrat lajk tomuto příběhu",
+    "following": "Sledujete"
   },
   "groups": {
     "title": "Komunity",
@@ -290,7 +291,7 @@
     "hiddenShort": "SK",
     "join": "Přidat se",
     "joinError": "Přidání se nezdařilo",
-    "joined": "Člen",
+    "joined": "Jsi členem",
     "leaveConfirm": "Opravdu chceš opustit tuto komunitu?",
     "loadError": "Chyba při načítání komunit",
     "loginRequired": "Přihlas se, abys viděl komunity",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Vstupenka VOD",
     "financesPendingAmount": "Částka k uvolnění",
     "financesBestMonth": "Nejlepší měsíc",
+    "financesLocalApproxNote": "Částky v {currency} jsou přibližné, přepočítávají se dnešním kurzem. Vyplácí se ti částka v USD.",
     "financesCommissionNet": "V těchto částkách je už odečtená provize Vibra ve výši 25 %.",
     "financesCommissionGross": "Z těchto částek zatím nebyla odečtena provize Vibra ve výši 25 %.",
     "statEarned": "Vyděláno {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Zrušit výběr",
     "invoiceDone": "Hotovo",
     "filterStatusAllValue": "Všechny pohyby",
+    "payoutProgressLabel": "Do výběru zbývá {amount}",
+    "payoutProgressReady": "Svůj zůstatek si už můžeš vybrat",
+    "approxAmountLong": "Přibližně {amount}",
+    "walletCurrencyLabel": "Měna zobrazení",
     "withdrawButton": "Vybrat",
     "withdrawComingSoon": "Výběry budou k dispozici velmi brzy",
     "onboardingUTitle": "Zaži jedinečné okamžiky s lidmi, které <vibra>obdivuješ</vibra>",

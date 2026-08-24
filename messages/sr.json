@@ -274,7 +274,8 @@
     "pinError": "Objavu nije bilo moguće zakačiti ni otkačiti.",
     "viewsCountAriaLabel": "{count, plural, one {# преглед} few {# прегледа} other {# прегледа}}",
     "addFlameToStory": "Свиђа ми се ова прича",
-    "removeFlameFromStory": "Уклони свиђање са ове приче"
+    "removeFlameFromStory": "Уклони свиђање са ове приче",
+    "following": "Пратите"
   },
   "groups": {
     "title": "Zajednice",
@@ -290,7 +291,7 @@
     "hiddenShort": "SK",
     "join": "Uđi",
     "joinError": "Ulazak nije uspio",
-    "joined": "Član",
+    "joined": "Члан си",
     "leaveConfirm": "Jesi li siguran da želiš napustiti ovu zajednicu?",
     "loadError": "Greška pri učitavanju zajednica",
     "loginRequired": "Prijavi se da vidiš zajednice",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD ulaznica",
     "financesPendingAmount": "Iznos za oslobađanje",
     "financesBestMonth": "Najbolji mesec",
+    "financesLocalApproxNote": "Iznosi u {currency} su približni, preračunati po današnjem kursu. Isplaćuje ti se iznos u USD.",
     "financesCommissionNet": "Od ovih iznosa već je odbijena Vibrina provizija od 25 %.",
     "financesCommissionGross": "Od ovih iznosa još nije odbijena Vibrina provizija od 25 %.",
     "statEarned": "Zarađeno {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Očisti odabir",
     "invoiceDone": "Gotovo",
     "filterStatusAllValue": "Sve stavke",
+    "payoutProgressLabel": "Nedostaje još {amount} da možeš da isplatiš",
+    "payoutProgressReady": "Sada možeš da isplatiš svoj saldo",
+    "approxAmountLong": "Približno {amount}",
+    "walletCurrencyLabel": "Valuta prikaza",
     "withdrawButton": "Isplati",
     "withdrawComingSoon": "Isplate će biti dostupne vrlo brzo",
     "onboardingUTitle": "Doživi jedinstvene trenutke s ljudima kojima se <vibra>diviš</vibra>",

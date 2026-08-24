@@ -274,7 +274,8 @@
     "pinError": "Postimi nuk u fiksua dhe nuk u hoq dot nga fiksimi.",
     "viewsCountAriaLabel": "{count, plural, one {# shikim} other {# shikime}}",
     "addFlameToStory": "Pëlqe këtë histori",
-    "removeFlameFromStory": "Hiq pëlqimin nga kjo histori"
+    "removeFlameFromStory": "Hiq pëlqimin nga kjo histori",
+    "following": "Duke ndjekur"
   },
   "groups": {
     "title": "Komunitete",
@@ -290,7 +291,7 @@
     "hiddenShort": "FSH",
     "join": "Bashkohu",
     "joinError": "Nuk u bashkove dot",
-    "joined": "Anëtar",
+    "joined": "Je anëtar",
     "leaveConfirm": "Je i sigurt që do të largohesh nga ky komunitet?",
     "loadError": "Gabim gjatë ngarkimit të komuniteteve",
     "loginRequired": "Hyr për të parë komunitetet",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Biletë VOD",
     "financesPendingAmount": "Shuma për t'u liruar",
     "financesBestMonth": "Muaji më i mirë",
+    "financesLocalApproxNote": "Shumat në {currency} janë të përafërta, të konvertuara me kursin e sotëm. Ajo që të paguhet është shuma në USD.",
     "financesCommissionNet": "Këto shuma e kanë tashmë të zbritur komisionin 25% të Vibra-s.",
     "financesCommissionGross": "Këtyre shumave nuk u është zbritur ende komisioni 25% i Vibra-s.",
     "statEarned": "Fituar {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Pastro zgjedhjen",
     "invoiceDone": "U krye",
     "filterStatusAllValue": "Të gjitha lëvizjet",
+    "payoutProgressLabel": "Të mungojnë {amount} që të mund të tërheqësh",
+    "payoutProgressReady": "Tani mund ta tërheqësh bilancin tënd",
+    "approxAmountLong": "Përafërsisht {amount}",
+    "walletCurrencyLabel": "Monedha e shfaqjes",
     "withdrawButton": "Tërhiq",
     "withdrawComingSoon": "Tërheqjet do të jenë të disponueshme shumë shpejt",
     "onboardingUTitle": "Jeto përvoja unike me njerëzit që <vibra>admiron</vibra>",

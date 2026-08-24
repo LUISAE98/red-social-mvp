@@ -154,7 +154,15 @@ export const createLiveDonationStripeIntent = onCall(
     // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
-    const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(composeCharge(base, country));
+    // 💵 Si el comprador TECLEÓ un total, ese es el que paga: no se redondea al escalón.
+    // Escribir 100.00 y que se cobren 100.99 es de las cosas que peor sientan, y el
+    // redondeo comercial está para que un PRECIO quede bonito, no para corregir a quien
+    // eligió la cifra. El desglose se despeja hacia atrás desde su número.
+    const totalExactoLocal = round2(Number(data.exactTotalLocal ?? 0)) || null;
+    const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(
+      composeCharge(base, country),
+      totalExactoLocal
+    );
     const totalMxn = charge.chargedAmount;
 
     // Id único por donación (es el id del super-comentario que se materializará).

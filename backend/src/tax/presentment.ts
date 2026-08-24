@@ -98,9 +98,39 @@ async function tasaDestino(
 }
 
 export async function applyCharmRounding(
-  c: ChargeComposition
+  c: ChargeComposition,
+  /**
+   * Total EXACTO que el comprador tecleó, en su moneda. Solo lo manda la DONACIÓN, que es
+   * el único sitio donde el importe lo elige él.
+   *
+   * ⚠️ Con esto NO se redondea al escalón. Si alguien escribe 100.00 tiene que pagar 100.00,
+   * no 100.99: el redondeo comercial existe para que un PRECIO quede bonito, y aquí el
+   * número ya lo puso el comprador. El desglose se despeja hacia atrás desde su cifra.
+   */
+  totalExactoLocal?: number | null
 ): Promise<{ charge: ChargeComposition; quote: FxQuote | null; displayAmount: number | null }> {
   const target = c.displayCurrency.toUpperCase();
+
+  if (totalExactoLocal != null && totalExactoLocal > 0) {
+    if (target === SETTLEMENT_CURRENCY) {
+      return {
+        charge: recomposeWithCharged(c, totalExactoLocal),
+        quote: null,
+        displayAmount: totalExactoLocal,
+      };
+    }
+    const tExacta = await tasaDestino(target);
+    if (tExacta) {
+      const enLiquidacion =
+        Math.round((totalExactoLocal / tExacta.porUnidadLiquidacion) * 100) / 100;
+      return {
+        charge: recomposeWithCharged(c, enLiquidacion),
+        quote: tExacta.quote,
+        displayAmount: totalExactoLocal,
+      };
+    }
+    // Sin tasa utilizable se sigue por el camino normal: mejor redondear que no cobrar.
+  }
 
   if (target === SETTLEMENT_CURRENCY) {
     const redondeado = roundCharm(c.chargedAmount, SETTLEMENT_CURRENCY);

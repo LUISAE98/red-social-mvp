@@ -13,8 +13,7 @@ import WalletChannelFilter from "./WalletChannelFilter";
 import WalletMovementsChart, { type ChartBucket } from "./WalletMovementsChart";
 import { useMediaSlideReservedHeight } from "@/app/[locale]/groups/[groupId]/components/posts/useMediaSlideReservedHeight";
 import { useOwnedChannels } from "@/lib/wallet/walletSubscriptionData";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
 import {
   useWalletLedger,
   ledgerTypeLabelKey,
@@ -104,15 +103,9 @@ export default function WalletTransactions({
 }) {
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
-  const pf = usePriceFormat();
-  /**
-   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
-   *
-   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
-   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
-   */
-  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
-    pf.formatAnchor(amount, { code: opts.code ?? false });
+  // Dinero del CREADOR, en USD o en su moneda según el switch de la wallet.
+  // Formateador único: ver `useWalletMoney`.
+  const { formatMoney } = useWalletMoney();
   const [filter, setFilter] = useState<Filter>("all");
   // Filtro por estado dentro de "Todos" (multi-selección, mismo menú que Pendientes/Historial).
   const [statusFilter, setStatusFilter] = useState<Array<"all" | LedgerStatus>>(["all"]);

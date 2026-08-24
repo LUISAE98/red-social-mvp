@@ -274,7 +274,8 @@
     "pinError": "Impossible d'épingler ou de désépingler la publication.",
     "viewsCountAriaLabel": "{count, plural, one {# vue} other {# vues}}",
     "addFlameToStory": "Aimer cette story",
-    "removeFlameFromStory": "Retirer le j'aime de cette story"
+    "removeFlameFromStory": "Retirer le j'aime de cette story",
+    "following": "Abonné"
   },
   "groups": {
     "title": "Communautés",
@@ -290,7 +291,7 @@
     "hiddenShort": "MQ",
     "join": "Rejoindre",
     "joinError": "Impossible de rejoindre",
-    "joined": "Membre",
+    "joined": "Tu es membre",
     "leaveConfirm": "Veux-tu vraiment quitter cette communauté ?",
     "loadError": "Erreur lors du chargement des communautés",
     "loginRequired": "Connecte-toi pour voir les communautés",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Billet VOD",
     "financesPendingAmount": "Montant à libérer",
     "financesBestMonth": "Meilleur mois",
+    "financesLocalApproxNote": "Les montants en {currency} sont approximatifs, convertis au taux de change du jour. Ce qui t'est versé, c'est le montant en USD.",
     "financesCommissionNet": "Ces montants incluent déjà la déduction de la commission Vibra de 25 %.",
     "financesCommissionGross": "La commission Vibra de 25 % n'a pas encore été déduite de ces montants.",
     "statEarned": "Gagné {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Effacer la sélection",
     "invoiceDone": "Terminé",
     "filterStatusAllValue": "Tous les mouvements",
+    "payoutProgressLabel": "Il te manque {amount} pour pouvoir retirer",
+    "payoutProgressReady": "Tu peux maintenant retirer ton solde",
+    "approxAmountLong": "Environ {amount}",
+    "walletCurrencyLabel": "Devise d'affichage",
     "withdrawButton": "Retirer",
     "withdrawComingSoon": "Les retraits seront disponibles très bientôt",
     "onboardingUTitle": "Vis des expériences uniques avec les personnes que tu <vibra>admires</vibra>",

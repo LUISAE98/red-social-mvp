@@ -274,7 +274,8 @@
     "pinError": "Inlägget kunde inte fästas eller lossas.",
     "viewsCountAriaLabel": "{count, plural, one {# visning} other {# visningar}}",
     "addFlameToStory": "Gilla den här storyn",
-    "removeFlameFromStory": "Ta bort gilla från den här storyn"
+    "removeFlameFromStory": "Ta bort gilla från den här storyn",
+    "following": "Följer"
   },
   "groups": {
     "title": "Communities",
@@ -290,7 +291,7 @@
     "hiddenShort": "DL",
     "join": "Gå med",
     "joinError": "Det gick inte att gå med",
-    "joined": "Medlem",
+    "joined": "Du är medlem",
     "leaveConfirm": "Är du säker på att du vill lämna den här communityn?",
     "loadError": "Fel vid inläsning av communities",
     "loginRequired": "Logga in för att se communities",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD-biljett",
     "financesPendingAmount": "Belopp att frisläppa",
     "financesBestMonth": "Bästa månaden",
+    "financesLocalApproxNote": "Beloppen i {currency} är ungefärliga, omräknade till dagens kurs. Det du får utbetalt är beloppet i USD.",
     "financesCommissionNet": "De här beloppen har redan Vibras provision på 25 % avdragen.",
     "financesCommissionGross": "Vibras provision på 25 % är ännu inte avdragen från de här beloppen.",
     "statEarned": "Intjänat {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Rensa valet",
     "invoiceDone": "Klart",
     "filterStatusAllValue": "Alla transaktioner",
+    "payoutProgressLabel": "Det saknas {amount} innan du kan ta ut",
+    "payoutProgressReady": "Du kan ta ut ditt saldo nu",
+    "approxAmountLong": "Ungefär {amount}",
+    "walletCurrencyLabel": "Visningsvaluta",
     "withdrawButton": "Ta ut",
     "withdrawComingSoon": "Uttag blir tillgängliga mycket snart",
     "onboardingUTitle": "Upplev unika stunder med människorna du <vibra>beundrar</vibra>",

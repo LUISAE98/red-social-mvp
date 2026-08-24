@@ -10,6 +10,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 import { useAuth } from "@/app/providers";
 import { db } from "@/lib/firebase";
+import { useKeyboardOpen } from "@/lib/hooks/useKeyboardOpen";
 import { useNotifications } from "@/lib/hooks/useNotifications";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { usePendingExperiences } from "@/lib/wallet/usePendingExperiences";
@@ -340,6 +341,23 @@ export default function MobileBottomNav({
   // Clear pending when real navigation completes
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPendingHref(null); }, [pathname]);
+
+  /**
+   * Con el teclado en pantalla la barra se esconde.
+   *
+   * Es lo único que la mantiene quieta. Un `fixed` se ancla al viewport de
+   * LAYOUT, y con el teclado abierto ese viewport ya no coincide con lo que se
+   * ve: Android lo encoge y arrastra la barra hacia arriba, iOS recoloca los
+   * `fixed` por su cuenta. En los dos casos la barra acaba flotando a media
+   * pantalla. No hay CSS que lo evite, porque no lo hace el CSS: lo hace el
+   * navegador.
+   *
+   * Esconderla no pierde nada. Mientras se escribe, el sitio de abajo es del
+   * teclado; volver a la barra pasa por cerrarlo, y entonces reaparece en su
+   * sitio. Es lo mismo que ya se hace con un modal abierto, unas líneas más
+   * abajo en las reglas.
+   */
+  const tecladoAbierto = useKeyboardOpen();
 
   // ── Nav scale (shrink on scroll-down / idle) ───────────────────────────────
   const [navScale, setNavScale] = useState(1);
@@ -910,13 +928,26 @@ export default function MobileBottomNav({
         :global(body.vb-modal-open) .wrap {
           display: none;
         }
+
+        /* Teclado en pantalla: ver la nota larga junto a useKeyboardOpen en
+           el cuerpo del componente. Gana al display: block de la media query
+           por especificidad —(0,2,0) contra (0,1,0)—, no por orden. */
+        .wrap[data-teclado="abierto"] {
+          display: none;
+        }
       `}</style>
 
       {/* Anclaje para quien necesite saber cuánto ocupa el nav. El reel lo mide
           para apartar sus controles: su alto depende del safe-area del aparato y
           además se encoge al hacer scroll, así que copiarlo como número fijo
           siempre acaba desfasado. */}
-      <nav ref={navRef} className="wrap" data-vibra-bottom-nav="" aria-label={t("mobileNavLabel")}>
+      <nav
+        ref={navRef}
+        className="wrap"
+        data-vibra-bottom-nav=""
+        data-teclado={tecladoAbierto ? "abierto" : undefined}
+        aria-label={t("mobileNavLabel")}
+      >
         {/* El degradado de marca que enciende el icono al elegir sección. Vive
             aquí, una sola vez, y los iconos lo referencian por su id: un
             degradado SVG no se puede declarar desde CSS. El svg no ocupa ni

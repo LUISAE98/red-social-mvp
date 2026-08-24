@@ -274,7 +274,8 @@
     "pinError": "Нийтлэлийг бэхлэх буюу тайлж чадсангүй.",
     "viewsCountAriaLabel": "{count, plural, one {# үзэлт} other {# үзэлт}}",
     "addFlameToStory": "Энэ түүхэнд таалагдлаа",
-    "removeFlameFromStory": "Энэ түүхээс таалагдсаныг арилгах"
+    "removeFlameFromStory": "Энэ түүхээс таалагдсаныг арилгах",
+    "following": "Дагаж байна"
   },
   "groups": {
     "title": "Нийгэмлэгүүд",
@@ -290,7 +291,7 @@
     "hiddenShort": "НУ",
     "join": "Нэгдэх",
     "joinError": "Нэгдэж чадсангүй",
-    "joined": "Гишүүн",
+    "joined": "Та гишүүн",
     "leaveConfirm": "Та энэ нийгэмлэгээс гарахдаа итгэлтэй байна уу?",
     "loadError": "Нийгэмлэгүүдийг ачаалахад алдаа гарлаа",
     "loginRequired": "Нийгэмлэгүүдийг харахын тулд нэвтэрнэ үү",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD тасалбар",
     "financesPendingAmount": "Гаргах дүн",
     "financesBestMonth": "Хамгийн сайн сар",
+    "financesLocalApproxNote": "{currency} дүнгүүд нь өнөөдрийн ханшаар хөрвүүлсэн ойролцоо тоо юм. Танд төлөгдөх нь USD дүн.",
     "financesCommissionNet": "Эдгээр дүнд Vibra-гийн 25% шимтгэлийн хасалт аль хэдийн орсон байна.",
     "financesCommissionGross": "Эдгээр дүнгээс Vibra-гийн 25% шимтгэлийг хараахан хасаагүй байна.",
     "statEarned": "{scope} олсон",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Сонголтыг цэвэрлэх",
     "invoiceDone": "Дууслаа",
     "filterStatusAllValue": "Бүх гүйлгээ",
+    "payoutProgressLabel": "Мөнгө татахад {amount} дутуу байна",
+    "payoutProgressReady": "Одоо үлдэгдлээ татах боломжтой",
+    "approxAmountLong": "Ойролцоогоор {amount}",
+    "walletCurrencyLabel": "Харуулах валют",
     "withdrawButton": "Татах",
     "withdrawComingSoon": "Мөнгө татах боломж удахгүй нээгдэнэ",
     "onboardingUTitle": "Өөрийн <vibra>биширдэг</vibra> хүмүүстэй давтагдашгүй туршлага амсаарай",

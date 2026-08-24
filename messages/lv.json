@@ -274,7 +274,8 @@
     "pinError": "Neizdevās piespraust vai atspraust ierakstu.",
     "viewsCountAriaLabel": "{count, plural, zero {# skatījumu} one {# skatījums} other {# skatījumi}}",
     "addFlameToStory": "Patīk šis stāsts",
-    "removeFlameFromStory": "Noņemt patīk no šī stāsta"
+    "removeFlameFromStory": "Noņemt patīk no šī stāsta",
+    "following": "Sekojat"
   },
   "groups": {
     "title": "Kopienas",
@@ -290,7 +291,7 @@
     "hiddenShort": "SL",
     "join": "Pievienoties",
     "joinError": "Pievienoties neizdevās",
-    "joined": "Dalībnieks",
+    "joined": "Tu esi dalībnieks",
     "leaveConfirm": "Vai tiešām vēlies pamest šo kopienu?",
     "loadError": "Kļūda, ielādējot kopienas",
     "loginRequired": "Piesakies, lai redzētu kopienas",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD biļete",
     "financesPendingAmount": "Summa atbrīvošanai",
     "financesBestMonth": "Labākais mēnesis",
+    "financesLocalApproxNote": "Summas {currency} valūtā ir aptuvenas, pārrēķinātas pēc šodienas kursa. Tev izmaksā summu USD.",
     "financesCommissionNet": "Šajās summās jau ir atskaitīta Vibra 25% komisijas maksa.",
     "financesCommissionGross": "No šīm summām Vibra 25% komisijas maksa vēl nav atskaitīta.",
     "statEarned": "Nopelnīts {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Notīrīt izvēli",
     "invoiceDone": "Gatavs",
     "filterStatusAllValue": "Visi darījumi",
+    "payoutProgressLabel": "Līdz izmaksai trūkst {amount}",
+    "payoutProgressReady": "Tagad vari izņemt savu atlikumu",
+    "approxAmountLong": "Aptuveni {amount}",
+    "walletCurrencyLabel": "Attēlošanas valūta",
     "withdrawButton": "Izmaksāt",
     "withdrawComingSoon": "Izmaksas būs pieejamas pavisam drīz",
     "onboardingUTitle": "Piedzīvo unikālas pieredzes ar cilvēkiem, kurus <vibra>apbrīno</vibra>",

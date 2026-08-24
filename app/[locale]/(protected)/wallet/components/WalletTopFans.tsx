@@ -13,8 +13,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import WalletScopeToggle, { type StatScope } from "./WalletScopeToggle";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
 
 const DAY = 86400000;
 
@@ -129,15 +128,9 @@ export default function WalletTopFans({
   uid: string | null | undefined;
 }) {
   const tWallet = useTranslations("wallet");
-  const pf = usePriceFormat();
-  /**
-   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
-   *
-   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al
-   * escalón—, así que inflaba el saldo del creador: sobre 500 USD, 170 pesos de más.
-   */
-  const formatMoney = (amount: number, opts: { code?: boolean } = {}) =>
-    pf.formatAnchor(amount, { code: opts.code ?? false });
+  // Dinero del CREADOR, en USD o en su moneda según el switch de la wallet.
+  // Formateador único: ver `useWalletMoney`.
+  const { formatMoney } = useWalletMoney();
   const { entries } = useWalletLedger(uid, 1000);
   const [scope, setScope] = useState<StatScope>("all");
 

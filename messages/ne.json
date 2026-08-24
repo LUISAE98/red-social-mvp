@@ -274,7 +274,8 @@
     "pinError": "पोस्ट पिन वा अनपिन गर्न सकिएन।",
     "viewsCountAriaLabel": "{count, plural, one {# हेराइ} other {# हेराइ}}",
     "addFlameToStory": "यो कथालाई मन पराउनुहोस्",
-    "removeFlameFromStory": "यो कथाबाट मन पराएको हटाउनुहोस्"
+    "removeFlameFromStory": "यो कथाबाट मन पराएको हटाउनुहोस्",
+    "following": "फलो गर्दै"
   },
   "groups": {
     "title": "समुदायहरू",
@@ -290,7 +291,7 @@
     "hiddenShort": "लुके",
     "join": "सहभागी हुनुहोस्",
     "joinError": "सहभागी हुन सकिएन",
-    "joined": "सदस्य",
+    "joined": "तपाईं सदस्य हुनुहुन्छ",
     "leaveConfirm": "के तपाईं यो समुदाय छोड्न निश्चित हुनुहुन्छ?",
     "loadError": "समुदायहरू लोड गर्दा त्रुटि भयो",
     "loginRequired": "समुदायहरू हेर्न लगइन गर्नुहोस्",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD टिकट",
     "financesPendingAmount": "जारी गर्नुपर्ने रकम",
     "financesBestMonth": "उत्कृष्ट महिना",
+    "financesLocalApproxNote": "{currency} मा रहेका रकम अनुमानित हुन्, आजको विनिमय दरमा रूपान्तरण गरिएका। तपाईंलाई भुक्तानी हुने रकम USD मा हुन्छ।",
     "financesCommissionNet": "यी रकमहरूमा Vibra को 25% कमिसन कटौती पहिले नै समावेश छ।",
     "financesCommissionGross": "यी रकमहरूबाट Vibra को 25% कमिसन अझै कटाइएको छैन।",
     "statEarned": "{scope} कमाइयो",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "चयन खाली गर्नुहोस्",
     "invoiceDone": "सम्पन्न",
     "filterStatusAllValue": "सबै कारोबारहरू",
+    "payoutProgressLabel": "निकाल्न सक्न {amount} बाँकी छ",
+    "payoutProgressReady": "अब तपाईं आफ्नो ब्यालेन्स निकाल्न सक्नुहुन्छ",
+    "approxAmountLong": "लगभग {amount}",
+    "walletCurrencyLabel": "देखाउने मुद्रा",
     "withdrawButton": "निकाल्नुहोस्",
     "withdrawComingSoon": "रकम निकासी धेरै चाँडै उपलब्ध हुनेछ",
     "onboardingUTitle": "आफूले <vibra>प्रशंसा गर्ने</vibra> मानिसहरूसँग अद्वितीय अनुभवहरू जिउनुहोस्",

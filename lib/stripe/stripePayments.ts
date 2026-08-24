@@ -67,6 +67,11 @@ export async function createDonationStripeIntent(input: {
   groupName?: string | null;
   savedPaymentMethodId?: string;
   applyCredit?: boolean;
+  /**
+   * Total EXACTO que tecleó el donante, en SU moneda. Con él el servidor NO redondea al
+   * escalón comercial: quien escribe 100.00 paga 100.00.
+   */
+  exactTotalLocal?: number | null;
   /** Apodo del donador (invitado sin login o usuario logueado). Opcional. */
   nickname?: string | null;
 }): Promise<StripeChargeResult> {
@@ -109,6 +114,11 @@ export async function createLiveDonationStripeIntent(input: {
   taxCountry: string | null;
   savedPaymentMethodId?: string;
   applyCredit?: boolean;
+  /**
+   * Total EXACTO que tecleó el donante, en SU moneda. Con él el servidor NO redondea al
+   * escalón comercial: quien escribe 100.00 paga 100.00.
+   */
+  exactTotalLocal?: number | null;
   /** Apodo del donador (invitado sin perfil). Aparece en el chat del live. */
   nickname?: string | null;
 }): Promise<StripeChargeResult> {

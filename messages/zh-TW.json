@@ -274,7 +274,8 @@
     "pinError": "無法置頂或取消置頂貼文。",
     "viewsCountAriaLabel": "{count, plural, other {# 次觀看}}",
     "addFlameToStory": "喜歡這則限時動態",
-    "removeFlameFromStory": "取消喜歡這則限時動態"
+    "removeFlameFromStory": "取消喜歡這則限時動態",
+    "following": "追蹤中"
   },
   "groups": {
     "title": "社群",
@@ -290,7 +291,7 @@
     "hiddenShort": "隱",
     "join": "加入",
     "joinError": "無法加入",
-    "joined": "成員",
+    "joined": "你是成員",
     "leaveConfirm": "確定要退出這個社群嗎？",
     "loadError": "載入社群時發生錯誤",
     "loginRequired": "登入後即可查看社群",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD 門票",
     "financesPendingAmount": "待確認金額",
     "financesBestMonth": "最好的一個月",
+    "financesLocalApproxNote": "{currency} 金額為依今日匯率換算的概數。實際支付給你的是 USD 金額。",
     "financesCommissionNet": "這些金額已經扣除 Vibra 25% 的手續費。",
     "financesCommissionGross": "這些金額尚未扣除 Vibra 25% 的手續費。",
     "statEarned": "{scope}收益",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "清除選擇",
     "invoiceDone": "完成",
     "filterStatusAllValue": "所有交易",
+    "payoutProgressLabel": "還差 {amount} 才能提領",
+    "payoutProgressReady": "你現在可以提領餘額了",
+    "approxAmountLong": "約 {amount}",
+    "walletCurrencyLabel": "顯示貨幣",
     "withdrawButton": "提領",
     "withdrawComingSoon": "提領功能很快就會開放",
     "onboardingUTitle": "和你<vibra>欣賞的人</vibra>一起體驗獨一無二的時刻",

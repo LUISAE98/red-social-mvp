@@ -274,7 +274,8 @@
     "pinError": "Opslaget kunne ikke fastgøres eller frigøres.",
     "viewsCountAriaLabel": "{count, plural, one {# visning} other {# visninger}}",
     "addFlameToStory": "Synes godt om denne historie",
-    "removeFlameFromStory": "Fjern synes godt om fra denne historie"
+    "removeFlameFromStory": "Fjern synes godt om fra denne historie",
+    "following": "Følger"
   },
   "groups": {
     "title": "Communities",
@@ -290,7 +291,7 @@
     "hiddenShort": "SK",
     "join": "Bliv medlem",
     "joinError": "Du kunne ikke blive medlem",
-    "joined": "Medlem",
+    "joined": "Du er medlem",
     "leaveConfirm": "Er du sikker på, at du vil forlade dette community?",
     "loadError": "Fejl under indlæsning af communities",
     "loginRequired": "Log ind for at se communities",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD-billet",
     "financesPendingAmount": "Beløb til frigivelse",
     "financesBestMonth": "Bedste måned",
+    "financesLocalApproxNote": "Beløbene i {currency} er omtrentlige, de omregnes til dagens kurs. Det, du får udbetalt, er beløbet i USD.",
     "financesCommissionNet": "Disse beløb har allerede fået Vibras kommission på 25 % trukket fra.",
     "financesCommissionGross": "Vibras kommission på 25 % er endnu ikke trukket fra disse beløb.",
     "statEarned": "Tjent {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Ryd markeringen",
     "invoiceDone": "Færdig",
     "filterStatusAllValue": "Alle posteringer",
+    "payoutProgressLabel": "Der mangler {amount}, før du kan udbetale",
+    "payoutProgressReady": "Du kan udbetale din saldo nu",
+    "approxAmountLong": "Cirka {amount}",
+    "walletCurrencyLabel": "Visningsvaluta",
     "withdrawButton": "Udbetal",
     "withdrawComingSoon": "Udbetalinger bliver tilgængelige meget snart",
     "onboardingUTitle": "Oplev noget helt særligt sammen med dem, du <vibra>ser op til</vibra>",

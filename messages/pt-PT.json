@@ -274,7 +274,8 @@
     "pinError": "Não foi possível fixar ou desafixar a publicação.",
     "viewsCountAriaLabel": "{count, plural, one {# visualização} other {# visualizações}}",
     "addFlameToStory": "Gostar desta história",
-    "removeFlameFromStory": "Remover gosto desta história"
+    "removeFlameFromStory": "Remover gosto desta história",
+    "following": "A seguir"
   },
   "groups": {
     "title": "Comunidades",
@@ -290,7 +291,7 @@
     "hiddenShort": "OC",
     "join": "Entrar",
     "joinError": "Não foi possível entrar",
-    "joined": "Membro",
+    "joined": "És membro",
     "leaveConfirm": "Tens a certeza de que queres sair desta comunidade?",
     "loadError": "Erro ao carregar comunidades",
     "loginRequired": "Inicia sessão para veres comunidades",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Bilhete de VOD",
     "financesPendingAmount": "Valor a libertar",
     "financesBestMonth": "Melhor mês",
+    "financesLocalApproxNote": "Os montantes em {currency} são aproximados, convertidos à taxa de câmbio de hoje. O que te é liquidado é o montante em USD.",
     "financesCommissionNet": "Estes valores já têm a comissão de 25% do Vibra descontada.",
     "financesCommissionGross": "Estes valores ainda não têm a comissão de 25% do Vibra descontada.",
     "statEarned": "Ganho {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Limpar a seleção",
     "invoiceDone": "Pronto",
     "filterStatusAllValue": "Todos os movimentos",
+    "payoutProgressLabel": "Faltam {amount} para poderes levantar",
+    "payoutProgressReady": "Já podes levantar o teu saldo",
+    "approxAmountLong": "Aproximadamente {amount}",
+    "walletCurrencyLabel": "Moeda de apresentação",
     "withdrawButton": "Levantar",
     "withdrawComingSoon": "Os levantamentos vão estar disponíveis muito em breve",
     "onboardingUTitle": "Vive experiências únicas com as pessoas que <vibra>admiras</vibra>",

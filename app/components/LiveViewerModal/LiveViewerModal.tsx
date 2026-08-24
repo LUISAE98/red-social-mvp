@@ -2241,6 +2241,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         return createLiveDonationStripeIntent({
           postId: post.id,
           amount: args.amount,
+          exactTotalLocal: args.exactTotalLocal ?? null,
           saveCard: args.saveCard,
           taxCountry: args.taxCountry,
           savedPaymentMethodId: args.savedPaymentMethodId,

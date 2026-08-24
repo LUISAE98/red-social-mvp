@@ -274,7 +274,8 @@
     "pinError": "Hindi na-pin o na-unpin ang post.",
     "viewsCountAriaLabel": "{count, plural, one {# panonood} other {# na panonood}}",
     "addFlameToStory": "I-like ang kuwentong ito",
-    "removeFlameFromStory": "Alisin ang like sa kuwentong ito"
+    "removeFlameFromStory": "Alisin ang like sa kuwentong ito",
+    "following": "Sinusundan"
   },
   "groups": {
     "title": "Mga komunidad",
@@ -290,7 +291,7 @@
     "hiddenShort": "NT",
     "join": "Sumali",
     "joinError": "Hindi nakasali",
-    "joined": "Miyembro",
+    "joined": "Miyembro ka",
     "leaveConfirm": "Sigurado ka bang gusto mong umalis sa komunidad na ito?",
     "loadError": "Error sa pag-load ng mga komunidad",
     "loginRequired": "Mag-log in para makita ang mga komunidad",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Tiket sa VOD",
     "financesPendingAmount": "Halagang ire-release",
     "financesBestMonth": "Pinakamagandang buwan",
+    "financesLocalApproxNote": "Tinatayang halaga lang ang nasa {currency}, na kino-convert sa palitan ngayong araw. Ang binabayad sa iyo ay ang halaga sa USD.",
     "financesCommissionNet": "Nabawasan na ang mga halagang ito ng 25% komisyon ng Vibra.",
     "financesCommissionGross": "Hindi pa nababawasan ang mga halagang ito ng 25% komisyon ng Vibra.",
     "statEarned": "Kinita {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "I-clear ang napili",
     "invoiceDone": "Tapos na",
     "filterStatusAllValue": "Lahat ng galaw",
+    "payoutProgressLabel": "Kulang pa ng {amount} bago ka makapag-withdraw",
+    "payoutProgressReady": "Puwede mo nang i-withdraw ang balanse mo",
+    "approxAmountLong": "Humigit-kumulang {amount}",
+    "walletCurrencyLabel": "Pananalapi ng pagpapakita",
     "withdrawButton": "Mag-withdraw",
     "withdrawComingSoon": "Malapit nang maging available ang mga withdrawal",
     "onboardingUTitle": "Maranasan ang mga natatanging karanasan kasama ang mga taong <vibra>hinahangaan</vibra> mo",

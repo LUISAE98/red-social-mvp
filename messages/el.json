@@ -274,7 +274,8 @@
     "pinError": "Δεν ήταν δυνατό το καρφίτσωμα ή το ξεκαρφίτσωμα της δημοσίευσης.",
     "viewsCountAriaLabel": "{count, plural, one {# προβολή} other {# προβολές}}",
     "addFlameToStory": "Μου αρέσει αυτή η ιστορία",
-    "removeFlameFromStory": "Αφαίρεση από τα αγαπημένα"
+    "removeFlameFromStory": "Αφαίρεση από τα αγαπημένα",
+    "following": "Ακολουθείτε"
   },
   "groups": {
     "title": "Κοινότητες",
@@ -290,7 +291,7 @@
     "hiddenShort": "ΚΡ",
     "join": "Μπες",
     "joinError": "Δεν ήταν δυνατή η είσοδος",
-    "joined": "Μέλος",
+    "joined": "Είσαι μέλος",
     "leaveConfirm": "Σίγουρα θέλεις να αποχωρήσεις από αυτή την κοινότητα;",
     "loadError": "Σφάλμα κατά τη φόρτωση των κοινοτήτων",
     "loginRequired": "Συνδέσου για να δεις τις κοινότητες",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Εισιτήριο VOD",
     "financesPendingAmount": "Ποσό προς αποδέσμευση",
     "financesBestMonth": "Καλύτερος μήνας",
+    "financesLocalApproxNote": "Τα ποσά σε {currency} είναι κατά προσέγγιση, μετατρέπονται με τη σημερινή ισοτιμία. Αυτό που εξοφλείται είναι το ποσό σε USD.",
     "financesCommissionNet": "Σε αυτά τα ποσά έχει ήδη αφαιρεθεί η προμήθεια της Vibra 25 %.",
     "financesCommissionGross": "Από αυτά τα ποσά δεν έχει αφαιρεθεί ακόμη η προμήθεια της Vibra 25 %.",
     "statEarned": "Κερδισμένα {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Καθαρισμός επιλογής",
     "invoiceDone": "Έτοιμο",
     "filterStatusAllValue": "Όλες οι κινήσεις",
+    "payoutProgressLabel": "Απομένουν {amount} για να μπορείς να κάνεις ανάληψη",
+    "payoutProgressReady": "Μπορείς να κάνεις ανάληψη του υπολοίπου σου",
+    "approxAmountLong": "Περίπου {amount}",
+    "walletCurrencyLabel": "Νόμισμα εμφάνισης",
     "withdrawButton": "Ανάληψη",
     "withdrawComingSoon": "Οι αναλήψεις θα είναι διαθέσιμες πολύ σύντομα",
     "onboardingUTitle": "Ζήσε μοναδικές εμπειρίες με τους ανθρώπους που <vibra>θαυμάζεις</vibra>",

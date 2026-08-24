@@ -31,9 +31,9 @@ const LiveViewerModal = dynamic(
   () => import("@/app/components/LiveViewerModal/LiveViewerModal"),
   { ssr: false }
 );
-import { joinGroup } from "@/lib/groups/membership";
-import { requestToJoin } from "@/lib/groups/joinRequests";
-import { followUser } from "@/lib/social/social-service";
+import { joinGroup, leaveGroup } from "@/lib/groups/membership";
+import { requestToJoin, cancelJoinRequest } from "@/lib/groups/joinRequests";
+import { followUser, unfollowUser } from "@/lib/social/social-service";
 import {
   GROUP_CATEGORY_LABELS,
   GROUP_CATEGORY_OPTIONS,
@@ -132,7 +132,30 @@ export default function GroupRecommendationsRail({
 
   const minCategories = recommendationEngineConstants.MIN_ONBOARDING_CATEGORIES;
 
-  const loadRecommendations = useCallback(async () => {
+  /**
+   * `silencioso` recarga los datos SIN pintar los skeletons.
+   *
+   * Lo usa la recarga que dispara una acción del usuario (unirse, seguir): ahí
+   * las tarjetas ya están en pantalla y su estado ya se actualizó a mano, así
+   * que vaciarlas para volver a dibujarlas es puro parpadeo. Los skeletons son
+   * para la PRIMERA carga, cuando de verdad no hay nada que enseñar.
+   */
+  /**
+   * Cuánto tiene que verse como mínimo la señal de que algo está en marcha.
+   *
+   * Una escritura a Firestore puede resolverse en 150ms, y un destello así no
+   * se lee: el usuario pulsa, no ve nada y cree que el botón no respondió. Con
+   * este suelo, los puntos dan al menos un latido completo.
+   */
+  const MINIMO_CARGA_MS = 450;
+
+  /** Espera lo que le falte a la señal de carga para llegar al mínimo. */
+  const esperarMinimo = async (inicio: number) => {
+    const resto = MINIMO_CARGA_MS - (Date.now() - inicio);
+    if (resto > 0) await new Promise((r) => setTimeout(r, resto));
+  };
+
+  const loadRecommendations = useCallback(async (silencioso = false) => {
     if (!currentUserId) {
       setResult(null);
       setJoinStates({});
@@ -144,7 +167,7 @@ export default function GroupRecommendationsRail({
       return;
     }
 
-    if (!getCachedResult(currentUserId)) setLoading(true);
+    if (!silencioso && !getCachedResult(currentUserId)) setLoading(true);
     setError(null);
 
     try {
@@ -197,7 +220,9 @@ export default function GroupRecommendationsRail({
   // When any Rail instance invalidates the shared cache, all instances re-fetch
   useEffect(() => {
     return onRecommendationCacheInvalidated(() => {
-      void loadRecommendationsRef.current();
+      // En silencio: quien invalida es una acción del propio usuario, y sus
+      // tarjetas ya están pintadas.
+      void loadRecommendationsRef.current(true);
     });
   }, []);
 
@@ -479,12 +504,34 @@ export default function GroupRecommendationsRail({
   const handleJoin = async (group: RecommendationGroupCard) => {
     if (!currentUserId) return;
 
+    const inicio = Date.now();
     setJoinLoadingByGroup((prev) => ({ ...prev, [group.id]: true }));
     setError(null);
 
     try {
       const isPaidSubscriptionPrivate =
         group.visibility === "private" && resolveSubscriptionEnabled(group);
+
+      const estadoActual = joinStates[group.id];
+
+      // El botón ya no es un callejón sin salida: pulsar sobre el resultado lo
+      // deshace. Sale primero porque para deshacer no importa si la comunidad
+      // es pública, privada o de pago.
+      if (estadoActual === "joined") {
+        await leaveGroup(group.id, currentUserId);
+        setJoinStates((prev) => ({
+          ...prev,
+          [group.id]: group.visibility === "private" ? "request" : "join",
+        }));
+        // Sin recargar: la tarjeta se queda enseñando el estado nuevo.
+        return;
+      }
+
+      if (estadoActual === "pending") {
+        await cancelJoinRequest(group.id, currentUserId);
+        setJoinStates((prev) => ({ ...prev, [group.id]: "request" }));
+        return;
+      }
 
       if (group.visibility === "public") {
         await joinGroup(group.id, currentUserId);
@@ -503,10 +550,27 @@ export default function GroupRecommendationsRail({
         tags: group.tags,
       });
 
-      // Invalidate cache so all Rail instances exclude this group on next fetch
-      invalidateRecommendationCache(currentUserId);
+      // ⚠️ Aquí se invalidaba la caché, y eso BORRABA la tarjeta de la pantalla.
+      //
+      // El motor excluye a propósito las comunidades donde ya eres miembro, así
+      // que recargar justo después de unirte hace desaparecer la tarjeta que
+      // acabas de pulsar. Con ella se iban los puntos de "trabajando" y el
+      // "Eres miembro" con los colores volviendo: el usuario pulsaba y la
+      // tarjeta se esfumaba, que es exactamente lo que NO se quería.
+      //
+      // La exclusión sigue funcionando, solo que en la próxima carga de verdad.
+      // Mientras tanto la tarjeta se queda, enseña el resultado y deja deshacerlo.
 
-      router.refresh();
+      // ⚠️ Aquí había un `router.refresh()` y se llevaba por delante dos cosas.
+      //
+      // Vuelve a renderizar la RUTA ENTERA, así que el feed se reconstruía y el
+      // usuario perdía su sitio: pulsabas "Unirme" a media pantalla y aparecías
+      // arriba del todo. Y de paso remontaba el rail, con lo que el estado de
+      // carga se perdía y los puntos de "trabajando" no llegaban a verse nunca.
+      //
+      // No hacía falta: la tarjeta ya actualizó su estado a mano y la caché
+      // invalidada refresca los datos en silencio. Refrescar el servidor era
+      // pagar la página entera por un dato que ya teníamos.
     } catch (err) {
       const message =
         err instanceof Error ? err.message : tGroups("actionError");
@@ -518,6 +582,7 @@ export default function GroupRecommendationsRail({
 
       setError(message);
     } finally {
+      await esperarMinimo(inicio);
       setJoinLoadingByGroup((prev) => ({ ...prev, [group.id]: false }));
     }
   };
@@ -531,8 +596,29 @@ export default function GroupRecommendationsRail({
 
   const handleLiveAction = async (rec: LiveRec) => {
     if (!currentUserId) return;
+    const inicio = Date.now();
     setLiveActionLoading((prev) => ({ ...prev, [rec.postId]: true }));
     try {
+      const estadoActual = liveActionStates[rec.postId];
+
+      // Deshacer, igual que en las tarjetas de comunidad y de perfil.
+      if (estadoActual === "joined" && rec.groupId) {
+        await leaveGroup(rec.groupId, currentUserId);
+        setLiveActionStates((prev) => ({ ...prev, [rec.postId]: "none" }));
+        return;
+      }
+      if (estadoActual === "pending" && rec.groupId) {
+        await cancelJoinRequest(rec.groupId, currentUserId);
+        setLiveActionStates((prev) => ({ ...prev, [rec.postId]: "none" }));
+        return;
+      }
+      if (estadoActual === "following" && !rec.groupId) {
+        await unfollowUser({ currentUserId, targetUserId: rec.authorId });
+        setLiveActionStates((prev) => ({ ...prev, [rec.postId]: "none" }));
+        followingIdsRef.current.delete(rec.authorId);
+        return;
+      }
+
       if (rec.groupId) {
         const isPaidPrivate = rec.groupVisibility === "private" && rec.subscriptionEnabled;
         if (isPaidPrivate) {
@@ -551,22 +637,35 @@ export default function GroupRecommendationsRail({
         followingIdsRef.current.add(rec.authorId);
       }
     } catch { /* silencioso */ } finally {
+      await esperarMinimo(inicio);
       setLiveActionLoading((prev) => ({ ...prev, [rec.postId]: false }));
     }
   };
 
   const handleFollow = async (profile: RecommendationProfileCard) => {
     if (!currentUserId) return;
+    const inicio = Date.now();
     setFollowLoadingByProfile((prev) => ({ ...prev, [profile.uid]: true }));
     setError(null);
     try {
-      await followUser({ currentUserId, targetUserId: profile.uid });
-      setFollowStates((prev) => ({ ...prev, [profile.uid]: true }));
+      // Pulsar sobre "Siguiendo" deja de seguir, con el mismo gesto y la misma
+      // animación que seguir. Un botón que se queda muerto tras pulsarlo obliga
+      // a irse al perfil solo para deshacer.
+      if (followStates[profile.uid]) {
+        await unfollowUser({ currentUserId, targetUserId: profile.uid });
+        setFollowStates((prev) => ({ ...prev, [profile.uid]: false }));
+        followingIdsRef.current.delete(profile.uid);
+      } else {
+        await followUser({ currentUserId, targetUserId: profile.uid });
+        setFollowStates((prev) => ({ ...prev, [profile.uid]: true }));
+        followingIdsRef.current.add(profile.uid);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : tGroups("followError")
       );
     } finally {
+      await esperarMinimo(inicio);
       setFollowLoadingByProfile((prev) => ({ ...prev, [profile.uid]: false }));
     }
   };

@@ -274,7 +274,8 @@
     "pinError": "Julkaisua ei voitu kiinnittää eikä irrottaa.",
     "viewsCountAriaLabel": "{count, plural, one {# katselukerta} other {# katselukertaa}}",
     "addFlameToStory": "Tykkää tästä tarinasta",
-    "removeFlameFromStory": "Poista tykkäys tästä tarinasta"
+    "removeFlameFromStory": "Poista tykkäys tästä tarinasta",
+    "following": "Seuraat"
   },
   "groups": {
     "title": "Yhteisöt",
@@ -290,7 +291,7 @@
     "hiddenShort": "PI",
     "join": "Liity",
     "joinError": "Liittyminen ei onnistunut",
-    "joined": "Jäsen",
+    "joined": "Olet jäsen",
     "leaveConfirm": "Haluatko varmasti poistua tästä yhteisöstä?",
     "loadError": "Virhe yhteisöjä ladattaessa",
     "loginRequired": "Kirjaudu sisään nähdäksesi yhteisöt",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD-lippu",
     "financesPendingAmount": "Vapautettava summa",
     "financesBestMonth": "Paras kuukausi",
+    "financesLocalApproxNote": "Summat valuutassa {currency} ovat likimääräisiä, ne muunnetaan päivän kurssilla. Sinulle maksetaan USD-summa.",
     "financesCommissionNet": "Näistä summista on jo vähennetty Vibran 25 %:n palkkio.",
     "financesCommissionGross": "Näistä summista ei ole vielä vähennetty Vibran 25 %:n palkkiota.",
     "statEarned": "Ansaittu {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Tyhjennä valinta",
     "invoiceDone": "Valmis",
     "filterStatusAllValue": "Kaikki tapahtumat",
+    "payoutProgressLabel": "Nostoon puuttuu vielä {amount}",
+    "payoutProgressReady": "Voit nyt nostaa saldosi",
+    "approxAmountLong": "Noin {amount}",
+    "walletCurrencyLabel": "Näyttövaluutta",
     "withdrawButton": "Nosta",
     "withdrawComingSoon": "Nostot tulevat käyttöön hyvin pian",
     "onboardingUTitle": "Koe ainutlaatuisia hetkiä niiden kanssa, joita <vibra>ihailet</vibra>",

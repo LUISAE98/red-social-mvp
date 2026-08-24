@@ -274,7 +274,8 @@
     "pinError": "Níorbh fhéidir an postáil a phionnáil ná a dhíphionnáil.",
     "viewsCountAriaLabel": "{count, plural, one {# amharc} two {# amharc} few {# amharc} many {# n-amharc} other {# amharc}}",
     "addFlameToStory": "Is maith liom an scéal seo",
-    "removeFlameFromStory": "Bain an moladh den scéal seo"
+    "removeFlameFromStory": "Bain an moladh den scéal seo",
+    "following": "Á leanúint"
   },
   "groups": {
     "title": "Pobail",
@@ -290,7 +291,7 @@
     "hiddenShort": "FO",
     "join": "Ceangail leis",
     "joinError": "Theip ar an gceangal",
-    "joined": "Ball",
+    "joined": "Is ball tú",
     "leaveConfirm": "An bhfuil tú cinnte gur mhaith leat an pobal seo a fhágáil?",
     "loadError": "Earráid agus na pobail á lódáil",
     "loginRequired": "Logáil isteach chun na pobail a fheiceáil",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Ticéad VOD",
     "financesPendingAmount": "Suim le scaoileadh",
     "financesBestMonth": "An mhí is fearr",
+    "financesLocalApproxNote": "Is meastacháin iad na suimeanna in {currency}, arna dtiontú ar ráta malairte an lae inniu. Is í an tsuim in USD a íoctar leat.",
     "financesCommissionNet": "Tá táille 25% Vibra bainte de na suimeanna seo cheana.",
     "financesCommissionGross": "Níl táille 25% Vibra bainte de na suimeanna seo fós.",
     "statEarned": "Tuillte {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Glan an rogha",
     "invoiceDone": "Déanta",
     "filterStatusAllValue": "Gach idirbheart",
+    "payoutProgressLabel": "Tá {amount} fágtha sular féidir leat aistarraingt",
+    "payoutProgressReady": "Is féidir leat d'iarmhéid a aistarraingt anois",
+    "approxAmountLong": "Thart ar {amount}",
+    "walletCurrencyLabel": "Airgeadra taispeána",
     "withdrawButton": "Aistarraing",
     "withdrawComingSoon": "Beidh aistarraingtí ar fáil go han-luath",
     "onboardingUTitle": "Bí i láthair eispéireas uathúil leis na daoine a bhfuil <vibra>meas</vibra> agat orthu",

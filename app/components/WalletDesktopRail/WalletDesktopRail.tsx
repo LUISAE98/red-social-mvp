@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -12,7 +11,7 @@ import {
 } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import { useAuth } from "@/app/providers";
 import { useWalletFinances, selectFinanceView } from "@/lib/wallet/walletFinances";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
 import { useBalanceHidden, toggleBalanceHidden } from "@/lib/wallet/useBalanceHidden";
 import MaskedAmount from "@/app/components/MaskedAmount";
 
@@ -122,22 +121,15 @@ export default function WalletDesktopRail({
   experiencesBadgeCount?: number;
 }) {
   const t = useTranslations("nav");
+  // La referencia de moneda comparte texto con la pantalla de Finanzas, que vive en el
+  // espacio "wallet". Sin este traductor salía la clave cruda en pantalla.
+  const tWallet = useTranslations("wallet");
   const { user } = useAuth();
   const { summary, loading: walletLoading } = useWalletFinances(user?.uid);
-  const pf = usePriceFormat();
-  /**
-   * Dinero del CREADOR: en la moneda de liquidación, SIN convertir.
-   *
-   * ⚠️ `pf.format` es el precio del COMPRADOR —convierte, suma el 2% y redondea al escalón—,
-   * así que inflaba el saldo. Es la misma cifra que la wallet, y tiene que coincidir con
-   * ella y con lo que se cobra al retirar.
-   */
-  const format = (amount: number) => pf.formatAnchor(amount, { code: true });
-  /** Referencia en la moneda del creador. Null si ya mira en la de liquidación. */
-  const refLocal = (amount: number): string | null =>
-    pf.currency === SETTLEMENT_CURRENCY
-      ? null
-      : pf.formatPlain(amount, { baseCurrency: SETTLEMENT_CURRENCY, code: true });
+  // Mismo formateador y mismo switch de moneda que la wallet: este saldo tiene que
+  // coincidir con el de Finanzas al dígito, y cambiar con él.
+  const { formatMoney, refLocal } = useWalletMoney();
+  const format = (amount: number) => formatMoney(amount, { code: true });
   const view = selectFinanceView(summary, "net");
   // Toggle de privacidad (compartido con la cartera del header).
   const balanceHidden = useBalanceHidden();
@@ -423,14 +415,27 @@ export default function WalletDesktopRail({
           color: rgba(74, 222, 128, 0.35);
         }
 
-        /* Monto + ojito para ocultar el saldo (privacidad). */
+        /* Monto + ojito para ocultar el saldo (privacidad).
+           El ojito es un control, no parte del monto: si cuenta para el centrado empuja la
+           cifra a la izquierda. El rail es angosto, así que en vez de sacarlo del flujo
+           (se salía del borde y se recortaba) se compensa con un contrapeso invisible del
+           mismo ancho al otro lado. La cifra queda centrada y el ojito, pegado a ella. */
         .walletBalanceRow {
-          display: inline-flex;
+          display: flex;
           align-items: center;
-          gap: 7px;
+          justify-content: center;
+          align-self: stretch;
+          gap: 6px;
+        }
+
+        /* Mismo ancho que .walletEye (16 del icono + 2+2 de relleno). */
+        .walletEyeSpacer {
+          flex: none;
+          width: 20px;
         }
 
         .walletEye {
+          flex: none;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -777,6 +782,9 @@ export default function WalletDesktopRail({
                 <span className="walletBalanceBlock">
                   <span className="walletBalanceLabel">Disponible</span>
                   <span className="walletBalanceRow">
+                    {!walletLoading && view.available > 0 ? (
+                      <span className="walletEyeSpacer" aria-hidden="true" />
+                    ) : null}
                     <span className={`walletBalanceAmount${walletLoading ? " loading" : ""}`}>
                       {walletLoading ? (
                         "···"
@@ -820,7 +828,7 @@ export default function WalletDesktopRail({
                       que manda es la de arriba, que es la que cobra al retirar. */}
                   {!walletLoading && !balanceHidden && refLocal(view.available) && (
                     <span className="walletBalanceApprox">
-                      {t("approxAmountLong", { amount: refLocal(view.available) ?? "" })}
+                      {tWallet("approxAmountLong", { amount: refLocal(view.available) ?? "" })}
                     </span>
                   )}
                 </span>

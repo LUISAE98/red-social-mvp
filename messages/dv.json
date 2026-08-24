@@ -274,7 +274,8 @@
     "pinError": "ޕޯސްޓް ޕިންކުރުން ނުވަތަ ޕިން ނެގުން ނުކުރެވުނު.",
     "viewsCountAriaLabel": "{count, plural, one {# ބެލުން} other {# ބެލުން}}",
     "addFlameToStory": "މި ވާހަކައަށް ލައިކް ދޭ",
-    "removeFlameFromStory": "މި ވާހަކައިން ލައިކް ނަގާ"
+    "removeFlameFromStory": "މި ވާހަކައިން ލައިކް ނަގާ",
+    "following": "ފޮލޯކުރަނީ"
   },
   "groups": {
     "title": "ކޮމިއުނިޓީތައް",
@@ -290,7 +291,7 @@
     "hiddenShort": "ފޮރު",
     "join": "ބައިވެރިވެލައްވާ",
     "joinError": "ބައިވެރިނުވެވުނު",
-    "joined": "މެންބަރު",
+    "joined": "ތިޔައީ މެންބަރެއް",
     "leaveConfirm": "މި ކޮމިއުނިޓީ ދޫކޮށްލައްވަން ޔަޤީންތޯ؟",
     "loadError": "ކޮމިއުނިޓީތައް ލޯޑުކުރުމުގައި މައްސަލައެއް ދިމާވެއްޖެ",
     "loginRequired": "ކޮމިއުނިޓީތައް ބެއްލެވުމަށް ލޮގިންވެލައްވާ",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD ޓިކެޓް",
     "financesPendingAmount": "ދޫކުރަންޖެހޭ އަދަދު",
     "financesBestMonth": "އެންމެ ރަނގަޅު މަސް",
+    "financesLocalApproxNote": "{currency} ގެ އަދަދުތަކަކީ ގާތްގަނޑަކަށް އަދަދުތަކެއް، މިއަދުގެ ރޭޓުން ބަދަލުކުރެވިފައި. ލިބޭނީ USD ގެ އަދަދު.",
     "financesCommissionNet": "މި އަދަދުތަކުގައި Vibra ގެ 25% ކޮމިޝަން ކެނޑިފައި ހިމެނޭ.",
     "financesCommissionGross": "މި އަދަދުތަކުން Vibra ގެ 25% ކޮމިޝަން އަދި ކަނޑާފައެއް ނުވޭ.",
     "statEarned": "{scope} ލިބުނު",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "ހޮވުން ސާފުކުރައްވާ",
     "invoiceDone": "ނިމިއްޖެ",
     "filterStatusAllValue": "ހުރިހާ މުޢާމަލާތެއް",
+    "payoutProgressLabel": "ފައިސާ ނެގުމަށް އިތުރު {amount} ބޭނުންވޭ",
+    "payoutProgressReady": "މިހާރު ތިޔަ ބެލެންސް ނެގޭނެ",
+    "approxAmountLong": "ގާތްގަނޑަކަށް {amount}",
+    "walletCurrencyLabel": "ދައްކާ ފައިސާ",
     "withdrawButton": "ނަންގަވާ",
     "withdrawComingSoon": "ފައިސާ ނެގުން ވަރަށް އަވަހަށް ލިބޭނެ",
     "onboardingUTitle": "ތިޔަބޭފުޅާ <vibra>ޤަދަރުކުރައްވާ</vibra> ފަރާތްތަކާއެކު ތަފާތު ތަޖުރިބާތައް ކުރައްވާ",

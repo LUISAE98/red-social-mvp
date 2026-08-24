@@ -274,7 +274,8 @@
     "pinError": "Il-post ma setax jiġi mwaħħal jew imneħħi.",
     "viewsCountAriaLabel": "{count, plural, one {# dehra} two {# dehriet} few {# dehriet} many {# dehriet} other {# dehriet}}",
     "addFlameToStory": "Ħobb din l-istorja",
-    "removeFlameFromStory": "Neħħi l-like minn din l-istorja"
+    "removeFlameFromStory": "Neħħi l-like minn din l-istorja",
+    "following": "Qed issegwi"
   },
   "groups": {
     "title": "Komunitajiet",
@@ -290,7 +291,7 @@
     "hiddenShort": "MO",
     "join": "Ingħaqad",
     "joinError": "Ma rnexxielekx tingħaqad",
-    "joined": "Membru",
+    "joined": "Int membru",
     "leaveConfirm": "Żgur li trid titlaq minn din il-komunità?",
     "loadError": "Żball waqt it-tagħbija tal-komunitajiet",
     "loginRequired": "Idħol biex tara l-komunitajiet",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Biljett VOD",
     "financesPendingAmount": "Ammont x'jiġi rilaxxat",
     "financesBestMonth": "L-aħjar xahar",
+    "financesLocalApproxNote": "L-ammonti f'{currency} huma approssimattivi, konvertiti bir-rata tal-kambju tal-lum. Dak li jitħallaslek huwa l-ammont f'USD.",
     "financesCommissionNet": "Minn dawn l-ammonti diġà tnaqqset il-kummissjoni ta' 25% ta' Vibra.",
     "financesCommissionGross": "Minn dawn l-ammonti għadha ma tnaqqsitx il-kummissjoni ta' 25% ta' Vibra.",
     "statEarned": "Maqlugħ {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Naddaf l-għażla",
     "invoiceDone": "Lest",
     "filterStatusAllValue": "It-tranżazzjonijiet kollha",
+    "payoutProgressLabel": "Jonqsok {amount} biex tkun tista' tirtira",
+    "payoutProgressReady": "Issa tista' tirtira l-bilanċ tiegħek",
+    "approxAmountLong": "Madwar {amount}",
+    "walletCurrencyLabel": "Munita tal-wiri",
     "withdrawButton": "Iġbed",
     "withdrawComingSoon": "Il-ġbid ta' flus se jkun disponibbli dalwaqt ħafna",
     "onboardingUTitle": "Għix esperjenzi uniċi man-nies li <vibra>tammira</vibra>",

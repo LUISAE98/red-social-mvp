@@ -274,7 +274,8 @@
     "pinError": "Tidak bisa menyematkan atau melepas sematan postingan.",
     "viewsCountAriaLabel": "{count, plural, other {# tayangan}}",
     "addFlameToStory": "Suka cerita ini",
-    "removeFlameFromStory": "Hapus suka dari cerita ini"
+    "removeFlameFromStory": "Hapus suka dari cerita ini",
+    "following": "Mengikuti"
   },
   "groups": {
     "title": "Komunitas",
@@ -290,7 +291,7 @@
     "hiddenShort": "TS",
     "join": "Gabung",
     "joinError": "Gagal bergabung",
-    "joined": "Anggota",
+    "joined": "Kamu anggota",
     "leaveConfirm": "Yakin ingin keluar dari komunitas ini?",
     "loadError": "Terjadi kesalahan saat memuat komunitas",
     "loginRequired": "Masuk untuk melihat komunitas",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "Tiket VOD",
     "financesPendingAmount": "Jumlah yang akan dilepas",
     "financesBestMonth": "Bulan terbaik",
+    "financesLocalApproxNote": "Jumlah dalam {currency} bersifat perkiraan, dikonversi dengan kurs hari ini. Yang dibayarkan kepadamu adalah jumlah dalam USD.",
     "financesCommissionNet": "Jumlah ini sudah dipotong biaya Vibra sebesar 25%.",
     "financesCommissionGross": "Jumlah ini belum dipotong biaya Vibra sebesar 25%.",
     "statEarned": "Penghasilan {scope}",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "Batalkan pilihan",
     "invoiceDone": "Selesai",
     "filterStatusAllValue": "Semua transaksi",
+    "payoutProgressLabel": "Kurang {amount} lagi agar bisa menarik dana",
+    "payoutProgressReady": "Kamu sudah bisa menarik saldomu",
+    "approxAmountLong": "Sekitar {amount}",
+    "walletCurrencyLabel": "Mata uang tampilan",
     "withdrawButton": "Tarik",
     "withdrawComingSoon": "Penarikan dana akan segera tersedia",
     "onboardingUTitle": "Rasakan pengalaman unik bersama orang yang kamu <vibra>kagumi</vibra>",

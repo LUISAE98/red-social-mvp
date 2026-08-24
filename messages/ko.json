@@ -274,7 +274,8 @@
     "pinError": "게시물을 고정하거나 해제하지 못했습니다.",
     "viewsCountAriaLabel": "{count, plural, other {조회수 #회}}",
     "addFlameToStory": "이 스토리에 좋아요",
-    "removeFlameFromStory": "이 스토리의 좋아요 취소"
+    "removeFlameFromStory": "이 스토리의 좋아요 취소",
+    "following": "팔로잉"
   },
   "groups": {
     "title": "커뮤니티",
@@ -290,7 +291,7 @@
     "hiddenShort": "숨김",
     "join": "가입",
     "joinError": "가입하지 못했습니다",
-    "joined": "멤버",
+    "joined": "멤버예요",
     "leaveConfirm": "이 커뮤니티에서 나가시겠어요?",
     "loadError": "커뮤니티를 불러오는 중 오류가 발생했습니다",
     "loginRequired": "커뮤니티를 보려면 로그인하세요",
@@ -1264,6 +1265,7 @@
     "txTypeVod": "VOD 티켓",
     "financesPendingAmount": "지급 예정 금액",
     "financesBestMonth": "최고의 달",
+    "financesLocalApproxNote": "{currency} 금액은 오늘 환율로 환산한 근사치예요. 실제로 지급되는 건 USD 금액이에요.",
     "financesCommissionNet": "이 금액에는 Vibra 수수료 25%가 이미 차감되어 있습니다.",
     "financesCommissionGross": "이 금액에서는 Vibra 수수료 25%가 아직 차감되지 않았습니다.",
     "statEarned": "{scope} 수익",
@@ -1393,6 +1395,10 @@
     "invoiceSelectNone": "선택 해제",
     "invoiceDone": "완료",
     "filterStatusAllValue": "모든 내역",
+    "payoutProgressLabel": "출금하려면 {amount}가 더 필요해요",
+    "payoutProgressReady": "이제 잔액을 출금할 수 있어요",
+    "approxAmountLong": "약 {amount}",
+    "walletCurrencyLabel": "표시 통화",
     "withdrawButton": "출금",
     "withdrawComingSoon": "출금 기능은 곧 제공됩니다",
     "onboardingUTitle": "<vibra>동경하는</vibra> 사람들과 특별한 경험을",

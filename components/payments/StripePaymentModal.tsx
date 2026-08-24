@@ -57,7 +57,7 @@ type Props = {
   /** Crea el PaymentIntent y devuelve su client_secret. `taxCountry` = país fiscal del comprador (por IP).
    *  Si `savedPaymentMethodId` viene, el cobro es "un clic" off-session (sin CVV): se confirma
    *  server-side y la respuesta trae `status` ("succeeded" = cobrado). */
-  createIntent: (args: { amount: number; saveCard: boolean; taxCountry: string | null; savedPaymentMethodId?: string; nickname?: string | null; paymentMethodId?: string; applyCredit?: boolean }) => Promise<{ clientSecret?: string; status?: string }>;
+  createIntent: (args: { amount: number; saveCard: boolean; taxCountry: string | null; savedPaymentMethodId?: string; nickname?: string | null; paymentMethodId?: string; applyCredit?: boolean; exactTotalLocal?: number | null }) => Promise<{ clientSecret?: string; status?: string }>;
   /** Invitado (sin login): en el saludo "Bienvenido" muestra un input de APODO editable
    *  (placeholder), cacheado por dispositivo y enviado en `createIntent`. */
   collectNickname?: boolean;
@@ -190,6 +190,8 @@ export default function StripePaymentModal({
   // El pago quedó como HOLD (retención): el panel de éxito usa el copy "se cobra al entregar".
   const [wasHold, setWasHold] = useState(false);
   const [chosenAmount, setChosenAmount] = useState<number | null>(null);
+  /** Total EXACTO que tecleó el donante, en SU moneda. Null si eligió un monto sugerido. */
+  const [totalTecleado, setTotalTecleado] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
   const [cardName, setCardName] = useState("");
@@ -672,12 +674,12 @@ export default function StripePaymentModal({
       // El SALDO A FAVOR cubre el 100%: sin tarjeta. El backend materializa la compra
       // (remainder 0) y devuelve status "succeeded".
       if (creditCoversAll) {
-        const res = await createIntentRef.current({ amount: payAmount, saveCard: false, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null, applyCredit: true });
+        const res = await createIntentRef.current({ amount: payAmount, exactTotalLocal: totalTecleado, saveCard: false, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null, applyCredit: true });
         if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(res.status); return; }
         throw new Error("rejected");
       }
       if (savedCardId) {
-        const res = await createIntentRef.current({ amount: payAmount, saveCard: false, taxCountry: pf.buyerCountry ?? null, savedPaymentMethodId: savedCardId, nickname: collectNickname ? (nickname.trim() || null) : null, applyCredit: useCredit });
+        const res = await createIntentRef.current({ amount: payAmount, exactTotalLocal: totalTecleado, saveCard: false, taxCountry: pf.buyerCountry ?? null, savedPaymentMethodId: savedCardId, nickname: collectNickname ? (nickname.trim() || null) : null, applyCredit: useCredit });
         if (isGuest) {
           // Invitado: NO hay un-clic. El callable devolvió un clientSecret y aquí se confirma
           // ON-SESSION con la PM guardada + el CVV recolectado (Element solo-CVC). Así, en un
@@ -710,7 +712,7 @@ export default function StripePaymentModal({
 
       // Se manda el `pm_...` ya creado al leer la tarjeta: el backend consulta a Stripe de qué
       // país es y resuelve el impuesto con ese dato, no con el que diga el navegador.
-      const res = await createIntentRef.current({ amount: payAmount, saveCard, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null, paymentMethodId: cardPmRef.current?.id, applyCredit: useCredit });
+      const res = await createIntentRef.current({ amount: payAmount, exactTotalLocal: totalTecleado, saveCard, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null, paymentMethodId: cardPmRef.current?.id, applyCredit: useCredit });
       // Sin factura que confirmar (p. ej. REACTIVAR una suscripción con cancelación
       // pendiente: no se cobra de nuevo). El backend ya dejó todo listo → éxito directo.
       if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(res.status); return; }
@@ -1081,7 +1083,7 @@ export default function StripePaymentModal({
               return (
                 <button key={base} type="button"
                   onClick={() => {
-                    setSelectedPreset(base); setChosenAmount(base);
+                    setSelectedPreset(base); setChosenAmount(base); setTotalTecleado(null);
                     // El campo recibe EXACTAMENTE el número que enseña el botón: mismo total,
                     // misma moneda. Antes se metía el importe en USD mientras el botón
                     // mostraba el convertido, y no cuadraban.
@@ -1104,6 +1106,9 @@ export default function StripePaymentModal({
                   const typed = Number(v);
                   if (!Number.isFinite(typed) || typed <= 0) { setChosenAmount(null); return; }
                   // Lo tecleado es el TOTAL en la moneda del donante: lo que va a pagar.
+                  // Se guarda TAL CUAL para mandárselo al servidor: es la única forma de que
+                  // 100.00 se cobre como 100.00 y no se redondee al escalón comercial.
+                  setTotalTecleado(typed);
                   setChosenAmount(baseUsdDesdeTotalLocal(typed));
                 }}
                 placeholder="0" style={{ width: 120, border: "none", borderBottom: "1px solid #eceef1", background: "transparent", fontSize: 22, fontWeight: 700, color: "#3a3f4a", textAlign: "center", outline: "none", fontFamily: "inherit", padding: "0 2px 4px" }} />
