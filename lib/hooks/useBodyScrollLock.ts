@@ -23,7 +23,10 @@ import { useEffect } from "react";
  *
  * - Cuenta referencias: con varios paneles anidados, el fondo se libera solo al
  *   cerrar el último. (Todos deben usar ESTE hook para que el conteo sea correcto.)
- * - Compensa el ancho de la scrollbar en escritorio para que el layout no salte.
+ * - Compensa el ancho de la scrollbar SOLO si bloquear llega a ensancharlo de
+ *   verdad. Con `scrollbar-gutter: stable` (globals.css) el hueco ya está
+ *   reservado y no hay nada que compensar; compensar igualmente era lo que movía
+ *   el fondo al abrir y al cerrar.
  *
  * Uso: `useBodyScrollLock(open)` — bloquea mientras `open` sea true.
  */
@@ -76,14 +79,29 @@ function applyLock() {
     bodyTouchAction: body.style.touchAction,
   };
 
-  // Compensa la scrollbar (escritorio) para evitar el salto horizontal.
-  const scrollbarWidth = window.innerWidth - html.clientWidth;
-  if (scrollbarWidth > 0) body.style.paddingRight = `${scrollbarWidth}px`;
+  // ⚠️ La compensación se MIDE, no se supone, y ahí estaba el fallo.
+  //
+  // Antes se daba por hecho que bloquear el scroll hace desaparecer la barra, y
+  // se restaba `window.innerWidth - html.clientWidth` a ciegas. Pero `globals.css`
+  // pone `scrollbar-gutter: stable` en el <html>, que reserva ese hueco SIEMPRE,
+  // haya barra o no. Así que al bloquear no se ganaba ancho ninguno y esa cuenta
+  // seguía devolviendo ~15px: se metía un relleno fantasma que encogía el body y
+  // corría el contenido al abrir, y lo devolvía de golpe al cerrar. El "empujón"
+  // no lo daba la barra, lo dábamos nosotros compensando dos veces.
+  //
+  // Midiendo el ancho ANTES y DESPUÉS de bloquear, la compensación es la que de
+  // verdad haga falta: cero cuando el hueco ya está reservado, y el ancho real de
+  // la barra en un navegador sin `scrollbar-gutter` (Safari < 16.4), donde sí se
+  // necesita.
+  const anchoAntes = html.clientWidth;
 
   // Bloqueo por overflow (NO position:fixed): el body sigue en flujo, así los
   // modales position:fixed anclan al viewport completo y llegan al borde físico.
   html.style.overflow = "hidden";
   body.style.overflow = "hidden";
+
+  const ganado = html.clientWidth - anchoAntes;
+  if (ganado > 0) body.style.paddingRight = `${ganado}px`;
   html.style.overscrollBehavior = "none";
   body.style.overscrollBehavior = "none";
   // `touch-action: none` frena de forma fiable el gesto de scroll del documento en

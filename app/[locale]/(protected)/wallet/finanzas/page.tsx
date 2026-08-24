@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useLayoutEffect, useRef } from "react";
 import { intlLocale } from "@/i18n/locales";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/app/providers";
@@ -54,6 +54,65 @@ function formatMonthName(date: Date, locale: string): string {
  * ⚠️ Respeta `prefers-reduced-motion`: a quien pide menos movimiento se le entrega el valor
  * final de una vez, sin animación.
  */
+/** Tamaño máximo de la cifra principal, y hasta dónde puede encoger. */
+const CIFRA_MAX_PX = 40;
+const CIFRA_MIN_PX = 19;
+
+/**
+ * Encoge la cifra principal lo justo para que NUNCA parta en dos renglones.
+ *
+ * Un tamaño fijo solo funciona con monedas cortas. `$589.50 USD` cabe de sobra, pero la
+ * misma cantidad en rupias o en pesos colombianos trae millones y separadores de miles, y
+ * a 40 px se desborda; con `nowrap` se saldría de la tarjeta y sin él caería a dos
+ * renglones, que es justo lo que hay que evitar.
+ *
+ * Mide sobre un clon oculto con el texto FINAL, no sobre lo que hay en pantalla: la cifra
+ * está animándose desde cero y medir el valor en curso daría un tamaño que deja de valer
+ * en cuanto termina la cuenta.
+ *
+ * Escribe el `fontSize` directo en el nodo en vez de guardarlo en estado: así el ajuste
+ * ocurre en el mismo cuadro que la medición, sin un render intermedio con el tamaño viejo.
+ */
+function useAjusteAUnRenglon(
+  cajaRef: React.RefObject<HTMLDivElement | null>,
+  cifraRef: React.RefObject<HTMLDivElement | null>,
+  medidaRef: React.RefObject<HTMLSpanElement | null>,
+  textoFinal: string
+): void {
+  useLayoutEffect(() => {
+    const caja = cajaRef.current;
+    const cifra = cifraRef.current;
+    const medida = medidaRef.current;
+    if (!caja || !cifra || !medida) return;
+
+    const ajustar = () => {
+      // `clientWidth` incluye el relleno; el ancho útil es el de la caja de contenido,
+      // que es donde vive la cifra (el relleno lo ocupa el ojito).
+      const cs = window.getComputedStyle(caja);
+      const disponible =
+        caja.clientWidth - parseFloat(cs.paddingInlineStart || "0") - parseFloat(cs.paddingInlineEnd || "0");
+      const anchoTexto = medida.offsetWidth;
+      if (disponible <= 0 || anchoTexto <= 0) return;
+      const escala = Math.min(1, disponible / anchoTexto);
+      cifra.style.fontSize = `${Math.max(CIFRA_MIN_PX, Math.floor(CIFRA_MAX_PX * escala))}px`;
+    };
+
+    ajustar();
+    // Rotar el teléfono o abrir el rail cambia el ancho sin cambiar el texto.
+    const ro = new ResizeObserver(ajustar);
+    ro.observe(caja);
+    // Y si aún no cargó la tipografía, la primera medida es con la de reserva —más
+    // estrecha— y la cifra acabaría más grande de lo que cabe.
+    let vivo = true;
+    void document.fonts?.ready.then(() => {
+      if (vivo) ajustar();
+    });
+    return () => {
+      vivo = false;
+      ro.disconnect();
+    };
+  }, [cajaRef, cifraRef, medidaRef, textoFinal]);
+}
 function useContador(valor: number, activo: boolean, duracionMs = 1100): number {
   const [mostrado, setMostrado] = useState(0);
   const previo = useRef(0);
@@ -144,6 +203,14 @@ export default function WalletFinanzasPage() {
   // El saldo sube desde cero al entrar. La barra y el resto de cifras usan el valor real:
   // animar todo a la vez sería ruido.
   const disponibleAnimado = useContador(view.available, !loadingAmounts);
+
+  // La cifra principal no puede partirse en dos renglones en ninguna moneda: se mide el
+  // texto final y se encoge la fuente lo necesario. Ver `useAjusteAUnRenglon`.
+  const cajaCifraRef = useRef<HTMLDivElement>(null);
+  const cifraRef = useRef<HTMLDivElement>(null);
+  const medidaCifraRef = useRef<HTMLSpanElement>(null);
+  const textoCifraFinal = formatMoney(view.available, { code: true });
+  useAjusteAUnRenglon(cajaCifraRef, cifraRef, medidaCifraRef, textoCifraFinal);
 
   /** Cuánto le falta, y qué porción de la barra lleva. */
   const faltaParaRetirar = Math.max(0, PAYOUT_MIN_USD - disponibleNeto);
@@ -249,12 +316,15 @@ export default function WalletFinanzasPage() {
               {toggle}
             </div>
 
-            {/* En qué moneda lee el creador SU dinero. Antes aquí estaba el switch global
-                de la plataforma, que cambiaba la moneda de todo el sitio desde dentro de la
-                wallet: demasiado alcance para el sitio que ocupa. */}
-            <WalletCurrencyToggle />
-
             <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "flex-end" }}>
+              {/* En qué moneda lee el creador SU dinero. Antes aquí estaba el switch global
+                  de la plataforma, que cambiaba la moneda de todo el sitio desde dentro de la
+                  wallet: demasiado alcance para el sitio que ocupa.
+
+                  Un switch a cada extremo: a la izquierda cómo se lee el dinero (neto o bruto),
+                  a la derecha en qué moneda. */}
+              <WalletCurrencyToggle />
+
               {/* 🚧 BOTÓN DE RETIRO OCULTO A PROPÓSITO.
                   Antes se mostraba solo con `kyc.approved` (Didit). Al eliminar Didit el
                   2026-08-13 nadie queda aprobado, y **quitar el proveedor del gate no debe
@@ -279,6 +349,7 @@ export default function WalletFinanzasPage() {
                 empuja el saldo a la izquierda. Por eso sale del flujo y cuelga del borde
                 derecho de la cifra, acompañándola sin desplazarla. */}
             <div
+              ref={cajaCifraRef}
               style={{
                 position: "relative",
                 display: "flex",
@@ -288,18 +359,38 @@ export default function WalletFinanzasPage() {
                 // que cuelga fuera de ella, cae dentro del relleno en vez de desbordar la
                 // tarjeta en pantallas angostas.
                 alignSelf: "stretch",
-                paddingInline: 34,
+                paddingInline: 40,
               }}
             >
-              <div
+              {/* Clon oculto con el texto final: es lo que se mide para decidir el tamaño.
+                  Fuera del flujo para que no ocupe sitio ni lo lea un lector de pantalla. */}
+              <span
+                ref={medidaCifraRef}
+                aria-hidden="true"
                 style={{
-                  fontSize: 40,
+                  position: "absolute",
+                  visibility: "hidden",
+                  pointerEvents: "none",
+                  whiteSpace: "nowrap",
+                  fontSize: CIFRA_MAX_PX,
+                  fontWeight: 700,
+                  letterSpacing: "-0.03em",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {textoCifraFinal}
+              </span>
+              <div
+                ref={cifraRef}
+                style={{
+                  fontSize: CIFRA_MAX_PX,
                   fontWeight: 700,
                   letterSpacing: "-0.03em",
                   lineHeight: 1.05,
                   color: "#4ade80",
                   fontVariantNumeric: "tabular-nums",
                   position: "relative",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {loadingAmounts ? (
