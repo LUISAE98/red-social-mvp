@@ -182,6 +182,26 @@ export default function GroupRecommendationsRail({
       setFollowStates(Object.fromEntries(profiles.map((p) => [p.uid, false])));
 
       if (next.groups.length > 0) {
+        // Estado PROVISIONAL, puesto ya: la visibilidad viene en la propia
+        // tarjeta, así que "privada ⇒ hay que solicitar" se sabe sin preguntar
+        // a nadie.
+        //
+        // Sin esto, las tarjetas se pintaban mientras `resolveJoinState` iba a
+        // Firestore grupo por grupo, y hasta que volvía TODAS decían "Unirse":
+        // una comunidad privada invitaba a unirse y una de suscripción también,
+        // para corregirse solos un par de segundos después. Lo que faltaba no
+        // era el dato, era usarlo.
+        setJoinStates((prev) => {
+          const provisional: Record<string, RecommendationJoinState> = { ...prev };
+          for (const group of next.groups) {
+            // Lo ya resuelto manda: puede decir "joined" o "pending", que son
+            // cosas que la visibilidad por sí sola no puede saber.
+            if (provisional[group.id]) continue;
+            provisional[group.id] = group.visibility === "private" ? "request" : "join";
+          }
+          return provisional;
+        });
+
         const entries = await Promise.all(
           next.groups.map(async (group) => {
             const state = await resolveJoinState(
@@ -882,7 +902,13 @@ export default function GroupRecommendationsRail({
         <div key={`group-${card.group.id}`} style={wrapperStyle}>
           <GroupCard
             group={card.group}
-            joinState={joinStates[card.group.id] ?? "join"}
+            // El respaldo también sale de la visibilidad, no de "join" a secas:
+            // es la misma cuenta que arriba, y así ninguna de las dos puertas
+            // deja pasar un "Unirse" en una comunidad privada.
+            joinState={
+              joinStates[card.group.id]
+              ?? (card.group.visibility === "private" ? "request" : "join")
+            }
             loading={Boolean(joinLoadingByGroup[card.group.id])}
             onJoin={() => handleJoin(card.group)}
             currentUserId={currentUserId}
