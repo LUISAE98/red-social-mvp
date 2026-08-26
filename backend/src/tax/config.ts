@@ -110,9 +110,13 @@ export type CountryTaxConfig = {
  *   e) seguros · f) financiamiento · g) FILMACIÓN O GRABACIÓN · h) call centers
  *   i) TECNOLOGÍAS DE LA INFORMACIÓN
  *
- * Al pasar de intermediario a vendedor directo, Vibra salió del inciso d) —que era el
- * encaje natural de una comisión— y ahora el 0% se apoya en g) o i). Mapear cada servicio
- * a su inciso es la decisión **D-08**, pendiente de fiscalista.
+ * ✅ **CONFIRMADO POR FISCALISTA (2026-08-26): los 11 van a 0% por exportación.** Con el
+ * regreso a intermediación Vibra recupera además el inciso d) —comisiones y mediaciones—
+ * para su propia comisión, que bajo vendedor directo había que forzar hacia g) o i).
+ *
+ * 🔴 Lo que sigue abierto es distinto: si la COMISIÓN de Vibra al creador EXTRANJERO califica
+ * por separado como exportación de mediación. Ver `COMISION_A_EXTRANJERO_ES_EXPORTACION`
+ * en `fiscalEngine.ts`.
  *
  * 👉 PARA CAMBIAR UNO: pon `"export_taxable"` en su línea de abajo. Nada más.
  *    Ese 16% NO se le traslada al comprador extranjero (ya pagó el impuesto de su país):

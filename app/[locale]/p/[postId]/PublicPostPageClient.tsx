@@ -539,18 +539,16 @@ export default function PublicPostPageClient({
     <main className="relative z-10 min-h-screen bg-transparent text-white">
             <section className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-0 py-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-3 px-4 sm:px-0">
-          <Link
-            href="/"
-            className="text-sm font-semibold text-neutral-300 transition hover:text-white"
-          >
+          <Link href="/" aria-label="Vibra" className="vibra-brand">
             Vibra
           </Link>
 
-          <Link
-            href={entryHref}
-            className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-          >
-            Login
+          {/* "Login" estaba en inglés en una página que por lo demás va toda en
+              español, y con un recuadro de borde que no existe en ningún otro
+              sitio del producto. Ahora es el mismo botón —y la misma palabra—
+              que ve quien abre un perfil o una comunidad sin sesión. */}
+          <Link href={entryHref} className="vibra-auth-cta">
+            Iniciar sesión
           </Link>
         </div>
 
@@ -586,10 +584,7 @@ export default function PublicPostPageClient({
             Para comentar, reaccionar o ver más contenido, entra a Vibra.
           </p>
 
-          <Link
-            href={entryHref}
-            className="mt-4 inline-flex rounded-lg bg-white px-5 py-2 text-sm font-bold text-neutral-950 transition hover:bg-neutral-200"
-          >
+          <Link href={entryHref} className="vibra-auth-cta mt-4">
             Entrar a Vibra
           </Link>
         </div>

@@ -229,6 +229,23 @@ export const createGroupSubscription = onCall(
       // dólares etiquetados como pesos, mes tras mes.
       currency: SETTLEMENT_CURRENCY,
       groupName,
+      // 🧾 EVIDENCIA FISCAL DEL PAÍS (Art. 18-C), congelada aquí a propósito.
+      //
+      // En los otros diez cobros la evidencia se estampa en el paymentIntent, porque cada
+      // compra es un evento con su propio request: hay IP y hay tarjeta de donde derivarla.
+      // Una suscripción no: renueva sola durante años, y en la renovación **no hay navegador
+      // ni IP**. Si la evidencia no viaja con ella, dentro de tres años habrá cobros sin
+      // manera de justificar por qué se les aplicó la tasa de ese país.
+      //
+      // El webhook lee esta metadata en CADA `invoice.paid`, así que basta con dejarla aquí.
+      taxCountrySource: resolved.source,
+      taxCountryIndicios: JSON.stringify(resolved.indicios),
+      taxCountryHadConflict: String(resolved.hadConflict),
+      taxCountryAgreeingIndicios: resolved.agreeingIndicios.join(","),
+      taxCountryTwoEvidence: String(resolved.meetsTwoEvidenceRule),
+      // Fecha de la determinación: la evidencia vale para el día en que se tomó, no para
+      // siempre. Si el comprador se muda, lo que cambia es la suscripción, no el pasado.
+      taxCountryResolvedAt: new Date().toISOString(),
       ...(inviteToken ? { inviteToken } : {}),
     };
 

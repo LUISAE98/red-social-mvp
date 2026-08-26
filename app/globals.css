@@ -421,6 +421,80 @@ body::-webkit-scrollbar-button {
   background-color: rgba(168, 85, 255, 0);
 }
 
+/* ── Marca y llamada a entrar (páginas sin sesión) ─────────────────────────
+   Las dos piezas que ve quien llega desde un enlace compartido sin tener cuenta.
+   Viven aquí, en clases, porque las pantallas públicas están repartidas —el shell
+   de RootChrome, la publicación compartida— y cada una las tenía a su manera: la
+   publicación pintaba "Vibra" como texto gris cualquiera y su botón como un
+   recuadro con borde, cuando el resto del producto ya tenía resuelto cómo se ven
+   estas dos cosas. */
+
+/* El logotipo. El degradado se recorta con la forma de las letras y se mueve
+   despacio; es la misma receta del header con sesión iniciada. El TAMAÑO lo pone
+   quien la use: la marca es la misma en un header y en un hero, el tamaño no. */
+.vibra-brand {
+  display: inline-block;
+  font-size: 28px;
+  font-weight: 680;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  background: linear-gradient(100deg, #ff2fb3 0%, #a855f7 45%, #4f46ff 100%);
+  background-size: 220% 220%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-decoration: none;
+  animation: vibraBrandFlow 4.5s ease-in-out infinite;
+}
+
+@keyframes vibraBrandFlow {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* El botón de entrar. Mismo degradado que la marca pero de fondo, no de letra.
+   El tamaño del degradado (280%) es mayor que el del botón a propósito: así el
+   color entra en diagonal en vez de verse como tres bandas. */
+.vibra-auth-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 9px;
+  background-image: linear-gradient(
+    100deg,
+    #ff2fb3 0%,
+    #a855f7 35%,
+    #4f46ff 70%,
+    #ff2fb3 100%
+  );
+  background-size: 280% 280%;
+  background-position: 0% 50%;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-family: inherit;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.18s ease;
+}
+
+.vibra-auth-cta:hover {
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vibra-brand { animation: none; }
+  .vibra-auth-cta { transition: none; }
+  .vibra-auth-cta:hover { transform: none; }
+}
+
 /* ── Puntos de "trabajando" ────────────────────────────────────────────────
    Los tres puntos que sustituyen al texto de un botón mientras su acción está
    en vuelo. Antes ahí se escribía "Procesando…": una palabra larga que ensancha

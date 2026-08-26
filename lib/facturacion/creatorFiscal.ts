@@ -79,8 +79,29 @@ export async function setCreatorResidency(
   return res.data;
 }
 
+/**
+ * Guarda el país de la cuenta donde cobra el creador.
+ *
+ * 🚨 Es un dato fiscal: cobrar fuera de México sube su retención de IVA del 50% al 100%.
+ * `raisesRetention` viene en la respuesta para poder advertírselo en pantalla.
+ */
+export async function setCreatorPayoutAccountCountry(
+  country: string
+): Promise<{ ok: boolean; country: string; changed: boolean; raisesRetention: boolean }> {
+  const fn = httpsCallable<{ country: string }, { ok: boolean; country: string; changed: boolean; raisesRetention: boolean }>(
+    functions,
+    "setCreatorPayoutAccountCountry"
+  );
+  const res = await fn({ country });
+  return res.data;
+}
+
 export type CreatorTaxProfile = {
   residency?: CreatorResidency;
+  /** País de la cuenta donde cobra. Fuera de México sube la retención al 100%. */
+  payoutAccountCountry?: string | null;
+  /** ¿Hay constancia de residencia fiscal en el expediente? Sin ella no aplica el tratado. */
+  residencyCertificate?: boolean;
   taxId?: string;
   legalName?: string;
   taxSystem?: string;
@@ -114,7 +135,23 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
   }, [uid]);
 
   const hasData = !!(profile?.taxId && profile?.taxSystem && profile?.zip && profile?.legalName);
-  const csdReady = profile?.csdStatus === "valid";
+
+  /**
+   * ⚠️ Un sello VENCIDO sigue guardado como `valid`.
+   *
+   * Firestore no caduca campos solo: `csdStatus` se puso en "valid" el día que se subió y ahí
+   * se queda. Confiar solo en él significa dejar retirar a alguien cuyo sello ya no puede
+   * timbrar nada — y descubrirlo cuando falle la primera factura de un comprador.
+   *
+   * Por eso la vigencia se comprueba también contra la fecha, aquí y en cada lectura.
+   */
+  const csdVencido = (() => {
+    const iso = profile?.csdExpiresAt;
+    if (!iso) return false;
+    const t = Date.parse(iso);
+    return Number.isFinite(t) && t <= Date.now();
+  })();
+  const csdReady = profile?.csdStatus === "valid" && !csdVencido;
   const residency = profile?.residency ?? null;
   /**
    * ¿Puede retirar?
@@ -127,5 +164,20 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
    */
   const identityReady = false;
   const payoutReady = residency === "FOREIGN" ? identityReady : identityReady && csdReady;
-  return { profile, loading, hasData, csdReady, residency, identityReady, payoutReady };
+  return {
+    profile,
+    loading,
+    hasData,
+    csdReady,
+    csdVencido,
+    residency,
+    payoutAccountCountry: profile?.payoutAccountCountry ?? null,
+    /** ¿Cobra fuera de México? Le sube la retención de IVA al 100%. */
+    cobraFueraDeMexico:
+      residency === "MX" &&
+      !!profile?.payoutAccountCountry &&
+      profile.payoutAccountCountry.toUpperCase() !== "MX",
+    identityReady,
+    payoutReady,
+  };
 }
