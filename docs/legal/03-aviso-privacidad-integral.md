@@ -17,7 +17,7 @@
 >    "Transparencia para el Pueblo"). Verificar el **nombre exacto y la vía vigente** para quejas del
 >    titular. En este borrador se le nombra "**la Autoridad**".
 > 2. **Remisiones vs. transferencias.** Bajo la LFPDPPP, compartir datos con **encargados** (proveedores
->    que tratan datos por cuenta de Vibra: Firebase, Vercel, Mux, Cloudflare, LiveKit, Didit, Mercado
+>    que tratan datos por cuenta de Vibra: Firebase, Vercel, Mux, Cloudflare, LiveKit, Stripe, Facturapi, Mercado
 >    Pago en lo aplicable) son **remisiones**, que **no requieren la cláusula de consentimiento de
 >    transferencia**; solo las **transferencias a terceros responsables** (autoridades, reorganización
 >    corporativa, etc.) requieren la cláusula del **Art. 35**. Confirmar la calificación de cada
@@ -49,7 +49,7 @@ Según tu uso de la Plataforma, podemos tratar las siguientes categorías:
 - **Datos de verificación de identidad (KYC):** documento de identidad e **imagen facial / datos biométricos** procesados con nuestro proveedor de verificación (actualmente **Didit**; se prevé su reemplazo por **Stripe** antes de producción). **(Datos sensibles — ver §4.)**
 - **Grabaciones de videollamadas 1‑a‑1:** audio y video de los productos de videollamada 1‑a‑1 (*Sesión exclusiva* y *Tiempo contigo*), **no ofrecidos actualmente**; **cuando se habiliten**, se grabarán e incluirán **datos biométricos**. **(Datos sensibles — ver §4.)**
 - **Datos de pago y facturación:** método de pago tokenizado por el Proveedor de Pagos (no almacenamos el número completo de tarjeta), historial de transacciones, saldo del monedero interno (Wallet), y datos fiscales (para Creadores‑proveedores: RFC/identificación fiscal, residencia fiscal, datos para CFDI/constancias; para Compradores que solicitan factura: sus datos fiscales).
-- **Datos para determinación del impuesto de la venta:** como **Vibra vende directamente** y debe determinar el impuesto según el **país del Comprador**, tratamos indicios de residencia/consumo (país inferido por IP, país del medio de pago/banco emisor, domicilio de facturación y código telefónico), que **conservamos por transacción como evidencia fiscal**.
+- **Datos para determinación del impuesto de la venta:** como Vibra **determina y cobra el impuesto de la venta por cuenta del Creador** según el **país del Comprador**, tratamos indicios de residencia/consumo (país inferido por IP, país del medio de pago/banco emisor, domicilio de facturación y código telefónico), que **conservamos por transacción como evidencia fiscal**.
 - **Datos de ubicación aproximada:** ubicación aproximada derivada de la dirección IP (a nivel de celda de ~10 km) asociada a ciertas compras, para prevención de fraude, determinación fiscal y estadística; **no recabamos tu ubicación fina.**
 - **Datos técnicos y de uso:** dirección IP, identificadores de dispositivo, tipo de navegador, páginas y funciones utilizadas, cookies y tecnologías similares (ver [Política de Cookies](./05-politica-cookies.md) (#5)).
 - **Comunicaciones y soporte:** mensajes con nuestro equipo, reportes de moderación, solicitudes de derechos.
@@ -83,11 +83,11 @@ el servicio principal).
 
 - Crear y administrar tu cuenta, autenticarte y gestionar tus sesiones y dispositivos.
 - Prestar las funciones de la Plataforma (perfiles, comunidades, contenido, VOD, transmisiones, videollamadas, mensajería).
-- Procesar tus compras **como vendedora**, operar la Wallet (ledger interno), calcular el reparto con el Creador‑proveedor y gestionar retiros.
+- Procesar tus compras **cobrando por cuenta del Creador**, operar la Wallet (ledger interno), calcular el reparto con el Creador y gestionar retiros.
 - **Determinar el impuesto de la venta según tu país** (como Comprador), cobrarlo y **emitir el comprobante o factura**, conservando los indicios de residencia/consumo como evidencia fiscal.
 - **Verificar tu identidad (KYC)** cuando corresponda, como condición para monetizar y retirar.
 - **Grabar las videollamadas 1‑a‑1** contratadas y ponerlas a disposición de las partes autorizadas.
-- Cumplir obligaciones **fiscales** de Vibra como vendedora y, respecto del Creador‑proveedor, retener y documentar su pago según su residencia/régimen (cálculo independiente).
+- Cumplir las obligaciones **fiscales** que corresponden a Vibra como intermediaria —determinar y cobrar el impuesto de la venta por cuenta del Creador, retener y enterar lo que la ley obliga— y emitir los comprobantes de la venta, de la comisión y de las retenciones.
 - **Prevención de fraude, seguridad, moderación** de contenido y **cumplimiento legal** (incluida la prevención de lavado de dinero y la atención de requerimientos de autoridad).
 - Atender tus solicitudes de soporte, quejas y ejercicio de derechos.
 - Enviarte **comunicaciones de servicio** (transaccionales, de seguridad, legales y operativas).

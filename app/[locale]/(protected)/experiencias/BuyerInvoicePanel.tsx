@@ -28,10 +28,14 @@ import {
   generateBuyerInvoice,
   downloadBuyerInvoice,
   type BuyerBillingProfile,
+  type FacturaEmitida,
+  type FacturaOmitida,
 } from "@/lib/facturacion/buyerFiscal";
 
 export type InvoiceConcept = {
   id: string;
+  /** Quién emite la factura de este concepto: el creador que vendió. */
+  creatorId: string;
   name: string; // creador o comunidad
   typeLabel: string; // etiqueta i18n del tipo de servicio
   base: number; // grossAmount (base, sin IVA)
@@ -72,6 +76,7 @@ const SECTION_LABEL: React.CSSProperties = {
 
 export default function BuyerInvoicePanel({ open, onClose, uid, concepts, formatMoney, onConfirm }: Props) {
   const tWallet = useTranslations("wallet");
+  const tCommon = useTranslations("common");
   // Desmontado diferido para animar la SALIDA (vibra_style.md).
   const [rendered, setRendered] = useState(open);
   const [closing, setClosing] = useState(false);
@@ -97,7 +102,14 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
   const { toast, showToast } = useVibraToast();
   useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   // Resultado del timbrado (vista de éxito con el folio fiscal + correo de envío).
-  const [doneInfo, setDoneInfo] = useState<{ invoiceId: string; uuid: string | null; total: number | null; email: string | null } | null>(null);
+  // Resultado de la emisión: una factura POR CREADOR, más los que quedaron fuera.
+  const [doneInfo, setDoneInfo] = useState<{
+    invoices: FacturaEmitida[];
+    skipped: FacturaOmitida[];
+    email: string | null;
+  } | null>(null);
+  /** Factura que se está descargando, para no bloquear las demás. */
+  const [descargando, setDescargando] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -122,6 +134,14 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
   const formMode = usingNew || profiles.length === 0;
   // Perfil activo (cuando se factura con datos guardados): el elegido, o el primero.
   const activeProfileId = selectedProfileId ?? profiles[0]?.id ?? null;
+
+  /** Nombre visible de un creador, tomado de los conceptos seleccionados. */
+  const nombrePorCreador = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of concepts) if (!m.has(c.creatorId)) m.set(c.creatorId, c.name);
+    return m;
+  }, [concepts]);
+  const nombreDeCreador = (id: string) => nombrePorCreador.get(id) ?? tCommon("creator");
 
   // El formulario se expande/colapsa con animación (grid-template-rows). Mientras
   // anima necesita `overflow: hidden` para recortar; una vez abierto del todo lo
@@ -196,7 +216,8 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
         billingProfileId: profileId!,
       });
       onConfirm?.();
-      setDoneInfo({ invoiceId: r.invoiceId, uuid: r.uuid, total: r.total, email: r.email });
+      const perfil = profiles.find((x) => x.id === profileId) ?? null;
+      setDoneInfo({ invoices: r.invoices, skipped: r.skipped, email: perfil?.email ?? null });
     } catch (e) {
       setError(errMsg(e));
     } finally {
@@ -205,12 +226,11 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
   }
 
   // Descarga el PDF de la factura (base64 → blob) y cierra el panel.
-  async function handleDownload() {
-    if (!doneInfo?.invoiceId) return;
-    setBusy(true);
+  async function handleDownload(invoiceId: string) {
+    setDescargando(invoiceId);
     setError(null);
     try {
-      const r = await downloadBuyerInvoice(doneInfo.invoiceId);
+      const r = await downloadBuyerInvoice(invoiceId);
       const bytes = Uint8Array.from(atob(r.pdfBase64), (c) => c.charCodeAt(0));
       const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
       const a = document.createElement("a");
@@ -220,10 +240,10 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      onClose();
     } catch (e) {
       setError(errMsg(e));
-      setBusy(false);
+    } finally {
+      setDescargando(null);
     }
   }
 
@@ -267,29 +287,97 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
         {/* Contenido con scroll */}
         <div style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 20px" }} className="vibraInvoiceScroll">
           {doneInfo ? (
-            <div style={{ display: "grid", gap: 14, textAlign: "center", padding: "16px 0" }}>
+            <div style={{ display: "grid", gap: 14, padding: "16px 0" }}>
               <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#16a34a", display: "grid", placeItems: "center", margin: "0 auto" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Factura generada</div>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, margin: 0 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", textAlign: "center" }}>
+                {doneInfo.invoices.length === 1 ? "Factura generada" : `${doneInfo.invoices.length} facturas generadas`}
+              </div>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, margin: 0, textAlign: "center" }}>
                 {doneInfo.email
-                  ? <>Tu factura ha sido enviada a <span style={{ color: "#fff", fontWeight: 600 }}>{doneInfo.email}</span></>
-                  : "Tu CFDI se timbró correctamente."}
+                  ? <>Te {doneInfo.invoices.length === 1 ? "la" : "las"} enviamos a <span style={{ color: "#fff", fontWeight: 600 }}>{doneInfo.email}</span></>
+                  : "Se timbraron correctamente."}
               </p>
-              {doneInfo.uuid && (
-                <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, wordBreak: "break-all" }}>
-                  Folio fiscal (UUID)
-                  <div style={{ color: "rgba(255,255,255,0.85)", marginTop: 2 }}>{doneInfo.uuid}</div>
+
+              {/* Cada creador emite la suya: van listadas por separado, con su folio y su
+                  descarga. Juntarlas en un solo bloque escondería que son documentos
+                  fiscales distintos, de emisores distintos. */}
+              {doneInfo.invoices.length > 1 && (
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, margin: 0, textAlign: "center" }}>
+                  Cada creador emite su propia factura, por eso son {doneInfo.invoices.length}.
+                </p>
+              )}
+
+              <div style={{ display: "grid", gap: 10, marginTop: 2 }}>
+                {doneInfo.invoices.map((f) => (
+                  <div
+                    key={f.invoiceId}
+                    style={{
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 12,
+                      padding: "12px 14px",
+                      display: "grid",
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: "#fff", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {nombreDeCreador(f.creatorId)}
+                      </span>
+                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>
+                        {f.purchaseIds.length === 1 ? "1 concepto" : `${f.purchaseIds.length} conceptos`}
+                      </span>
+                    </div>
+                    {f.uuid && (
+                      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", lineHeight: 1.45, wordBreak: "break-all" }}>
+                        Folio fiscal · {f.uuid}
+                      </div>
+                    )}
+                    <TextButton
+                      tone="brand"
+                      size="sm"
+                      style={{ margin: 0, fontFamily: "inherit", justifySelf: "start" }}
+                      onClick={() => handleDownload(f.invoiceId)}
+                      disabled={descargando !== null}
+                    >
+                      {descargando === f.invoiceId ? "Descargando…" : "Descargar"}
+                    </TextButton>
+                  </div>
+                ))}
+              </div>
+
+              {/* Los que no se pudieron emitir. Se explica el motivo real: casi siempre el
+                  creador todavía no ha subido su sello, y eso no lo puede resolver el
+                  comprador — pero sí necesita saber por qué falta su factura. */}
+              {doneInfo.skipped.length > 0 && (
+                <div
+                  style={{
+                    background: "rgba(234,179,8,0.08)",
+                    border: "1px solid rgba(234,179,8,0.25)",
+                    borderRadius: 12,
+                    padding: "12px 14px",
+                    display: "grid",
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "#eab308" }}>
+                    {doneInfo.skipped.length === 1 ? "Falta una factura" : `Faltan ${doneInfo.skipped.length} facturas`}
+                  </div>
+                  {doneInfo.skipped.map((s) => (
+                    <div key={s.creatorId} style={{ fontSize: 12, color: "rgba(255,255,255,0.72)", lineHeight: 1.5 }}>
+                      <span style={{ color: "#fff", fontWeight: 500 }}>{nombreDeCreador(s.creatorId)}</span>
+                      {" — "}
+                      {s.motivo === "error_timbrado"
+                        ? "no se pudo timbrar en este momento. Vuelve a intentarlo más tarde."
+                        : "todavía no tiene sus datos de facturación al día. Sus conceptos siguen disponibles para facturar cuando los complete."}
+                    </div>
+                  ))}
                 </div>
               )}
-              <button type="button" onClick={onClose} disabled={busy} style={{ marginTop: 6, width: "100%", height: 42, borderRadius: 5, border: "none", background: "#a855f7", color: "rgba(255,255,255,0.98)", fontSize: 17, fontWeight: 500, fontFamily: "inherit", letterSpacing: "-0.02em", cursor: busy ? "default" : "pointer", display: "grid", placeItems: "center" }}>Listo</button>
 
-              {/* Descargar el PDF de la factura y cerrar. 🔁 CUTOVER: hoy es CFDI de
-                  PRUEBA (llave sk_test), aún no fiscal; en producción será el CFDI real. */}
-              <TextButton tone="brand" size="md" style={{ margin: 0, fontFamily: "inherit" }} onClick={handleDownload} disabled={busy}>
-                {busy ? "Descargando…" : "Da clic aquí para descargar tu factura"}
-              </TextButton>
+              <button type="button" onClick={onClose} disabled={descargando !== null} style={{ marginTop: 6, width: "100%", height: 42, borderRadius: 5, border: "none", background: "#a855f7", color: "rgba(255,255,255,0.98)", fontSize: 17, fontWeight: 500, fontFamily: "inherit", letterSpacing: "-0.02em", cursor: descargando ? "default" : "pointer", display: "grid", placeItems: "center" }}>Listo</button>
             </div>
           ) : (
           <>
@@ -367,6 +455,16 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
 
           {/* ── CONCEPTOS (con scroll, ~5 visibles) ── */}
           <div style={SECTION_LABEL}>Conceptos ({concepts.length})</div>
+
+          {/* Avisar ANTES de emitir, no después: el comprador elige conceptos sueltos y no
+              tiene por qué saber que cada creador emite su propia factura. Descubrirlo al
+              recibir tres correos en vez de uno se lee como un error del sistema. */}
+          {nombrePorCreador.size > 1 && (
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.5, margin: "-4px 0 12px" }}>
+              Se generarán <span style={{ color: "#fff", fontWeight: 600 }}>{nombrePorCreador.size} facturas</span>, una por
+              cada creador. Cada uno emite la suya.
+            </p>
+          )}
           <div className="vibraInvoiceScroll" style={{ maxHeight: 224, overflowY: "auto", display: "grid", gap: 2, marginBottom: 4, background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "4px 12px" }}>
             {concepts.map((c) => (
               <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 0" }}>

@@ -54,10 +54,35 @@ export type GenerateBuyerInvoiceInput = {
   billingProfileId: string;
 };
 
+/** Una factura emitida, a nombre de UN creador. */
+export type FacturaEmitida = {
+  creatorId: string;
+  invoiceId: string;
+  uuid: string | null;
+  total: number | null;
+  purchaseIds: string[];
+};
+
+/** Un creador cuyas compras NO se pudieron facturar, y por qué. */
+export type FacturaOmitida = {
+  creatorId: string;
+  motivo: "sin_sello" | "sin_datos_fiscales" | "error_timbrado";
+  detalle?: string;
+};
+
+/**
+ * Emite las facturas de una selección de compras.
+ *
+ * ⚠️ Devuelve VARIAS. Bajo el modelo de intermediación el vendedor es el creador, así que sale
+ * **una factura por creador**: diez conceptos de tres creadores son tres facturas, cada una
+ * timbrada con el sello de su emisor.
+ *
+ * Un creador sin sello vigente no tumba al resto: aparece en `skipped` y las demás se emiten.
+ */
 export async function generateBuyerInvoice(
   input: GenerateBuyerInvoiceInput
-): Promise<{ ok: boolean; invoiceId: string; uuid: string | null; total: number | null; email: string | null }> {
-  const fn = httpsCallable<GenerateBuyerInvoiceInput, { ok: boolean; invoiceId: string; uuid: string | null; total: number | null; email: string | null }>(
+): Promise<{ ok: boolean; invoices: FacturaEmitida[]; skipped: FacturaOmitida[] }> {
+  const fn = httpsCallable<GenerateBuyerInvoiceInput, { ok: boolean; invoices: FacturaEmitida[]; skipped: FacturaOmitida[] }>(
     functions,
     "generateBuyerInvoice"
   );

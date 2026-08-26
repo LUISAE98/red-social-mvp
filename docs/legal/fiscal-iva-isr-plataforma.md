@@ -1,213 +1,315 @@
-# Modelo fiscal de Vibra — IVA e impuestos indirectos (modelo VENDEDOR DIRECTO / seller of record)
+# Modelo fiscal de Vibra — IVA e impuestos indirectos (modelo INTERMEDIACIÓN)
 
-> **Estado:** documento de diseño **operativo**, actualizado **2026-07-28** al **MODELO DE VENDEDOR DIRECTO**. Es la guía de referencia para **construir y desplegar** la facturación e impuestos.
-> Las tasas por país se confirman con el fiscalista **conforme se habilitan**; **México (16%) está confirmado** para arranque. **Procesadora = Stripe** (Stripe Connect; Vibra = Merchant of Record; ver `docs/stripe-integracion.md`).
+> **Estado:** documento de diseño operativo. **Actualizado 2026-08-26 al MODELO DE INTERMEDIACIÓN.**
+> Es la guía de referencia para construir la facturación y los impuestos.
 >
-> **⚠️ Cambio de modelo (2026-07-28).** Hasta el 2026-07-27 este documento asumía a Vibra como **intermediaria/retenedora** (régimen 18-J / 113-A). El modelo aprobado como base ("Reporte maestro del nuevo modelo fiscal y operativo de Vibra", v1.0, 28-jul-2026) cambia el enfoque: **Vibra es la VENDEDORA directa frente al comprador en el modelo general.** Ver **§0**. Las secciones §1–§11 y los Anexos se conservan como **referencia del detalle fiscal mexicano** pero fueron escritas bajo el modelo anterior (ver nota al final de §0).
+> **⚠️ Tercer y definitivo cambio de modelo.** Este documento pasó por tres etapas: intermediación
+> (hasta el 27-jul-2026), vendedor directo (28-jul al 25-ago-2026) y **de vuelta a intermediación**,
+> ahora con confirmación de fiscalista. Todo párrafo que describa a Vibra como vendedora directa o al
+> creador como su proveedor **está superado**.
 >
-> **Alcance:** **México** (base fiscal) + **17 países LatAm** en **lista orientativa ABIERTA** — se ampliará/ajustará según los países que habilite la procesadora aprobada y la validación fiscal país por país. Solo **México (16%)** está confirmado para arranque.
+> **Consecuencia útil:** las secciones §1 a §11 y los Anexos, escritos bajo el modelo intermediario
+> original, **vuelven a ser pertinentes**. Se conservan y se revalidan, salvo las marcas puntuales.
 >
-> **Servicios BLOQUEADOS:** Sesión exclusiva\* y Tiempo contigo\* — no clasificar ni programar hasta decisión escrita.
+> **Entidad:** Vibra On, LLC. **Procesadora:** Stripe. **Denominación:** USD.
+> **Reparto:** 75% creador / 25% Vibra sobre el precio base, con el impuesto de la comisión por encima.
 >
-> Marco (referencia mexicana): LIVA (Cap. III BIS, arts. 1º-A BIS, 16, 18-B a 18-M, 24, 29) y su Reglamento (art. 58);
-> LISR (arts. 113-A a 113-D y Título V, arts. 153, 156, 167); CFF (art. 30-B); LIF 2026 (art. 25);
-> RMF 2026; reforma DOF 07-11-2025; jurisprudencia del PJF. Fuentes al final.
+> Marco (referencia mexicana): LIVA (Cap. III BIS, arts. 1º-A BIS, 16, 18-B a 18-M, 24, 29) y su
+> Reglamento (art. 58); LISR (arts. 113-A a 113-D y Título V, arts. 153, 156, 167); CFF (arts. 5º-A,
+> 9º, 30-B); LIF 2026 (art. 25); RMF 2026; reforma DOF 07-11-2025; jurisprudencia del PJF.
 
 ---
 
-## 0. MODELO VIGENTE: Vibra es VENDEDORA DIRECTA (seller of record)
+## 0. MODELO VIGENTE: Vibra es INTERMEDIARIA
 
-En el modelo general, **el comprador contrata con Vibra, no con el creador.** Vibra fija el precio final, cobra, **determina el impuesto indirecto aplicable**, emite el comprobante/factura, concede el acceso o coordina la entrega, y administra cancelaciones, reembolsos, contracargos y la reclamación del consumidor. **El creador es PROVEEDOR de Vibra** (le suministra el contenido/ejecución/colaboración contratada).
+**El creador vende y presta al comprador. Vibra intermedia y cobra por cuenta del creador.**
 
-**Consecuencia contable propuesta (a validar por contador):** el **100% del precio base** vendido = ingreso bruto de Vibra; la **participación del creador (75%)** = costo/obligación de pago; la **participación de Vibra (25%)** = margen. **El impuesto cobrado al comprador NO es ingreso ni base de reparto.** El reparto se calcula sobre el **precio base**, no sobre el total con impuesto.
+Vibra opera la plataforma, publica el catálogo, procesa el cobro, entrega técnicamente, modera y da
+soporte. Cobra el precio y los impuestos **en nombre y por cuenta del creador**, al amparo de un
+**mandato de cobro** que éste otorga por separado, y retiene su comisión y las retenciones fiscales
+obligatorias.
 
-> **Reparto y márgenes (act. 2026-07-31):** la comisión subió de 23% a **25%** (reparto **75/25**). El modelo completo de comisión, comisiones de Stripe (quién absorbe qué), payout mínimo y márgenes objetivo (25% = ~5% Stripe + 8% infra + 1% devoluciones + 1% sueldos + 10% utilidad) vive en **`docs/modelo-financiero.md`**. Procesadora = **Stripe** (`docs/stripe-integracion.md`).
+**Consecuencia contable (a confirmar con el contador):** el ingreso de Vibra es **su comisión del 25%**,
+no el 100% del precio. El 75% del creador **nunca fue ingreso de Vibra**: transitó por sus sistemas por
+cuenta ajena. Esto invierte la nota que traía la versión de vendedor directo, que proponía registrar el
+100% como ingreso y el 75% como costo. **Ese asiento ya no aplica.**
 
 ### Dos cálculos INDEPENDIENTES (principio rector)
 
-1. **Impuesto de la VENTA** → lo determina la **residencia del COMPRADOR** (el IVA/VAT/IGV del país donde se consume).
-2. **Documentación y retención del PAGO al creador-proveedor** → lo determina la **residencia y régimen del CREADOR**.
+1. **Impuesto de la VENTA** → lo determina el **país del COMPRADOR**.
+2. **Retenciones y comprobantes del PAGO al creador** → lo determinan la **residencia y el régimen del
+   CREADOR**.
 
-El país del comprador fija el impuesto de la venta; el país del creador fija cómo se documenta y retiene el pago al proveedor. Son cálculos separados.
+Se calculan por separado y solo se encuentran en el asiento del ledger. Mezclarlos es el error más caro
+que se puede cometer aquí.
 
-### 0.1 La matriz de las 4 combinaciones — ⭐ MATRIZ ÚNICA Y AUTORITATIVA
+### 0.1 La matriz de las 4 combinaciones — ⭐ AUTORITATIVA
 
-> **Ésta es la ÚNICA matriz del documento.** Antes existían dos copias más (§4 "Tabla maestra"
-> y Anexo B), escritas bajo el modelo anterior de intermediario y con la convención de siglas
-> **invertida** (`Creador–Comprador` en vez de `Comprador/Creador`), de modo que "MX–EX"
-> significaba cosas opuestas según dónde se leyera. Ambas se eliminaron el 2026-08-07.
-> **No volver a duplicar esta tabla: si el tratamiento cambia, se edita aquí.**
+Ejemplo uniforme: **precio base 100**, **comisión de Vibra 25**.
 
-Cada fila se nombra con **ambas** residencias explícitas para que no haya ambigüedad de orden.
-
-#### 🔑 Premisa que gobierna las cuatro filas
-
-**Vibra es la VENDEDORA y es residente en México.** El **Art. 16 de la LIVA** dispone que un
-servicio se presta en territorio nacional cuando lo realiza, total o parcialmente, **un residente
-en el país**. Por lo tanto:
-
-> **La venta de Vibra SIEMPRE está dentro del objeto del IVA mexicano — en las cuatro filas,
-> incluso con creador y comprador extranjeros.** Lo que cambia es la **tasa**: 16% o 0% por
-> exportación. **Nunca "desaparece" ni queda "fuera de objeto".**
-
-La distinción no es semántica: a **tasa 0%** Vibra **acredita su IVA de insumos**; "fuera de
-objeto" no permitiría acreditarlo. *(Corregido el 2026-08-07: la fila EX·EX decía "sin IVA
-mexicano, fuera de objeto" — conclusión heredada del modelo de intermediario, donde el vendedor
-era el creador. Bajo vendedor directo es incorrecta.)*
-
-**Y los dos cálculos siguen siendo independientes:** el impuesto que se le **cobra al comprador**
-lo fija su país de residencia; el IVA mexicano de la operación de Vibra es una capa **separada**
-que se resuelve como 16% o 0%, y **nunca se traslada al comprador extranjero**.
-
-| Combinación | Se le COBRA al comprador | IVA mexicano de la venta de Vibra | Pago al CREADOR-proveedor | Estado |
-|---|---|---|---|---|
-| **Creador 🇲🇽 MX · Comprador 🇲🇽 MX** | **16% IVA mexicano** | **16%** (operación doméstica) | Proveedor mexicano factura a Vibra; retenciones según régimen (**D-06**). El IVA que le traslade a Vibra es **acreditable** | 🟡 Definir reglas por régimen |
-| **Creador 🌍 EX · Comprador 🇲🇽 MX** | **16% IVA mexicano** (consumo en México) | **16%** | Proveedor extranjero → **importación de servicios** (Art. 24-V). Revisar IVA autoliquidado y retención de ISR (Título V; regalía vs. servicio, §7) | 🔴 Opinión fiscal requerida |
-| **Creador 🇲🇽 MX · Comprador 🌍 EX** | **Impuesto del país del comprador** (§0.2) | **0% por exportación** (Art. 29-IV) si encuadra en un inciso de la lista cerrada; si no, **16%** | Proveedor mexicano factura a Vibra con 16% **acreditable**; retenciones según régimen (**D-06**) | 🔴 Confirmar inciso (**D-08**) |
-| **Creador 🌍 EX · Comprador 🌍 EX** | **Impuesto del país del comprador** (§0.2) | **0% por exportación** (Art. 29-IV) — es la fila **más defendible**: el comprador está fuera, el aprovechamiento en el extranjero es claro | Proveedor extranjero → importación de servicios; sin fuente de riqueza en MX para ISR (matiz regalía, §7) | 🟡 Confirmar inciso (**D-08**) |
-
-#### La tasa 0% de exportación tiene DOS compuertas (Art. 29-IV LIVA)
-
-**Compuerta 1 — lista CERRADA de servicios.** El Art. 29 fracción IV enumera taxativamente qué
-califica como exportación de servicios. No es una lista abierta ni ejemplificativa:
-
-| Inciso | Servicio |
-|---|---|
-| a) | Asistencia técnica y servicios técnicos relacionados |
-| b) | Maquila y submaquila (IMMEX) |
-| c) | Publicidad |
-| d) | Comisiones y mediaciones |
-| e) | Seguros, reaseguros, afianzamientos |
-| f) | Operaciones de financiamiento |
-| g) | **Filmación o grabación** |
-| h) | Centros telefónicos por llamadas originadas en el extranjero |
-| i) | **Servicios de tecnologías de la información** |
-
-> ⚠️ **Consecuencia directa del cambio de modelo.** Como **intermediario**, el corte de Vibra
-> encajaba de forma natural en **d) comisiones y mediaciones**. Como **vendedor directo**, Vibra
-> ya no vende mediación: vende contenido, y el 0% tiene que apoyarse en **g) filmación o
-> grabación** o **i) tecnologías de la información**. Es el mismo negocio sostenido por una
-> fracción distinta de la ley. **Mapear cada uno de los 11 servicios a su inciso es la decisión
-> D-08.**
->
-> Restricción del inciso i): los servicios de TI **no** se consideran exportados si se prestan
-> mediante redes privadas virtuales, ni si recaen o se aplican sobre bienes ubicados en
-> territorio nacional.
-
-**Compuerta 2 — requisito de forma.** El servicio debe ser **contratado y pagado por un residente
-en el extranjero sin establecimiento en el país**, y el pago debe llegar por cheque nominativo o
-transferencia, **proveniente de cuentas de instituciones financieras ubicadas en el extranjero**
-(Art. 58 RLIVA). Sumado a la evidencia de aprovechamiento efectivo en el extranjero (tesis
-**2031805**).
-
-**Notas de las filas**
-
-- **Creador MX · Comprador MX** — caso base, sin zona gris. Una PF que factura ≤ $300,000/año puede optar por **pago definitivo (113-B)**. **RESICO no aplica** a lo cobrado por plataforma: manda el 113-A.
-- **Creador EX · Comprador MX** — el fan sí paga 16% (LIVA Art. 16 §4 → Cap. III BIS: el receptor está en México). Riesgo abierto: que el SAT arrastre `vod_ticket` y `premium_post` hacia **regalía** (retención 25%). Sin **constancia de residencia fiscal** del creador no se puede aplicar tasa de tratado.
-- **Creador MX · Comprador EX** — es la fila donde la compuerta 2 más aprieta: el fan paga a la cuenta **mexicana** de Vibra, y el Art. 58 RLIVA pide pago desde cuentas en el extranjero.
-- **Creador EX · Comprador EX** — la fila más limpia para el 0%: el aprovechamiento en el extranjero es evidente. Sigue siendo **0%, no ausencia de gravamen**.
-
-> **Regla crítica.** NO implementar `buyerCountry != MX → IVA 0%` como si fuera automático. Son dos capas: (1) al comprador se le cobra el impuesto de **su** país; (2) el IVA mexicano de la venta de Vibra es 0% **solo si** encuadra en un inciso del Art. 29-IV y se cumple el requisito de forma. Si no encuadra, Vibra debe **16% que no puede trasladar al comprador extranjero** — sale de su margen.
-
-### 0.2 Impuesto por país — LISTA ORIENTATIVA (abierta, sin validar)
-
-> ⚠️ **Lista orientativa** (se valida por país conforme se habilita). Tasas y mecanismos de LatAm cambian rápido (Brasil en reforma 2026; Perú/Ecuador cambiaron en 2024). **La lista está ABIERTA:** se amplía/ajusta según **los países que habilite Stripe** y la validación fiscal por país. **México (16%) está confirmado** para arranque; el resto se activa al confirmar tasa + mecanismo. Las tasas viven en configuración versionada (no hardcode), así que agregar un país es cambiar config, no código.
-
-| País | Tasa | Cómo se cobra | ¿Registro obligatorio? |
-|---|---|---|---|
-| 🇲🇽 México | 16% | Reg. proveedor extranjero (18-B) o retención vía plataforma | Sí (o retención) |
-| 🇦🇷 Argentina | 21% | Retención por banco/emisora (percepción) | No |
-| 🇧🇷 Brasil | Reforma CBS/IBS (ago-2026) | Registro + e-invoicing (en transición) | Sí (régimen 2026) |
-| 🇨🇱 Chile | 19% | Registro simplificado; si no, retención | Sí (o retención) |
-| 🇨🇴 Colombia | 19% | Registro y cobro; o retención voluntaria | Sí (o retención) |
-| 🇵🇪 Perú | 18% | Registro como agente; retención desde dic-2024 | Sí |
-| 🇺🇾 Uruguay | 22% | Registro y cobro | Sí |
-| 🇩🇴 Rep. Dominicana | 18% | Registro desde la 1ª venta (sin umbral) | Sí (inmediato) |
-| 🇨🇷 Costa Rica | 13% | Retención del 13% por el banco; registro voluntario | No (voluntario) |
-| 🇪🇨 Ecuador | 15% | Retención por bancos/emisoras; registro opcional | No (opcional) |
-| 🇵🇾 Paraguay | 10% | Retención por institución financiera | No |
-| 🇬🇹 Guatemala | 12% | Régimen voluntario propuesto; si no, retención | Voluntario/retención |
-| 🇧🇴 Bolivia | 13% | Régimen digital emergente (2024) | En definición |
-| 🇸🇻 El Salvador | 13% | Sin régimen digital específico aún | Sin reglas claras |
-| 🇭🇳 Honduras | 15% (ISV) | Dato limitado | Confirmar |
-| 🇳🇮 Nicaragua | 15% | Dato limitado | Confirmar |
-| 🇵🇦 Panamá | 7% (ITBMS) | Dato limitado sobre digital | Confirmar |
-
-**Patrón operativo:** en 🟢 **Argentina, Costa Rica, Ecuador, Paraguay** el impuesto lo **retiene el banco/procesador** (probablemente NO registras). En 🔴 **México, Brasil, Chile, Colombia, Perú, Uruguay, Rep. Dominicana** **debes registrarte** como proveedor extranjero. En 🟡 **Guatemala, Bolivia, El Salvador, Honduras, Nicaragua, Panamá** el régimen digital está incierto. **Esto lo confirman la procesadora (D-01) + el fiscalista (D-02).**
-
-### 0.3 Servicios BLOQUEADOS
-
-**Sesión exclusiva\* y Tiempo contigo\*** quedan fuera del modelo definitivo hasta decisión escrita (D-03/D-04). **No** asignar taxCategory, sellerOfRecord, factura, tasa, reparto ni payout a estos dos servicios.
-
-### 0.4 Reglas de implementación
-
-- **No 0% automático** por comprador extranjero (requiere evidencia de exportación material).
-- **Importes inmutables por orden** (snapshot de tasa y FX); nunca reconstruir el historial con la config vigente.
-- **No hardcode** de tasas: configuración versionada con vigencia, fuente oficial y aprobación.
-- **Donaciones:** no llamarlas "donación" ni tratarlas como venta si el pago desbloquea acceso/derecho exigible; si son apoyo genuino, separar (pendiente opinión — D-05).
-
-### 0.5 Decisiones pendientes (se resuelven en paralelo, NO bloquean construir)
-
-| ID | Decisión | Propietario |
+| | Comprador MEXICANO | Comprador EXTRANJERO |
 |---|---|---|
-| D-01 | ✅ Procesadora = **Stripe**. Stripe **solo procesa** (no recauda/remite el impuesto local); como **Merchant of Record, Vibra determina, cobra y entera** el impuesto. Confirmar caso por caso al abrir países. | Luis + fiscalista |
-| D-02 | Matriz fiscal validada de los países habilitados | Fiscalista internacional |
-| D-03/D-04 | Clasificación final de Sesión exclusiva\* y Tiempo contigo\* | Luis + fiscalista |
-| D-05 | Tratamiento de apoyos/donaciones y margen de Vibra | Fiscalista |
-| D-06 | Retenciones y comprobantes por régimen del creador-proveedor | Fiscalista México |
-| D-07 | Presentación contable 100/75/25 y VAT de proveedor | Contador |
-| **D-08** | **Mapear cada uno de los 11 servicios a un inciso del Art. 29-IV LIVA** (lista cerrada) para sostener el 0% de exportación. Al dejar de ser intermediario, Vibra salió del inciso d) "comisiones y mediaciones" y debe apoyarse en g) "filmación o grabación" o i) "tecnologías de la información". Si un servicio no encuadra en ningún inciso → **16% no trasladable al comprador extranjero**, sale del margen | Fiscalista México |
-| **D-09** | **Investigación profunda país por país** (19 países: 17 LatAm + USA + Canadá): tasa vigente, mecanismo de cobro (registro vs. retención por el banco), umbral de registro, obligación de facturación electrónica local y si el servicio de Vibra es gravable ahí. Ver §0.2 — hoy es lista orientativa **sin validar** | Luis + fiscalista internacional |
+| **Creador MEXICANO** | Paga **116**<br>Retención IVA **8** (50%)<br>Retención ISR **2.50**<br>Comisión **25 + 4** de IVA<br>**Se deposita 76.50**<br>Tras enterar su IVA le quedan **72.50** | Paga **100** + impuesto de su país<br>Venta a **0%** de IVA mexicano<br>Retención IVA **0**<br>Retención ISR **2.50**<br>Comisión **25 + 4** de IVA<br>**Se deposita 68.50**<br>Los 4 le quedan **a favor** |
+| **Creador EXTRANJERO** | Paga **116**<br>Retención IVA **16** (100%)<br>Sin ISR mexicano<br>Comisión **25**, sin IVA<br>**Se deposita 75.00** | Paga **100** + impuesto de su país<br>Sin IVA mexicano<br>Sin ISR mexicano<br>Comisión **25**, sin IVA<br>**Se deposita 75.00** |
 
-**Estado:** base aprobada para **construir la integración**. México (16%) confirmado para arranque; los demás países se activan por configuración conforme se validan. Las decisiones pendientes se resuelven en paralelo sin frenar el desarrollo.
+**Reglas que se leen de la matriz:**
 
-### 0.6 Facturación (Facturapi) — modelo de DOS CFDIs
+- **El ISR se calcula sobre los 100**, sin el IVA y antes de la comisión. No sobre 116 ni sobre 75.
+- **La retención de IVA es un porcentaje del IVA cobrado**, así que cuando la venta va a 0% se anula
+  sola. No hay que ramificar la fórmula.
+- **La comisión de Vibra lleva su propio IVA cuando el creador es mexicano**, y va **por encima** del
+  25%, nunca dentro. Si fuera dentro, la comisión efectiva caería a 21.55 y Vibra absorbería un impuesto
+  que no puede acreditar.
+- **El creador conserva su 75% íntegro** antes de sus propias retenciones, en los cuatro casos.
 
-Como Vibra es **vendedor directo**, la facturación se reduce a **2 comprobantes** (antes, como intermediario, eran ~3; **desaparece el "CFDI de comisión"** porque el 25% de Vibra es **margen**, no un servicio facturado al creador):
+**Una sola fórmula sirve para los cuatro:**
 
-1. **Vibra → Comprador (factura de venta).** La emite **Vibra con SU propio CSD** (org de Vibra en Facturapi). **Self-service y automática:** el comprador pide factura, captura RFC/uso/régimen/CP, y se timbra al instante. Si no pide factura → **comprobante de pago** (no fiscal) y la venta entra a la **factura global** mensual.
-2. **Creador → Vibra (factura de proveedor).** El creador es proveedor y factura su ~75% a Vibra. Requiere el **CSD del creador**. **Alta perezosa:** al querer **cobrar por primera vez**, el creador sube su CSD (se crea su **organización en Facturapi**) y acepta el **aviso legal de auto-facturación (self-billing)** — junto al KYC/monetización. De ahí en adelante, **cada pago genera su CFDI a Vibra automáticamente**. Las **retenciones** al creador-proveedor (ISR/IVA según su régimen) se calculan y reflejan en ese CFDI (D-06).
+```
+neto = (base + ivaVenta) − (comisión + ivaComisión) − retIVA − retISR
 
-**Plan de integración por bloques (Facturapi):**
+  retIVA = tasaRetIVA × ivaVenta
+  retISR = tasaRetISR × base
+```
 
-| Bloque | Qué | Estado |
-|---|---|---|
-| **0 · Base** | Cliente Facturapi + healthcheck + punto de enganche preparado (agnóstico de procesadora) | ✅ construido (sandbox, sin deploy; enganche NO conectado aún) |
-| **1a · Datos fiscales creador** | RFC/régimen/CP + consentimiento self-billing (callable `saveCreatorTaxProfile` + doc `creatorTaxProfiles/{uid}` backend-only + reglas) | ✅ backend construido (sin deploy; falta UI) |
-| **1b · CSD → org Facturapi** | Callable `uploadCreatorCsd` + helpers de organización. **Endpoints VERIFICADOS en sandbox** (crear org, PUT `/legal` sin tax_id, `/certificate` singular, DELETE). El RFC lo fija el CSD y se valida contra el RFC declarado | ✅ backend construido y endpoints verificados (sin deploy); falta correr la subida con un CSD real end-to-end |
-| **1c · Datos fiscales comprador** | RFC/uso/CP — se captura al pedir factura | Va con Bloque 2 |
-| **2 · Vibra→Comprador** | "Solicitar factura" self-service + timbrado inmediato con CSD de Vibra (MX 16%) | Se construye ya |
-| **3 · Creador→Vibra** | Org por creador (CSD perezoso) + auto-CFDI cada pago (self-billing). Retenciones como parámetro (D-06) | Estructura ya; montos con fiscalista |
-| **4 · Comprobante de pago** | Recibo no fiscal para compras sin factura | Se construye ya |
-| **5 · Multi-país + factura global** | Tasas por país (config versionada) + factura global mensual | Conforme se habilita país/procesadora |
-| **6 · Cutover producción** | CSD/keys reales + procesadora en vivo | Al final |
-| **7 · Comprobante internacional** | Comprobante de pago para creadores EXTRANJEROS (cuando se les envía dinero fuera de México) | Pendiente — hasta tener retiros + API de pagos |
+### 0.2 Exportación de servicios — CONFIRMADO
 
-**Estado de avance (2026-07-29):**
-- ✅ **Listos:** Bloque 0, 1a, 1b (CSD probado end-to-end) + toda la **UI del panel de retiro** (Auto con CSD, Manual con subida PDF/XML, copiar datos, animaciones, validación inline).
-- ❌ **Faltan:** Bloque 2 (factura Vibra→comprador, **siguiente**), 1c (datos del comprador), 4 (comprobante de pago), **backend del Bloque 3** (timbrado real creador→Vibra self-billing + validación del XML manual; requiere resolver la API key por organización — el `401` del `GET /test-api-key`), 5 (multi-país + factura global), 6 (cutover), y 7 (comprobante internacional).
-- El **sistema de retiros / payout (money-out)** sigue pendiente de la **API de pagos** elegida.
+**Los once servicios se tratan como exportación de servicios a tasa 0% cuando el comprador está fuera de
+México.** Confirmado con fiscalista el 2026-08-26.
 
-### 0.7 Flujo de retiro con gate fiscal (dónde vive la facturación en la UI)
+Esto cierra el riesgo de doble imposición que quedaba abierto: la venta a comprador extranjero lleva el
+impuesto del país del comprador y **ningún IVA mexicano**.
 
-La facturación del creador se resuelve en la **Wallet, al momento del retiro** (perezoso: solo lidia con lo fiscal cuando quiere dinero). **Ramifica por país fiscal del creador:**
+> ⚠️ **Pendiente operativo:** conservar por operación la evidencia que sustenta la exportación
+> (ubicación del comprador y sus indicios, medio de pago, aprovechamiento). La tasa 0% se acredita con
+> expediente, no con criterio.
 
-- **Creador EXTRANJERO →** salta todo lo fiscal, va directo a confirmar monto + cuenta → `withdrawalRequest` → pago. (Sus impuestos se manejan en su país, en otro momento.)
-- **Creador MEXICANO →** entra al **panel fiscal**:
-  1. **Datos fiscales (una vez):** RFC / razón social / régimen / CP (`saveCreatorTaxProfile`).
-  2. **Elegir cómo factura (una vez, recordado):**
-     - **A) Automático (CSD):** sube su CSD una vez + acepta self-billing → org en Facturapi → retiros = 1 clic, factura instantánea (⚡ pago rápido).
-     - **B) Manual:** se le muestran los **datos exactos a facturar** (receptor Vibra, subtotal, IVA, **retenciones**, total) y sube su CFDI.
-  3. **Factura del retiro:** A = Vibra timbra sola (self-billing). B = sube XML → **validación automática con Facturapi** (timbrado, receptor = Vibra, total correcto).
-  4. **Retiro creado:** entra al flujo `withdrawalRequest` existente. **La factura es prerrequisito**: sin CFDI válido no se libera el dinero.
+> ⚠️ **Efecto secundario a vigilar:** el creador mexicano que vende sobre todo al extranjero paga IVA en
+> la comisión y no traslada ninguno. Ese IVA queda como **acreditable o saldo a favor**: puede
+> **acreditarlo contra IVA futuro** o **solicitar devolución**, a su elección y sin plazo forzoso. No
+> pierde dinero; solo deja de tener contra qué descontarlo de inmediato. Conviene explicárselo en el
+> producto para que no lo lea como una merma.
 
-**Cuenta bancaria (aparte, antes):** se captura en el **KYC de Didit** (con cotejo del titular vs. nombre KYC) y se guarda **extendiendo `payoutAccounts`** con `provider` (stripe/spei/wallbit/takenos) + campos según el rail. Proveedor de payout swappable por país.
+### 0.3 Los comprobantes, caso por caso
 
-**Parametrizado (pendiente D-06):** las **retenciones** (ISR/IVA que Vibra retiene al creador PF) dependen del **régimen** del creador. El cálculo queda parametrizado por régimen; los % exactos entran con el fiscalista.
+**La regla que gobierna:** hay **CFDI de retenciones siempre que exista una retención mexicana**, sea de
+IVA o de ISR. Eso incluye al **creador extranjero** al que se le retiene IVA mexicano. Solo el caso
+extranjero-extranjero queda fuera, porque ahí no hay retención alguna.
+
+> ⚠️ **Corrige una simplificación anterior.** Este documento decía que al creador no mexicano se le
+> entrega «solo un comprobante de pago». **Es incorrecto**: si Vibra le retiene IVA mexicano, también debe
+> emitirle su CFDI de retenciones. El SAT contempla expresamente que ese CFDI tenga como receptor a un
+> extranjero, mediante su número de identificación fiscal extranjero o el RFC genérico.
+
+Base **$100**, comisión de Vibra **$25**, en los cuatro casos.
 
 ---
 
-> ⚠️ **NOTA SOBRE LAS SECCIONES SIGUIENTES (§1–§11 y Anexos).** Fueron redactadas bajo el modelo ANTERIOR de **intermediario/retenedor**. Se conservan como **referencia del detalle fiscal mexicano** (IVA del comprador mexicano, mecánica de retención al creador, jurisprudencia y tasas 2026), que sigue siendo útil. **Bajo el modelo de vendedor directo cambian:** (a) **Vibra** factura la venta al comprador (no el creador); (b) el "corte de comisión" pasa a ser **margen (25%)**, no una intermediación gravada aparte; (c) el creador es **proveedor** que factura a Vibra, y las retenciones se analizan sobre esa relación, no sobre una intermediación 18-J. La reelaboración fina al modelo vendedor queda pendiente de la auditoría técnica y del fiscalista (D-06).
+#### Caso 1 — Creador mexicano + comprador mexicano
+
+**Documento 1 · CFDI de venta al comprador.** Emitido automáticamente con el **CSD del creador**.
+
+| Campo | Valor |
+|---|---|
+| Emisor | Creador mexicano |
+| Receptor | Comprador mexicano |
+| Servicio | Uno de los 11 |
+| Subtotal | $100 |
+| IVA 16% | $16 |
+| **Total** | **$116** |
+
+**Documento 2 · CFDI de comisión.**
+
+| Campo | Valor |
+|---|---|
+| Emisor | Vibra |
+| Receptor | Creador mexicano |
+| Comisión | $25 |
+| IVA 16% | $4 |
+| **Total** | **$29** |
+
+**Documento 3 · CFDI de retenciones.**
+
+| Concepto | Importe |
+|---|---|
+| Operación sin IVA | $100 |
+| IVA trasladado | $16 |
+| IVA retenido por Vibra | $8 |
+| ISR retenido | $2.50 |
+| Comisión sin IVA | $25 |
+
+**Depósito al creador: $76.50.**
+
+---
+
+#### Caso 2 — Creador mexicano + comprador extranjero
+
+**Documento 1 · CFDI de exportación.**
+
+| Campo | Valor |
+|---|---|
+| Emisor | Creador mexicano |
+| Receptor | Comprador extranjero · RFC genérico `XEXX010101000` |
+| Subtotal | $100 |
+| IVA mexicano | **$0**, tasa 0% |
+| **Total del CFDI mexicano** | **$100** |
+
+> El impuesto extranjero —por ejemplo $21 de España— **no va en el CFDI mexicano**. Aparece en el
+> comprobante que exija el país del comprador. Confundirlos es declarar IVA mexicano que no existe.
+
+**Documento 2 · CFDI de comisión.** Idéntico al del caso 1: $25 + $4 = **$29**.
+
+**Documento 3 · CFDI de retenciones.**
+
+| Concepto | Importe |
+|---|---|
+| Operación sin IVA | $100 |
+| IVA trasladado mexicano | $0 |
+| IVA retenido | $0 |
+| ISR retenido | $2.50 |
+| Comisión sin IVA | $25 |
+
+**Depósito al creador: $68.50.** Los $4 de IVA de la comisión quedan como **IVA acreditable o saldo a
+favor**: el creador puede acreditarlos contra IVA futuro **o** solicitar devolución. **No está obligado a
+pedirlos de inmediato.**
+
+---
+
+#### Caso 3 — Creador extranjero + comprador mexicano
+
+**Documento 1 · Comprobante de venta.** El creador extranjero **no puede emitir CFDI mexicano**. Se
+entrega al comprador un comprobante electrónico de la operación, **no una factura timbrada con CSD**.
+
+| Concepto | Importe |
+|---|---|
+| Servicio | $100 |
+| IVA mexicano 16% | $16 |
+| **Total pagado** | **$116** |
+
+**Documento 2 · Comisión de Vibra**, si califica como exportación.
+
+| Concepto | Importe |
+|---|---|
+| Comisión | $25 |
+| IVA mexicano | **$0**, tasa 0% |
+| **Total** | **$25** |
+
+> Vibra documenta su exportación de servicios mediante **CFDI con receptor extranjero**.
+
+**Documento 3 · CFDI de retenciones.** ⚠️ **Sí lo hay**, aunque el creador sea extranjero.
+
+| Concepto | Importe |
+|---|---|
+| Operación sin IVA | $100 |
+| IVA mexicano trasladado | $16 |
+| IVA retenido por Vibra | **$16** (100%) |
+| ISR mexicano | $0 |
+| Comisión | $25 |
+
+**Depósito al creador: $75.**
+
+---
+
+#### Caso 4 — Creador extranjero + comprador extranjero
+
+**Documento 1 · Comprobante de venta.** No existe CFDI mexicano. Se genera el comprobante que exija el
+país del comprador.
+
+| Concepto | Importe |
+|---|---|
+| Servicio | $100 |
+| Impuesto del país (ej. España) | $21 |
+| **Total pagado** | **$121** |
+
+**Documento 2 · Comisión de Vibra**, si califica como exportación: $25 con IVA mexicano al 0%.
+
+**Documento 3 · Liquidación al creador.** ⚠️ **No es CFDI de retenciones**, porque no hay retención
+mexicana. Es un **comprobante de liquidación** o *payout statement*.
+
+| Concepto | Importe |
+|---|---|
+| Venta sin impuesto | $100 |
+| Comisión Vibra | −$25 |
+| ISR mexicano | $0 |
+| IVA mexicano retenido | $0 |
+| **Depósito** | **$75** |
+
+---
+
+#### Resumen de qué se emite
+
+| Caso | Venta | Comisión | Tercer documento |
+|---|---|---|---|
+| 1 · MX → MX | CFDI con CSD del creador | CFDI, $25 + $4 | **CFDI de retenciones** |
+| 2 · MX → extranjero | CFDI de exportación 0% | CFDI, $25 + $4 | **CFDI de retenciones** |
+| 3 · Extranjero → MX | Comprobante electrónico | CFDI receptor extranjero, 0% | **CFDI de retenciones** |
+| 4 · Extranjero → extranjero | Comprobante del país | CFDI receptor extranjero, 0% | Liquidación, **no CFDI** |
+
+**Sello digital.** Solo el caso 1 y el 2 lo requieren: el **creador mexicano entrega su CSD vigente** al
+completar su alta de cobro. Se custodia en el proveedor de facturación, nunca en la plataforma.
+
+> ⚠️ **El sello se necesita desde la primera venta, no antes del primer retiro.** Sin él no se puede
+> emitir el Documento 1, y la obligación de facturar nace con la venta.
+
+> ⚠️ **Nota de arquitectura.** La infraestructura de carga del sello ya existe
+> (`backend/src/facturacion/uploadCreatorCsd.ts`), pero fue construida para el modelo de vendedor
+> directo, donde servía para que el **creador facturara a Vibra** su 75%. **Cambia de propósito**: ahora
+> sirve para emitir el Documento 1 por cuenta del creador. La factura del creador a Vibra **desaparece**.
+
+> ⚠️ **La factura global deja de ser opcional.** Bajo vendedor directo, lo que el comprador no pidiera se
+> resolvía fuera del sistema y era problema de un solo contribuyente. Bajo intermediación **cada creador
+> tiene su propia obligación** de facturar todas sus ventas, incluida la global al público en general.
+
+
+### 0.4 Tasas de retención (ejercicio 2026)
+
+| Situación del creador | ISR | IVA |
+|---|---|---|
+| Mexicano, persona física, con RFC | 2.5% | 50% del IVA cobrado |
+| Mexicano, persona moral, con RFC | 2.5% | 50% del IVA cobrado |
+| Mexicano **sin RFC** | **20%** | **100%** |
+| Mexicano que **cobra en cuenta bancaria fuera de México** | 2.5% | **100%** |
+| Extranjero, servicio prestado fuera | 0% | **100%** |
+| Extranjero, pago tratado como **regalía** | **25%** (≈10% con tratado y constancia) | **100%** |
+
+> 🚨 **El 2.5% NO está en el artículo 113-A**, cuyo texto base sigue diciendo 1%. Viene de la **Ley de
+> Ingresos, de vigencia ANUAL**. Debe ser un parámetro configurable por ejercicio, nunca una constante en
+> el código, y hay que revisar la LIF 2027 antes de que entre en vigor.
+
+> 🚨 **El país de la cuenta de destino es un dato fiscal.** Dispara por sí solo la retención del 100%.
+> Depende de dónde cobra **el creador**, no de dónde tiene Vibra sus cuentas. Debe reevaluarse cada vez
+> que el creador cambie de cuenta.
+
+### 0.5 Los once servicios
+
+Todos reciben el **mismo tratamiento de intermediación** y pueden ir con el mismo contrato marco. Tres
+grupos necesitan una condición especial:
+
+1. **Apoyos** (perfil, comunidad, en vivo) — **nunca llamarlos donativos**. Son contraprestación por el
+   reconocimiento, la visibilidad o el acceso. Debe declararse qué recibe el comprador a cambio.
+2. **Contenido grabado y publicación de pago** — requieren **anexo de licencia de acceso** con aceptación
+   específica: personal, revocable, sin descarga ni redistribución. Es lo que los separa de la regalía.
+3. **Súper comentario** — destacar el mensaje es una función de la plataforma, no del creador. El
+   contrato debe definir que lo que se adquiere es la **atención del creador** y que el destacado es el
+   medio técnico.
+
+### 0.6 Decisiones pendientes
+
+| Tema | Estado |
+|---|---|
+| Exportación 0% para los 11 servicios vendidos al fan | ✅ Confirmado 2026-08-26 |
+| 🔴 **Exportación 0% de la COMISIÓN de Vibra al creador extranjero** | ⬜ **Confirmar por separado con el contador.** Es **otra operación**, distinta de la venta: que los 11 servicios califiquen como exportación **no basta** para que la intermediación de Vibra también lo haga. Si no califica, la comisión al creador extranjero lleva 16% y ese impuesto lo absorbe Vibra, porque el creador extranjero no lo acredita. Ver §5. |
+| Numeración exacta de la regla de emisión por cuenta de terceros | ⬜ Confirmar antes de citarla en contrato |
+| Residencia fiscal de la LLC y doble residencia | ⬜ Decide si la comisión del caso extranjero-extranjero paga ISR mexicano |
+| Videollamadas 1-a-1 con creador extranjero | ⬜ ¿Régimen de plataformas o importación de servicios? |
+| Altas de IVA fuera de México | ⬜ Vibra es proveedor considerado en varias jurisdicciones |
+| Contabilidad: ingreso = comisión, no el 100% | ⬜ Confirmar asiento con contador |
+
+---
+
+> **Nota sobre lo que sigue.** Las secciones §1 a §11 y los Anexos se escribieron bajo el modelo
+> intermediario original y **vuelven a regir**, con dos salvedades: la §5 quedó marcada como obsoleta
+> cuando no había comisión sino margen — **vuelve a ser válida**, ahora sí hay comisión y lleva IVA —, y
+> las referencias a servicios bloqueados ya no aplican: **los once están activos**.
 
 ---
 
@@ -218,14 +320,23 @@ La facturación del creador se resuelve en la **Wallet, al momento del retiro** 
 > - **Comprador en México → se cobra IVA 16%** (sin importar si el creador es mexicano o extranjero).
 > - **Comprador en el extranjero → NO se le cobra 16%**; se le cobra el impuesto de **su** país (§0.2). La venta de Vibra queda a **0% de exportación**.
 
-⚠️ **Corregido el 2026-08-07.** Esta sección decía antes que con creador y comprador extranjeros la
-operación quedaba **"fuera de objeto"**. Eso era cierto bajo el modelo de intermediario, donde el
-vendedor era el creador. **Bajo vendedor directo el vendedor es Vibra, residente en México**, y el
-**Art. 16 LIVA** sitúa el servicio en territorio nacional siempre. Nunca es "fuera de objeto": es
-**0% por exportación** en las dos filas de comprador extranjero, sujeto a las dos compuertas del
-Art. 29-IV (**§0.1**). La diferencia importa porque a 0% se acredita el IVA de insumos.
+♻️ **Revisado el 2026-08-26.** Este párrafo pasó por dos correcciones. Bajo el modelo intermediario
+original decía que con creador y comprador extranjeros la operación quedaba **"fuera de objeto"**; el
+2026-08-07 se corrigió a **0% de exportación** porque bajo vendedor directo la vendedora era Vibra,
+residente en México, y el **Art. 16 LIVA** situaba el servicio en territorio nacional siempre.
 
-La residencia del creador **no cambia si al comprador se le cobra 16% o no**; cambia otras tres cosas: (a) cómo se documenta y retiene el **pago al creador-proveedor** (D-06), (b) el **ISR** (113-A si es mexicano vs. Título V si es extranjero), y (c) si la compra del insumo por parte de Vibra es doméstica o una **importación de servicios**.
+**Con el regreso a intermediación la lectura vuelve a partirse en dos**, y conviene tenerlo claro:
+
+- **Creador mexicano + comprador extranjero** → la venta es del creador, residente en México: **0% por
+  exportación**, confirmado por fiscalista para los 11 servicios (§0.2). A 0% se acredita el IVA de
+  insumos, que es justo lo que genera el saldo a favor del creador.
+- **Creador extranjero + comprador extranjero** → ni el vendedor ni el comprador están en México:
+  **fuera del objeto del IVA mexicano**. No es 0%, es que no hay hecho imponible.
+
+La **comisión de Vibra** sigue su propia suerte: exportación de mediación cuando el creador es
+extranjero, 16% cuando es mexicano (§5).
+
+La residencia del creador **no cambia si al comprador se le cobra 16% o no**; cambia otras tres cosas: (a) cómo se documenta y retiene el **pago al creador** (D-06), (b) el **ISR** (113-A si es mexicano vs. Título V si es extranjero), y (c) si la compra del insumo por parte de Vibra es doméstica o una **importación de servicios**.
 
 > **⚠️ Honestidad sobre el 0% de exportación (comprador extranjero, creador MX):** la "regla de oro" describe el tratamiento *pretendido*, pero el 0% **no es automático**. El Art. 58 del Reglamento de la LIVA exige que el servicio sea **contratado y pagado por un residente en el extranjero, con pago proveniente de cuentas en el extranjero**. En el modelo agregador el fan paga a la cuenta mexicana de Vibra → **el flujo real de fondos puede romper el requisito** y exponer la operación a reclasificación a 16%. Ver §5 y §6. Esto debe cerrarse con fiscalista.
 
@@ -281,7 +392,21 @@ La plataforma (Vibra) es residente en México en las cuatro combinaciones.
 
 ---
 
-## 5. ~~La comisión de Vibra se grava aparte~~ → OBSOLETO: ya no hay comisión, hay MARGEN
+## 5. La comisión de Vibra se grava aparte — ✅ VUELVE A REGIR (2026-08-26)
+
+> ♻️ **Léase así:** esta sección se anuló el 2026-08-07 al pasar a vendedor directo, donde el 25%
+> dejaba de ser comisión y pasaba a ser margen. **Con el regreso a intermediación vuelve a regir en su
+> sentido original**, y todo lo tachado abajo vuelve a ser válido. Lo que sigue siendo cierto:
+>
+> - Vibra presta un **servicio propio de mediación**, distinto del servicio del creador, que **causa su
+>   propio IVA**.
+> - **Creador mexicano** → la comisión lleva **16%**, por encima del 25% y acreditable para él.
+> - **Creador extranjero** → exportación de mediación, sin IVA mexicano.
+> - Volver a intermediar **recupera el inciso d) "comisiones y mediaciones"** del Art. 29-IV, que es el
+>   encaje más limpio para el 0%. Bajo vendedor directo había que forzarlo hacia g) o i).
+
+> ⚠️ Lo escrito debajo de esta nota describe la anulación de agosto y **ya no aplica**. Se conserva
+> como historia del cambio.
 
 > 🗑️ **Sección eliminada el 2026-08-07 por pertenecer al modelo anterior.**
 >
@@ -413,7 +538,7 @@ con independencia del resultado de ISR.  ⇒ Asimetría: IVA sí, ISR frecuentem
 
 1. **Inscribirse en el RFC como retenedora** de IVA e ISR (18-J-II-d / 113-C).
 2. **Publicar precios con IVA** o con la leyenda **"IVA incluido"** (18-J-I). En B2C, lo natural es "IVA incluido".
-3. **Capturar y validar el RFC** de cada creador MX en el onboarding fiscal (sin RFC: ISR 2.5%→20% e IVA 50%→100%). Va junto al KYC/Didit.
+3. **Capturar y validar el RFC** de cada creador MX en el onboarding fiscal (sin RFC: ISR 2.5%→20% e IVA 50%→100%). Va junto al KYC, que hoy opera a través de la procesadora.
 4. **Determinar residencia fiscal** del creador (MX vs. extranjero) en el onboarding → define régimen (113-A vs. Título V) y % de retención de IVA (50% vs. 100%).
 5. **Retener** IVA (50%/100%) e ISR (2.5%/20% a creadores MX; 0%/25%/35% a extranjeros según §7) al cobrar por cuenta del creador.
 6. **Enterar** las retenciones al SAT **a más tardar el día 17** del mes siguiente.
@@ -441,7 +566,7 @@ con independencia del resultado de ISR.  ⇒ Asimetría: IVA sí, ISR frecuentem
 - **Impuesto cobrado al comprador:** país, nombre del impuesto, tasa y monto (snapshot inmutable, §0.4).
 - **IVA mexicano de la venta de Vibra:** 16% o 0% de exportación, y **el inciso del Art. 29-IV** en que se apoya el 0% (D-08).
 - **Base sin impuesto** (sobre la que corre el reparto 75/25) y **margen de Vibra**.
-- **Pago al creador-proveedor:** retenciones aplicadas (D-06) y referencia a su CFDI.
+- **Pago al creador:** retenciones aplicadas (D-06) y referencia a sus comprobantes.
 - Los **4 indicios del Art. 18-C** como evidencia de la ubicación del comprador.
 
 > Ya **no** se registra "comisión de Vibra y su IVA": bajo vendedor directo el 25% es margen, no un servicio de mediación gravado aparte (§5).
@@ -496,17 +621,20 @@ sin excepción de turista.
 
 ## Anexo B — Operativa de facturación cuando el comprador no pide factura
 
-> 🔗 **La tabla vive en §0.1** (matriz única y autoritativa). La copia que estaba en este
-> anexo se eliminó el 2026-08-07: duplicaba §0.1 con la convención de siglas invertida y,
-> además, describía el reparto de facturación del modelo ANTERIOR (creador factura al
-> comprador). Bajo el modelo vendedor directo manda el **esquema de dos CFDIs de §0.6**:
-> Vibra factura la venta al comprador con su propio CSD, y el creador factura su parte a
-> Vibra (self-billing, alta perezosa del CSD).
+> 🔗 **La tabla vive en §0.1** (matriz única y autoritativa).
+>
+> ♻️ **Actualizado 2026-08-26.** Manda el **esquema de tres comprobantes de §0.3**: Vibra emite la
+> factura de venta **por cuenta del creador**, con el sello digital de éste; le factura su comisión; y
+> le entrega la constancia de retenciones. **La factura del creador a Vibra ya no existe** — era una
+> pieza del modelo de vendedor directo, donde el creador era proveedor.
 
 **Cuando el comprador NO pide factura:**
 - Al comprador se le da un **comprobante de pago** (no fiscal). Y ya.
 - Las **retenciones y el CFDI de retención al creador se hacen IGUAL** — no dependen de que el comprador pida factura.
-- La **factura global mensual** (ventas a público en general no facturadas) es la única pieza que necesita definición del fiscalista: **¿la emite Vibra o el creador?** (Si la emite el creador, necesitaría CSD desde el mes 1 y el alta perezosa no aplica.)
+- 🔴 La **factura global mensual** (ventas a público en general no facturadas) **deja de ser opcional**.
+  Bajo intermediación cada creador tiene su propia obligación de facturar todas sus ventas. Si Vibra no
+  la emite por su cuenta, cada creador debe presentar la suya cada mes — eso no escala. **Corolario: el
+  sello digital se necesita desde el primer mes de ventas, no solo antes del primer retiro.**
 
 **Regla en una frase:** el IVA lo retiene y declara **Vibra** donde aplica (100% si el creador es extranjero, 50% si es mexicano); el creador mexicano solo carga con el 50% restante del IVA y su ISR ya neteado.
 

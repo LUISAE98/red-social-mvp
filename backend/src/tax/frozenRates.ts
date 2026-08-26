@@ -13,7 +13,7 @@
 //
 // 🚨 QUIÉN ABSORBE EL MOVIMIENTO. Mientras la tasa está congelada, Vibra cobra el importe
 // local que prometió y recibe lo que valga ese día. Si el dólar sube pierde; si baja gana.
-// Lo cubre el colchón del 2% (0.64% real tras impuesto en México, ver stripeintegracion.md
+// Lo cubre el colchón del 2% (0.64% real tras impuesto en México, ver docs/stripe-integracion.md
 // §5), que aguanta un movimiento diario de ~0.55%. Por eso la ventana es de UN DÍA: con un
 // mes, el mismo colchón sería una apuesta.
 //

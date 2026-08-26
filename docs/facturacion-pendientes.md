@@ -1,13 +1,28 @@
 # Facturación — Estado y pendientes de integración
 
 > Última actualización: 2026-07-30. Fuente de verdad del avance de facturación (CFDI 4.0, Facturapi).
-> Modelo: **Vibra VENDEDOR DIRECTO** (seller of record). Detalle fiscal en `docs/legal/fiscal-iva-isr-plataforma.md`.
+> ⚠️ **MODELO ACTUALIZADO 2026-08-26: INTERMEDIACIÓN.** Vibra ya no vende: intermedia y cobra por cuenta
+> del creador. **Todo lo que este documento diga sobre vendedor directo está superado.** Detalle fiscal
+> vigente en `docs/legal/fiscal-iva-isr-plataforma.md` §0.
+>
+> **Los tres comprobantes del modelo vigente:**
+> 1. **Venta al comprador** — la emite Vibra **por cuenta del creador**, con el sello del creador.
+> 2. **Comisión** — Vibra al creador mexicano, 25% + IVA.
+> 3. **Constancia de retenciones** — Vibra al creador mexicano, periódica.
+>
+> Creador no mexicano: comprobante de pago **más la constancia de retenciones cuando se le retiene
+> impuesto mexicano**. Solo el caso extranjero-extranjero se queda sin constancia.
+>
+> Detalle documento por documento y caso por caso en `docs/legal/fiscal-iva-isr-plataforma.md` §0.3.
+>
+> 🔴 **La factura global deja de ser opcional**: cada creador tiene ahora su propia obligación de
+> facturar todas sus ventas. Ver §0.3 del documento fiscal.
 
 ## Actualización Stripe (2026-07-30)
 
 **Migración: 100% de Mercado Pago → Stripe** (confirmado). Es el proyecto grande sobre el que va la facturación.
 
-- **Modelo aceptado** por Stripe (streaming + creadores, sin contenido sexual). Usaremos **Stripe Connect, plan "Tú controlas los precios"**, con **Vibra como vendedor directo** (Merchant of Record).
+- **Modelo aceptado** por Stripe (streaming + creadores, sin contenido sexual). Usaremos **Stripe Connect, plan "Tú controlas los precios"**. ⚠️ La nota original decía *Vibra como vendedor directo (Merchant of Record)*; **desde el 2026-08-26 Vibra es intermediaria** y cobra por cuenta del creador.
 - **Flujo de dinero (Opción B, agregador):** todo cae en Vibra; Vibra paga al creador (1–2 payouts/mes).
 - **Costos Stripe:** cobro 3.6% + 3 MXN (+0.5% si internacional); cuenta activa de creador **35 MXN/mes**; transferencia (payout) **0.25% + 12 MXN**. Total ≈ **<5% + fijos** (los fijos pegan en volumen bajo).
 - **Mínimo de retiro: $2,000 MXN** (para que los fijos no se coman el payout).

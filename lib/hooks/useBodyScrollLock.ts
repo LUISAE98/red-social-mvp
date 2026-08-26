@@ -23,10 +23,10 @@ import { useEffect } from "react";
  *
  * - Cuenta referencias: con varios paneles anidados, el fondo se libera solo al
  *   cerrar el último. (Todos deben usar ESTE hook para que el conteo sea correcto.)
- * - Compensa el ancho de la scrollbar SOLO si bloquear llega a ensancharlo de
- *   verdad. Con `scrollbar-gutter: stable` (globals.css) el hueco ya está
- *   reservado y no hay nada que compensar; compensar igualmente era lo que movía
- *   el fondo al abrir y al cerrar.
+ * - NO compensa el ancho de la scrollbar cuando el navegador soporta
+ *   `scrollbar-gutter`, porque `globals.css` ya reserva ese hueco de forma
+ *   permanente. Compensar encima era lo que empujaba la cabecera y la columna
+ *   central al abrir un panel, y las devolvía al cerrarlo.
  *
  * Uso: `useBodyScrollLock(open)` — bloquea mientras `open` sea true.
  */
@@ -79,29 +79,36 @@ function applyLock() {
     bodyTouchAction: body.style.touchAction,
   };
 
-  // ⚠️ La compensación se MIDE, no se supone, y ahí estaba el fallo.
-  //
-  // Antes se daba por hecho que bloquear el scroll hace desaparecer la barra, y
-  // se restaba `window.innerWidth - html.clientWidth` a ciegas. Pero `globals.css`
-  // pone `scrollbar-gutter: stable` en el <html>, que reserva ese hueco SIEMPRE,
-  // haya barra o no. Así que al bloquear no se ganaba ancho ninguno y esa cuenta
-  // seguía devolviendo ~15px: se metía un relleno fantasma que encogía el body y
-  // corría el contenido al abrir, y lo devolvía de golpe al cerrar. El "empujón"
-  // no lo daba la barra, lo dábamos nosotros compensando dos veces.
-  //
-  // Midiendo el ancho ANTES y DESPUÉS de bloquear, la compensación es la que de
-  // verdad haga falta: cero cuando el hueco ya está reservado, y el ancho real de
-  // la barra en un navegador sin `scrollbar-gutter` (Safari < 16.4), donde sí se
-  // necesita.
-  const anchoAntes = html.clientWidth;
-
   // Bloqueo por overflow (NO position:fixed): el body sigue en flujo, así los
   // modales position:fixed anclan al viewport completo y llegan al borde físico.
   html.style.overflow = "hidden";
   body.style.overflow = "hidden";
 
-  const ganado = html.clientWidth - anchoAntes;
-  if (ganado > 0) body.style.paddingRight = `${ganado}px`;
+  // ⚠️ NO se compensa el ancho de la barra si el navegador reserva su hueco.
+  //
+  // `globals.css` pone `scrollbar-gutter: stable` en el <html>: el hueco está
+  // reservado SIEMPRE, haya barra o no, así que bloquear el scroll no ensancha
+  // nada y no hay nada que compensar. Añadir relleno igualmente encogía el body
+  // y empujaba el contenido a la izquierda al abrir el panel, devolviéndolo a la
+  // derecha al cerrarlo. El empujón no lo daba la barra: lo dábamos nosotros,
+  // compensando algo que el CSS ya había resuelto.
+  //
+  // Se pregunta por SOPORTE y no se mide el ancho en caliente: medir justo
+  // después de tocar el estilo devuelve valores intermedios según cuándo decida
+  // reflowear el navegador, y de ahí salía un relleno fantasma. El soporte, en
+  // cambio, es un sí o un no.
+  //
+  // El respaldo sigue para quien no la soporte (Safari < 16.4), que es donde la
+  // barra sí desaparece y el salto sería real.
+  const reservaElHueco =
+    typeof CSS !== "undefined"
+    && typeof CSS.supports === "function"
+    && CSS.supports("scrollbar-gutter", "stable");
+
+  if (!reservaElHueco) {
+    const anchoBarra = window.innerWidth - html.clientWidth;
+    if (anchoBarra > 0) body.style.paddingRight = `${anchoBarra}px`;
+  }
   html.style.overscrollBehavior = "none";
   body.style.overscrollBehavior = "none";
   // `touch-action: none` frena de forma fiable el gesto de scroll del documento en

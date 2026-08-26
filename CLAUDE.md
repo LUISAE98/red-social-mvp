@@ -140,11 +140,14 @@ La integración de identidad y cumplimiento es estratégica.
 
 No eliminar ni simplificar componentes relacionados con:
 
-* Didit
 * Verificación de identidad
 * Cumplimiento financiero
+* Datos fiscales del creador (RFC, régimen, residencia, sello digital)
 
 sin aprobación explícita.
+
+⚠️ **Didit se eliminó el 2026-08-13** con aprobación explícita. El KYC pasa por Stripe. No queda código
+suyo (`backend/src/kyc.ts` ya no existe).
 
 ---
 
@@ -202,9 +205,18 @@ Cloudflare cumple **dos roles distintos**:
 * **Cloudflare Stream** — live streaming (transmisiones en vivo). WHIP/WebRTC → HLS. Ver `backend/src/liveCF.ts`, `app/api/cf-broadcast/`, `cf-viewer-proxy/`, `whip-proxy/`, `backend/src/cfWebhooks.ts`.
 * **Cloudflare R2** — almacenamiento de las **grabaciones de sesiones 1-a-1** (object storage S3-compatible, endpoint `*.r2.cloudflarestorage.com`). LiveKit Egress produce el `.mp4`, pero el archivo vive en R2. La descarga se hace con URL pre-firmada (1 hora) vía `backend/src/recordingDownload.ts`; solo el creador o el comprador de la sesión pueden obtenerla. La clave se guarda en Firestore como `recordingS3Key` (fallback legacy: `recordingUrl`).
 
-## Didit
+## Stripe
 
-KYC / verificación de identidad y cumplimiento financiero. Gate para retiros de creadores. Ver Áreas Sensibles.
+Procesador de pagos **y** verificación de identidad (KYC) del creador, que condiciona cobros y retiros.
+Entidad operadora: **Vibra On, LLC**. Denominación **USD**.
+
+**Modelo de negocio: INTERMEDIACIÓN** (confirmado con fiscalista el 2026-08-26). El creador vende y
+presta al comprador; Vibra intermedia y cobra por su cuenta, con un mandato de cobro. Reparto 75/25
+sobre el precio base, con el impuesto de la comisión por encima del 25%.
+
+Documento autoritativo de pagos: `docs/stripe-integracion.md`. Modelo fiscal: `docs/legal/fiscal-iva-isr-plataforma.md`.
+
+⚠️ **Didit (KYC) se eliminó el 2026-08-13.** Si un documento antiguo lo menciona, está superado.
 
 ## Mercado Pago
 
@@ -297,8 +309,10 @@ Nunca asumir que una validación frontend es suficiente.
 Solicitar confirmación antes de modificar:
 
 * Wallet
-* Mercado Pago
-* Didit
+* Stripe y los flujos de cobro
+* Mercado Pago (en retirada, ver abajo)
+* Cálculo de impuestos y retenciones
+* Facturación (CFDI, sellos digitales)
 * Autenticación principal
 
 No se requiere confirmación para modificar:

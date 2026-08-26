@@ -97,3 +97,26 @@ export async function uploadOrganizationCertificate(
     serialNumber: cert.serial_number ?? null,
   };
 }
+
+/**
+ * Llave de prueba de la organización de un creador, para timbrar **a su nombre**.
+ *
+ * Es la pieza que hace posible el modelo de intermediación: la factura de venta la emite el
+ * creador, así que hay que timbrarla en SU organización, no en la de Vibra. La llave se pide con
+ * la credencial de usuario (multi-tenant) y **no se guarda**: se usa y se descarta.
+ *
+ * 🔁 Al pasar a producción, cambiar a la llave `live`. Facturapi las expone por separado.
+ */
+export async function getOrganizationTestKey(orgId: string): Promise<string> {
+  const res = await facturapiFetch<string | { key?: string }>(
+    `/organizations/${orgId}/apikeys/test`,
+    { ...USER }
+  );
+  if (!res.ok) {
+    throw new Error(`leer la llave de la organización falló (${res.status}): ${res.error.slice(0, 200)}`);
+  }
+  // Facturapi devuelve la llave como cadena suelta; se tolera la forma envuelta por si cambia.
+  const key = typeof res.data === "string" ? res.data : res.data?.key ?? "";
+  if (!key) throw new Error("Facturapi no devolvió la llave de la organización.");
+  return key.trim();
+}

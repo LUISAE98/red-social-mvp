@@ -114,6 +114,9 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
             base: d.grossAmount || 0,
             tax: d.taxAmount || 0,
             currency: d.currency,
+            // Quién EMITE la factura de esta compra. Bajo intermediación el vendedor es el
+            // creador, así que la selección se parte en una factura por cada uno.
+            creatorId: d.creatorId,
           };
         }),
     [purchases, selectedIds, groupMetaMap, userMiniMap, tCommon, tWallet]

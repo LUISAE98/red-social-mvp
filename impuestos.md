@@ -6,7 +6,15 @@
 > Marco legal completo: `docs/legal/fiscal-iva-isr-plataforma.md`.
 > Tabla de cobro (código): `backend/src/tax/config.ts` (autoritativa) + `lib/tax/config.ts` (espejo display).
 >
-> Última actualización: **2026-08-07**
+> ⚠️ **Actualizado 2026-08-26.** Dos cambios de fondo posteriores a la redacción original:
+>
+> 1. **Denominación USD.** El ancla dejó de ser MXN. `SETTLEMENT_CURRENCY = "USD"` y el cargo fijo
+>    es `FIXED_SERVICE_FEE_USD = 0.40`. Las fichas por país siguen vigentes; lo que cambió es la
+>    moneda en que se expresan la base y el ledger.
+> 2. **Modelo de INTERMEDIACIÓN.** El vendedor es el creador, no Vibra. La venta a comprador
+>    extranjero es **exportación a 0%**, confirmada por fiscalista para los 11 servicios.
+>
+> Última actualización: **2026-08-26**
 
 ---
 
@@ -17,13 +25,13 @@ Todo cobro de Vibra, en cualquier país, se compone de exactamente cuatro piezas
 | # | Concepto | Naturaleza | ¿Se le muestra desglosado al comprador? |
 |---|---|---|---|
 | 1 | **Precio base** del creador | Ingreso (base del reparto 75/25) | No |
-| 2 | **$3 MXN fijos** por transacción | Cargo de servicio de Vibra | No |
+| 2 | **$0.40 USD fijos** por transacción | Cargo de servicio de Vibra | No |
 | 3 | **2% por conversión de moneda** | Costo/comisión, **NO es impuesto** | No |
 | 4a | **Impuesto del país del comprador** | Impuesto | No |
-| 4b | **IVA mexicano de la venta de Vibra** | Impuesto | No |
+| 4b | **IVA mexicano de la venta del creador** | Impuesto | No |
 
-**Decisión de producto:** la pasarela muestra **un solo precio total, sin desglose**. El $3 y el 2%
-van incluidos y convertidos a la moneda del comprador, sin explicación en la UI.
+**Decisión de producto:** la pasarela muestra **un solo precio total, sin desglose**. El cargo fijo y
+el 2% van incluidos y convertidos a la moneda del comprador, sin explicación en la UI.
 
 > ⚠️ **El desglose no se muestra, pero SIEMPRE se guarda.** Cada `paymentIntent` registra las
 > cinco piezas por separado. Sin eso no se puede timbrar un CFDI, ni responder una auditoría, ni
@@ -38,14 +46,14 @@ van incluidos y convertidos a la moneda del comprador, sin explicación en la UI
 ## 2. Orden de operaciones (invariable)
 
 ```
-base                       # precio del creador, en MXN
-+ 3 MXN                    # FIXED_SERVICE_FEE_MXN
+base                       # precio del creador, en USD
++ 0.40 USD                 # FIXED_SERVICE_FEE_USD
 = published                # sobre esto corre el reparto y el impuesto
-+ 2% FX                    # solo si la moneda de cobro ≠ MXN
++ 2% FX                    # solo si la moneda de cobro ≠ USD
 = taxableAmount            # base gravable
 + impuesto del país        # solo si collectionMode = "platform"
 + IVA mexicano             # 16% si el comprador está en MX; 0% export si está fuera
-= chargedAmount            # total, en MXN canónico
+= chargedAmount            # total, en USD canónico
 → × tipo de cambio         # solo para MOSTRAR en la moneda del comprador
 ```
 
@@ -53,7 +61,7 @@ base                       # precio del creador, en MXN
 que cobra Vibra, así que forma parte de la base gravable. No es un impuesto y nunca se declara
 como tal.
 
-**MXN es la moneda canónica.** El ledger, la wallet y el `paymentIntent` viven en MXN
+**USD es la moneda canónica** (act. 2026-08-18). El ledger, la wallet y el `paymentIntent` viven en USD
 (`SETTLEMENT_CURRENCY`). La moneda local es solo capa de presentación y de cobro.
 
 ---
@@ -176,13 +184,13 @@ Art. 29-IV, se cambia **una línea** y los 8 intents lo heredan. Ver **D-08**.
     phoneCountry:   "XX" | null,
   },
 
-  // Composición del precio (todo en MXN canónico)
+  // Composición del precio (todo en USD canónico)
   baseAmount:        100.00,
-  fixedFee:            3.00,
-  publishedAmount:   103.00,
+  fixedFee:            0.40,
+  publishedAmount:   100.40,
   fxFeeRate:          0.02,
-  fxFeeAmount:         2.06,
-  taxableAmount:     105.06,
+  fxFeeAmount:         2.01,
+  taxableAmount:     102.41,
 
   // Impuesto del país del comprador
   buyerTax: {
@@ -191,11 +199,11 @@ Art. 29-IV, se cambia **una línea** y los 8 intents lo heredan. Ver **D-08**.
     note: "Lo percibe la emisora del comprador. Vibra no lo cobra ni lo entera.",
   },
 
-  // IVA mexicano de la venta de Vibra
+  // IVA mexicano de la venta del creador (Vibra intermedia, no vende)
   mxVat: { treatment: "export_zero", rate: 0, amount: 0, article: "29-IV" },
 
-  chargedAmount:     105.06,   // MXN
-  settlementCurrency: "MXN",
+  chargedAmount:     102.41,   // USD
+  settlementCurrency: "USD",
   displayCurrency:   "XXX",           // moneda local del comprador
   fxRate:            <tipo de cambio del día>,
 }
@@ -369,7 +377,7 @@ permanente*, y la retención es del **100% del ITBMS**.
 > retiene y entera por su cuenta. Un consumidor final con tarjeta no retiene nada: no es agente
 > designado y no tiene declaración de ITBMS que presentar.
 >
-> Vibra vende B2C. **Nadie recauda.** Por eso `collectionMode: "none"` y no `"issuer"`.
+> La venta es B2C. **Nadie recauda.** Por eso `collectionMode: "none"` y no `"issuer"`.
 
 **3. Stripe Tax no cubre Panamá.** No aparece en `docs.stripe.com/tax/supported-countries`, ni
 como *business location* ni como *customer location*. De LatAm solo cubre 7: MX · CL · CO · CR ·

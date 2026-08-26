@@ -2,9 +2,20 @@
 
 > Creado 2026-07-31. Fuente de verdad del esquema de comisión/márgenes. Los % de Stripe se validaron con un cobro real de prueba (ver `docs/stripe-integracion.md`).
 
+> ⚠️ **ACTUALIZADO 2026-08-26 al modelo de INTERMEDIACIÓN.** El 25% dejó de ser *margen* sobre una venta
+> propia y **vuelve a ser una comisión** por intermediar la venta del creador. Cambia el asiento contable
+> y añade el IVA de la comisión. Ver `docs/legal/fiscal-iva-isr-plataforma.md` §0 y §5.
+
 ## Comisión y reparto
-- **Comisión Vibra: 25%** (subió de 23% para cubrir devoluciones + sueldos y mantener 10% de utilidad).
-- **Reparto: Creador 75% / Vibra 25%** (antes 77/23). El creador recibe 75% de la base.
+- **Comisión Vibra: 25%** sobre el precio base (subió de 23% para cubrir devoluciones + sueldos y
+  mantener 10% de utilidad).
+- **Reparto: Creador 75% / Vibra 25%.** El creador conserva el 75% de la base, íntegro antes de sus
+  propias retenciones.
+- **El IVA de la comisión va POR ENCIMA del 25%, nunca dentro.** Con creador mexicano la comisión es
+  25 + 16%. Si fuera dentro, la comisión efectiva caería a **21.55%** y Vibra absorbería un impuesto que
+  no puede acreditar — **3.45 puntos regalados por venta**.
+- **Ingreso contable de Vibra = su comisión**, no el 100% del precio. El 75% del creador nunca fue
+  ingreso: transitó por cuenta ajena.
 
 ## Quién absorbe cada costo
 | Costo | Lo cubre | Detalle |

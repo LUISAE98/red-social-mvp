@@ -64,7 +64,23 @@ export function fileToBase64(file: File): Promise<string> {
 }
 
 // ── Hook: perfil fiscal del creador (lectura en vivo) ────────────────────────
+/** Dónde tributa el creador. Decide todo su alta de cobro y sus retenciones. */
+export type CreatorResidency = "MX" | "FOREIGN";
+
+/** Guarda la residencia fiscal declarada por el creador. */
+export async function setCreatorResidency(
+  residency: CreatorResidency
+): Promise<{ ok: boolean; residency: CreatorResidency; changed: boolean }> {
+  const fn = httpsCallable<{ residency: CreatorResidency }, { ok: boolean; residency: CreatorResidency; changed: boolean }>(
+    functions,
+    "setCreatorResidency"
+  );
+  const res = await fn({ residency });
+  return res.data;
+}
+
 export type CreatorTaxProfile = {
+  residency?: CreatorResidency;
   taxId?: string;
   legalName?: string;
   taxSystem?: string;
@@ -99,5 +115,17 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
 
   const hasData = !!(profile?.taxId && profile?.taxSystem && profile?.zip && profile?.legalName);
   const csdReady = profile?.csdStatus === "valid";
-  return { profile, loading, hasData, csdReady };
+  const residency = profile?.residency ?? null;
+  /**
+   * ¿Puede retirar?
+   *
+   * El mexicano necesita identidad **y** sello: sin sello, Vibra no puede emitir sus facturas
+   * de venta, y dejarlo cobrar sería dejarlo vender sin poder facturar. El extranjero no emite
+   * CFDI, así que le basta la identidad.
+   *
+   * 🚧 `identityReady` está fijo en false hasta que exista el alta de cuenta de Stripe.
+   */
+  const identityReady = false;
+  const payoutReady = residency === "FOREIGN" ? identityReady : identityReady && csdReady;
+  return { profile, loading, hasData, csdReady, residency, identityReady, payoutReady };
 }

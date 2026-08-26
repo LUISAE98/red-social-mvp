@@ -1,9 +1,10 @@
 # Política de Reembolsos y Cancelaciones de Vibra
 
-> **⚠️ CAMBIO DE MODELO (2026-07-28): VENDEDOR DIRECTO.** Vibra es la **vendedora (seller of record)** y
-> **responde directamente al Comprador** por reembolsos, cancelaciones y contracargos. El Creador es
-> proveedor de Vibra; los reembolsos se resuelven entre **Vibra y el Comprador**, y Vibra ajusta después
-> la participación del Creador. Validar con abogado (asunción de responsabilidad de consumo). Ver
+> **⚠️ CAMBIO DE MODELO (2026-08-26): INTERMEDIACIÓN.** Sustituye al modelo de vendedor directo.
+> **El Creador vende y presta**; Vibra intermedia y cobra por su cuenta. Aun así, **por ser quien cobró,
+> Vibra gestiona y ejecuta los reembolsos** frente al Comprador y después los repercute al Creador.
+> Que Vibra los tramite no la convierte en vendedora ni la hace responsable de prestar el Servicio.
+> Validar con abogado el reparto de responsabilidad de consumo. Ver
 > [T&C §16](./01-terminos-y-condiciones.md) y [fiscal-iva-isr-plataforma.md §0](./fiscal-iva-isr-plataforma.md).
 >
 > **BORRADOR v0.2 — 2026-07-28. Documento de trabajo; NO sustituye la revisión de un abogado.**
@@ -22,9 +23,11 @@
 
 ## 1. Marco general
 
-1.1. **Vibra es la vendedora** de los Servicios y **responde frente al Comprador** por reembolsos y
-cancelaciones. El Creador suministra el Contenido/ejecución como proveedor de Vibra. Esta política define
-cuándo procede un reembolso o cancelación y cómo solicitarlo **directamente a Vibra**.
+1.1. **El Creador es el vendedor** y responde de prestar lo que ofreció. **Vibra, por ser quien cobró,
+gestiona y ejecuta los reembolsos** y los repercute al Creador conforme al
+[Acuerdo de Creador §9](./02-acuerdo-de-creador.md). Esta política define cuándo procede un reembolso o
+cancelación y cómo solicitarlo, y las solicitudes se presentan **a Vibra**, que es quien puede
+ejecutarlas materialmente.
 
 1.2. **Naturaleza digital.** La mayoría de los Servicios son de **contenido/servicios digitales de
 ejecución inmediata**. Para ellos, cuando la ley reconoce un derecho de desistimiento, este **se pierde**
@@ -89,11 +92,11 @@ en un plazo aproximado de `[[PLAZO REEMBOLSO]]`, sujeto a los tiempos del Provee
 indebido de contracargos ("fraude amistoso") puede derivar en suspensión de la cuenta y retención de
 Saldos relacionados (T&C §42).
 
-## 6. Efecto de los reembolsos en el Creador‑proveedor
+## 6. Efecto de los reembolsos en el Creador
 
-6.1. Vibra asume el reembolso frente al Comprador y puede **ajustar, descontar o compensar** la
-participación correspondiente del Creador‑proveedor en su Saldo (T&C §44), incluido el impuesto de la
-venta que se revierta.
+6.1. Vibra ejecuta el reembolso frente al Comprador —por ser quien cobró— y **repercute** al Creador la
+parte que le corresponde, ajustando, descontando o compensando su participación en el Saldo (T&C §44).
+Se revierten proporcionalmente el impuesto de la venta, la comisión y las retenciones aplicadas.
 
 ## 7. Cambios
 

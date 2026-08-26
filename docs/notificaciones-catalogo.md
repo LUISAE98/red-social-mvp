@@ -87,7 +87,10 @@
 2. ➖ El live terminó — descartada (2026-07-24)
 3. ✅ El VOD del live ya está listo (`live_vod_ready`) → creador (aviso directo) + seguidores/miembros (fan-out). Disparo: `cfWebhooks.ts` rama `ready` (vodStatus→ready).
 
-### Bloque 7 — KYC / Verificación (Didit) ✅
+### Bloque 7 — KYC / Verificación ✅
+
+> ⚠️ **Didit se eliminó el 2026-08-13.** Las notificaciones de este bloque describen el proveedor
+> anterior. El KYC pasa ahora por la procesadora de pagos; revisar antes de darlas por vigentes.
 1. ✅ KYC aprobado — retiros habilitados (`kyc_update` action=approved)
 2. ✅ KYC rechazado + motivo (`kyc_update` action=declined)
 3. ✅ KYC en revisión manual (`kyc_update` action=in_review)
@@ -250,7 +253,7 @@ Ciclo compartido: `handleRequestLifecycle` en `ledgerTriggers.ts:298`. Cierre/se
 | Saludo entregado / video listo | `muxWebhooks.ts` `markGreetingAssetReady` (`asset.ready`) | comprador |
 | Solicitud expiró (2 meses) | `autoExpirePendingGreetingRequestsHandler` (591) | comprador |
 
-### KYC (Didit) — `backend/src/kyc.ts` `diditWebhook` (286) — ✅ IMPLEMENTADO
+### KYC — ⚠️ OBSOLETO (Didit eliminado el 2026-08-13; `backend/src/kyc.ts` ya no existe)
 
 > Tipo `kyc_update` (un solo doc por usuario, refleja el último estado). Emite
 > `notifyKycStatus` tras persistir, solo si el estado cambió y no es `not_started`.

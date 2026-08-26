@@ -504,6 +504,7 @@ export { facturapiHealthcheck } from "./facturacion/facturapiHealthcheck";
 // Facturación — Bloque 1a: captura de datos fiscales del creador-proveedor
 // (RFC/régimen/CP) + consentimiento de auto-facturación (self-billing).
 export { saveCreatorTaxProfile } from "./facturacion/creatorTaxProfile";
+export { setCreatorResidency } from "./facturacion/creatorResidency";
 
 // Facturación — Bloque 1b: subida del CSD → crea/actualiza la organización del
 // creador en Facturapi (habilita el self-billing automático). El CSD vive en

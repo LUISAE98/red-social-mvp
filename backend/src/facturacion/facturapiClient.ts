@@ -33,15 +33,32 @@ export const facturapiTestKey = defineSecret("FACTURAPI_TEST_KEY");
 export const facturapiUserKey = defineSecret("FACTURAPI_USER_KEY");
 
 /** Qué credencial usar: la de la organización (emitir) o la de usuario (multi-tenant). */
-export type FacturapiAuth = "secret" | "user";
+/**
+ * Credencial con la que se llama a Facturapi.
+ *
+ * - `"secret"` — llave de la organización de Vibra. Emite CFDI **de Vibra** (su comisión).
+ * - `"user"`   — llave de usuario. Administra organizaciones (multi-tenant).
+ * - `{ orgKey }` — llave de la organización de UN CREADOR. Emite CFDI **a su nombre**.
+ *
+ * La tercera forma es la que sostiene el modelo de intermediación: la factura de venta la
+ * emite el creador, no Vibra, así que hay que timbrar en SU organización y con SU sello.
+ */
+export type FacturapiAuth = "secret" | "user" | { orgKey: string };
 
 export type FacturapiFetchResult<T> =
   | { ok: true; status: number; data: T }
   | { ok: false; status: number; error: string };
 
 function keyFor(auth: FacturapiAuth): string {
+  if (typeof auth === "object") return (auth.orgKey ?? "").trim();
   const raw = auth === "user" ? facturapiUserKey.value() : facturapiTestKey.value();
   return (raw ?? "").trim();
+}
+
+/** Nombre de la credencial, para mensajes de error legibles. */
+function nombreDeCredencial(auth: FacturapiAuth): string {
+  if (typeof auth === "object") return "la llave de la organización del creador";
+  return auth === "user" ? "FACTURAPI_USER_KEY" : "FACTURAPI_TEST_KEY";
 }
 
 /** Facturapi usa Basic Auth: la API key como usuario, password vacío. */
@@ -68,7 +85,7 @@ export async function facturapiFetch<T = unknown>(
     return {
       ok: false,
       status: 0,
-      error: `Falta el secreto de Facturapi (${auth === "user" ? "FACTURAPI_USER_KEY" : "FACTURAPI_TEST_KEY"}).`,
+      error: `Falta el secreto de Facturapi (${nombreDeCredencial(auth)}).`,
     };
   }
 
@@ -118,7 +135,7 @@ export async function facturapiUpload<T = unknown>(
     return {
       ok: false,
       status: 0,
-      error: `Falta el secreto de Facturapi (${auth === "user" ? "FACTURAPI_USER_KEY" : "FACTURAPI_TEST_KEY"}).`,
+      error: `Falta el secreto de Facturapi (${nombreDeCredencial(auth)}).`,
     };
   }
 

@@ -440,17 +440,21 @@
 
 ---
 
-## 17. KYC (Didit) y retiros
+## 17. KYC y retiros
+
+> ⚠️ **Didit se eliminó el 2026-08-13** y `backend/src/kyc.ts` ya no existe. Los puntos que nombran a
+> Didit describen el proveedor anterior; el KYC pasa ahora por la procesadora. **Reescribir esta
+> sección** cuando se conecte el alta de cobro de Stripe.
 
 17.1 Iniciar verificación desde la wallet ×MATRIZ
 17.2 Estados: no iniciado, en revisión, aprobado, rechazado, expirado
-17.3 Webhook de Didit → actualización del estado en Firestore
+17.3 ⚠️ OBSOLETO — webhook de Didit. Sustituir por el del alta de cobro de la procesadora
 17.4 Reintento tras rechazo
 17.5 **Gate de retiro**: creador sin KYC aprobado no debe poder retirar
 17.6 Panel fiscal de retiro (`WithdrawFiscalPanel`): datos completos, datos incompletos, copiar datos
 17.7 🟠 **No encontré un flujo de payout automatizado** — confirmar que el retiro es intervención humana a propósito, y que el estado “solicitud de retiro” queda registrado y es auditable
 17.8 Retiro por más del saldo disponible; retiro del saldo pendiente; retiro mínimo
-17.9 Free tier de Didit (500 KYC/mes) — qué pasa al agotarse
+17.9 ⚠️ OBSOLETO — free tier de Didit. Sin objeto tras su eliminación
 
 ---
 
@@ -530,7 +534,7 @@
 22.7 `COUNTRY_TAX_CONFIG`: hoy solo MX activo, 16 países LatAm comentados. Confirmar que un comprador de otro país no rompa el checkout
 22.8 IVA no evadible desde el cliente (probar manipulando el request)
 22.9 Formato de números/fechas por locale
-22.10 🟠 Modelo fiscal: Vibra es **vendedor directo (seller of record)** — impuesto según país del comprador, pago al creador según residencia del creador. Pendiente validación de fiscalista. Sesión exclusiva y Tiempo contigo estaban marcados como BLOQUEADOS en el modelo fiscal — **confirmar si se desbloquearon**
+22.10 🟠 Modelo fiscal: Vibra es **intermediaria** (act. 2026-08-26) — el creador vende, Vibra cobra por su cuenta. Impuesto de la venta según país del comprador; retenciones al creador según su residencia y régimen. Exportación a **0%** confirmada por fiscalista para los 11 servicios. Sesión exclusiva y Tiempo contigo **están desbloqueados**. Ver `docs/legal/fiscal-iva-isr-plataforma.md` §0
 
 ---
 
@@ -575,12 +579,12 @@
   - ⚠️ **Requiere `firebase deploy --only functions`** para que los 2 callables borrados desaparezcan de producción
 25.6 ✅ **Basura en el repo** — BORRADA el 2026-08-06: `firestore-debug.log`, `replay_pid48236.log` (1 MB). El `.tmp` de rules ya no existía. Se añadieron al `.gitignore` los patrones `replay_pid*.log`, `hs_err_pid*.log` y `firestore.rules.tmp.*` para que no vuelvan
 25.6.1 🟠 `stripeHealthcheck` quedó sin consumidor en el frontend (su única página era `/stripe-test`). Sigue siendo invocable a mano desde la consola de Functions como smoke test de Stripe. Decidir si se conserva así o se borra también
-25.7 Variables de entorno y secretos en producción: Stripe (live), Mux, Cloudflare Stream, R2, LiveKit, Didit, Facturapi, Sentry
+25.7 Variables de entorno y secretos en producción: Stripe (live), Mux, Cloudflare Stream, R2, LiveKit, Facturapi, Sentry
 25.8 🟠 Confirmar si queda algo activo de Mercado Pago (`MP_SANDBOX`) o si ya está todo en Stripe — y si MP se desmantela o se deja dormido
 25.9 Dominio `vibraon.com` en Vercel: certificado, redirecciones, `www`, sitemap, robots
 25.10 Sentry: que `captureError` esté reportando en producción; pendientes de instrumentar `ownerWallet` y `sessions`
 25.11 Backups de Firestore y política de retención
-25.12 Cuotas y límites: Firestore, Functions, Mux, Cloudflare, LiveKit, Didit
+25.12 Cuotas y límites: Firestore, Functions, Mux, Cloudflare, LiveKit, Stripe
 25.13 Validaciones antes del cutover: `npm run lint`, `npx tsc --noEmit`, `cd backend && npm run build`, `npm run test:emulator`
 25.14 Plan de rollback
 

@@ -22,6 +22,8 @@ import WalletCurrencyToggle from "../components/WalletCurrencyToggle";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import WithdrawFiscalPanel from "../components/WithdrawFiscalPanel";
+import CreatorPayoutSetupPanel from "../components/CreatorPayoutSetupPanel";
+import { useCreatorTaxProfile } from "@/lib/facturacion/creatorFiscal";
 
 
 
@@ -189,16 +191,17 @@ export default function WalletFinanzasPage() {
    */
   const canWithdrawNow = disponibleNeto >= PAYOUT_MIN_USD;
   /**
-   * ¿El creador completó su alta de cuenta en Stripe?
+   * ¿El creador puede retirar?
    *
-   * 🚧 SIN CONECTAR. El alta todavía no existe (Didit se eliminó y su reemplazo, el alta de
-   * Stripe con su propio KYC, está pendiente). Mientras tanto se queda en false, que es el
-   * comportamiento seguro: la barra desaparece al llegar al mínimo y en su lugar NO aparece
-   * el botón, sino que queda a la vista el aviso morado del registro.
+   * Lo decide su perfil fiscal, no una bandera suelta: el mexicano necesita identidad **y**
+   * sello digital; el extranjero, solo identidad. Ver `useCreatorTaxProfile`.
    *
-   * Al conectarlo, esto pasa a leerse del documento del creador y el botón aparece solo.
+   * 🚧 La verificación de identidad sigue en false hasta que exista el alta de cuenta de
+   * Stripe, así que hoy nadie pasa el gate. Es el comportamiento seguro: al llegar al mínimo
+   * desaparece la barra y queda el aviso del alta, sin botón de retirar.
    */
-  const altaStripeCompleta = false;
+  const { payoutReady: altaStripeCompleta } = useCreatorTaxProfile(user?.uid);
+  const [setupPanelOpen, setSetupPanelOpen] = useState(false);
 
   // El saldo sube desde cero al entrar. La barra y el resto de cifras usan el valor real:
   // animar todo a la vez sería ruido.
@@ -467,15 +470,12 @@ export default function WalletFinanzasPage() {
             )}
           </div>
 
-          {/* Alta de cuenta Stripe: habilita los retiros del creador.
-              🚧 SIN CONECTAR — el onClick está vacío a propósito. Didit se eliminó por
-              completo el 2026-08-13 y su reemplazo (el alta de cuenta Stripe, que trae
-              su propio KYC) todavía no existe. Hasta que exista, esto es solo el sitio
-              donde va a vivir, con el mismo estilo que tenía el CTA de KYC. */}
+          {/* Alta de cobro: abre el panel que bifurca por residencia fiscal. Al mexicano le
+              pide identidad y sello; al extranjero, solo identidad. */}
           <TextButton
             tone="brand"
             size="sm"
-            onClick={() => { /* TODO: iniciar el alta de cuenta Stripe del creador. */ }}
+            onClick={() => setSetupPanelOpen(true)}
             style={{
               width: "100%",
               marginTop: -14,
@@ -706,6 +706,14 @@ export default function WalletFinanzasPage() {
 
       {/* Panel fiscal del retiro (creador mexicano). 🔁 El creador EXTRANJERO pasará
           directo a pago sin este panel cuando se determine su país fiscal. */}
+      {/* Alta de cobro. Desde aquí se llega al panel fiscal, que es donde vive la subida
+          del sello: uno lleva al otro en vez de duplicar el formulario. */}
+      <CreatorPayoutSetupPanel
+        open={setupPanelOpen}
+        onClose={() => setSetupPanelOpen(false)}
+        onOpenSello={() => setWithdrawPanelOpen(true)}
+      />
+
       <WithdrawFiscalPanel
         open={withdrawPanelOpen}
         onClose={() => setWithdrawPanelOpen(false)}

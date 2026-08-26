@@ -1,5 +1,13 @@
 # Marco Legal de Vibra — Mapa de documentos, avisos y consentimientos
 
+> ✅ **Nota 2026-08-26.** Este documento describía a Vibra como **intermediario/marketplace**, y el
+> modelo volvió exactamente a eso tras el paréntesis de *vendedor directo* (jul–ago 2026). **Lo que dice
+> sobre el rol de Vibra vuelve a ser correcto.** Ver `docs/legal/fiscal-iva-isr-plataforma.md` §0.
+>
+> ⚠️ **Didit se eliminó el 2026-08-13.** Donde este documento lo nombra como proveedor de KYC, léase
+> *la procesadora de pagos*. El análisis regulatorio de fondo (qué exige cada ley) sigue siendo válido;
+> lo que cambió es quién lo opera.
+
 > **Estado:** investigación informativa (2026-07-24). **NO es asesoría legal.**
 > Los puntos marcados con fuente primaria fueron verificados contra textos de ley oficiales
 > (Cámara de Diputados, Banxico, CNBV, DOF). El resto proviene de conocimiento del marco

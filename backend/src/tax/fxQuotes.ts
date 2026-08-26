@@ -16,7 +16,7 @@
 //   · fx_fee_rate     — el porcentaje exacto que está cobrando (≈1% en cuenta de EE. UU.)
 //   · duration_premium— lo que cuesta congelar (0.15% a una hora, para pesos)
 //
-// 🚨 Se usa `base_rate`, NO `exchange_rate`. El modelo de precio (ver stripeintegracion.md §5)
+// 🚨 Se usa `base_rate`, NO `exchange_rate`. El modelo de precio (ver docs/stripe-integracion.md §5)
 // ya le cobra al comprador un 2% explícito que cubre la comisión de Stripe; convertir además
 // con `exchange_rate` —que la trae dentro— se la cobraría DOS veces.
 //

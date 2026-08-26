@@ -800,11 +800,11 @@ export default function StripePaymentModal({
   const cardFields = (kind: "credit" | "debit") => (
     <div style={{ display: "grid", gap: 14, padding: "6px 2px 18px" }}>
       <div>
-        <label style={label}>Número de tarjeta</label>
+        <label style={label}>{tWallet("payCardNumberLabel")}</label>
         <div id={`${ID_NUMBER}-${kind}`} style={stripeBox} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div><label style={label}>Vencimiento</label><div id={`${ID_EXP}-${kind}`} style={stripeBox} /></div>
+        <div><label style={label}>{tWallet("payCardExpiryLabel")}</label><div id={`${ID_EXP}-${kind}`} style={stripeBox} /></div>
         <div><label style={label}>CVC</label><div id={`${ID_CVC}-${kind}`} style={stripeBox} /></div>
       </div>
       <div>
@@ -877,7 +877,7 @@ export default function StripePaymentModal({
 
   const blockedNotice = (
     <div style={{ position: "relative", padding: stacked ? "24px 18px 24px" : "28px 24px 24px", minWidth: 0 }}>
-      <button type="button" onClick={onClose} aria-label="Cerrar"
+      <button type="button" onClick={onClose} aria-label={tCommon("close")}
         style={{ position: "absolute", top: 8, insetInlineEnd: 10, zIndex: 2, border: "none", background: "none", color: "#9aa0a8", cursor: "pointer", fontSize: 26, lineHeight: 1, padding: 4 }}>×</button>
 
       {stacked && (
@@ -900,7 +900,7 @@ export default function StripePaymentModal({
 
   const leftColumn = (
     <div style={{ position: "relative", padding: stacked ? "24px 18px 4px" : "28px 24px 24px", minWidth: 0 }}>
-      <button type="button" onClick={() => { if (!submitting) onClose(); }} aria-label="Cerrar"
+      <button type="button" onClick={() => { if (!submitting) onClose(); }} aria-label={tCommon("close")}
         style={{ position: "absolute", top: 8, insetInlineEnd: 10, zIndex: 2, border: "none", background: "none", color: "#9aa0a8", cursor: submitting ? "not-allowed" : "pointer", fontSize: 26, lineHeight: 1, padding: 4 }}>×</button>
 
       {stacked && (
@@ -923,7 +923,7 @@ export default function StripePaymentModal({
             )}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 12, color: "#9aa0a8" }}>Bienvenido</div>
+            <div style={{ fontSize: 12, color: "#9aa0a8" }}>{tWallet("payWelcome")}</div>
             {collectNickname ? (
               <input
                 type="text"
@@ -943,7 +943,7 @@ export default function StripePaymentModal({
 
       <div style={{ marginBottom: 16 }}>
         <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#3a3f4a" }}>{paymentHeading ?? tWallet("payHeading")}</h4>
-        <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#9aa0a8", fontWeight: 400 }}>Elige tu forma de pago</p>
+        <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#9aa0a8", fontWeight: 400 }}>{tWallet("payChooseMethod")}</p>
       </div>
 
       {loading ? (
@@ -1063,8 +1063,17 @@ export default function StripePaymentModal({
         <div style={{ display: "grid", gap: 10, marginTop: 2 }}>
           <div style={{ height: 1, background: "#e6e8ec" }} />
           <div style={{ display: "grid", gap: 6 }}>
-            <span style={{ fontSize: 12.5, color: "#5b616e", lineHeight: 1.4 }}><strong style={{ fontWeight: 600, color: "#3a3f4a" }}>Duración:</strong> {durationMinutes} minutos</span>
-            <span style={{ fontSize: 12.5, color: "#5b616e", lineHeight: 1.4 }}><strong style={{ fontWeight: 600, color: "#3a3f4a" }}>Modalidad:</strong> En línea, desde cualquier parte del mundo</span>
+            <span style={{ fontSize: 12.5, color: "#5b616e", lineHeight: 1.4 }}>
+              {tWallet.rich("payDurationLine", {
+                b: (c) => <strong style={{ fontWeight: 600, color: "#3a3f4a" }}>{c}</strong>,
+                minutes: durationMinutes,
+              })}
+            </span>
+            <span style={{ fontSize: 12.5, color: "#5b616e", lineHeight: 1.4 }}>
+              {tWallet.rich("payModalityLine", {
+                b: (c) => <strong style={{ fontWeight: 600, color: "#3a3f4a" }}>{c}</strong>,
+              })}
+            </span>
           </div>
         </div>
       ) : description ? (
@@ -1097,7 +1106,7 @@ export default function StripePaymentModal({
             })}
           </div>
           <div style={{ display: "grid", gap: 6, justifyItems: "center", marginTop: 2 }}>
-            <span style={{ fontSize: 12.5, color: "#6b7280", fontWeight: 600 }}>Otro monto</span>
+            <span style={{ fontSize: 12.5, color: "#6b7280", fontWeight: 600 }}>{tWallet("payOtherAmount")}</span>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 4 }}>
               <span style={{ fontSize: 22, fontWeight: 700, color: "#3a3f4a" }}>$</span>
               <input ref={amountInputRef} type="number" inputMode="decimal" min={1} className="vibra-amount-input" value={customAmount}
@@ -1178,7 +1187,10 @@ export default function StripePaymentModal({
           al comprador por qué el precio se movió, sin agregarle un paso ni pedirle confirmar. */}
       {countryFromCard && !readingCard && (
         <p style={{ margin: "-2px 0 0", fontSize: 11, color: "#8a8f99", textAlign: "center", lineHeight: 1.35 }}>
-          Tu tarjeta es de <strong style={{ fontWeight: 600, color: "#6b7280" }}>{countryName(cardPm?.country, locale, tWallet("payCountryUnknown"))}</strong>
+          {tWallet.rich("payCardIssuedIn", {
+            b: (c) => <strong style={{ fontWeight: 600, color: "#6b7280" }}>{c}</strong>,
+            country: countryName(cardPm?.country, locale, tWallet("payCountryUnknown")),
+          })}
         </p>
       )}
 
@@ -1192,7 +1204,12 @@ export default function StripePaymentModal({
         <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" /><path d="M9 12l2 2 4-4" />
         </svg>
-        <span>Tu pago está protegido por <span style={{ color: BLUE, fontWeight: 600 }}>Stripe</span></span>
+        <span>
+          {tWallet.rich("payProtectedBy", {
+            b: (c) => <span style={{ color: BLUE, fontWeight: 600 }}>{c}</span>,
+            brand: "Stripe",
+          })}
+        </span>
       </div>
     </div>
   );
@@ -1214,7 +1231,7 @@ export default function StripePaymentModal({
   const processingView = (
     <div style={{ display: "grid", placeItems: "center", gap: 14, padding: "56px 24px", minHeight: 220 }}>
       <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid #e3e6ea", borderTopColor: BLUE, animation: "vibraSpin 0.8s linear infinite" }} />
-      <p style={{ margin: 0, fontSize: 14, color: "#5b616e", fontWeight: 600 }}>Procesando tu pago…</p>
+      <p style={{ margin: 0, fontSize: 14, color: "#5b616e", fontWeight: 600 }}>{tWallet("payProcessingPayment")}</p>
     </div>
   );
 
