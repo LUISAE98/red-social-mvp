@@ -145,11 +145,14 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
    *
    * Por eso la vigencia se comprueba también contra la fecha, aquí y en cada lectura.
    */
+  // El instante se captura UNA vez por montaje: leer el reloj en cada render es impuro y,
+  // para una vigencia de meses, mirarlo al entrar es de sobra.
+  const [ahora] = useState(() => Date.now());
   const csdVencido = (() => {
     const iso = profile?.csdExpiresAt;
     if (!iso) return false;
     const t = Date.parse(iso);
-    return Number.isFinite(t) && t <= Date.now();
+    return Number.isFinite(t) && t <= ahora;
   })();
   const csdReady = profile?.csdStatus === "valid" && !csdVencido;
   const residency = profile?.residency ?? null;

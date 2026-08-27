@@ -47,6 +47,7 @@ function CompletedDownloadSection({
   completed: BuyerNextSession;
   now: number;
 }) {
+  const tSessions = useTranslations("sessions");
   const [dismissedCompleted, setDismissedCompleted] = useState(() => {
     try { return localStorage.getItem(`dismissed_session_${completed.id}`) === "1"; } catch { return false; }
   });
@@ -92,7 +93,7 @@ function CompletedDownloadSection({
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
-          <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>Sesión anterior completada</span>
+          <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>{tSessions("previousSessionCompleted")}</span>
         </div>
         <button
           type="button"
@@ -108,7 +109,7 @@ function CompletedDownloadSection({
             lineHeight: 1,
             flexShrink: 0,
           }}
-          aria-label="Cerrar sección de descarga"
+          aria-label={tSessions("closeDownloadSection")}
         >
           ✕
         </button>
@@ -147,7 +148,7 @@ function CompletedDownloadSection({
           opacity: downloadBusy ? 0.7 : 1,
         }}
       >
-        {downloadBusy ? "Descargando..." : "Descargar sesión"}
+        {downloadBusy ? tSessions("downloading") : tSessions("downloadSession")}
       </button>
     </div>
   );
@@ -158,6 +159,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
   const tServices = useTranslations("services");
   const tCommon = useTranslations("common");
   const tSessions = useTranslations("sessions");
+  const tNav = useTranslations("nav");
 
   const { session, completedSession, loading } = useBuyerNextSession(uid);
   const [now, setNow] = useState(() => Date.now());
@@ -293,7 +295,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.80) 100%)" }} />
 
         {/* Cerrar: tache blanco sencillo, sin card, esquina superior derecha. */}
-        <IconButton label="Cerrar" size="sm" tone="bare" shape="square" style={{ position: "absolute", top: 8, insetInlineEnd: 8, placeItems: "center", zIndex: 2 }} onClick={() => setRefundClosing(true)}>
+        <IconButton label={tCommon("close")} size="sm" tone="bare" shape="square" style={{ position: "absolute", top: 8, insetInlineEnd: 8, placeItems: "center", zIndex: 2 }} onClick={() => setRefundClosing(true)}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
             <path d="M6 6L18 18" /><path d="M18 6L6 18" />
           </svg>
@@ -315,8 +317,12 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
           </div>
 
           <div style={{ color: "rgba(255,255,255,0.92)", fontSize: 13.5, lineHeight: 1.5, fontWeight: 500, maxWidth: 260 }}>
-            Tu solicitud de devolución fue enviada y será procesada. Puedes revisar el estatus en{" "}
-            <span style={{ color: "#fff", fontWeight: 700 }}>Experiencias → Rechazados → Devolución</span>.
+            {/* La ruta se arma con las MISMAS claves que pintan esas pantallas.
+                Traducida a mano dejaría de coincidir con el menú en cuanto una cambiara. */}
+            {tSessions.rich("refundRequestSent", {
+              b: (c) => <span style={{ color: "#fff", fontWeight: 700 }}>{c}</span>,
+              path: [tNav("tabExperiences"), tServices("rejectedGroup"), tServices("statusRefundInProgress")].join(" → "),
+            })}
           </div>
         </div>
       </div>
@@ -355,7 +361,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
     return (
       <div style={{ width: "100%", position: "relative", borderRadius: 12, overflow: "hidden", marginBottom: 2, boxSizing: "border-box", backgroundImage: `url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center" }}>
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.80) 100%)" }} />
-        <button type="button" onClick={dismissStandalone} style={{ position: "absolute", top: 10, insetInlineEnd: 10, border: "none", background: "none", color: "rgba(255,255,255,0.45)", fontSize: 16, cursor: "pointer", padding: "0 2px", zIndex: 2, fontFamily: "inherit", lineHeight: 1 }} aria-label="Cerrar">✕</button>
+        <button type="button" onClick={dismissStandalone} style={{ position: "absolute", top: 10, insetInlineEnd: 10, border: "none", background: "none", color: "rgba(255,255,255,0.45)", fontSize: 16, cursor: "pointer", padding: "0 2px", zIndex: 2, fontFamily: "inherit", lineHeight: 1 }} aria-label={tCommon("close")}>✕</button>
         <div style={{ position: "relative", padding: "16px 40px 16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 44, height: 44, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.10)", border: "2px solid rgba(34,197,94,0.50)" }}>
@@ -365,11 +371,11 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
               }
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", marginBottom: 2 }}>Sesión con</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", marginBottom: 2 }}>{tSessions("sessionWith")}</div>
               <div style={{ fontSize: 16, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creatorName}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
-                <span style={{ fontSize: 11, color: "#4ade80", fontWeight: 600 }}>Completada</span>
+                <span style={{ fontSize: 11, color: "#4ade80", fontWeight: 600 }}>{tSessions("sessionCompleted")}</span>
               </div>
             </div>
           </div>
@@ -379,7 +385,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
               : "El enlace de descarga ha expirado (30 días)."}
           </div>
           <button type="button" onClick={handleDownload} disabled={!canDownload} style={{ width: "100%", height: 38, borderRadius: 8, border: "none", background: !canDownload ? "rgba(255,255,255,0.08)" : completedSession.serviceKind === "exclusive_session" ? "rgba(236,72,153,0.22)" : "rgba(59,130,246,0.22)", color: !canDownload ? "rgba(255,255,255,0.30)" : completedSession.serviceKind === "exclusive_session" ? "#f9a8d4" : "#93c5fd", fontSize: 14, fontWeight: 600, cursor: !canDownload ? "not-allowed" : "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>
-            Descargar sesión
+            {tSessions("downloadSession")}
           </button>
         </div>
       </div>
@@ -415,11 +421,11 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
               }
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", marginBottom: 2 }}>Sesión con</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", marginBottom: 2 }}>{tSessions("sessionWith")}</div>
               <div style={{ fontSize: 15, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creatorName}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#fde047", flexShrink: 0 }} />
-                <span style={{ fontSize: 11, color: "#fde047", fontWeight: 600 }}>Sesión corta</span>
+                <span style={{ fontSize: 11, color: "#fde047", fontWeight: 600 }}>{tSessions("shortSession")}</span>
               </div>
             </div>
           </div>
@@ -428,18 +434,18 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
             /* After force-complete: show download */
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", lineHeight: 1.5 }}>
-                ¡Sesión marcada como completada! Ya puedes descargar la grabación.
+                {tSessions("markedCompleted")}
               </div>
               <CompletedDownloadSection completed={session!} now={now} />
               <button type="button" onClick={() => setIncompleteDismissed(true)} style={{ width: "100%", height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.18)", background: "transparent", color: "rgba(255,255,255,0.55)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-                Cerrar
+                {tCommon("close")}
               </button>
             </div>
           ) : (
             /* Choice panel */
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", lineHeight: 1.5 }}>
-                La sesión terminó antes de lo programado. ¿Qué pasó?
+                {tSessions("endedEarlyQuestion")}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={handleForceComplete} disabled={forceCompleting}
@@ -448,7 +454,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
                 </button>
                 <button type="button" onClick={() => setIncompleteDismissed(true)}
                   style={{ flex: 1, height: 40, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", lineHeight: 1.2 }}>
-                  Reportar problema
+                  {tSessions("reportProblem")}
                 </button>
               </div>
             </div>
@@ -592,7 +598,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
               <div style={{ fontSize: 17, color: "#fff", fontWeight: 700, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creatorName}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#fb923c", flexShrink: 0 }} />
-                <span style={{ fontSize: 11, color: "#fb923c", fontWeight: 600 }}>No se realizó</span>
+                <span style={{ fontSize: 11, color: "#fb923c", fontWeight: 600 }}>{tSessions("didNotHappen")}</span>
               </div>
             </div>
           </div>

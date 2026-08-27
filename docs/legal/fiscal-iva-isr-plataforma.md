@@ -303,6 +303,7 @@ grupos necesitan una condición especial:
 | Videollamadas 1-a-1 con creador extranjero | ⬜ ¿Régimen de plataformas o importación de servicios? |
 | Altas de IVA fuera de México | ⬜ Vibra es proveedor considerado en varias jurisdicciones |
 | Contabilidad: ingreso = comisión, no el 100% | ⬜ Confirmar asiento con contador |
+| 🚧 **Dónde elige el creador el país de su cuenta de cobro** | ⬜ El backend ya lo guarda (`setCreatorPayoutAccountCountry`) y el motor ya lo aplica —fuera de México sube la retención al 100%—, pero **no hay sitio en la interfaz donde elegirlo**. Va con el alta de Stripe, que es donde el creador da sus datos de depósito. Mientras no exista, el campo queda vacío y el motor asume México. |
 
 ---
 

@@ -275,7 +275,9 @@
     "viewsCountAriaLabel": "{count, plural, other {조회수 #회}}",
     "addFlameToStory": "이 스토리에 좋아요",
     "removeFlameFromStory": "이 스토리의 좋아요 취소",
-    "following": "팔로잉"
+    "following": "팔로잉",
+    "send": "보내기",
+    "start": "시작"
   },
   "groups": {
     "title": "커뮤니티",
@@ -1419,6 +1421,8 @@
     "payoutSetupStepSealReplace": "내 인장 교체하기",
     "payoutSetupGateMx": "둘 중 하나라도 빠지면 잔액은 계속 쌓이지만 출금할 수 없어요.",
     "payoutSetupGateForeign": "본인 확인을 마칠 때까지 잔액은 계속 쌓이지만 출금할 수 없어요.",
+    "payoutSetupSealExpired": "디지털 인장이 만료됐어요. 유효한 인장을 올릴 때까지 판매 청구서를 발행할 수 없고 출금도 할 수 없어요.",
+    "payoutSetupForeignAccountWarning": "멕시코 밖 계좌로 받고 있어요. 그래서 부가세 원천징수가 50%에서 100%로 올라가 입금액이 줄어요. 계좌는 언제든 바꿀 수 있어요.",
     "withdrawButton": "출금",
     "withdrawComingSoon": "출금 기능은 곧 제공됩니다",
     "onboardingUTitle": "<vibra>동경하는</vibra> 사람들과 특별한 경험을",
@@ -1526,7 +1530,8 @@
     "fiscalKey": "키",
     "fiscalInvoicePdf": "청구서 PDF",
     "fiscalInvoiceXml": "청구서 XML",
-    "approxAmount": "약 {amount}"
+    "approxAmount": "약 {amount}",
+    "egressYourMomentWith": "{name}님과의 순간"
   },
   "services": {
     "confirmLabel": "확인",
@@ -2490,7 +2495,40 @@
     "confirmRescheduleSession": "일정 변경 확인",
     "toleranceExpiredChoose": "유예 시간이 지났습니다. 선택하세요:",
     "schedulingLocalTime": "현지 시간 기준으로 선택 중: {timezone}",
-    "scheduleBuyerMessage": "구매자에게 보낼 메시지"
+    "scheduleBuyerMessage": "구매자에게 보낼 메시지",
+    "previousSessionCompleted": "이전 세션이 완료되었습니다",
+    "closeDownloadSection": "다운로드 섹션 닫기",
+    "refundRequestSent": "환불 요청을 보냈고 처리될 예정입니다. 상태는 <b>{path}</b>에서 확인할 수 있습니다.",
+    "sessionWith": "세션 상대",
+    "sessionCompleted": "완료",
+    "downloadSession": "세션 다운로드",
+    "shortSession": "짧은 세션",
+    "markedCompleted": "세션을 완료로 표시했습니다. 이제 녹화본을 다운로드할 수 있습니다.",
+    "endedEarlyQuestion": "세션이 예정보다 일찍 끝났습니다. 무슨 일이 있었나요?",
+    "reportProblem": "문제 신고",
+    "didNotHappen": "진행되지 않음",
+    "reschedule": "일정 변경",
+    "toleranceMinutes": "유예 {minutes}분",
+    "openSession": "세션 열기",
+    "prepareHint": "시작 {minutes}분 전부터 세션 입장 준비를 할 수 있습니다",
+    "bothInRoom": "두 분 다 룸에 있습니다",
+    "startsIn": "세션 시작까지...",
+    "inRoomWaitingBuyer": "룸에 있음 · 구매자 대기 중",
+    "toleranceExpired": "유예 시간이 끝났습니다. 옵션을 선택하세요:",
+    "aboutToStart": "곧 세션이 시작됩니다",
+    "minutesLeftInSession": "세션 {minutes}분 남음",
+    "timeToSayGoodbye": "작별할 시간입니다",
+    "confirmEndEarly": "세션을 일찍 끝낼까요? 이후에 무슨 일이 있었는지 메시지를 남기게 됩니다.",
+    "noContinue": "아니요, 계속",
+    "tellUsWhatHappened": "무슨 일이 있었는지 알려주세요…",
+    "sessionEnded": "세션이 끝났습니다",
+    "recordingRetention": "녹화본을 다운로드할 수 있습니다. 삭제되기 전까지 <b>{days}일</b> 남았습니다.",
+    "rotatePhone": "휴대폰을 돌리세요",
+    "rotateHint": "화면 <b>자동 회전</b>을 켜고 휴대폰을 <b>가로로</b> 두면 영상 통화가 잘 보입니다.",
+    "noMoreRescheduleAttempts": "시간 변경을 요청할 수 있는 횟수가 남지 않았습니다.",
+    "forWhom": "누구를 위한 건가요?",
+    "videoUnavailable": "동영상을 이용할 수 없습니다",
+    "downloading": "다운로드 중..."
   },
   "auth": {
     "login": {

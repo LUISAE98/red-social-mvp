@@ -579,7 +579,11 @@ export default function PublicPostPageClient({
           </div>
         ) : null}
 
-        <div className="mx-3 rounded-xl border border-white/10 bg-neutral-900/80 p-4 text-center backdrop-blur-md sm:mx-0">
+        {/* Sin caja: ni contorno, ni fondo, ni desenfoque. Era una tarjeta
+            dentro de otra tarjeta, y el recuadro competía con el de la propia
+            publicación, que es lo que se vino a ver. El texto y el botón se
+            sostienen solos sobre el fondo. */}
+        <div className="mx-3 p-4 text-center sm:mx-0">
           <p className="text-sm text-neutral-300">
             Para comentar, reaccionar o ver más contenido, entra a Vibra.
           </p>

@@ -321,7 +321,7 @@ export default function MeetGreet({
 
         {/* Esquina inferior derecha: precio grande (estilo del feed, +40%) + cargo fijo. */}
         <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "end", flexShrink: 0 }}>
-          <div style={subtleStyle}>Configuración de tiempo contigo</div>
+          <div style={subtleStyle}>{tServices("meetGreetConfigTitle")}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
             {draft.meetGreet.durationMinutes ? (
               <>

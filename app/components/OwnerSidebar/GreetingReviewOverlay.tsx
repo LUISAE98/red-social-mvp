@@ -134,6 +134,7 @@ export default function GreetingReviewOverlay({
   zIndex = 10050,
 }: Props) {
   const tCommon = useTranslations("common");
+  const tSessions = useTranslations("sessions");
   const cfError = useCfError();
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
@@ -1639,7 +1640,7 @@ export default function GreetingReviewOverlay({
   const infoSection = (
     <>
       <div style={{ display: "grid", gap: 2 }}>
-        <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>¿Para quién es?</span>
+        <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tSessions("forWhom")}</span>
         <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{req.toName}</span>
       </div>
       {req.instructions ? (
@@ -3456,7 +3457,7 @@ export default function GreetingReviewOverlay({
                   </div>
                 ) : (
                   <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
-                    Video no disponible
+                    {tSessions("videoUnavailable")}
                   </div>
                 )
               ) : (
@@ -3815,7 +3816,7 @@ export default function GreetingReviewOverlay({
                     }}>
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block" }} />
                     </span>
-                    Comenzar
+                    {tCommon("start")}
                   </button>
                   <button type="button" onClick={() => onReject(currentItem.id)} disabled={busy} style={{
                     flex: 1, height: 36, borderRadius: 6,
@@ -3922,7 +3923,7 @@ export default function GreetingReviewOverlay({
                   }}>
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block" }} />
                   </span>
-                  Comenzar
+                  {tCommon("start")}
                 </button>
                 <button type="button" onClick={() => onReject(currentItem.id)} disabled={busy} style={{
                   flex: 1, height: 36, borderRadius: 6,

@@ -473,7 +473,7 @@ export default function BuyerSessionRequestOverlay({
             <circle cx="12" cy="8" r="0.5" fill={priceColor} />
           </svg>
           <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-            Ya no tienes más intentos disponibles para solicitar un cambio de horario.
+            {tSessions("noMoreRescheduleAttempts")}
           </p>
         </div>
       ) : null}

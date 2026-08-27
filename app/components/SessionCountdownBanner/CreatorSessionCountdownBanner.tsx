@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { intlLocale } from "@/i18n/locales";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -44,6 +44,8 @@ function formatTime(d: Date, locale: string): string {
 // Self-contained row for auto_rejected_no_show sessions in the "other sessions" list
 function ActionSessionRow({ session }: { session: CreatorSession }) {
   const locale = useLocale();
+  const tSessions = useTranslations("sessions");
+  const tCommon = useTranslations("common");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const buyerName = session.buyerDisplayName ?? "Comprador";
@@ -81,11 +83,11 @@ function ActionSessionRow({ session }: { session: CreatorSession }) {
       <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
         <button type="button" onClick={() => openSessionScheduleOverlay(session.id, session.serviceKind)} disabled={busy}
           style={{ height: 26, paddingInline: 8, borderRadius: 6, border: "none", background: busy ? "rgba(255,255,255,0.08)" : session.serviceKind === "meet_greet" ? "#2563eb" : "#be185d", color: busy ? "rgba(255,255,255,0.35)" : "#fff", fontSize: 11, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-          Reagendar
+          {tSessions("reschedule")}
         </button>
         <button type="button" onClick={handleReject} disabled={busy}
           style={{ height: 26, paddingInline: 8, borderRadius: 6, border: "1px solid rgba(255,255,255,0.18)", background: busy ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.10)", color: busy ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.70)", fontSize: 11, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-          Rechazar
+          {tCommon("reject")}
         </button>
       </div>
     </div>
@@ -180,6 +182,8 @@ function SessionRow({ session }: { session: CreatorSession }) {
 }
 
 export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) {
+  const tSessions = useTranslations("sessions");
+  const tCommon = useTranslations("common");
   const { nextSession, todaySessions, completedSession, loading } = useCreatorTodaySessions(uid);
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
@@ -291,7 +295,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
       <div style={{ width: "100%", position: "relative", borderRadius: 12, overflow: "hidden", marginBottom: 2, boxSizing: "border-box" }}>
         <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.80) 100%)" }} />
-        <button type="button" onClick={dismissCompleted} style={{ position: "absolute", top: 10, insetInlineEnd: 10, border: "none", background: "none", color: "rgba(255,255,255,0.45)", fontSize: 16, cursor: "pointer", padding: "0 2px", zIndex: 2, fontFamily: "inherit", lineHeight: 1 }} aria-label="Cerrar">✕</button>
+        <button type="button" onClick={dismissCompleted} style={{ position: "absolute", top: 10, insetInlineEnd: 10, border: "none", background: "none", color: "rgba(255,255,255,0.45)", fontSize: 16, cursor: "pointer", padding: "0 2px", zIndex: 2, fontFamily: "inherit", lineHeight: 1 }} aria-label={tCommon("close")}>✕</button>
         <div style={{ position: "relative", padding: "16px 40px 16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 44, height: 44, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.10)", border: "2px solid rgba(34,197,94,0.50)" }}>
@@ -301,11 +305,11 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
               }
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", marginBottom: 2 }}>Sesión con</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", marginBottom: 2 }}>{tSessions("sessionWith")}</div>
               <div style={{ fontSize: 16, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{buyerNm}</div>
               <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
-                <span style={{ fontSize: 11, color: "#4ade80", fontWeight: 600 }}>Completada</span>
+                <span style={{ fontSize: 11, color: "#4ade80", fontWeight: 600 }}>{tSessions("sessionCompleted")}</span>
               </div>
             </div>
           </div>
@@ -315,7 +319,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
               : "El enlace de descarga ha expirado (30 días)."}
           </div>
           <button type="button" onClick={handleDownloadCompleted} disabled={!canDownload} style={{ width: "100%", height: 38, borderRadius: 8, border: "none", background: !canDownload ? "rgba(255,255,255,0.08)" : accent ? "rgba(236,72,153,0.22)" : "rgba(59,130,246,0.22)", color: !canDownload ? "rgba(255,255,255,0.30)" : accent ? "#f9a8d4" : "#93c5fd", fontSize: 14, fontWeight: 600, cursor: !canDownload ? "not-allowed" : "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>
-            Descargar sesión
+            {tSessions("downloadSession")}
           </button>
         </div>
       </div>
@@ -551,7 +555,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
               {/* Buyer name block */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  Sesión con
+                  {tSessions("sessionWith")}
                 </div>
                 <div
                   style={{
@@ -600,7 +604,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                 )}
                 {isPastStart && !sessionInProgress && !countdownFrozen && !toleranceExpired && (
                   <div style={{ fontSize: 10, color: "#fb923c", marginTop: 3, lineHeight: 1.3, opacity: 0.85 }}>
-                    15 min de tolerancia
+                    {tSessions("toleranceMinutes", { minutes: 15 })}
                   </div>
                 )}
               </div>
@@ -661,7 +665,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                 opacity: nextSession.serviceKind === "exclusive_session" ? 1 : 0,
                 transition: "opacity 0.75s ease",
               }} />
-              <span style={{ position: "relative", zIndex: 1 }}>Abrir sesión</span>
+              <span style={{ position: "relative", zIndex: 1 }}>{tSessions("openSession")}</span>
             </button>
           ) : !toleranceExpired ? (
             <>
@@ -689,7 +693,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                     color: "rgba(255,255,255,0.60)",
                     lineHeight: 1.4,
                   }}>
-                    Faltando 15 minutos podrás prepararte para entrar a tu sesión
+                    {tSessions("prepareHint", { minutes: 15 })}
                   </span>
                 </div>
               )}
@@ -698,19 +702,19 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                 /* Both prepared — synchronized countdown */
                 <div style={{ textAlign: "center", padding: "6px 0" }}>
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginBottom: 6 }}>
-                    Ambos están en la sala
+                    {tSessions("bothInRoom")}
                   </div>
                   <div style={{ fontSize: 28, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
                     {preSessionSecondsLeft}
                   </div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>
-                    La sesión comienza en...
+                    {tSessions("startsIn")}
                   </div>
                 </div>
               ) : creatorConnected ? (
                 /* Creator prepared, waiting for buyer */
                 <div style={{ textAlign: "center", padding: "8px 0", fontSize: 13, color: "rgba(255,255,255,0.55)", fontStyle: "italic" }}>
-                  En sala · Esperando al comprador
+                  {tSessions("inRoomWaitingBuyer")}
                 </div>
               ) : (
                 /* Not yet prepared */
@@ -759,7 +763,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ fontSize: 12, color: "#fb923c", lineHeight: 1.4, fontWeight: 500 }}>
-                El tiempo de tolerancia venció. Elige una opción:
+                {tSessions("toleranceExpired")}
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button
@@ -780,7 +784,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                     opacity: busy ? 0.7 : 1,
                   }}
                 >
-                  Reagendar
+                  {tSessions("reschedule")}
                 </button>
                 <button
                   type="button"
@@ -881,7 +885,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
             {countdown321}
           </div>
           <div style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", fontWeight: 500 }}>
-            La sesión está por comenzar
+            {tSessions("aboutToStart")}
           </div>
         </div>,
         document.body

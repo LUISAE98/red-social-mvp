@@ -40,7 +40,8 @@ type EstadoPaso = "listo" | "pendiente" | "bloqueado";
 export default function CreatorPayoutSetupPanel({ open, onClose, onOpenSello }: Props) {
   const t = useTranslations("wallet");
   const { user } = useAuth();
-  const { residency, csdReady, identityReady, loading } = useCreatorTaxProfile(user?.uid);
+  const { residency, csdReady, csdVencido, cobraFueraDeMexico, identityReady, loading } =
+    useCreatorTaxProfile(user?.uid);
 
   // Desmontado diferido para animar la salida (vibra_style.md).
   const [rendered, setRendered] = useState(open);
@@ -212,7 +213,16 @@ export default function CreatorPayoutSetupPanel({ open, onClose, onOpenSello }: 
                     : t("payoutSetupStepIdentityHintForeign")
                 }
                 accion={t("payoutSetupStepIdentityCta")}
-                /* 🚧 SIN CONECTAR: el alta de cuenta de Stripe todavía no existe. */
+                /* 🚧 SIN CONECTAR: el alta de cuenta de Stripe todavía no existe.
+
+                   Cuando exista, este paso debe recoger también el **país de la cuenta de
+                   cobro** y guardarlo con `setCreatorPayoutAccountCountry`. Es donde el creador
+                   da sus datos de depósito, así que es su sitio natural — y es un dato FISCAL:
+                   cobrar fuera de México le sube la retención de IVA del 50% al 100%.
+
+                   Mientras no exista, el campo queda vacío y el motor asume México, que es la
+                   suposición benigna (retiene de menos, no de más). Ver
+                   `docs/legal/fiscal-iva-isr-plataforma.md` §0.6. */
                 onAccion={undefined}
               />
 
@@ -228,6 +238,14 @@ export default function CreatorPayoutSetupPanel({ open, onClose, onOpenSello }: 
                     onOpenSello();
                   }}
                 />
+              )}
+
+              {csdVencido && (
+                <Aviso tono="alerta" texto={t("payoutSetupSealExpired")} />
+              )}
+
+              {cobraFueraDeMexico && (
+                <Aviso tono="aviso" texto={t("payoutSetupForeignAccountWarning")} />
               )}
 
               <div
@@ -254,6 +272,26 @@ export default function CreatorPayoutSetupPanel({ open, onClose, onOpenSello }: 
       </section>
     </div>,
     document.body
+  );
+}
+
+/** Aviso corto dentro del panel. `alerta` bloquea algo; `aviso` solo advierte. */
+function Aviso({ tono, texto }: { tono: "alerta" | "aviso"; texto: string }) {
+  const rojo = tono === "alerta";
+  return (
+    <div
+      style={{
+        padding: "11px 14px",
+        borderRadius: 12,
+        background: rojo ? "rgba(248,113,113,0.09)" : "rgba(234,179,8,0.09)",
+        border: rojo ? "1px solid rgba(248,113,113,0.28)" : "1px solid rgba(234,179,8,0.28)",
+        color: rojo ? "#fca5a5" : "#eab308",
+        fontSize: 12.5,
+        lineHeight: 1.55,
+      }}
+    >
+      {texto}
+    </div>
   );
 }
 

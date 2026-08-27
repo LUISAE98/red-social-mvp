@@ -166,7 +166,7 @@ export default function SessionIntro({
           {t("egressTaglinePrefix")} <span className="introVibra">Vibra.</span>
         </div>
 
-        <div className="introMoment">Tu momento con {name}</div>
+        <div className="introMoment">{t("egressYourMomentWith", { name })}</div>
 
         <div className="introAvatar" style={{ width: OUTER, height: OUTER }}>
           <svg

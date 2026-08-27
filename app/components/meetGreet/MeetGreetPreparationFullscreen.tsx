@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import LiveKitVideoRoom from "@/app/components/liveKit/LiveKitVideoRoom";
@@ -25,6 +26,9 @@ export default function MeetGreetPreparationFullscreen({
   sessionId,
   sessionType,
 }: Props) {
+  const tSessions = useTranslations("sessions");
+  const tCommon = useTranslations("common");
+
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -242,7 +246,7 @@ export default function MeetGreetPreparationFullscreen({
               padding: "10px 20px",
             }}>
               <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", letterSpacing: "0.01em" }}>
-                Quedan 2 minutos de sesión
+                {tSessions("minutesLeftInSession", { minutes: 2 })}
               </span>
             </div>
           </div>
@@ -263,7 +267,7 @@ export default function MeetGreetPreparationFullscreen({
               padding: "10px 20px",
             }}>
               <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", letterSpacing: "0.01em" }}>
-                Es momento de despedirte
+                {tSessions("timeToSayGoodbye")}
               </span>
             </div>
           </div>
@@ -338,7 +342,7 @@ export default function MeetGreetPreparationFullscreen({
                   <>
                     <div style={{ padding: "18px 20px 8px" }}>
                       <p style={{ color: "rgba(255,255,255,0.70)", fontSize: 14, lineHeight: 1.55, margin: 0 }}>
-                        ¿Estás seguro de que quieres acabar la sesión antes de tiempo? Después nos dejarás un mensaje para decirnos qué pasó.
+                        {tSessions("confirmEndEarly")}
                       </p>
                     </div>
                     <div style={{
@@ -376,7 +380,7 @@ export default function MeetGreetPreparationFullscreen({
                           display: "grid", placeItems: "center",
                         }}
                       >
-                        No, continuar
+                        {tSessions("noContinue")}
                       </button>
                     </div>
                   </>
@@ -387,7 +391,7 @@ export default function MeetGreetPreparationFullscreen({
                   <>
                     <div style={{ padding: "18px 20px 8px" }}>
                       <textarea
-                        placeholder="Dinos qué pasó…"
+                        placeholder={tSessions("tellUsWhatHappened")}
                         value={feedbackText}
                         onChange={e => setFeedbackText(e.target.value)}
                         rows={4}
@@ -419,7 +423,7 @@ export default function MeetGreetPreparationFullscreen({
                           display: "grid", placeItems: "center",
                         }}
                       >
-                        Enviar
+                        {tCommon("send")}
                       </button>
                     </div>
                   </>
@@ -461,12 +465,13 @@ export default function MeetGreetPreparationFullscreen({
 
               <div>
                 <p style={{ color: "#fff", fontSize: 16, fontWeight: 600, margin: "0 0 8px", lineHeight: 1.3 }}>
-                  Tu sesión ha terminado
+                  {tSessions("sessionEnded")}
                 </p>
                 <p style={{ color: "rgba(255,255,255,0.50)", fontSize: 13, margin: 0, lineHeight: 1.55 }}>
-                  La grabación estará disponible para descargar. Tienes{" "}
-                  <strong style={{ color: "rgba(255,255,255,0.80)" }}>30 días</strong>{" "}
-                  para descargarla antes de que sea eliminada.
+                  {tSessions.rich("recordingRetention", {
+                    b: (ch) => <strong style={{ color: "rgba(255,255,255,0.80)" }}>{ch}</strong>,
+                    days: 30,
+                  })}
                 </p>
               </div>
 
@@ -501,7 +506,7 @@ export default function MeetGreetPreparationFullscreen({
                   fontSize: 13, cursor: "pointer", fontFamily: "inherit",
                 }}
               >
-                Cerrar
+                {tCommon("close")}
               </button>
             </div>
           </div>
@@ -556,14 +561,12 @@ export default function MeetGreetPreparationFullscreen({
           </svg>
           <div>
             <p style={{ color: "#fff", fontSize: 18, fontWeight: 700, margin: "0 0 8px", lineHeight: 1.3, letterSpacing: "-0.01em" }}>
-              Gira tu teléfono
+              {tSessions("rotatePhone")}
             </p>
             <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, margin: 0, lineHeight: 1.55, maxWidth: 300 }}>
-              Activa el{" "}
-              <strong style={{ color: "rgba(255,255,255,0.88)" }}>giro automático</strong>{" "}
-              de tu pantalla y pon el teléfono en{" "}
-              <strong style={{ color: "rgba(255,255,255,0.88)" }}>horizontal</strong>{" "}
-              para que la videollamada se vea bien.
+              {tSessions.rich("rotateHint", {
+                b: (ch) => <strong style={{ color: "rgba(255,255,255,0.88)" }}>{ch}</strong>,
+              })}
             </p>
           </div>
         </div>
