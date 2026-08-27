@@ -21,6 +21,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { ReelLivePost } from "@/lib/reels/reelItems";
 import FollowCreatorButton from "@/components/social/FollowCreatorButton";
+import { useLiveTicketAccess } from "@/lib/liveAccess/useLiveTicketAccess";
 import LiveTicketPaywall, {
   isPaidLive,
   useLiveTicketTotal,
@@ -121,7 +122,16 @@ export default function ReelLiveSlide({
   // navegador y quitar un filtro de CSS es cosa de diez segundos. Lo que de
   // verdad cierra el paso es que el proxy exija el boleto antes de servir el
   // stream, y eso vive en `/api/cf-viewer-proxy`. Esto de aquí es lo que se ve.
-  const bloqueado = isPaidLive(post);
+  //
+  // Y de pago NO significa bloqueado PARA TI: puedes tener el boleto, o ser
+  // miembro de una comunidad donde el creador lo libero, o ser su dueno. El
+  // proxy ya respeta esos tres casos, asi que la interfaz tiene que decir lo
+  // mismo — si no, el servidor te deja ver y la pantalla te tapa.
+  const esDePago = isPaidLive(post);
+  const acceso = useLiveTicketAccess(post, esDePago);
+  // Mientras se averigua se mantiene el candado: quitarlo y volver a ponerlo
+  // ensena medio segundo de un live que quiza no has pagado.
+  const bloqueado = esDePago && !acceso.allowed;
   const precioBoleto = useLiveTicketTotal(post);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
