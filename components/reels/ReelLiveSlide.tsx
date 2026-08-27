@@ -42,6 +42,15 @@ const LiveInlinePlayer = dynamic(
 );
 
 const FONT = "inherit";
+/**
+ * El aro de un live es ROJO, no el degradado de Vibra.
+ *
+ * Mismo rojo que el anillo de en vivo del resto de la plataforma
+ * (`LiveRingAvatar`), para que signifique lo mismo en todas partes.
+ */
+const LIVE_RED = "#ef4444";
+/** El degradado de Vibra. Se queda para el boton de entrar, que sigue siendo la
+ *  llamada a la accion de siempre. */
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 
 type Props = {
@@ -97,6 +106,10 @@ export default function ReelLiveSlide({
     };
   }, [post.authorId]);
 
+  // Vertical llena la pantalla; horizontal se enmarca con negro arriba y abajo
+  // en vez de recortarse. Es la misma regla que ya siguen las historias.
+  const [isPortrait, setIsPortrait] = useState(true);
+
   const avatarSz = compact ? 40 : 54;
   const avatarInset = compact ? 5 : 6;
   // Aire por debajo de los botones. Con `safeBottom` numérico (historias en el
@@ -122,6 +135,8 @@ export default function ReelLiveSlide({
           streamProvider={ld?.streamProvider ?? null}
           broadcastMode={ld?.broadcastMode ?? null}
           portrait
+          fit={isPortrait ? "cover" : "contain"}
+          onOrientationDetected={setIsPortrait}
           paused={paused}
           initialMuted={muted}
           onMutedChange={onMutedChange}
@@ -165,7 +180,7 @@ export default function ReelLiveSlide({
               position: "absolute",
               inset: 0,
               borderRadius: "50%",
-              background: VIBRA_RING,
+              background: LIVE_RED,
               WebkitMaskImage:
                 "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
               maskImage:

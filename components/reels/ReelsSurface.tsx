@@ -239,6 +239,7 @@ export default function ReelsSurface({
           onClose={() => router.push(closeHref)}
           onStoryViewed={handleStoryViewed}
           onOpenLive={setOpenLive}
+          behind={!!openLive}
         />
         {openLive && (
           <LiveViewerModal

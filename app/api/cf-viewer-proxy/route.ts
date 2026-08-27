@@ -35,12 +35,14 @@ async function verifyAccount(
  */
 async function viewerMayWatch(
   db: FirebaseFirestore.Firestore,
+  postId: string,
   post: FirebaseFirestore.DocumentData,
   req: NextRequest
 ): Promise<boolean> {
   const groupId = typeof post.groupId === "string" && post.groupId ? post.groupId : null;
   const liveData = post.liveData as Record<string, unknown> | undefined;
   const visibilityMode = typeof liveData?.visibilityMode === "string" ? liveData.visibilityMode : null;
+  const paidAccessMode = typeof liveData?.paidAccessMode === "string" ? liveData.paidAccessMode : null;
 
   const groupSnap = groupId ? await db.collection("groups").doc(groupId).get() : null;
   const groupVisibility = groupSnap?.data()?.visibility;
@@ -48,35 +50,64 @@ async function viewerMayWatch(
   const membersOnly = groupVisibility === "hidden" || visibilityMode === "members_only";
   const loggedInOnly = visibilityMode === "logged_in_only";
 
-  // "Todos": libre.
-  if (!membersOnly && !loggedInOnly) return true;
+  // ⚠️ EL BOLETO ES UNA PUERTA APARTE DEL ALCANCE, y hasta ahora no existía.
+  //
+  // Un live de pago con alcance "para todos" caía en la rama libre de abajo y
+  // este proxy le servía el video a cualquiera. El visor sí pedía el boleto,
+  // pero el visor es la interfaz: quien pidiera el stream por su cuenta —o lo
+  // viera en un feed que lo reproduce— entraba gratis. Era una cortina, no una
+  // puerta.
+  //
+  // Se usa la MISMA señal que exige el backend para emitir el cobro
+  // (`accessType: "paid"` + `requiresPayment`), para que no haya dos ideas
+  // distintas de qué es un live de pago.
+  const isPaid = (liveData?.accessType ?? "free") === "paid" && post.requiresPayment === true;
 
-  // Restringido → exige CUENTA REAL (bloquea sin-sesión Y sesión anónima de invitado).
+  // Sin restricción de alcance y sin boleto: libre, como siempre.
+  if (!membersOnly && !loggedInOnly && !isPaid) return true;
+
+  // Cualquier restricción exige CUENTA REAL (bloquea sin-sesión Y sesión anónima
+  // de invitado).
   const acct = await verifyAccount(req);
   if (!acct || acct.anonymous) return false;
   const uid = acct.uid;
 
-  // "Solo personas con cuenta": cualquier cuenta real basta.
-  if (loggedInOnly && !membersOnly) return true;
+  const isAuthor = post.authorId === uid;
+  const isOwner = groupSnap?.data()?.ownerId === uid;
 
-  // "Solo miembros" / comunidad oculta: además exige membresía (o autor/dueño).
-  if (post.authorId === uid) return true;
-  if (groupSnap?.data()?.ownerId === uid) return true;
-  if (!groupId) return false;
+  // La membresía se lee UNA vez y solo si alguna de las dos puertas la necesita.
+  let memberOk = false;
+  if (groupId && (membersOnly || paidAccessMode === "members_free_non_members_pay")) {
+    const memberSnap = await db
+      .collection("groups")
+      .doc(groupId)
+      .collection("members")
+      .doc(uid)
+      .get();
+    if (memberSnap.exists) {
+      // Mismo criterio que `isReadableMemberStatus` en firestore.rules: los
+      // sancionados (banned/removed/kicked/expelled) pierden el acceso.
+      const status = memberSnap.data()?.status;
+      memberOk = status === undefined || ["active", "subscribed", "muted"].includes(String(status));
+    }
+  }
 
-  const memberSnap = await db
-    .collection("groups")
-    .doc(groupId)
-    .collection("members")
-    .doc(uid)
-    .get();
+  // Puerta 1: el alcance.
+  if (membersOnly && !(isAuthor || isOwner || memberOk)) return false;
+  // "Solo personas con cuenta" ya quedó satisfecho al exigir cuenta real.
 
-  if (!memberSnap.exists) return false;
+  // Puerta 2: el boleto.
+  if (isPaid) {
+    // Quien transmite y quien es dueño de la comunidad no compran su propio live.
+    if (isAuthor || isOwner) return true;
+    // El creador pudo liberar el live para los miembros y cobrar solo a los de
+    // fuera.
+    if (paidAccessMode === "members_free_non_members_pay" && memberOk) return true;
+    const ticket = await db.doc(`liveAccess/${postId}/users/${uid}`).get();
+    return ticket.exists && ticket.data()?.status === "paid";
+  }
 
-  // Mismo criterio que `isReadableMemberStatus` en firestore.rules: los
-  // sancionados (banned/removed/kicked/expelled) pierden el acceso al contenido.
-  const status = memberSnap.data()?.status;
-  return status === undefined || ["active", "subscribed", "muted"].includes(String(status));
+  return true;
 }
 
 // Proxies the viewer SDP offer to Cloudflare Stream /webRTC/play.
@@ -100,7 +131,7 @@ export async function POST(req: NextRequest) {
 
   const postData = postSnap.data() ?? {};
 
-  if (!(await viewerMayWatch(db, postData, req))) {
+  if (!(await viewerMayWatch(db, postId, postData, req))) {
     return NextResponse.json(
       { error: "No tienes acceso a esta transmisión" },
       { status: 403 }

@@ -48,6 +48,16 @@ type Props = {
   onStoryViewed: (storyId: string) => void;
   /** Entrar al visor de un live. */
   onOpenLive?: (post: ReelLivePost) => void;
+  /**
+   * Cede el paso a algo que se abre encima.
+   *
+   * ⚠️ El carrusel se pinta a 99999 para quedar sobre todo el armazon de la
+   * app, pero el visor del live vive a 9000: al abrirlo desde aqui se montaba
+   * DETRAS y parecia que el boton no hacia nada. Bajar el carrusel es mas
+   * seguro que subir el visor, cuyas capas internas —la pasarela de pago entre
+   * ellas— estan calculadas sobre su propio numero.
+   */
+  behind?: boolean;
 };
 
 type Phase = "idle" | "to-next" | "to-prev";
@@ -124,6 +134,7 @@ export default function HomeStoryCarouselDesktop({
   onClose,
   onStoryViewed,
   onOpenLive,
+  behind = false,
 }: Props) {
   // Freeze groups at mount so live Firestore updates don't shift indices mid-session
   const groups = useRef(groupsProp).current;
@@ -265,7 +276,7 @@ export default function HomeStoryCarouselDesktop({
 
   return createPortal(
     <div
-      style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "center", justifyContent: "center" }}
+      style={{ position: "fixed", inset: 0, zIndex: behind ? 8000 : 99999, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "center", justifyContent: "center" }}
       onClick={onClose}
     >
       {/* Panel container — sized to the active panel, centered by flex parent */}

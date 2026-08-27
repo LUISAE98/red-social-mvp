@@ -96,6 +96,13 @@ type Props = {
    * Si arranca en silencio. Por omisión sí: es lo único que los navegadores
    * dejan reproducir sin que el usuario haya tocado nada.
    */
+  /**
+   * Como encaja la imagen en su hueco. Por omision decide el reproductor.
+   *
+   * A pantalla completa hace falta poder imponer "contain": una transmision
+   * horizontal recortada a un hueco vertical se come la mitad de la escena.
+   */
+  fit?: "cover" | "contain";
   initialMuted?: boolean;
   /**
    * Avisa de cada cambio de sonido, INCLUIDO el silencio que impone el navegador
@@ -121,6 +128,7 @@ export default function LiveInlinePlayer({
   onClick,
   onOrientationDetected,
   onStreamReady,
+  fit,
   initialMuted = true,
   onMutedChange,
 }: Props) {
@@ -634,7 +642,7 @@ export default function LiveInlinePlayer({
           inset: 0,
           width: "100%",
           height: "100%",
-          objectFit: (portrait && isVod) ? "contain" : "cover",
+          objectFit: fit ?? ((portrait && isVod) ? "contain" : "cover"),
           opacity: ready ? 1 : 0,
           transition: "opacity 0.3s ease",
         }}
