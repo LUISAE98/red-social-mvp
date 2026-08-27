@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useLiveRingState } from "@/lib/live/useLiveRingState";
@@ -40,6 +41,7 @@ export default function LiveRingAvatar({
   onClick,
   style,
 }: Props) {
+  const tLive = useTranslations("live");
   const { isLive, livePostId } = useLiveRingState(entityId, entityType);
   const [livePost, setLivePost] = useState<Post | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -127,7 +129,7 @@ export default function LiveRingAvatar({
             WebkitTapHighlightColor: "transparent",
             flexShrink: 0,
           }}
-          aria-label={`Ver live de ${displayName}`}
+          aria-label={tLive("watchLiveOf", { name: displayName })}
         >
           {/* Anillo rojo */}
           <div

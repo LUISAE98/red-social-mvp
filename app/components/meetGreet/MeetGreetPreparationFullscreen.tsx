@@ -113,7 +113,7 @@ export default function MeetGreetPreparationFullscreen({
       window.location.href = url;
     } catch {
       setDlMsg(
-        'La grabación se está procesando. La encontrarás en "Entregadas" en unos minutos.'
+        tSessions("recordingProcessing", { tab: tSessions("sectionDelivered") })
       );
     } finally {
       setDlBusy(false);
@@ -319,7 +319,7 @@ export default function MeetGreetPreparationFullscreen({
                     fontSize: 17, fontWeight: 500, color: "#fff",
                     lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em",
                   }}>
-                    {endSheet === "confirm" ? "Terminar sesión" : "Sesión terminada"}
+                    {endSheet === "confirm" ? tSessions("endSession") : tSessions("sessionEndedShort")}
                   </span>
                   {endSheet === "confirm" ? (
                     <button
@@ -364,7 +364,7 @@ export default function MeetGreetPreparationFullscreen({
                           display: "grid", placeItems: "center",
                         }}
                       >
-                        {isEndingSession ? "Terminando…" : "Sí, terminar sesión"}
+                        {isEndingSession ? tSessions("endingSession") : tSessions("yesEndSession")}
                       </button>
                       <button
                         type="button"
@@ -488,7 +488,7 @@ export default function MeetGreetPreparationFullscreen({
                   display: "grid", placeItems: "center",
                 }}
               >
-                {dlBusy ? "Descargando…" : "Descargar grabación"}
+                {dlBusy ? tSessions("downloading") : tSessions("downloadRecordingShort")}
               </button>
 
               {dlMsg && (

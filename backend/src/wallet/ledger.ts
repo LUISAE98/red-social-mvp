@@ -17,6 +17,12 @@
  */
 
 import * as admin from "firebase-admin";
+import {
+  resolveSaleTax,
+  resolveSettlement,
+  ejercicioDeFecha,
+  type PerfilFiscalCreador,
+} from "../tax/fiscalEngine";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -190,6 +196,19 @@ type SummaryData = {
    * Se acumula al ganar y se resta al reembolsar, en paralelo a lifetimeEarnedNet.
    */
   lifetimeTaxCollected: number;
+  /**
+   * 🧾 RETENCIONES acumuladas de las ventas ya ganadas.
+   *
+   * ⚠️ NO están restadas de `lifetimeEarnedNet`. Se llevan aparte a propósito, porque
+   * aplicarlas al saldo cambia lo que ven todos los creadores a la vez y eso va en su propio
+   * paso. Aquí solo se cuentan, para poder cuadrar contra lo enterado al SAT.
+   *
+   * Se suman al ganar y se restan al revertir, en paralelo a `lifetimeEarnedNet`.
+   */
+  lifetimeRetainedIsr: number;
+  lifetimeRetainedIva: number;
+  /** Impuesto de la comisión de Vibra. Lo paga el creador y, si tiene RFC, lo acredita. */
+  lifetimeCommissionVat: number;
 };
 
 function emptySummary(): SummaryData {
@@ -206,6 +225,9 @@ function emptySummary(): SummaryData {
     rejectedGross: 0,
     rejectedNet: 0,
     lifetimeTaxCollected: 0,
+    lifetimeRetainedIsr: 0,
+    lifetimeRetainedIva: 0,
+    lifetimeCommissionVat: 0,
   };
 }
 
@@ -240,6 +262,35 @@ export type RecordEarningParams = {
 };
 
 /**
+ * Lee el perfil fiscal del creador para calcular sus retenciones.
+ *
+ * ⚠️ Se lee EN EL MOMENTO DE LA VENTA y se congela en el asiento. Si el creador sube su RFC
+ * mañana, las ventas de hoy siguen con la retención que les tocaba: la retención se determina
+ * cuando nace la obligación, no cuando el creador arregla sus papeles.
+ *
+ * Sin perfil, la suposición es la MÁS CONSERVADORA que no perjudica al creador: mexicano sin
+ * identificación fiscal retiene 20% de ISR, y quedarse corto es un pasivo de Vibra. Por eso
+ * `hasTaxId` sale de lo que haya, y el país de cobro se asume México (ver §0.6 del documento
+ * fiscal, pendiente de la pantalla donde el creador lo elige).
+ */
+async function perfilFiscalDe(creatorId: string): Promise<PerfilFiscalCreador> {
+  try {
+    const snap = await db.collection("creatorTaxProfiles").doc(creatorId).get();
+    const d = snap.exists ? snap.data() ?? {} : {};
+    const residency = d.residency === "FOREIGN" ? "FOREIGN" : "MX";
+    return {
+      residency,
+      hasTaxId: typeof d.taxId === "string" && d.taxId.trim().length > 0,
+      payoutAccountCountry:
+        typeof d.payoutAccountCountry === "string" ? d.payoutAccountCountry : null,
+    };
+  } catch {
+    // Un fallo de lectura no puede tumbar una venta ya cobrada. Se asume el caso base.
+    return { residency: "MX", hasTaxId: false, payoutAccountCountry: null };
+  }
+}
+
+/**
  * Registra una venta pagada en el libro mayor. Idempotente por (sourceType, sourceId).
  */
 export async function recordEarning(
@@ -269,6 +320,44 @@ export async function recordEarning(
       ? db.collection("groups").doc(params.channelId)
       : null;
 
+  // 🧾 RETENCIONES. Se calculan FUERA de la transacción a propósito: leer el perfil fiscal
+  // dentro obligaría a incluirlo en el conjunto de lectura y a reintentar la transacción
+  // completa cada vez que el creador tocara sus datos, por una venta que no tiene nada que
+  // ver. El perfil cambia rara vez; la venta es la que no puede fallar.
+  const perfil = await perfilFiscalDe(creatorId);
+
+  /**
+   * ⚠️ LA BASE DE LA RETENCIÓN ES LA VENTA DEL CREADOR, NO EL TOTAL COBRADO.
+   *
+   * `taxAmount` es el impuesto que pagó el comprador, y ese se calcula sobre TODO lo que se le
+   * cobra: el precio del creador **más el cargo fijo de Vibra y el 2% de conversión**. Dentro
+   * de un mismo cobro conviven dos ventas —la del creador y la de Vibra— y solo la primera es
+   * suya.
+   *
+   * Con un precio de 100 y cargo de 3, el comprador paga 16.48 de IVA. Del creador son 16.00;
+   * los 0.48 restantes son de Vibra. Retenerle los 16.48 sería retenerle impuesto de una venta
+   * que no hizo.
+   *
+   * Y `taxAmount` tampoco sirve con comprador extranjero: ahí es el IVA de SU país, no el
+   * mexicano. Retener sobre él sería una retención mexicana sobre un impuesto alemán.
+   *
+   * Por eso la base se recalcula con el motor: el IVA mexicano que corresponde a la venta del
+   * creador y a nadie más. Con comprador fuera da cero —exportación— y la retención se anula
+   * sola, sin ramificar.
+   */
+  const ventaFiscal = resolveSaleTax({
+    base: gross,
+    buyerCountry: params.taxCountry,
+    serviceType: params.type,
+  });
+
+  const liquidacion = resolveSettlement({
+    base: gross,
+    mxVatAmount: ventaFiscal.mxVatAmount,
+    creador: perfil,
+    ejercicio: ejercicioDeFecha(new Date()),
+  });
+
   await db.runTransaction(async (tx) => {
     // Todas las lecturas ANTES de cualquier escritura: es la regla de las
     // transacciones de Firestore.
@@ -293,6 +382,29 @@ export async function recordEarning(
       // 🧾 IVA — desglose fiscal por venta (informativo; el IVA va al SAT, no al creador).
       taxCountry: params.taxCountry ?? null,
       taxAmount,
+      /**
+       * 🧾 RETENCIONES de esta venta, congeladas con las tasas y el perfil de HOY.
+       *
+       * ⚠️ `netAmount` sigue siendo la participación del 75% y NO se toca aquí. Restar las
+       * retenciones del saldo es un cambio visible para todos los creadores a la vez, y va en
+       * su propio paso junto con la pantalla que se lo explica. Registrarlas ahora sin
+       * aplicarlas permite auditar y cuadrar sin mover el dinero de nadie por sorpresa.
+       */
+      retenciones: {
+        comision: liquidacion.comision,
+        ivaComision: liquidacion.ivaComision,
+        isrRate: liquidacion.isrRate,
+        isrRetenido: liquidacion.isrRetenido,
+        ivaRate: liquidacion.ivaRate,
+        ivaRetenido: liquidacion.ivaRetenido,
+        neto: liquidacion.neto,
+        ejercicio: liquidacion.ejercicio,
+        motorVersion: liquidacion.motorVersion,
+        // Con qué perfil se calculó. Sin esto no se puede explicar una retención vieja.
+        residency: perfil.residency,
+        hasTaxId: perfil.hasTaxId,
+        payoutAccountCountry: perfil.payoutAccountCountry ?? null,
+      },
       currency: SETTLEMENT_CURRENCY,
       sourceType: params.sourceType,
       sourceId: params.sourceId,
@@ -313,6 +425,9 @@ export async function recordEarning(
       s.lifetimeEarnedNet = round2(s.lifetimeEarnedNet + net);
       // 🧾 IVA — el impuesto se cobra al ganar (venta inmediata). En pending se cuenta al liberar.
       s.lifetimeTaxCollected = round2((s.lifetimeTaxCollected ?? 0) + taxAmount);
+      s.lifetimeRetainedIsr = round2((s.lifetimeRetainedIsr ?? 0) + liquidacion.isrRetenido);
+      s.lifetimeRetainedIva = round2((s.lifetimeRetainedIva ?? 0) + liquidacion.ivaRetenido);
+      s.lifetimeCommissionVat = round2((s.lifetimeCommissionVat ?? 0) + liquidacion.ivaComision);
     } else {
       s.pendingGross = round2(s.pendingGross + gross);
       s.pendingNet = round2(s.pendingNet + net);
@@ -401,7 +516,13 @@ export async function settleEarning(
   await db.runTransaction(async (tx) => {
     const [entrySnap, sSnap] = await Promise.all([tx.get(entryRef), tx.get(sRef)]);
     if (!entrySnap.exists) return;
-    const e = entrySnap.data() as { status: LedgerStatus; grossAmount: number; netAmount: number; taxAmount?: number };
+    const e = entrySnap.data() as {
+      status: LedgerStatus;
+      grossAmount: number;
+      netAmount: number;
+      taxAmount?: number;
+      retenciones?: { isrRetenido?: number; ivaRetenido?: number; ivaComision?: number };
+    };
     if (e.status !== "pending") return; // solo pending -> earned
 
     const s = sSnap.exists ? (sSnap.data() as SummaryData) : emptySummary();
@@ -415,6 +536,10 @@ export async function settleEarning(
     s.lifetimeEarnedNet = round2(s.lifetimeEarnedNet + e.netAmount);
     // 🧾 IVA — al liberar (entregado) se cuenta el impuesto cobrado de esta venta.
     s.lifetimeTaxCollected = round2((s.lifetimeTaxCollected ?? 0) + (e.taxAmount ?? 0));
+    // Las retenciones se congelaron al registrar la venta; aquí solo se acumulan.
+    s.lifetimeRetainedIsr = round2((s.lifetimeRetainedIsr ?? 0) + (e.retenciones?.isrRetenido ?? 0));
+    s.lifetimeRetainedIva = round2((s.lifetimeRetainedIva ?? 0) + (e.retenciones?.ivaRetenido ?? 0));
+    s.lifetimeCommissionVat = round2((s.lifetimeCommissionVat ?? 0) + (e.retenciones?.ivaComision ?? 0));
 
     tx.set(sRef, { ...s, currency: SETTLEMENT_CURRENCY, updatedAt: now }, { merge: true });
   });
@@ -443,7 +568,13 @@ export async function reverseEarning(
   await db.runTransaction(async (tx) => {
     const [entrySnap, sSnap] = await Promise.all([tx.get(entryRef), tx.get(sRef)]);
     if (!entrySnap.exists) return;
-    const e = entrySnap.data() as { status: LedgerStatus; grossAmount: number; netAmount: number; taxAmount?: number };
+    const e = entrySnap.data() as {
+      status: LedgerStatus;
+      grossAmount: number;
+      netAmount: number;
+      taxAmount?: number;
+      retenciones?: { isrRetenido?: number; ivaRetenido?: number; ivaComision?: number };
+    };
     if (e.status !== "earned" && e.status !== "pending") return; // ya revertido
 
     const s = sSnap.exists ? (sSnap.data() as SummaryData) : emptySummary();
@@ -455,6 +586,11 @@ export async function reverseEarning(
       s.lifetimeEarnedNet = round2(s.lifetimeEarnedNet - e.netAmount);
       // 🧾 IVA — al reembolsar una venta ganada, se descuenta el IVA que se había cobrado.
       s.lifetimeTaxCollected = round2((s.lifetimeTaxCollected ?? 0) - (e.taxAmount ?? 0));
+      // Y las retenciones se revierten con él: si la venta se deshace, lo retenido sobre
+      // ella deja de deberse. Quedan en el asiento como historial, pero no en el acumulado.
+      s.lifetimeRetainedIsr = round2((s.lifetimeRetainedIsr ?? 0) - (e.retenciones?.isrRetenido ?? 0));
+      s.lifetimeRetainedIva = round2((s.lifetimeRetainedIva ?? 0) - (e.retenciones?.ivaRetenido ?? 0));
+      s.lifetimeCommissionVat = round2((s.lifetimeCommissionVat ?? 0) - (e.retenciones?.ivaComision ?? 0));
       s.refundedGross = round2(s.refundedGross + e.grossAmount);
       s.refundedNet = round2(s.refundedNet + e.netAmount);
     } else if (opts?.asRefund) {

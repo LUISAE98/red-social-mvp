@@ -60,6 +60,8 @@ export default function SuperCommentModal({
   creatorName,
   creatorAvatarUrl,
 }: Props) {
+  const tPosts = useTranslations("posts");
+  const tWallet = useTranslations("wallet");
   const isSheet = presentation === "sheet";
   const isGuest = !userId;
   const [payStep, setPayStep] = useState(false);
@@ -322,7 +324,7 @@ export default function SuperCommentModal({
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 15, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
-                Supercomentario
+                {tCommon("paySupercommentProductType")}
               </span>
             </div>
             <button
@@ -346,10 +348,10 @@ export default function SuperCommentModal({
             <>
               <div style={{ textAlign: "center", marginBottom: 20 }}>
                 <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", fontFamily: FONT, marginBottom: 4 }}>
-                  ¿Cómo quieres que te llamen?
+                  {tLive("scNicknameQuestion")}
                 </div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", fontFamily: FONT }}>
-                  Tu apodo aparecerá en el supercomentario
+                  {tLive("scNicknameHint")}
                 </div>
               </div>
 
@@ -384,7 +386,7 @@ export default function SuperCommentModal({
                   transition: "background 0.15s",
                 }}
               >
-                Continuar
+                {tCommon("continue")}
               </button>
             </>
           ) : (
@@ -397,10 +399,10 @@ export default function SuperCommentModal({
                   marginBottom: 16,
                 }}>
                   <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontFamily: FONT }}>
-                    Enviando como<strong style={{ color: "#fff", marginInlineStart: 8 }}>{guestNickname}</strong>
+                    {tLive("scSendingAs")}<strong style={{ color: "#fff", marginInlineStart: 8 }}>{guestNickname}</strong>
                   </span>
                   <TextButton tone="brand" size="sm" style={{ fontFamily: FONT }} onClick={() => setStep("nickname")}>
-                    Cambiar
+                    {tPosts("changeButton")}
                   </TextButton>
                 </div>
               )}
@@ -437,7 +439,7 @@ export default function SuperCommentModal({
                             {useCredit && <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
                           </span>
                           <span style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#fff" }}>Crédito disponible</span>
+                            <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#fff" }}>{tWallet("creditAvailable")}</span>
                             <span style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>{formatCurrency(creditBalance, creditState.currency || SETTLEMENT_CURRENCY, pf.locale, { code: true })} disponible</span>
                           </span>
                           {useCredit && creditApplied > 0 && (
@@ -446,7 +448,7 @@ export default function SuperCommentModal({
                         </button>
                         {useCredit && (
                           <p style={{ margin: "6px 2px 0", fontSize: 11.5, color: creditCoversAll ? "#4ade80" : "rgba(255,255,255,0.5)", fontFamily: FONT }}>
-                            {creditCoversAll ? "Tu saldo cubre el total." : "Elige una tarjeta para el restante."}
+                            {creditCoversAll ? tLive("scBalanceCovers") : tLive("scChooseCardRest")}
                           </p>
                         )}
                       </div>
@@ -502,7 +504,7 @@ export default function SuperCommentModal({
                     ) : (
                       /* Aviso (primera compra, sin tarjeta guardada) */
                       <p style={{ margin: "0 0 14px", fontSize: 12, lineHeight: 1.55, color: "rgba(255,255,255,0.5)", fontFamily: FONT, textAlign: "center" }}>
-                        Al pagar pasarás a la pasarela para completar el cargo de forma segura. Guardaremos tu tarjeta para que tus próximos supercomentarios sean con <strong style={{ color: "rgba(255,255,255,0.82)" }}>un solo clic</strong>.
+                        {tLive("scGatewayNotice")} <strong style={{ color: "rgba(255,255,255,0.82)" }}>{tLive("scOneClick")}</strong>.
                       </p>
                     )}
                     <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8 }}>
@@ -572,7 +574,7 @@ export default function SuperCommentModal({
                     <div style={{ marginBottom: 18 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
-                          Tu mensaje
+                          {tLive("scYourMessage")}
                         </div>
                         <span style={{ fontSize: 11, fontFamily: FONT, color: remaining < 20 ? "#f87171" : "rgba(255,255,255,0.3)" }}>
                           {remaining} restantes
@@ -588,7 +590,7 @@ export default function SuperCommentModal({
                           const needed = [...config.tiers].sort((a, b) => a.maxChars - b.maxChars).find((t) => t.maxChars >= val.length);
                           if (needed && (!selectedTier || needed.maxChars > selectedTier.maxChars)) setSelectedTier(needed);
                         }}
-                        placeholder={`Escribe tu supercomentario (máx. ${topMaxChars} caracteres)...`}
+                        placeholder={tLive("scPlaceholder", { max: topMaxChars })}
                         rows={3}
                         onFocus={() => {
                           // En laptop no hay teclado que suba la vista → scroll para que se vea el botón.
@@ -645,12 +647,12 @@ export default function SuperCommentModal({
                     {submitting
                       ? tCommon("sending")
                       : selectedTier
-                      ? `Enviar · ${tierTotal(selectedTier.price)}`
+                      ? tLive("scSendWithTotal", { total: tierTotal(selectedTier.price) })
                       : tLive("selectLevel")}
                   </button>
 
                   <p style={{ margin: "10px 0 0", fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: FONT, textAlign: "center" }}>
-                    El creador recibirá el 75% del monto.
+                    {tLive("scCreatorGets")}
                   </p>
                 </>
               )}

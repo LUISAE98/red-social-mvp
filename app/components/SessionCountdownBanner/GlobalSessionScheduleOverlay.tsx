@@ -9,6 +9,7 @@
 // GlobalSessionCard en el layout— lo escucha, trae el doc y abre el overlay.
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useOwnerWalletData } from "@/lib/wallet/ownerWallet";
@@ -45,6 +46,7 @@ type OverlayState = {
 };
 
 export default function GlobalSessionScheduleOverlay() {
+  const tCf = useTranslations("cf");
   const [state, setState] = useState<OverlayState | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -112,7 +114,7 @@ export default function GlobalSessionScheduleOverlay() {
       await action();
       close();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ocurrió un error.");
+      setError(e instanceof Error ? e.message : tCf("internalError"));
     } finally {
       setBusy(false);
     }

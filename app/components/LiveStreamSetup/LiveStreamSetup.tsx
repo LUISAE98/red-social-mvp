@@ -359,8 +359,8 @@ export default function LiveStreamSetup({
                 </svg>
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>Software externo</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>OBS, Streamlabs u otro software RTMP</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>{tLive("setupExternalSoftware")}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>{tLive("setupExternalSoftwareDesc")}</div>
               </div>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginInlineStart: "auto" }}>
                 <polyline points="9 18 15 12 9 6" />
@@ -408,8 +408,8 @@ export default function LiveStreamSetup({
               </svg>
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>Todo listo para transmitir desde Vibra</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>Usa los controles en el panel de tu live.</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>{tLive("setupReadyFromVibra")}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>{tLive("setupUseControls")}</div>
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -447,7 +447,7 @@ export default function LiveStreamSetup({
           {!hasStream && !loadingCreds && (
             <div style={{ textAlign: "center", padding: "24px 0" }}>
               <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", fontFamily: fontStack, marginBottom: 20, lineHeight: 1.5 }}>
-                Activa el stream en Mux para obtener tu URL RTMP y Stream Key.
+                {tLive("setupActivateHint")}
               </p>
               <button
                 type="button"
@@ -460,14 +460,14 @@ export default function LiveStreamSetup({
                   cursor: creating ? "not-allowed" : "pointer",
                 }}
               >
-                {creating ? "Activando..." : "Activar stream"}
+                {creating ? tLive("setupActivating") : tLive("setupActivateStream")}
               </button>
             </div>
           )}
 
           {loadingCreds && (
             <div style={{ textAlign: "center", padding: "32px 0", color: "rgba(255,255,255,0.4)", fontFamily: fontStack, fontSize: 13 }}>
-              Cargando credenciales...
+              {tLive("setupLoadingCredentials")}
             </div>
           )}
 
@@ -478,23 +478,18 @@ export default function LiveStreamSetup({
                 borderRadius: 10, padding: "10px 14px", marginBottom: 20,
                 fontSize: 12, color: "rgba(255,255,255,0.55)", fontFamily: fontStack, lineHeight: 1.5,
               }}>
-                🔒 La Stream Key es privada. No la compartas con nadie.
+                {tLive("setupKeyPrivate")}
               </div>
-              <CredentialRow label="URL RTMP (Server)" value={credentials.ingestUrl} />
+              <CredentialRow label={tLive("setupRtmpUrlLabel")} value={credentials.ingestUrl} />
               <CredentialRow label="Stream Key" value={credentials.streamKey} secret />
               <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", margin: "20px 0" }} />
               <div style={{ marginBottom: 4 }}>
                 <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", fontFamily: fontStack, marginBottom: 14 }}>
                   {tLive("setupHowToObs")}
                 </p>
-                {[
-                  "Abre OBS.",
-                  "Ve a Settings → Stream.",
-                  "En Service, selecciona Custom.",
-                  "Pega la URL RTMP en el campo Server.",
-                  "Pega la Stream Key en el campo Stream Key.",
-                  "Haz clic en Apply y luego en Start Streaming.",
-                ].map((step, i) => (
+                {/* Los pasos van por clave, no por texto: así el orden y el número
+                    quedan fijos y cada idioma solo traduce el contenido. */}
+                {(["setupObs1", "setupObs2", "setupObs3", "setupObs4", "setupObs5", "setupObs6"] as const).map((clave, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
                     <span style={{
                       flexShrink: 0, width: 22, height: 22, borderRadius: 999,
@@ -505,7 +500,7 @@ export default function LiveStreamSetup({
                       {i + 1}
                     </span>
                     <span style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", fontFamily: fontStack, lineHeight: 1.5, paddingTop: 2 }}>
-                      {step}
+                      {tLive(clave)}
                     </span>
                   </div>
                 ))}

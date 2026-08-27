@@ -383,7 +383,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
                     </p>
                     {refNivel && (
                       <p style={{ margin: "2px 0 0", color: "rgba(255,255,255,0.45)", fontSize: 12, fontFamily: FONT, lineHeight: 1.45 }}>
-                        Aproximadamente <span style={{ fontWeight: 500 }}>{refNivel}</span>
+                        {tLive("approximately")} <span style={{ fontWeight: 500 }}>{refNivel}</span>
                       </p>
                     )}
                   </div>

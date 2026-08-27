@@ -60,27 +60,38 @@ function visibilityLabel(value: GroupVisibility) {
   return "Público";
 }
 
-function categoryLabel(value: string | null | undefined) {
-  const labels: Record<string, string> = {
-    otros: "Otros",
-    entretenimiento: "Entretenimiento",
-    influencer: "Influencer",
-    actor: "Actor",
-    comediante: "Comediante",
-    cantante: "Cantante",
-    youtuber: "YouTuber",
-    streamer: "Streamer",
-    podcaster: "Podcaster",
-    tecnologia: "Tecnología",
-    videojuegos: "Videojuegos",
-    fitness: "Fitness",
-    negocios: "Negocios",
-    educacion: "Educación",
-    viajes: "Viajes",
-    comida: "Comida",
+/**
+ * Etiqueta de una categoría de comunidad.
+ *
+ * El mapa guarda CLAVES, no nombres: los nombres viven en el catálogo y así
+ * existen en los 47 idiomas. Antes estaban escritos aquí en español, y de las
+ * dieciséis el escáner solo veía dos —las que llevan tilde—, así que el resto
+ * no habría aparecido en ninguna lista.
+ */
+function categoryLabel(
+  value: string | null | undefined,
+  t: (key: string) => string
+) {
+  const claves: Record<string, string> = {
+    otros: "catOtros",
+    entretenimiento: "catEntretenimiento",
+    influencer: "catInfluencer",
+    actor: "catActor",
+    comediante: "catComediante",
+    cantante: "catCantante",
+    youtuber: "catYoutuber",
+    streamer: "catStreamer",
+    podcaster: "catPodcaster",
+    tecnologia: "catTecnologia",
+    videojuegos: "catVideojuegos",
+    fitness: "catFitness",
+    negocios: "catNegocios",
+    educacion: "catEducacion",
+    viajes: "catViajes",
+    comida: "catComida",
   };
 
-  return labels[value || "otros"] ?? "Otros";
+  return t(claves[value || "otros"] ?? "catOtros");
 }
 
 function SpinningGear() {
@@ -165,8 +176,8 @@ export default function OwnerAdminGeneral({
   currentTags = null,
   currentVisibility = "public",
 }: Props) {
-  const tCommon = useTranslations("common");
   const tGroups = useTranslations("groups");
+  const tCommon = useTranslations("common");
   const tProfile = useTranslations("profile");
   const isOwner = useMemo(
     () => ownerId === currentUserId,
@@ -422,7 +433,7 @@ await updateDoc(groupRef, {
         const nextDescription = draftValue.trim();
 
         if (nextDescription.length < 10) {
-          setGeneralErr("La descripción debe tener al menos 10 caracteres.");
+          setGeneralErr(tGroups("descriptionMinLength"));
           return;
         }
 
@@ -524,7 +535,7 @@ await updateDoc(groupRef, {
       <div className="general-edit-item" style={itemStyle}>
         <div>
           <div style={labelStyle}>Descripción</div>
-          <div style={valueStyle}>{description || "Sin descripción"}</div>
+          <div style={valueStyle}>{description || tProfile("noDescription")}</div>
         </div>
         <button
           className="general-edit-button"
@@ -538,10 +549,10 @@ await updateDoc(groupRef, {
 
       <div className="general-edit-item" style={itemStyle}>
         <div>
-          <div style={labelStyle}>Estado de la comunidad</div>
+          <div style={labelStyle}>{tGroups("communityState")}</div>
           <div style={valueStyle}>
             {visibilityLabel(savedVisibility)}
-            {isHiddenLocked ? " · bloqueado desde creación" : ""}
+            {isHiddenLocked ? tGroups("blockedSinceCreation") : ""}
           </div>
         </div>
         <button
@@ -557,7 +568,7 @@ await updateDoc(groupRef, {
       <div className="general-edit-item" style={itemStyle}>
         <div>
           <div style={labelStyle}>Categoría</div>
-          <div style={valueStyle}>{categoryLabel(category)}</div>
+          <div style={valueStyle}>{categoryLabel(category, tGroups)}</div>
         </div>
         <button
           className="general-edit-button"
@@ -575,7 +586,7 @@ await updateDoc(groupRef, {
       >
         <div>
           <div style={labelStyle}>Tags</div>
-          <div style={valueStyle}>{tagsRaw || "Sin tags"}</div>
+          <div style={valueStyle}>{tagsRaw || tGroups("noTags")}</div>
         </div>
         <button
           className="general-edit-button"
@@ -590,11 +601,11 @@ await updateDoc(groupRef, {
       <FullScreenModal open={!!editField} onClose={closeEdit}>
         <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
           <strong style={{ fontSize: 16, color: "#fff", lineHeight: 1.2 }}>
-            {editField === "name" && "Modificar nombre"}
-            {editField === "description" && "Modificar descripción"}
-            {editField === "visibility" && "Modificar estado"}
-            {editField === "category" && "Modificar categoría"}
-            {editField === "tags" && "Modificar tags"}
+            {editField === "name" && tProfile("editNameTitle")}
+            {editField === "description" && tGroups("editDescription")}
+            {editField === "visibility" && tGroups("editState")}
+            {editField === "category" && tGroups("editCategory")}
+            {editField === "tags" && tGroups("editTags")}
           </strong>
 
           {editField === "description" ? (
@@ -606,7 +617,7 @@ await updateDoc(groupRef, {
           ) : editField === "visibility" ? (
             isHiddenLocked ? (
               <div style={noticeStyle}>
-                Esta comunidad oculta no puede cambiar a público o privado.
+                {tGroups("hiddenCantChangeVisibility")}
               </div>
             ) : (
               <OptionWheelPanel
@@ -659,7 +670,7 @@ await updateDoc(groupRef, {
 
           {editField === "tags" && (
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.62)" }}>
-              Máximo 10 tags separadas por coma.
+              {tGroups("maxTenTags")}
             </div>
           )}
 

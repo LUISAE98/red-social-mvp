@@ -24,6 +24,7 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import WithdrawFiscalPanel from "../components/WithdrawFiscalPanel";
 import CreatorPayoutSetupPanel from "../components/CreatorPayoutSetupPanel";
 import { useCreatorTaxProfile } from "@/lib/facturacion/creatorFiscal";
+import { calcularRetiro } from "@/lib/tax/fiscalEngine";
 
 
 
@@ -202,6 +203,29 @@ export default function WalletFinanzasPage() {
    */
   const { payoutReady: altaStripeCompleta } = useCreatorTaxProfile(user?.uid);
   const [setupPanelOpen, setSetupPanelOpen] = useState(false);
+
+  /**
+   * Qué le llega al retirar.
+   *
+   * La wallet sigue enseñando su 75% íntegro; los descuentos viven SOLO aquí, en el momento
+   * de pedir el dinero. Decisión de producto del 2026-08-26.
+   */
+  const desgloseRetiro = useMemo(() => {
+    const r = calcularRetiro({
+      saldo: disponibleNeto,
+      isrPendiente: summary.retainedIsr,
+      ivaPendiente: summary.retainedIva,
+      ivaComisionPendiente: summary.commissionVat,
+    });
+    return {
+      bruto: formatSettlement(r.bruto, { code: true }),
+      isr: formatSettlement(r.isr, { code: true }),
+      iva: formatSettlement(r.iva, { code: true }),
+      ivaComision: formatSettlement(r.ivaComision, { code: true }),
+      neto: formatSettlement(r.neto, { code: true }),
+      hayRetenciones: r.isr > 0 || r.iva > 0 || r.ivaComision > 0,
+    };
+  }, [disponibleNeto, summary.retainedIsr, summary.retainedIva, summary.commissionVat, formatSettlement]);
 
   // El saldo sube desde cero al entrar. La barra y el resto de cifras usan el valor real:
   // animar todo a la vez sería ruido.
@@ -726,6 +750,7 @@ export default function WalletFinanzasPage() {
         // el modelo fiscal con la API de pagos elegida.
         ivaLabel={formatSettlement(disponibleNeto * 0.16, { code: true })}
         totalLabel={formatSettlement(disponibleNeto * 1.16, { code: true })}
+        desglose={desgloseRetiro}
       />
     </WalletSectionShell>
   );

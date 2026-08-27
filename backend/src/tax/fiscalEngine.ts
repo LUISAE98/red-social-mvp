@@ -326,6 +326,66 @@ export function resolveSettlement(entrada: EntradaLiquidacion): ResultadoLiquida
   };
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. Desglose del RETIRO
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type EntradaRetiro = {
+  /** Saldo disponible: la suma de participaciones del 75%, SIN retenciones aplicadas. */
+  saldo: number;
+  /** Cuánto quiere retirar. Si se omite, se retira todo. */
+  solicitado?: number;
+  /** Retenciones acumuladas y todavía no aplicadas a ningún retiro. */
+  isrPendiente: number;
+  ivaPendiente: number;
+  /** Impuesto de la comisión, que el creador paga y —con RFC— acredita. */
+  ivaComisionPendiente: number;
+};
+
+export type ResultadoRetiro = {
+  /** Lo que se retira del saldo. */
+  bruto: number;
+  isr: number;
+  iva: number;
+  ivaComision: number;
+  /** Lo que de verdad le llega. */
+  neto: number;
+  /** Qué proporción del saldo se está retirando. 1 = todo. */
+  proporcion: number;
+};
+
+/**
+ * Qué recibe el creador al retirar.
+ *
+ * ⚠️ DECISIÓN DE PRODUCTO (Luis, 2026-08-26): las retenciones NO bajan el saldo de la wallet.
+ * El creador ve su 75% íntegro y los descuentos aparecen aquí, al pulsar «Retirar». Es lo que
+ * dice la ley al pie de la letra —la retención ocurre cuando se paga, no cuando se vende— y
+ * evita que el saldo baje sin explicación.
+ *
+ * **Los retiros parciales consumen las retenciones EN PROPORCIÓN.** Aplicarlas todas al primer
+ * retiro dejaría a quien saca 10 de un saldo de 1,000 pagando el impuesto de los mil; dejarlas
+ * todas para el final le regalaría el primer retiro y le cobraría el último de golpe.
+ */
+export function calcularRetiro(entrada: EntradaRetiro): ResultadoRetiro {
+  const saldo = round2(entrada.saldo);
+  const bruto = round2(Math.min(entrada.solicitado ?? saldo, saldo));
+  if (!(saldo > 0) || !(bruto > 0)) {
+    return { bruto: 0, isr: 0, iva: 0, ivaComision: 0, neto: 0, proporcion: 0 };
+  }
+
+  const proporcion = bruto / saldo;
+  const isr = round2(entrada.isrPendiente * proporcion);
+  const iva = round2(entrada.ivaPendiente * proporcion);
+  const ivaComision = round2(entrada.ivaComisionPendiente * proporcion);
+
+  // El neto nunca puede ser negativo: si las retenciones se comieran el retiro, lo que
+  // corresponde es no dejar retirar, no depositar en rojo.
+  const neto = round2(Math.max(0, bruto - isr - iva - ivaComision));
+
+  return { bruto, isr, iva, ivaComision, neto, proporcion };
+}
+
 /** ¿Corresponde emitir constancia de retenciones? Solo si hubo alguna retención mexicana. */
 export function requiereCfdiRetenciones(r: ResultadoLiquidacion): boolean {
   return r.isrRetenido > 0 || r.ivaRetenido > 0;

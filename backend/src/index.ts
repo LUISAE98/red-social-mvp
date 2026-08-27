@@ -506,6 +506,8 @@ export { facturapiHealthcheck } from "./facturacion/facturapiHealthcheck";
 export { saveCreatorTaxProfile } from "./facturacion/creatorTaxProfile";
 export { setCreatorResidency } from "./facturacion/creatorResidency";
 export { setCreatorPayoutAccountCountry } from "./facturacion/creatorPayoutAccount";
+export { creatorMonthlyDocsCron, runCreatorMonthlyDocs } from "./facturacion/runCreatorMonthlyDocs";
+export { generarInformativaMensual } from "./facturacion/informativaMensual";
 
 // Facturación — Bloque 1b: subida del CSD → crea/actualiza la organización del
 // creador en Facturapi (habilita el self-billing automático). El CSD vive en

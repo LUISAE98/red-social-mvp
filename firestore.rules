@@ -506,6 +506,14 @@ service cloud.firestore {
       allow list, create, update, delete: if false;
     }
 
+    // Comprobantes de liquidación del creador (payout statements). Los escribe SOLO el
+    // proceso mensual desde el backend; el dueño puede leer los suyos y listarlos, porque
+    // la pantalla los enseña como historial. Nadie puede leer los de otro.
+    match /users/{uid}/payoutStatements/{periodo} {
+      allow get, list: if signedIn() && request.auth.uid == uid;
+      allow create, update, delete: if false;
+    }
+
     // Datos fiscales del COMPRADOR (receptor). El comprador NO sube CSD; solo sus
     // datos de receptor para que Vibra timbre su factura de venta. El dueño LEE el
     // suyo; la ESCRITURA es SOLO backend (callable `saveBuyerTaxProfile`).

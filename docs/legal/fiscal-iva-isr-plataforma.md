@@ -303,6 +303,9 @@ grupos necesitan una condición especial:
 | Videollamadas 1-a-1 con creador extranjero | ⬜ ¿Régimen de plataformas o importación de servicios? |
 | Altas de IVA fuera de México | ⬜ Vibra es proveedor considerado en varias jurisdicciones |
 | Contabilidad: ingreso = comisión, no el 100% | ⬜ Confirmar asiento con contador |
+| ✅ **Cuándo se aplica la retención al saldo** | **DECIDIDO (Luis, 2026-08-26): al RETIRAR, no al vender.** En la wallet el creador sigue viendo su 75% íntegro; los descuentos aparecen desglosados al pulsar «Retirar». Es lo que dice la ley al pie de la letra —la retención ocurre cuando se paga, no cuando se vende— y evita que el saldo baje sin explicación. |
+| ✅ **Quién emite la factura global** | **DECIDIDO (Luis, 2026-08-26): la emite VIBRA por cuenta del creador**, con el sello digital que él sube. La alternativa —que cada creador emitiera la suya cada mes— no escala y deja expuesto a quien se olvide. **Corolario: el sello se necesita desde la primera venta**, no antes del primer retiro. |
+| 🔴 **Claves del SAT (tres)** | ⬜ **Pendiente de contador.** (1) clave de producto de la COMISIÓN de Vibra, hoy `80141600`; (2) clave de RETENCIÓN del régimen de plataformas, hoy `14`; (3) clave de producto de la VENTA al comprador, hoy `81112100`, marcada como «defendible para arrancar» desde julio y nunca confirmada. Las tres están en el código con marcador 🔁 FISCALISTA. |
 | 🚧 **Dónde elige el creador el país de su cuenta de cobro** | ⬜ El backend ya lo guarda (`setCreatorPayoutAccountCountry`) y el motor ya lo aplica —fuera de México sube la retención al 100%—, pero **no hay sitio en la interfaz donde elegirlo**. Va con el alta de Stripe, que es donde el creador da sus datos de depósito. Mientras no exista, el campo queda vacío y el motor asume México. |
 
 ---

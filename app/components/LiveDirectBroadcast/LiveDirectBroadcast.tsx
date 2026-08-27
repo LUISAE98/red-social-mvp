@@ -29,6 +29,7 @@ export default function LiveDirectBroadcast({
   onHeadphonesChange,
   micMutedForTTS,
 }: Props) {
+  const tGroups = useTranslations("groups");
   const tLive = useTranslations("live");
   const hiddenVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -86,7 +87,7 @@ export default function LiveDirectBroadcast({
   // ── Headphone detection ───────────────────────────────────────────────────
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) return;
-    const KEYWORDS = ["headphone", "headset", "earphone", "earbud", "airpod", "bluetooth", "auricular", "audífono", "casco", "casque"];
+    const KEYWORDS = ["headphone", "headset", "earphone", "earbud", "airpod", "bluetooth", "auricular", tLive("earphone"), "casco", "casque"];
     function detect(devices: MediaDeviceInfo[]) {
       return devices
         .filter((d) => d.kind === "audiooutput" && d.deviceId !== "default" && d.deviceId !== "communications")
@@ -492,7 +493,7 @@ export default function LiveDirectBroadcast({
       });
       if (!startResp.ok) {
         const d = await startResp.json().catch(() => ({}));
-        throw new Error(d?.error ?? `Error ${startResp.status} al iniciar transmisión`);
+        throw new Error(d?.error ?? tLive("errorStartBroadcast", { status: startResp.status }));
       }
 
       // Build RTCPeerConnection
@@ -635,7 +636,7 @@ export default function LiveDirectBroadcast({
       await waitForIceGathering(pc);
 
       const sdp = pc.localDescription?.sdp;
-      if (!sdp) throw new Error("No se pudo generar la oferta SDP.");
+      if (!sdp) throw new Error(tLive("sdpOfferFailed"));
       console.log("[LiveDirectBroadcast] SDP offer directions:", sdp.match(/a=(sendrecv|sendonly|recvonly|inactive)/g));
 
       const proxyResp = await fetch(`/api/whip-proxy?postId=${encodeURIComponent(postId)}`, {
@@ -649,7 +650,7 @@ export default function LiveDirectBroadcast({
 
       if (!proxyResp.ok) {
         const d = await proxyResp.json().catch(() => ({}));
-        throw new Error(d?.error ?? `Error ${proxyResp.status} al conectar con Cloudflare`);
+        throw new Error(d?.error ?? tLive("errorCloudflare", { status: proxyResp.status }));
       }
 
       const sdpAnswer = await proxyResp.text();
@@ -729,9 +730,9 @@ export default function LiveDirectBroadcast({
   }, []);
 
   const statusLabel =
-    status === "live" ? "EN VIVO" :
+    status === "live" ? tGroups("liveLabel") :
     status === "connecting" ? "CONECTANDO..." :
-    "VISTA PREVIA";
+    tLive("previewBadge");
   const statusColor =
     status === "live" ? "#ef4444" : status === "connecting" ? "#f59e0b" : "#6b7280";
 
@@ -765,7 +766,7 @@ export default function LiveDirectBroadcast({
             display: "flex", alignItems: "center", justifyContent: "center",
             color: "#6b7280", fontSize: 14,
           }}>
-            Iniciando cámara…
+            {tLive("startingCamera")}
           </div>
         )}
 

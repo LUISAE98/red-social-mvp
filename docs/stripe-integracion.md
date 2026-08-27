@@ -1202,12 +1202,44 @@ vuelve. No hace falta buscar otro proveedor de identidad.
 regenerarlo. Y por cumplimiento **no se pueden capturar datos de tarjeta de débito a mano**:
 solo cuentas bancarias.
 
-### 8-sexies.7 Estado y bloqueo
+### 8-sexies.7 Estado (act. 2026-08-26)
 
-🔴 **Global Payouts no se puede usar todavía.** Stripe tiene que integrarlo, y para eso hay que
-**verificar la empresa** — lo que exige el pasaporte. Bloqueado hasta que ese trámite pase.
+✅ **Global Payouts YA ESTÁ ACTIVO en el entorno de prueba.** Cuenta `acct_1U7eCc4PM5Bep8JM`.
 
-Mientras tanto se puede programar contra el sandbox.
+**Cómo se comprueba, porque no es evidente:** no hay ninguna pestaña que diga «Global Payouts».
+No es un producto de panel como Connect o Billing — es API-first, y lo único que añade al
+panel son dos cosas:
+
+* **«Cuenta financiera»** en Saldos («Dinero que puedes enviar a otras personas»). Es el
+  `FinancialAccount`. Una cuenta normal de Stripe **no la tiene**.
+* **«Transferencias internacionales»** en los accesos directos del menú izquierdo.
+
+Buscar una pestaña con su nombre es lo que costó media tarde la primera vez.
+
+🔴 **Falta para operar en real:** la verificación de la empresa (pasaporte). Hasta entonces solo
+prueba — pero **ya se puede programar contra ella**.
+
+### 8-sexies.7-bis Connect frente a Global Payouts
+
+Son productos distintos y confundirlos lleva a diseñar mal el ledger:
+
+| | Connect | Global Payouts |
+|---|---|---|
+| Para qué sirve | Marketplaces | Enviar dinero |
+| El creador tiene | Su propia cuenta de Stripe | Solo es un destinatario |
+| El dinero | Se reparte al cobrar | Sale de una caja única cuando tú lo mandas |
+| Llega a México | ❌ No | ✅ Sí |
+
+En **Connect** cada creador tiene su propia caja dentro de la tienda y Stripe reparte solo. Sus
+transferencias transfronterizas solo alcanzan US·UK·EEE·CA·CH: **México queda fuera**, y por eso
+se descartó.
+
+En **Global Payouts** hay **una sola caja** —la cuenta financiera—, todo entra ahí y desde ahí
+salen transferencias a más de 160 países. El creador no tiene cuenta de Stripe.
+
+⚠️ **Consecuencia de arquitectura:** Stripe no sabe cuánto le toca a cada creador. El saldo por
+creador vive en el ledger de Vibra y en ningún otro sitio. Eso convierte al ledger en la única
+fuente de verdad del dinero de cada quien, no en una copia de lo que Stripe ya sabe.
 
 ### 8-sexies.8 Enlaces
 

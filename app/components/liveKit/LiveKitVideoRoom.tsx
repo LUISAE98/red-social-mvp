@@ -553,7 +553,7 @@ function RoomContent({
         <button
           type="button"
           onClick={toggleMic}
-          aria-label={isMicrophoneEnabled ? "Silenciar micrófono" : "Activar micrófono"}
+          aria-label={isMicrophoneEnabled ? "Silenciar micrófono" : tLive("micUnmute")}
           style={styles.iconButton}
         >
           <MicIcon />
@@ -564,7 +564,7 @@ function RoomContent({
         <button
           type="button"
           onClick={toggleCamera}
-          aria-label={isCameraEnabled ? "Apagar cámara" : "Encender cámara"}
+          aria-label={isCameraEnabled ? "Apagar cámara" : tLive("camOn")}
           style={styles.iconButton}
         >
           <CamIcon />
@@ -577,7 +577,7 @@ function RoomContent({
           <button
             type="button"
             onClick={toggleScreenShare}
-            aria-label={isSharingScreen ? "Dejar de compartir pantalla" : "Compartir pantalla"}
+            aria-label={isSharingScreen ? tLive("stopScreenShare") : tLive("screenShare")}
             style={{ ...styles.iconButton, color: isSharingScreen ? "#a855f7" : undefined }}
           >
             <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -697,6 +697,8 @@ function StatusScreen({
 
 type AccessErrorVariant = "denied" | "not-found" | "schedule" | "cancelled" | "ended" | "generic";
 
+/* Estas palabras NO se muestran: se buscan dentro del mensaje que manda el
+   backend, que viene en español. Traducirlas rompería la comparación. */
 function errorVariant(code: LivekitErrorCode, message: string): AccessErrorVariant {
   if (code === "permission-denied" || code === "unauthenticated") return "denied";
   if (code === "not-found") return "not-found";

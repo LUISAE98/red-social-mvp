@@ -112,7 +112,7 @@ export function OBSBrowserSourceBanner({ postId }: { postId: string }) {
       background: "rgba(168,85,255,0.06)",
     }}>
       <div style={{ fontSize: 11, fontWeight: 600, color: "#a855f7", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
-        Browser Source — OBS
+        {tLive("browserSourceObs")}
       </div>
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
         <div style={{
@@ -139,7 +139,7 @@ export function OBSBrowserSourceBanner({ postId }: { postId: string }) {
         </button>
       </div>
       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 5 }}>
-        En OBS: Añadir → Fuente de navegador · 700×160 · ✅ Permitir transparencia · Posiciona libremente en tu escena
+        {tLive("browserSourceHint")}
       </div>
     </div>
   );
@@ -282,6 +282,7 @@ export function ModActionBtn({
 // No intenta reproducir HLS — evita el freeze permanente del VideoPreview.
 
 export function MuxLivePlaceholder() {
+  const tLive = useTranslations("live");
   return (
     <div style={{
       width: "100%", height: "100%",
@@ -304,7 +305,7 @@ export function MuxLivePlaceholder() {
         fontFamily: FONT, textAlign: "center",
         maxWidth: 180, lineHeight: 1.5,
       }}>
-        Transmitiendo a través de software externo
+        {tLive("streamingViaExternal")}
       </span>
     </div>
   );
@@ -316,6 +317,7 @@ export function MuxLivePlaceholder() {
 export const VOD_PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cover", showLiveBadge, autoPlay = true }: { hlsUrl: string; fill?: boolean; objectFit?: "cover" | "contain"; showLiveBadge?: boolean; autoPlay?: boolean }) {
+  const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -530,7 +532,7 @@ export const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit
           animation: "vpLivePulse 1.4s ease-in-out infinite",
           display: "inline-block",
         }} />
-        EN VIVO
+        {tGroups("liveLabel")}
       </button>
     </>
   ) : null;

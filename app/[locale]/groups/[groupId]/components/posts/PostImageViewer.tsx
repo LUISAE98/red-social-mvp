@@ -338,7 +338,7 @@ export default function PostImageViewer({
                 type: "video",
                 url: thumbnailUrl || playbackUrl || "",
                 thumbnailUrl,
-                altText: item.altText ?? "Video de la publicación",
+                altText: item.altText ?? tPosts("videoAlt"),
                 duration: item.duration ?? null,
                 playbackUrl,
                 hlsUrl: item.hlsUrl ?? null,

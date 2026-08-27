@@ -51,12 +51,6 @@ const REGIMENES: Array<{ value: string; label: string }> = [
 
 // Datos de Vibra como RECEPTOR (ruta manual). 🔁 mover a config al confirmar la
 // entidad fiscal definitiva (persona física → moral).
-const VIBRA_RECEPTOR = {
-  rfc: "EIRG710515LI9",
-  name: "María Guadalupe Espinosa Rojas", // 🔁 cambiar a la razón social moral cuando exista
-  zip: "54769",
-  usoCfdi: "G03 · Gastos en general",
-};
 
 type Props = {
   open: boolean;
@@ -65,9 +59,23 @@ type Props = {
   availableLabel: string; // subtotal (lo que gana el creador)
   ivaLabel: string; // IVA 16% sobre el subtotal
   totalLabel: string; // subtotal + IVA
+  /**
+   * Desglose de lo que se retira: cuánto sale del saldo, qué se retiene y cuánto llega.
+   *
+   * Vive aquí y no en la wallet por decisión de producto: el creador ve su 75% íntegro en
+   * Finanzas y los descuentos aparecen al pulsar «Retirar». Ver `calcularRetiro`.
+   */
+  desglose?: {
+    bruto: string;
+    isr: string;
+    iva: string;
+    ivaComision: string;
+    neto: string;
+    hayRetenciones: boolean;
+  } | null;
 };
 
-type View = "method" | "auto" | "manual" | "done";
+type View = "method" | "auto" | "done";
 
 // ── Estilos del sistema (vibra_style.md) ─────────────────────────────────────
 const LABEL = { fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.6)", marginBottom: 6 } as const;
@@ -77,7 +85,7 @@ const FIELD: React.CSSProperties = {
   fontSize: 14, fontFamily: "inherit", lineHeight: 1.5, outline: "none",
 };
 
-export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel, ivaLabel, totalLabel }: Props) {
+export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel, ivaLabel, totalLabel, desglose }: Props) {
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
   const { profile, loading, hasData, csdReady } = useCreatorTaxProfile(uid);
@@ -89,7 +97,6 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
   const { toast, showToast } = useVibraToast();
   useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
-  const [manualSaved, setManualSaved] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const [taxId, setTaxId] = useState("");
@@ -127,34 +134,13 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
   }
 
   // Ruta MANUAL: el creador sube el PDF y el XML de su factura ya emitida.
-  const [pdf, setPdf] = useState<File | null>(null);
-  const [xml, setXml] = useState<File | null>(null);
-  const [pdfError, setPdfError] = useState<string | null>(null);
-  const [xmlError, setXmlError] = useState<string | null>(null);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
-  const xmlInputRef = useRef<HTMLInputElement>(null);
 
-  function pickPdf(f: File | null) {
-    if (!f) return;
-    if (!/\.pdf$/i.test(f.name)) { setPdf(null); setPdfError(tWallet("fiscalWrongExtension", { ext: ".pdf", what: tWallet("fiscalInvoicePdf") })); return; }
-    setPdfError(null); setPdf(f);
-  }
-  function pickXml(f: File | null) {
-    if (!f) return;
-    if (!/\.xml$/i.test(f.name)) { setXml(null); setXmlError(tWallet("fiscalWrongExtension", { ext: ".xml", what: tWallet("fiscalInvoiceXml") })); return; }
-    setXmlError(null); setXml(f);
-  }
 
   useEffect(() => {
     if (!open || loading) return;
     setError(null);
-    setManualSaved(false);
     setCerError(null);
     setKeyError(null);
-    setPdf(null);
-    setXml(null);
-    setPdfError(null);
-    setXmlError(null);
     setShowPass(false);
     setCopied(false);
     setTaxIdError(null);
@@ -215,45 +201,8 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     }
   }
 
-  function submitManualInvoice() {
-    setError(null);
-    if (!pdf || !xml) return setError(tWallet("fiscalUploadPdfXml"));
-    // El envío/validación real (leer el XML, cotejar receptor y montos) es del Bloque 3.
-    setManualSaved(true);
-  }
 
   // Copia TODOS los datos de facturación en texto ordenado (para pegar en WhatsApp, etc.).
-  async function handleCopyBilling() {
-    const text = [
-      "Datos de facturación (Vibra)",
-      `RFC: ${VIBRA_RECEPTOR.rfc}`,
-      `Razón social: ${VIBRA_RECEPTOR.name}`,
-      `CP: ${VIBRA_RECEPTOR.zip}`,
-      `Uso de CFDI: ${VIBRA_RECEPTOR.usoCfdi}`,
-      `Subtotal: ${availableLabel}`,
-      `IVA (16%): ${ivaLabel}`,
-      `Total a facturar: ${totalLabel}`,
-    ].join("\n");
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-    } catch {
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.style.position = "fixed";
-        ta.style.opacity = "0";
-        ta.style.left = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-        setCopied(true);
-      } catch {
-        setError(tWallet("fiscalCopyManually"));
-      }
-    }
-  }
 
   // Régimen: coincidencias que se muestran conforme la persona escribe.
   const regimenQ = regimenQuery.trim().toLowerCase();
@@ -327,33 +276,60 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     if (view === "method") {
       return (
         <div style={{ display: "grid", gap: 8 }}>
+          {/* Lo primero que ve al pedir el retiro: cuánto le llega y por qué. Ponerlo
+              después de elegir método le escondería el número que vino a buscar. */}
+          {desglose && (
+            <div
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.09)",
+                borderRadius: 14,
+                padding: "14px 16px",
+                display: "grid",
+                gap: 9,
+                marginBottom: 6,
+              }}
+            >
+              <Row k="Tu saldo" v={desglose.bruto} />
+              {desglose.hayRetenciones ? (
+                <>
+                  <Row k="ISR retenido" v={`− ${desglose.isr}`} />
+                  <Row k="IVA retenido" v={`− ${desglose.iva}`} />
+                  <Row k="IVA de la comisión" v={`− ${desglose.ivaComision}`} />
+                </>
+              ) : null}
+              <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 14, fontWeight: 700 }}>
+                <span style={{ color: "rgba(255,255,255,0.85)" }}>Recibes</span>
+                <span style={{ color: "#4ade80" }}>{desglose.neto}</span>
+              </div>
+              {desglose.hayRetenciones && (
+                <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, margin: 0 }}>
+                  Lo retenido no se pierde, lo pagamos al SAT por ti y va a cuenta de tu
+                  impuesto anual. El IVA de nuestra comisión lo puedes acreditar.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ⚠️ Antes esto era UNA DE DOS OPCIONES: o Vibra facturaba por el creador, o él
+              le emitía su factura a Vibra y la subía. Con el modelo de intermediación esa
+              segunda ya no existe —el creador no le factura nada a Vibra, es al revés— así
+              que se eliminó la pantalla entera. Lo que queda no es una elección: es el paso
+              que hay que completar. */}
           <button type="button" onClick={() => setView("auto")} style={methodCard}>
             <span style={ICON_WRAP}>{AUTO_ICON}</span>
             <span style={{ display: "grid", gap: 3 }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 14, fontWeight: 500, color: "#fff" }}>Que Vibra facture por ti</span>
-                <span style={{ fontSize: 10.5, fontWeight: 600, color: "#d8b4fe", background: "rgba(168,85,255,0.16)", borderRadius: 999, padding: "2px 8px" }}>Recomendado</span>
-              </span>
+              <span style={{ fontSize: 14, fontWeight: 500, color: "#fff" }}>Sube tu Sello Digital</span>
               <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
-                La forma más fácil, subes tu Sello Digital (CSD) una sola vez y de ahí en
-                adelante, nosotros generamos tu factura solitos cada vez que retires. Sin
-                trámites y tu dinero te llega más rápido.
-              </span>
-            </span>
-          </button>
-          <button type="button" onClick={() => setView("manual")} style={methodCard}>
-            <span style={ICON_WRAP}>{MANUAL_ICON}</span>
-            <span style={{ display: "grid", gap: 3 }}>
-              <span style={{ fontSize: 14, fontWeight: 500, color: "#fff" }}>Yo emito mi factura</span>
-              <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
-                Te damos los datos exactos para facturar, tú (o tu contador) la emites, la
-                subes y la revisamos antes de pagarte. Ideal si prefieres llevar el control.
+                Con él emitimos por ti la factura de cada venta y tu factura global del mes,
+                sin que tengas que hacer nada. Se sube una sola vez.
               </span>
             </span>
           </button>
           {hasData && (
             <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.4)", margin: "4px 0 0", lineHeight: 1.5 }}>
-              Ya guardamos tus datos fiscales, así que solo tienes que elegir cómo facturar.
+              Ya guardamos tus datos fiscales, así que solo falta tu sello.
             </p>
           )}
         </div>
@@ -445,88 +421,22 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
       );
     }
 
-    if (view === "manual") {
-      return (
-        <div style={{ display: "grid", gap: 14 }}>
-          <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: 0, textAlign: "center" }}>
-            Genera tu factura (CFDI) a nombre de Vibra con estos datos y sube el PDF y el XML
-          </p>
-
-          {/* Copiar TODOS los datos de facturación (texto ordenado, para WhatsApp, etc.). */}
-          <button type="button" onClick={handleCopyBilling} style={copyRow}>
-            <span style={{ fontSize: 12.5, fontWeight: 500, lineHeight: 1.4, color: copied ? "#86efac" : "#c084fc" }}>
-              {copied ? "¡Información copiada!" : "Da clic aquí para copiar la información al portapapeles"}
-            </span>
-            <span style={{ display: "inline-flex", flexShrink: 0, color: copied ? "#22c55e" : "#c084fc" }}>
-              {copied ? CHECK_ICON : COPY_ICON}
-            </span>
-          </button>
-
-          <div style={{ display: "grid", gap: 6, fontSize: 12.5 }}>
-            <Row k="Receptor (RFC)" v={VIBRA_RECEPTOR.rfc} />
-            <Row k="Razón social" v={VIBRA_RECEPTOR.name} />
-            <Row k="CP" v={VIBRA_RECEPTOR.zip} />
-            <Row k="Uso de CFDI" v={VIBRA_RECEPTOR.usoCfdi} />
-          </div>
-
-          {/* Importe, desglosado clarito: subtotal + IVA = total. (Sin retenciones aún.) */}
-          <div style={{ display: "grid", gap: 8, fontSize: 12.5 }}>
-            <Row k="Subtotal" v={availableLabel} />
-            <Row k="IVA (16%)" v={ivaLabel} />
-            <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13.5, fontWeight: 700 }}>
-              <span style={{ color: "rgba(255,255,255,0.85)" }}>Total a facturar</span>
-              <span style={{ color: "#fff" }}>{totalLabel}</span>
-            </div>
-          </div>
-
-          {/* Subida del PDF (texto morado = botón). */}
-          <div>
-            <input ref={pdfInputRef} type="file" accept=".pdf,application/pdf" style={{ display: "none" }} onChange={(e) => pickPdf(e.target.files?.[0] ?? null)} />
-            <TextButton tone="brand" size="md" style={{ margin: 0, fontFamily: "inherit", textAlign: "start", display: "inline-flex", alignItems: "center", maxWidth: "100%" }} onClick={() => pdfInputRef.current?.click()}>
-              {pdf ? <FileChosen name={pdf.name} /> : "Da clic aquí para subir el PDF de tu factura"}
-            </TextButton>
-            {pdfError && <div style={redNote}>{pdfError}</div>}
-          </div>
-
-          {/* Subida del XML (texto morado = botón). */}
-          <div>
-            <input ref={xmlInputRef} type="file" accept=".xml,text/xml,application/xml" style={{ display: "none" }} onChange={(e) => pickXml(e.target.files?.[0] ?? null)} />
-            <TextButton tone="brand" size="md" style={{ margin: 0, fontFamily: "inherit", textAlign: "start", display: "inline-flex", alignItems: "center", maxWidth: "100%" }} onClick={() => xmlInputRef.current?.click()}>
-              {xml ? <FileChosen name={xml.name} /> : "Da clic aquí para subir el XML de tu factura"}
-            </TextButton>
-            {xmlError && <div style={redNote}>{xmlError}</div>}
-          </div>
-
-          {manualSaved && (
-            <div style={{ fontSize: 12.5, color: "#86efac", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.25)", borderRadius: 12, padding: "10px 12px" }}>
-              ✓ Archivos listos. La validación de tu factura y el pago se habilitan en el siguiente bloque.
-            </div>
-          )}
-
-          <button type="button" onClick={submitManualInvoice} disabled={busy} style={primaryBtn(busy)}>
-            Enviar factura
-          </button>
-        </div>
-      );
-    }
-
     // done
     return (
       <div style={{ display: "grid", gap: 14, textAlign: "center" }}>
         <div style={{ fontSize: 40 }}>✅</div>
         <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>Facturación automática activada</div>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, margin: 0 }}>
-          Tus facturas hacia Vibra se generarán solas en cada retiro.
+          Emitiremos por ti la factura de cada venta y tu factura global del mes.
           {profile?.csdExpiresAt ? ` Tu CSD vence el ${new Date(profile.csdExpiresAt).toLocaleDateString(intlLocale(locale))}.` : ""}
         </p>
         <button type="button" onClick={handleClose} style={primaryBtn(false)}>Listo</button>
       </div>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, loading, busy, hasData, manualSaved, taxId, legalName, taxSystem, regimenQuery, regimenOpen, zip, taxIdError, legalNameError, taxSystemError, zipError, cer, keyFile, cerError, keyError, pdf, xml, pdfError, xmlError, csdPass, showPass, consent, copied, availableLabel, ivaLabel, totalLabel, profile]);
+  }, [view, loading, busy, hasData, taxId, legalName, taxSystem, regimenQuery, regimenOpen, zip, taxIdError, legalNameError, taxSystemError, zipError, cer, keyFile, cerError, keyError, csdPass, showPass, consent, copied, availableLabel, ivaLabel, totalLabel, profile]);
 
-  const isSecondLevel = view === "auto" || view === "manual";
+  const isSecondLevel = view === "auto";
 
   return (
     <Modal
@@ -647,31 +557,10 @@ const SUGGEST_ITEM: React.CSSProperties = {
 };
 
 // Ícono de copiar (dos hojas) y paloma, en currentColor.
-const COPY_ICON = (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <rect x="9" y="9" width="13" height="13" rx="2" />
-    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-  </svg>
-);
-const CHECK_ICON = (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
 
 // Fila (botón) para copiar los datos de facturación: centrada, sin fondo.
-const copyRow: React.CSSProperties = {
-  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-  background: "none", border: "none", padding: 0, cursor: "pointer",
-  fontFamily: "inherit", width: "100%",
-};
 
 // Texto morado que actúa como botón de subida de archivo.
-const uploadLink: React.CSSProperties = {
-  background: "none", border: "none", padding: 0, margin: 0, cursor: "pointer",
-  fontFamily: "inherit", fontSize: 14, fontWeight: 500, color: "#c084fc",
-  textAlign: "start", display: "inline-flex", alignItems: "center", maxWidth: "100%",
-};
 
 // Nota corta en rojo si el archivo no corresponde.
 const redNote: React.CSSProperties = {
@@ -687,11 +576,3 @@ const AUTO_ICON = (
   </svg>
 );
 
-const MANUAL_ICON = (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-    <path d="M14 3v5h5" />
-    <line x1="9" y1="13" x2="15" y2="13" />
-    <line x1="9" y1="17" x2="13" y2="17" />
-  </svg>
-);

@@ -43,6 +43,7 @@ export default function LiveComposerModal({
   profileId,
   groupVisibility,
 }: LiveComposerModalProps) {
+  const tServices = useTranslations("services");
   const tCommon = useTranslations("common");
   // Fecha y hora en paneles SEPARADOS: seis tambores a la vez son un muro, y
   // casi siempre se cambia una cosa o la otra, no las dos.
@@ -546,7 +547,7 @@ export default function LiveComposerModal({
     <div className="vibra-live-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 8px" }}>
 
       {/* Ticket */}
-      <label style={{ ...labelStyle, marginTop: 2 }}>Ticket de entrada</label>
+      <label style={{ ...labelStyle, marginTop: 2 }}>{tServices("liveAccessTicketLabel")}</label>
       <div style={{ marginBottom: 8 }}>
         {(["free", "paid"] as const).map((type, idx) => {
           const active = accessType === type;
@@ -639,11 +640,11 @@ export default function LiveComposerModal({
               }}
             >
               <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.45, fontFamily: fontStack }}>
-                Ganas{" "}
+                {tLive("youEarn")}{" "}
                 <strong style={{ color: "#a855f7", fontWeight: 700 }}>
                   {formatCurrency(ticketEarnings ?? 0, SETTLEMENT_CURRENCY, priceFmt.locale, { code: true })}
                 </strong>{" "}
-                por cada entrada
+                {tLive("perEntry")}
               </span>
             </div>
 
@@ -744,7 +745,7 @@ export default function LiveComposerModal({
               <circle cx="18" cy="18" r="9" fill="#ef4444" />
             </svg>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#a855f7", fontFamily: fontStack, textAlign: "center", lineHeight: 1.3 }}>
-              Da clic aquí para elegir una portada
+              {tLive("chooseCoverHint")}
             </span>
           </div>
         )}

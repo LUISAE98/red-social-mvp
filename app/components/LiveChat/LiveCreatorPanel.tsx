@@ -71,6 +71,8 @@ import {
 } from "./LiveCreatorPanel.parts";
 
 export default function LiveCreatorPanel({ open, onClose, post, portrait = false }: Props) {
+  const tFeed = useTranslations("feed");
+  const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
   const locale = useLocale();
@@ -92,7 +94,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     if (!(neto > 0) || pf.currency === SETTLEMENT_CURRENCY) return null;
     const local = pf.fromAnchor(neto);
     if (local == null) return null;
-    return `Recibes aproximadamente ${formatCurrency(roundReference(local, pf.currency), pf.currency, pf.locale, { code: true, approx: true })}`;
+    return tLive("approxReceive", { amount: formatCurrency(roundReference(local, pf.currency), pf.currency, pf.locale, { code: true, approx: true }) });
   };
 
   const netEarned = (base: number) =>
@@ -766,11 +768,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             position: "absolute", top: 0, insetInlineEnd: 0,
             fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: FONT,
           }}>
-            máx {maxV}
+            {tLive("maxAbbrev")} {maxV}
           </span>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>Inicio</span>
+          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>{tLive("chartStart")}</span>
           <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>+{durationLabel}</span>
         </div>
       </div>
@@ -784,7 +786,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       return (
         <div style={{ height: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", fontFamily: FONT }}>
-            La transmisión en vivo no ha comenzado
+            {tLive("broadcastNotStarted")}
           </span>
         </div>
       );
@@ -1156,7 +1158,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       { id: "unicos",   defaultX: tx(2), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString(intlLocale(locale)) : "—"}</span><span style={lbl}>{tLive("statUniqueViewers")}</span></> },
       { id: "seguids",  defaultX: tx(3), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{newFollowers > 0 ? newFollowers.toLocaleString(intlLocale(locale)) : "—"}</span><span style={lbl}>{tLive("statNewFollowers")}</span></> },
       { id: "mensajes", defaultX: tx(4), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{totalChatMessages > 0 ? totalChatMessages.toLocaleString(intlLocale(locale)) : "—"}</span><span style={lbl}>{tLive("statChatMessages")}</span></> },
-      { id: "likes",    defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{likesCount.toLocaleString(intlLocale(locale))}</span><span style={lbl}>Likes</span></> },
+      { id: "likes",    defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{likesCount.toLocaleString(intlLocale(locale))}</span><span style={lbl}>{tLive("likesLabel")}</span></> },
       { id: "tvisto",   defaultX: tx(5), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}</span><span style={lbl}>{tLive("statAvgWatchTime")}</span></> },
       { id: "duracion", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{formatDuration(liveDurationMs)}</span><span style={lbl}>{tLive("duration")}</span></> },
       ...(donationCount > 0 ? [{ id: "donaciones",  defaultX: tx(0), defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(donationRevenue))}</span>{refLocal(net(donationRevenue)) && <span style={aprx}>{refLocal(net(donationRevenue))}</span>}<span style={sub}>{tLive("donationCount", { count: donationCount })}</span><span style={lbl}>{tLive("statDonations")}</span></> }] : []),
@@ -1414,7 +1416,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         if (withoutHeadphones) setMicMutedForTTS(true);
         const isDonation = !sc.text;
         const ttsText = isDonation
-          ? `${sc.username} donó ${sc.amount} pesos`
+          ? tLive("donatedTts", { user: sc.username, amount: String(sc.amount) })
           : `${sc.username} dijo: ${sc.text}`;
         const prefixLen = isDonation ? 0 : `${sc.username} dijo: `.length;
         const totalLen = ttsText.length;
@@ -1737,7 +1739,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                           cursor: "pointer", flexShrink: 0, marginTop: 2,
                         }}
                       >
-                        Reproducir
+                        {tCommon("play")}
                       </button>
                       {sc.hidden && (
                         <span style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", fontFamily: FONT, flexShrink: 0, marginTop: 6 }}>OCULTO</span>
@@ -1797,7 +1799,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                       </span>
                     ) : (
                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontStyle: "italic", fontFamily: FONT }}>
-                        Donación {fanPaidTotal(sc.amount)}
+                        {tCommon("donation")} {fanPaidTotal(sc.amount)}
                       </span>
                     )}
                   </div>
@@ -2008,7 +2010,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT,
                   }}
                 >
-                  Detener
+                  {tLive("stopAction")}
                 </button>
                 <button
                   type="button"
@@ -2019,7 +2021,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT,
                   }}
                 >
-                  Repetir
+                  {tLive("replayAction")}
                 </button>
               </div>
               {/* Derecha: Siguiente */}
@@ -2032,7 +2034,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: FONT,
                 }}
               >
-                Siguiente
+                {tCommon("next")}
               </button>
             </div>
           </div>
@@ -2058,10 +2060,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             </IconButton>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={{ fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1 }}>Centro de control</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1 }}>{tLive("controlCenter")}</span>
             {isBroadcasting && (
               <span style={{ fontSize: 10, color: "rgba(239,68,68,0.75)", fontWeight: 500, lineHeight: 1 }}>
-                Detén la transmisión para salir
+                {tLive("stopToExit")}
               </span>
             )}
           </div>
@@ -2079,7 +2081,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 whiteSpace: "nowrap", flexShrink: 0,
               }}
             >
-              Gestionar resumen de la transmisión
+              {tLive("manageSummary")}
             </button>
           ) : !isEnded && broadcastMode === "rtmp" && liveData?.liveStreamId && (
             <button
@@ -2092,7 +2094,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 whiteSpace: "nowrap", flexShrink: 0,
               }}
             >
-              Ver Key y URL de transmisión
+              {tFeed("viewStreamKey")}
             </button>
           )}
         </div>
@@ -2127,10 +2129,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   </svg>
                 </IconButton>
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1, fontFamily: FONT }}>Centro de control</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1, fontFamily: FONT }}>{tLive("controlCenter")}</span>
                   {isBroadcasting && (
                     <span style={{ fontSize: 10, color: "rgba(168,85,255,0.75)", fontWeight: 500, lineHeight: 1 }}>
-                      Detén la transmisión para salir
+                      {tLive("stopToExit")}
                     </span>
                   )}
                 </div>
@@ -2145,7 +2147,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                       whiteSpace: "nowrap", flexShrink: 0,
                     }}
                   >
-                    Gestionar resumen de la transmisión
+                    {tLive("manageSummary")}
                   </button>
                 ) : !isEnded && broadcastMode === "rtmp" && liveData?.liveStreamId && (
                   <button
@@ -2158,7 +2160,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                       whiteSpace: "nowrap", flexShrink: 0,
                     }}
                   >
-                    Ver Key y URL de transmisión
+                    {tFeed("viewStreamKey")}
                   </button>
                 )}
               </div>
@@ -2201,7 +2203,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     fontFamily: FONT,
                   }}>
                     <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff", flexShrink: 0, animation: "lcPulse 1.4s ease-in-out infinite" }} />
-                    EN VIVO
+                    {tGroups("liveLabel")}
                   </div>
                 )}
               </div>

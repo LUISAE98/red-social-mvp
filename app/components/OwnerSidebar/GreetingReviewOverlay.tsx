@@ -1406,7 +1406,7 @@ export default function GreetingReviewOverlay({
           fontFamily: fontStack, whiteSpace: "nowrap", lineHeight: 1.2,
           overflow: "hidden", textOverflow: "ellipsis", minWidth: 0,
         }}>
-          {`Este ${typeWord} fue solicitado desde ${sourceName}`}
+          {tSessions("requestedFrom", { type: typeWord, source: sourceName })}
         </span>
         {sourcePhotoURL ? (
           <Image
@@ -1647,7 +1647,7 @@ export default function GreetingReviewOverlay({
         <div style={{ display: "grid", gap: 4 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, flex: 1 }}>
-              {req.type === "consejo" ? "¿Cuál es el contexto del consejo?" : "¿Cuál es el contexto del saludo?"}
+              {req.type === "consejo" ? tSessions("adviceContextQuestion") : tSessions("greetingContextQuestion")}
             </span>
             {speechState !== "idle" && (
               <button

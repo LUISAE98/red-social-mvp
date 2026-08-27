@@ -265,7 +265,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
                 </div>
                 <div style={{ maxHeight: vodEarningsVisible ? 24 : 0, opacity: vodEarningsVisible ? 1 : 0, transform: vodEarningsVisible ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease" }}>
                   <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.45, fontFamily: FONT }}>
-                    Ganas <strong style={{ color: "#a855f7", fontWeight: 700 }}>{formatCurrency(vodEarnings ?? 0, SETTLEMENT_CURRENCY, priceFmt.locale, { code: true })}</strong> por cada desbloqueo
+                    {tLive("youEarn")} <strong style={{ color: "#a855f7", fontWeight: 700 }}>{formatCurrency(vodEarnings ?? 0, SETTLEMENT_CURRENCY, priceFmt.locale, { code: true })}</strong> {tLive("perUnlock")}
                   </span>
                 </div>
                 <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, lineHeight: 1.4, fontFamily: FONT, marginTop: 3 }}>
@@ -336,7 +336,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
               >
                 <div aria-hidden="true" />
                 <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
-                  Resumen de la transmisión en vivo
+                  {tLive("broadcastSummary")}
                 </h3>
                 <button
                   type="button"
@@ -400,7 +400,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
         }}>
           <div aria-hidden="true" />
           <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
-            Resumen de la transmisión en vivo
+            {tLive("broadcastSummary")}
           </span>
           <IconButton label={tCommon("closeAriaLabel")} size="sm" tone="bare" shape="square" style={{ placeItems: "center", justifySelf: "end" }} onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">

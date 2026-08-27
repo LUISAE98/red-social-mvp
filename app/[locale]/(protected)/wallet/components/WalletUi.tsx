@@ -1,6 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import {
+  getExclusiveSessionStatusLabel,
+  type ExclusiveSessionStatus,
+} from "@/lib/exclusiveSession/types";
+import { getMeetGreetStatusLabel } from "@/app/components/OwnerSidebar/OwnerSidebarGreetings.parts";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
@@ -480,6 +485,7 @@ function buildRowSubtitle(row: WalletServiceItem, labels: {
   motiveLabel: string;
   refundLabel: string;
   priceLabel: string | null;
+  statusLabel: string;
 }): string {
   const chunks: string[] = [];
 
@@ -487,7 +493,7 @@ function buildRowSubtitle(row: WalletServiceItem, labels: {
     chunks.push(labels.sourceLabel);
   }
 
-  chunks.push(row.statusLabel);
+  chunks.push(labels.statusLabel);
 
   if (row.targetName) {
     chunks.push(labels.forTarget);
@@ -547,6 +553,17 @@ export function WalletServiceRow({
   const tSessions = useTranslations("sessions");
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
+
+  /* La etiqueta que trae la fila viene de la capa de datos, que no tiene
+     traductor y por eso la deja en español. Aquí sí lo hay, así que se vuelve
+     a derivar del estado crudo; `row.statusLabel` queda de respaldo para los
+     tipos de fila que no son sesión (saludos, lives). */
+  const estadoTraducido =
+    row.kind === "exclusive_session"
+      ? getExclusiveSessionStatusLabel(row.status as ExclusiveSessionStatus, tSessions)
+      : row.kind === "meet_greet"
+        ? getMeetGreetStatusLabel(row.status, tSessions)
+        : row.statusLabel;
   const locale = useLocale();
   // Dinero del CREADOR, en USD o en su moneda según el switch de la wallet.
   // Formateador único: ver `useWalletMoney`.
@@ -595,6 +612,7 @@ export function WalletServiceRow({
       row.priceSnapshot != null
         ? formatMoney(row.priceSnapshot)
         : null,
+    statusLabel: estadoTraducido,
   });
   const meta = getWalletServiceRowMeta(row, locale);
 
@@ -1101,7 +1119,7 @@ export function WalletServiceRow({
         {open ? (
           <div className="walletServiceBody">
             <div className="walletServiceBodyInner">
-              <div className="walletServiceChip">{row.statusLabel}</div>
+              <div className="walletServiceChip">{estadoTraducido}</div>
 
 {row.requestSource === "profile" ? (
   <div className="walletMiniMeta">

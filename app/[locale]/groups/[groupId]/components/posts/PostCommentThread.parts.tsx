@@ -149,13 +149,19 @@ function capitalizar(text: string, locale?: string): string {
   return arriba + text.slice(1);
 }
 
+/**
+ * `t` es OBLIGATORIO. Antes era opcional y había un respaldo en español para
+ * cuando faltaba; los dos llamadores siempre lo pasan, así que ese respaldo
+ * no se ejecutaba nunca y solo servía para que el español se colara en el
+ * código. Exigirlo evita que vuelva a aparecer.
+ */
 export function formatRelativeDate(
-  value?: { toDate?: () => Date } | null,
-  t?: TFunc,
+  value: { toDate?: () => Date } | null | undefined,
+  t: TFunc,
   locale?: string
 ) {
   const date = getDateFromTimestamp(value);
-  const now = t ? t("dateNow") : "Ahora mismo";
+  const now = t("dateNow");
 
   if (!date) return now;
 
@@ -168,23 +174,6 @@ export function formatRelativeDate(
   const diffMonths = Math.floor(diffDays / 30);
   const diffYears = Math.floor(diffDays / 365);
 
-  if (!t) {
-    // Respaldo sin traductor: mismas mayúsculas que la rama de arriba.
-    if (diffSeconds < 30) return "Ahora mismo";
-    if (diffSeconds < 60) return `hace ${diffSeconds} segundos`;
-    if (diffMinutes === 1) return "hace 1 minuto";
-    if (diffMinutes < 60) return `hace ${diffMinutes} minutos`;
-    if (diffHours === 1) return "hace 1 hora";
-    if (diffHours < 24) return `hace ${diffHours} horas`;
-    if (diffDays === 1) return "hace 1 día";
-    if (diffDays < 7) return `hace ${diffDays} días`;
-    if (diffWeeks === 1) return "hace 1 semana";
-    if (diffWeeks < 5) return `hace ${diffWeeks} semanas`;
-    if (diffMonths === 1) return "hace 1 mes";
-    if (diffMonths < 12) return `hace ${diffMonths} meses`;
-    if (diffYears === 1) return "hace 1 año";
-    return `hace ${diffYears} años`;
-  }
 
   const texto =
     diffSeconds < 30 ? now

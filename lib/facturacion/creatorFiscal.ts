@@ -102,6 +102,13 @@ export type CreatorTaxProfile = {
   payoutAccountCountry?: string | null;
   /** ¿Hay constancia de residencia fiscal en el expediente? Sin ella no aplica el tratado. */
   residencyCertificate?: boolean;
+  /**
+   * Estado del alta de cobro con la procesadora, que incluye su verificación de identidad.
+   *
+   * 🚧 Todavía nada lo escribe: el alta de Stripe no existe. Cuando exista, su webhook pone
+   * aquí `"verified"` y el gate del retiro se abre solo, sin tocar esta lógica.
+   */
+  stripeAccountStatus?: "none" | "pending" | "verified" | "restricted";
   taxId?: string;
   legalName?: string;
   taxSystem?: string;
@@ -163,9 +170,11 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
    * de venta, y dejarlo cobrar sería dejarlo vender sin poder facturar. El extranjero no emite
    * CFDI, así que le basta la identidad.
    *
-   * 🚧 `identityReady` está fijo en false hasta que exista el alta de cuenta de Stripe.
+   * 🚧 Hoy nadie escribe `stripeAccountStatus`, así que esto es false para todos — que es el
+   * comportamiento seguro. Cuando el alta de Stripe lo ponga en `"verified"`, el gate se abre
+   * solo: no hay que volver a tocar esta función.
    */
-  const identityReady = false;
+  const identityReady = profile?.stripeAccountStatus === "verified";
   const payoutReady = residency === "FOREIGN" ? identityReady : identityReady && csdReady;
   return {
     profile,

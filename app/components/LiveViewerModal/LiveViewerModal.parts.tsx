@@ -89,6 +89,7 @@ export type DonationPanelProps = {
 };
 
 export function DonationPanel({ onClose, postId, authorId, userId, username, avatarUrl, guestId }: DonationPanelProps) {
+  const tLive = useTranslations("live");
   const { format: formatMoney } = usePriceFormat();
   const isGuest = !userId;
   const [step, setStep] = useState<"nickname" | "amount">("amount");
@@ -282,7 +283,7 @@ export function DonationPanel({ onClose, postId, authorId, userId, username, ava
             <input
               type="number"
               min={10}
-              placeholder="Otro monto (mínimo $10)..."
+              placeholder={tLive("otherAmountMin", { min: "$10" })}
               value={custom}
               onChange={(e) => { setCustom(e.target.value); setAmount(null); }}
               style={{

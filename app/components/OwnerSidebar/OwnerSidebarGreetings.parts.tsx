@@ -283,7 +283,7 @@ export function getMeetGreetStatusLabel(status?: string | null, t?: (key: string
     in_preparation: "statusInPreparation",
     completed: "statusCompleted",
     cancelled: "statusCancelled",
-    session_incomplete: "statusSessionIncomplete",
+    session_incomplete: "shortSession",
     auto_rejected_no_show: "statusRejected",
   };
   const key = map[status];

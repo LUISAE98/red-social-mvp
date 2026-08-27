@@ -50,6 +50,7 @@ export default function GroupPostComposer({
   onEditClose,
   autoOpenPremium = false,
 }: GroupPostComposerProps) {
+  const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
   const tPosts = useTranslations("posts");
   const tLive = useTranslations("live");
@@ -463,7 +464,7 @@ export default function GroupPostComposer({
 
     if (availableSlots <= 0) {
       setLocalError(
-        `Solo puedes subir hasta ${MAX_POST_IMAGES} imágenes por publicación.`,
+        tGroups("tooManyImages", { max: MAX_POST_IMAGES }),
       );
       return;
     }
@@ -499,7 +500,7 @@ export default function GroupPostComposer({
     const validVideos = files.filter((file) => file.type.startsWith("video/"));
 
     if (validVideos.length !== files.length) {
-      setLocalError("Uno o más archivos seleccionados no son videos válidos.");
+      setLocalError(tGroups("invalidVideoFiles"));
     }
 
     if (validVideos.length === 0) return;
@@ -613,7 +614,7 @@ export default function GroupPostComposer({
       files.length - imageFiles.length - videoFiles.length;
 
     if (unsupportedFiles > 0) {
-      setLocalError("Uno o más archivos no son imágenes o videos válidos.");
+      setLocalError(tGroups("invalidMediaFiles"));
     }
 
     const availableVideoSlots = Math.max(
@@ -695,7 +696,7 @@ export default function GroupPostComposer({
       file.name.toLowerCase().endsWith(".heif");
 
     if (!isSupportedImage) {
-      setLocalError("Selecciona una imagen válida para la portada del video.");
+      setLocalError(tGroups("pickValidCover"));
       return;
     }
 
@@ -720,7 +721,7 @@ export default function GroupPostComposer({
         }),
       );
     } catch {
-      setLocalError("No se pudo preparar la portada del video.");
+      setLocalError(tGroups("coverPrepareFailed"));
     } finally {
       if (coverInputRef.current) {
         coverInputRef.current.value = "";
@@ -746,7 +747,7 @@ export default function GroupPostComposer({
       ) {
         setLocalError(
           composerPremium.validation.errors[0]?.message ??
-            "Revisa la configuración premium.",
+            tGroups("checkPremiumSettings"),
         );
         setCreating(false);
         return;
@@ -775,7 +776,7 @@ export default function GroupPostComposer({
         fileInputRef.current.value = "";
       }
     } catch (error: unknown) {
-      setLocalError((error instanceof Error ? error.message : null) ?? "No se pudo publicar.");
+      setLocalError((error instanceof Error ? error.message : null) ?? tGroups("couldNotPublish"));
     } finally {
       setCreating(false);
     }

@@ -105,7 +105,9 @@ export default function FollowCreatorButton({ targetUserId, compact = false }: P
         // Transparente con perímetro blanco. Sobre el video, un botón sólido
         // pesa demasiado para lo que es: un secundario.
         background: "transparent",
-        border: `1px solid rgba(255,255,255,${following ? 0.55 : 0.9})`,
+        // 2px. A 1px el perímetro se apoya en un solo pixel físico y se veía fino
+        // y sucio, sobre todo encima de un video en movimiento.
+        border: `2px solid rgba(255,255,255,${following ? 0.55 : 0.9})`,
         color: following ? "rgba(255,255,255,0.8)" : "#fff",
         fontSize: compact ? 11 : 13,
         fontWeight: 600,

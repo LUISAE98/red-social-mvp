@@ -59,7 +59,7 @@ function CfThumbnail({ url, ts, title }: { url: string; ts: number; title?: stri
           <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
           <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.7)" />
         </svg>
-        Conectando al en vivo...
+        {tLive("connectingToLive")}
       </div>
     );
   }
@@ -132,6 +132,7 @@ export default function LiveInlinePlayer({
   initialMuted = true,
   onMutedChange,
 }: Props) {
+  const tGroups = useTranslations("groups");
   const locale = useLocale();
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
@@ -590,7 +591,7 @@ export default function LiveInlinePlayer({
       {!ready && coverUrl && (
         <Image
           src={coverUrl}
-          alt={title ?? "En vivo"}
+          alt={title ?? tGroups("liveLabel")}
           fill
           style={{ objectFit: "cover", opacity: 0.5 }}
         />
@@ -612,7 +613,7 @@ export default function LiveInlinePlayer({
             <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
             <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.7)" />
           </svg>
-          Conectando al en vivo...
+          {tLive("connectingToLive")}
         </div>
       )}
 
@@ -628,7 +629,7 @@ export default function LiveInlinePlayer({
             <circle cx="12" cy="12" r="10" />
             <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
           </svg>
-          No se pudo cargar el stream
+          {tLive("cantLoadStream")}
         </div>
       )}
 

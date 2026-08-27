@@ -117,8 +117,8 @@ function CompletedDownloadSection({
 
       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.5, textAlign: "center" }}>
         {canDownload
-          ? `Descarga tu sesión. Tienes ${daysLeft} día${daysLeft === 1 ? "" : "s"} para hacerlo, después ya no se podrá.`
-          : "El enlace de descarga ha expirado (30 días)."}
+          ? tSessions("downloadWindow", { days: daysLeft })
+          : tSessions("downloadLinkExpired", { days: 30 })}
       </div>
 
       <button
@@ -381,8 +381,8 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
           </div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.5, textAlign: "center" }}>
             {canDownload
-              ? `Descarga tu sesión. Tienes ${daysLeft} día${daysLeft === 1 ? "" : "s"} para hacerlo, después ya no se podrá.`
-              : "El enlace de descarga ha expirado (30 días)."}
+              ? tSessions("downloadWindow", { days: daysLeft })
+              : tSessions("downloadLinkExpired", { days: 30 })}
           </div>
           <button type="button" onClick={handleDownload} disabled={!canDownload} style={{ width: "100%", height: 38, borderRadius: 8, border: "none", background: !canDownload ? "rgba(255,255,255,0.08)" : completedSession.serviceKind === "exclusive_session" ? "rgba(236,72,153,0.22)" : "rgba(59,130,246,0.22)", color: !canDownload ? "rgba(255,255,255,0.30)" : completedSession.serviceKind === "exclusive_session" ? "#f9a8d4" : "#93c5fd", fontSize: 14, fontWeight: 600, cursor: !canDownload ? "not-allowed" : "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>
             {tSessions("downloadSession")}
@@ -450,7 +450,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={handleForceComplete} disabled={forceCompleting}
                   style={{ flex: 1, height: 40, borderRadius: 8, border: "none", background: forceCompleting ? "rgba(255,255,255,0.10)" : "rgba(34,197,94,0.22)", color: forceCompleting ? "rgba(255,255,255,0.35)" : "#86efac", fontSize: 13, fontWeight: 600, cursor: forceCompleting ? "not-allowed" : "pointer", fontFamily: "inherit", lineHeight: 1.2 }}>
-                  {forceCompleting ? "Procesando..." : "Concluyó con éxito"}
+                  {forceCompleting ? tCommon("processing") : tSessions("endedSuccessfully")}
                 </button>
                 <button type="button" onClick={() => setIncompleteDismissed(true)}
                   style={{ flex: 1, height: 40, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", lineHeight: 1.2 }}>
@@ -481,7 +481,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
   const toleranceExpired = isPastStart && !sessionInProgress && msLate >= 15 * 60 * 1000;
   const canPrepare = !sessionInProgress && msLeft <= 15 * 60 * 1000;
 
-  const sessionLabel = "Sesión con";
+  const sessionLabel = tSessions("sessionWith");
   const creatorName = session!.creatorDisplayName ?? tSessions("creatorFallback");
   const bgImage = BG_IMAGE[session!.serviceKind];
   const btnBg = BTN_BG[session!.serviceKind];
@@ -497,13 +497,13 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
   const otherIsLate = isPastStart && buyerConnected && !creatorConnected;
   const countdownFrozen = !sessionInProgress && bothConnected;
   const countdownLabel = sessionInProgress
-    ? "Sesión en curso"
+    ? tSessions("inProgress")
     : countdownFrozen
-    ? "En sala"
+    ? tSessions("inRoom")
     : toleranceExpired
-    ? "Se acabó el tiempo"
+    ? tSessions("timeIsUp")
     : otherIsLate
-    ? `${creatorName} lleva de retraso`
+    ? tSessions("otherIsLate", { name: creatorName })
     : isPastStart ? tServices("sessionLate") : tServices("sessionStartsIn");
   const countdownValue = sessionInProgress
     ? formatCountdown(msRemaining ?? 0)
@@ -608,28 +608,28 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
             <div style={{ overflow: "hidden", maxHeight: reschedOpen ? 0 : "120px", opacity: reschedOpen ? 0 : 1, transition: "max-height 0.30s cubic-bezier(0.16,1,0.3,1), opacity 0.18s ease", pointerEvents: reschedOpen ? "none" : "auto" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ fontSize: 12, color: "#fb923c", lineHeight: 1.4, fontWeight: 500 }}>
-                  La sesión no se realizó dentro del tiempo de tolerancia. ¿Qué quieres hacer?
+                  {tSessions("notHeldInTolerance")}
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button type="button" onClick={() => setReschedOpen(true)} disabled={busy}
                     style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: session!.serviceKind === "meet_greet" ? "#2563eb" : "#be185d", color: "#fff", fontSize: 13, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
-                    Reagendar
+                    {tSessions("reschedule")}
                   </button>
                   <button type="button" onClick={handleRefund} disabled={busy}
                     style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontSize: 13, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
-                    {busy ? tCommon("processing") : "Solicitar devolución"}
+                    {busy ? tCommon("processing") : tSessions("requestRefund")}
                   </button>
                 </div>
               </div>
             </div>
             <div style={{ overflow: "hidden", maxHeight: reschedOpen ? "280px" : 0, opacity: reschedOpen ? 1 : 0, transition: "max-height 0.30s cubic-bezier(0.16,1,0.3,1), opacity 0.18s ease", pointerEvents: reschedOpen ? "auto" : "none" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 2 }}>
-                <textarea value={reschedReason} onChange={(e) => setReschedReason(e.target.value)} placeholder="Motivo del cambio de fecha (opcional)" rows={3}
+                <textarea value={reschedReason} onChange={(e) => setReschedReason(e.target.value)} placeholder={tSessions("rescheduleReasonPlaceholder")} rows={3}
                   style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, padding: "10px 12px", color: "#fff", fontSize: 13, fontFamily: "inherit", lineHeight: 1.5, resize: "none", outline: "none" }} />
                 <div style={{ display: "flex", gap: 8 }}>
                   <button type="button" onClick={handleReschedule} disabled={busy}
                     style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: session!.serviceKind === "meet_greet" ? "#2563eb" : "#be185d", color: "#fff", fontSize: 13, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
-                    {busy ? tCommon("processing") : "Confirmar reagenda"}
+                    {busy ? tCommon("processing") : tSessions("confirmRescheduleSession")}
                   </button>
                   <button type="button" onClick={() => setReschedOpen(false)} disabled={busy}
                     style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
@@ -703,7 +703,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
               )}
               {isPastStart && !sessionInProgress && !countdownFrozen && !toleranceExpired && (
                 <div style={{ fontSize: 10, color: "#fb923c", marginTop: 3, lineHeight: 1.3, opacity: 0.85 }}>
-                  15 min de tolerancia
+                  {tSessions("toleranceMinutes", { minutes: 15 })}
                 </div>
               )}
             </div>
@@ -715,10 +715,10 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
               <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: creatorConnected ? "#4ade80" : "rgba(255,255,255,0.45)" }} />
               <span style={{ fontSize: 12, color: "#fff", fontWeight: 500, lineHeight: 1.3 }}>
                 {creatorConnected && !buyerConnected
-                  ? "El creador ya está en la sala, ¡únete!"
+                  ? tSessions("creatorInRoomJoin")
                   : buyerConnected && !creatorConnected
-                  ? "Ya estás en la sala, esperando al creador"
-                  : "Ambos conectados en la sala"}
+                  ? tSessions("youAreInRoomWaitingCreator")
+                  : tSessions("bothConnectedInRoom")}
               </span>
             </div>
           )}
@@ -729,7 +729,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
               /* Sesión en curso — botón para volver a entrar a la sala */
               <button type="button" onClick={() => setPrepOpen(true)}
                 style={{ width: "100%", height: 40, borderRadius: 8, border: "none", background: "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)", color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-0.02em" }}>
-                Volver a entrar
+                {tSessions("rejoin")}
               </button>
             ) : !toleranceExpired ? (
               <>
@@ -760,19 +760,19 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
                   /* Both prepared — synchronized countdown */
                   <div style={{ textAlign: "center", padding: "6px 0" }}>
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginBottom: 6 }}>
-                      Ambos están en la sala
+                      {tSessions("bothInRoom")}
                     </div>
                     <div style={{ fontSize: 28, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
                       {preSessionSecondsLeft}
                     </div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>
-                      La sesión comienza en...
+                      {tSessions("startsIn")}
                     </div>
                   </div>
                 ) : buyerConnected ? (
                   /* Buyer prepared, waiting for creator */
                   <div style={{ textAlign: "center", padding: "8px 0", fontSize: 13, color: "rgba(255,255,255,0.55)", fontStyle: "italic" }}>
-                    En sala · Esperando al creador
+                    {tSessions("inRoomWaitingCreator")}
                   </div>
                 ) : (
                   /* Not yet prepared */
@@ -787,28 +787,28 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
                 <div style={{ overflow: "hidden", maxHeight: reschedOpen ? 0 : "120px", opacity: reschedOpen ? 0 : 1, transition: "max-height 0.30s cubic-bezier(0.16,1,0.3,1), opacity 0.18s ease", pointerEvents: reschedOpen ? "none" : "auto" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <div style={{ fontSize: 12, color: "#fb923c", lineHeight: 1.4, fontWeight: 500 }}>
-                      El tiempo de tolerancia venció. Elige una opción:
+                      {tSessions("toleranceExpired")}
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <button type="button" onClick={() => setReschedOpen(true)} disabled={busy}
                         style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: session!.serviceKind === "meet_greet" ? "#2563eb" : "#be185d", color: "#fff", fontSize: 13, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
-                        Reagendar
+                        {tSessions("reschedule")}
                       </button>
                       <button type="button" onClick={handleRefund} disabled={busy}
                         style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontSize: 13, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
-                        {busy ? tCommon("processing") : "Solicitar devolución"}
+                        {busy ? tCommon("processing") : tSessions("requestRefund")}
                       </button>
                     </div>
                   </div>
                 </div>
                 <div style={{ overflow: "hidden", maxHeight: reschedOpen ? "280px" : 0, opacity: reschedOpen ? 1 : 0, transition: "max-height 0.30s cubic-bezier(0.16,1,0.3,1), opacity 0.18s ease", pointerEvents: reschedOpen ? "auto" : "none" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 2 }}>
-                    <textarea value={reschedReason} onChange={(e) => setReschedReason(e.target.value)} placeholder="Motivo del cambio de fecha (opcional)" rows={3}
+                    <textarea value={reschedReason} onChange={(e) => setReschedReason(e.target.value)} placeholder={tSessions("rescheduleReasonPlaceholder")} rows={3}
                       style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, padding: "10px 12px", color: "#fff", fontSize: 13, fontFamily: "inherit", lineHeight: 1.5, resize: "none", outline: "none" }} />
                     <div style={{ display: "flex", gap: 8 }}>
                       <button type="button" onClick={handleReschedule} disabled={busy}
                         style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: session!.serviceKind === "meet_greet" ? "#2563eb" : "#be185d", color: "#fff", fontSize: 13, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
-                        {busy ? tCommon("processing") : "Confirmar reagenda"}
+                        {busy ? tCommon("processing") : tSessions("confirmRescheduleSession")}
                       </button>
                       <button type="button" onClick={() => setReschedOpen(false)} disabled={busy}
                         style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
@@ -853,7 +853,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
             {countdown321}
           </div>
           <div style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", fontWeight: 500 }}>
-            La sesión está por comenzar
+            {tSessions("aboutToStart")}
           </div>
         </div>,
         document.body

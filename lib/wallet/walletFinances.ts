@@ -31,6 +31,17 @@ export type WalletSummary = {
   rejectedGross: number;
   rejectedNet: number;
   /**
+   * 🧾 Retenciones acumuladas de las ventas ganadas.
+   *
+   * ⚠️ **Todavía NO están restadas del saldo.** Se registran para poder cuadrar y para
+   * mostrárselas al creador; aplicarlas al importe retirable va en su propio paso, junto con
+   * la pantalla que se lo explica. Ver `docs/legal/fiscal-iva-isr-plataforma.md` §0.
+   */
+  retainedIsr: number;
+  retainedIva: number;
+  /** Impuesto de la comisión de Vibra. Lo paga el creador y, con RFC, lo acredita. */
+  commissionVat: number;
+  /**
    * 🧾 IVA cobrado al comprador en ventas ganadas (va al SAT, NO es del creador).
    * Solo transparencia; no forma parte de las ganancias ni del saldo retirable.
    */
@@ -50,6 +61,9 @@ export const EMPTY_WALLET_SUMMARY: WalletSummary = {
   rejectedGross: 0,
   rejectedNet: 0,
   taxCollected: 0,
+  retainedIsr: 0,
+  retainedIva: 0,
+  commissionVat: 0,
 };
 
 function toNumber(value: unknown): number {
@@ -71,6 +85,9 @@ function normalizeSummary(data: Record<string, unknown>): WalletSummary {
     rejectedNet: toNumber(data.rejectedNet),
     // El backend lo guarda como lifetimeTaxCollected; aquí lo exponemos como taxCollected.
     taxCollected: toNumber(data.lifetimeTaxCollected),
+    retainedIsr: toNumber(data.lifetimeRetainedIsr),
+    retainedIva: toNumber(data.lifetimeRetainedIva),
+    commissionVat: toNumber(data.lifetimeCommissionVat),
   };
 }
 

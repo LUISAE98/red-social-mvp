@@ -174,7 +174,39 @@ export function getExclusiveSessionRemainingRescheduleRequests(
   return Math.max(0, EXCLUSIVE_SESSION_MAX_RESCHEDULE_REQUESTS - safeUsed);
 }
 
-export function getExclusiveSessionStatusLabel(status: ExclusiveSessionStatus): string {
+/**
+ * Etiqueta de estado de una sesión exclusiva.
+ *
+ * El `t` es opcional y apunta al grupo `sessions`, igual que su gemela
+ * `getMeetGreetStatusLabel`: los dos servicios comparten el mismo juego de
+ * estados, así que comparten también las claves.
+ *
+ * Sin `t` devuelve español. Eso NO es un idioma por defecto, es un respaldo
+ * para los sitios que aún no lo pasan; quien pinte el texto en pantalla debe
+ * pasarlo siempre.
+ */
+export function getExclusiveSessionStatusLabel(
+  status: ExclusiveSessionStatus,
+  t?: (key: string) => string
+): string {
+  const CLAVES: Partial<Record<ExclusiveSessionStatus, string>> = {
+    pending_creator_response: "statusPendingResponse",
+    accepted_pending_schedule: "statusAcceptedPendingSchedule",
+    scheduled: "statusScheduled",
+    reschedule_requested: "statusRescheduleRequested",
+    rejected: "statusRejected",
+    refund_requested: "statusRefundRequested",
+    refund_review: "statusRefundReview",
+    ready_to_prepare: "statusReadyToPrepare",
+    in_preparation: "statusInPreparation",
+    completed: "statusCompleted",
+    cancelled: "statusCancelled",
+  };
+
+  const clave = CLAVES[status];
+  if (clave && t) return t(clave);
+  if (t) return t("statusUnknown");
+
   switch (status) {
     case "pending_creator_response":
       return "En espera de aceptación";

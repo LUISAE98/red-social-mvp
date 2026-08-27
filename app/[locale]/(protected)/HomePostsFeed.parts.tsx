@@ -49,8 +49,8 @@ import {
   recordPostNotInterested,
   getHiddenPostIds,
 } from "@/lib/discovery/viewSignal";
-import { followUser } from "@/lib/social/social-service";
-import { joinGroup } from "@/lib/groups/membership";
+import { followUser, unfollowUser } from "@/lib/social/social-service";
+import { joinGroup, leaveGroup } from "@/lib/groups/membership";
 
 
 export type HomePostsFeedProps = {
@@ -233,27 +233,42 @@ export function DiscoveryFollowJoinButton({
   if (connected === true) return null;
 
   async function handleAction() {
-    if (state !== "idle" || !targetId) return;
+    // Solo se bloquea mientras hay algo en vuelo. Antes bloqueaba también el
+    // estado "done", y por eso unirse por error no tenía vuelta atrás desde
+    // aquí: había que ir a la comunidad o al perfil a deshacerlo.
+    if (state === "loading" || !targetId) return;
+
+    const deshacer = state === "done";
     setState("loading");
+
     try {
-      if (isCommunity) {
-        await joinGroup(targetId, currentUserId);
+      if (deshacer) {
+        if (isCommunity) await leaveGroup(targetId, currentUserId);
+        else await unfollowUser({ currentUserId, targetUserId: targetId });
+        setState("idle");
       } else {
-        await followUser({ currentUserId, targetUserId: targetId });
+        if (isCommunity) await joinGroup(targetId, currentUserId);
+        else await followUser({ currentUserId, targetUserId: targetId });
+        setState("done");
       }
-      setState("done");
     } catch {
-      setState("idle");
+      // Se vuelve a donde se estaba, no a "idle" a ciegas: si falla el
+      // deshacer, sigues unido, y decir lo contrario sería mentir.
+      setState(deshacer ? "done" : "idle");
     }
   }
 
   // Compacto para el header (izquierda del menú de 3 puntos): bajito y rosa.
+  // Mismo aspecto que el botón de seguir del feed de reels
+  // (components/social/FollowCreatorButton.tsx), en su variante compacta:
+  // transparente con perímetro blanco. Sobre una tarjeta de descubrimiento, un
+  // botón morado sólido pesa más de lo que vale — es una invitación, no la
+  // acción principal de la publicación.
   const baseStyle: React.CSSProperties = {
     flexShrink: 0,
     boxSizing: "border-box",
-    padding: "5px 11px",
-    borderRadius: 5,
-    border: "none",
+    padding: "3px 10px",
+    borderRadius: 8,
     fontSize: 11,
     fontWeight: 600,
     lineHeight: 1.4,
@@ -265,20 +280,29 @@ export function DiscoveryFollowJoinButton({
     justifyContent: "center",
   };
 
-  // Recién unido / seguido → texto morado (Siguiendo / Unido), sin botón.
+  // Recién unido / seguido. En reels este estado no cambia de forma: mantiene el
+  // perímetro y solo lo atenúa, junto con la letra. Aquí igual.
+  //
+  // Y es un BOTÓN, no un letrero: volver a pulsarlo deshace lo que se acaba de
+  // hacer. Unirse a una comunidad de un roce en el feed es fácil; sin esto, el
+  // único camino de vuelta era abrir la comunidad y salirse desde dentro.
   if (state === "done") {
     return (
-      <span
+      <button
+        type="button"
+        onClick={handleAction}
         style={{
           ...baseStyle,
           background: "transparent",
-          color: "#a855f7",
-          fontWeight: 700,
-          cursor: "default",
+          border: "2px solid rgba(255,255,255,0.55)",
+          color: "rgba(255,255,255,0.8)",
+          cursor: "pointer",
+          transition: "border-color 160ms ease, color 160ms ease, opacity 160ms ease",
+          WebkitTapHighlightColor: "transparent",
         }}
       >
         {isCommunity ? tFeed("joinedCta") : tFeed("followingCta")}
-      </span>
+      </button>
     );
   }
 
@@ -287,20 +311,33 @@ export function DiscoveryFollowJoinButton({
     <button
       type="button"
       onClick={handleAction}
-      disabled={state !== "idle"}
+      disabled={state === "loading"}
       style={{
         ...baseStyle,
-        background: "#a855f7",
+        background: "transparent",
+        // Mismo grosor que el de reels: ver la nota en FollowCreatorButton.
+        border: "2px solid rgba(255,255,255,0.9)",
         color: "#fff",
         cursor: state === "idle" ? "pointer" : "default",
         opacity: state === "loading" ? 0.7 : 1,
+        transition: "border-color 160ms ease, color 160ms ease, opacity 160ms ease",
+        WebkitTapHighlightColor: "transparent",
       }}
     >
-      {state === "loading"
-        ? "…"
-        : isCommunity
-          ? tFeed("joinCta")
-          : tFeed("followCta")}
+      {state === "loading" ? (
+        /* Los mismos puntos que laten en el rail de recomendaciones
+           (.vibra-dots, globals.css). Antes eran tres puntos quietos, que a
+           medio segundo no se distinguen de un botón que no respondió. */
+        <span className="vibra-dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+      ) : isCommunity ? (
+        tFeed("joinCta")
+      ) : (
+        tFeed("followCta")
+      )}
     </button>
   );
 }

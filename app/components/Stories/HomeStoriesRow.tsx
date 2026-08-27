@@ -42,8 +42,16 @@ import { useDragScroll } from "@/lib/hooks/useDragScroll";
 const MIN_VISIBLE = 4;
 /** Tope de ancho: el del rail de recomendaciones. */
 const CARD_MAX_W = RAIL_CARD_W;
-/** Proporción de la tarjeta, tomada de las medidas de aquel rail (200×224). */
-const CARD_RATIO = "200 / 224";
+/**
+ * Proporción de la tarjeta: la misma que tienen las historias cuando se enlistan
+ * en una búsqueda, 9:16.
+ *
+ * Antes era 200×224, casi cuadrada, heredada de las medidas del rail de
+ * recomendaciones. Pero ahí dentro va un REEL, que se graba vertical: en una
+ * tarjeta cuadrada se recortaba por arriba y por abajo justo donde está la cara.
+ * A la misma anchura, la tarjeta ahora es más alta y el video cabe entero.
+ */
+const CARD_RATIO = "9 / 16";
 
 /**
  * Ancho responsivo. Reparte el espacio visible entre MIN_VISIBLE tarjetas y sus
@@ -52,12 +60,24 @@ const CARD_RATIO = "200 / 224";
  * cabiendo cuatro.
  */
 const CARD_WIDTH = `min(${CARD_MAX_W}px, calc((100% - ${RAIL_GAP * (MIN_VISIBLE - 1)}px) / ${MIN_VISIBLE}))`;
-/** Radio de las tarjetas. */
-const CARD_RADIUS = 12;
+/**
+ * Radio de las tarjetas: ninguno.
+ *
+ * Esquinas cuadradas, como en el listado de búsqueda —donde el comentario lo
+ * llama estilo "mantel"—. Las esquinas redondeadas recortaban imagen en las
+ * cuatro puntas de cada reel.
+ */
+const CARD_RADIUS = 0;
 /** Cuánto se funde cada orilla del rail. */
 const EDGE_FADE = 28;
-/** Avatar del creador junto a su nombre, dentro de la tarjeta. */
-const AVATAR_SIZE = 16;
+/**
+ * Avatar del creador junto a su nombre, dentro de la tarjeta.
+ *
+ * Con 16px no cabía un aro que se distinguiera: el anillo mide unos 3px y a ese
+ * tamaño se leía como un borde sucio en vez de como la marca de que hay algo que
+ * ver.
+ */
+const AVATAR_SIZE = 34;
 
 // ─── Caché a nivel de módulo, sobrevive a la navegación en la misma pestaña ───
 type IdsEntry = { creatorIds: string[]; groupIds: string[]; cachedAt: number };
@@ -549,10 +569,19 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
           const name = info?.displayName ?? story.creatorName ?? tCommon("userLabel");
           const thumb = resolveThumb(story);
           return (
-            <button
+            <div
               key={story.id}
-              type="button"
+              role="button"
+              tabIndex={0}
+              aria-label={name}
               onClick={(e) => {
+                e.stopPropagation();
+                setOpenAt(index);
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" && e.key !== " ") return;
+                // Espacio hace rodar la página si no se le corta el paso.
+                e.preventDefault();
                 e.stopPropagation();
                 setOpenAt(index);
               }}
@@ -607,21 +636,23 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                   boxSizing: "border-box",
                 }}
               >
-                <span
-                  style={{
-                    width: AVATAR_SIZE,
-                    height: AVATAR_SIZE,
-                    borderRadius: "50%",
-                    overflow: "hidden",
-                    flexShrink: 0,
-                    background: "rgba(255,255,255,0.18)",
-                    position: "relative",
-                    display: "block",
-                  }}
-                >
-                  {info?.photoURL ? (
-                    <Image src={info.photoURL} alt="" fill style={{ objectFit: "cover" }} />
-                  ) : null}
+                {/* El aro sale de LiveRingAvatar, que ya resuelve solo cuál toca:
+                    ROJO si esa persona está transmitiendo ahora, y si no delega en
+                    StoryRingAvatar, que pone el de Vibra cuando tiene historias sin
+                    ver. Reusarlo evita repetir aquí la consulta de estado en vivo.
+
+                    Va con `pointer-events: none` a propósito: el aro es un botón
+                    con su propia acción, y dentro de una tarjeta que ya abre el reel
+                    habría dos destinos para el mismo clic. Aquí es solo señal. */}
+                <span style={{ pointerEvents: "none", display: "inline-flex", flexShrink: 0 }}>
+                  <LiveRingAvatar
+                    entityId={authorId ?? story.creatorId}
+                    entityType="profile"
+                    currentUserId={currentUserId}
+                    photoURL={info?.photoURL ?? null}
+                    displayName={name}
+                    size={AVATAR_SIZE}
+                  />
                 </span>
                 <span
                   style={{
@@ -641,7 +672,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                   {name}
                 </span>
               </span>
-            </button>
+            </div>
           );
         })}
       </div>

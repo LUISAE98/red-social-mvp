@@ -315,8 +315,8 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
           </div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.5, textAlign: "center" }}>
             {canDownload
-              ? `Descarga la sesión. Tienes ${daysLeft} día${daysLeft === 1 ? "" : "s"} para hacerlo, después ya no se podrá.`
-              : "El enlace de descarga ha expirado (30 días)."}
+              ? tSessions("downloadWindow", { days: daysLeft })
+              : tSessions("downloadLinkExpired", { days: 30 })}
           </div>
           <button type="button" onClick={handleDownloadCompleted} disabled={!canDownload} style={{ width: "100%", height: 38, borderRadius: 8, border: "none", background: !canDownload ? "rgba(255,255,255,0.08)" : accent ? "rgba(236,72,153,0.22)" : "rgba(59,130,246,0.22)", color: !canDownload ? "rgba(255,255,255,0.30)" : accent ? "#f9a8d4" : "#93c5fd", fontSize: 14, fontWeight: 600, cursor: !canDownload ? "not-allowed" : "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>
             {tSessions("downloadSession")}
@@ -339,7 +339,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#fb923c", flexShrink: 0 }} />
             <span style={{ fontSize: 13, color: "#fb923c", fontWeight: 600 }}>
-              {noShowSessions.length === 1 ? "Sesión no realizada hoy" : `${noShowSessions.length} sesiones no realizadas hoy`}
+              {tSessions("notHeldTodayCount", { count: noShowSessions.length })}
             </span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -368,12 +368,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
 
   const buyerName = nextSession.buyerDisplayName ?? "Comprador";
   const otherSessions = todaySessions.filter((s) => s.id !== nextSession.id);
-  const sessionCountLabel =
-    otherSessions.length === 0
-      ? "No tienes más sesiones agendadas para hoy"
-      : otherSessions.length === 1
-      ? "1 sesión más agendada hoy"
-      : `${otherSessions.length} sesiones más agendadas hoy`;
+  const sessionCountLabel = tSessions("moreSessionsToday", { count: otherSessions.length });
 
   const buyerConnected = !!nextSession.preparingBuyerAt;
   const creatorConnected = !!nextSession.preparingCreatorAt;
@@ -386,16 +381,16 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
   const otherIsLate = isPastStart && creatorConnected && !buyerConnected;
   const countdownFrozen = !sessionInProgress && bothConnected;
   const countdownLabel = sessionInProgress
-    ? "Sesión en curso"
+    ? tSessions("inProgress")
     : countdownFrozen
-    ? "En sala"
+    ? tSessions("inRoom")
     : toleranceExpired
-    ? "Se acabó el tiempo"
+    ? tSessions("timeIsUp")
     : otherIsLate
-    ? `${buyerName} lleva de retraso`
+    ? tSessions("otherIsLate", { name: buyerName })
     : isPastStart
-    ? "Llevas de retraso"
-    : "Inicia en";
+    ? tSessions("youAreLate")
+    : tSessions("startsInShort");
   const countdownValue = sessionInProgress
     ? formatCountdown(msRemaining ?? 0)
     : isPastStart
@@ -624,10 +619,10 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
               />
               <span style={{ fontSize: 12, color: "#fff", fontWeight: 500, lineHeight: 1.3, textAlign: "center" }}>
                 {buyerConnected && !creatorConnected
-                  ? "Tu comprador ya está en la sala, ¡únete!"
+                  ? tSessions("buyerInRoomJoin")
                   : creatorConnected && !buyerConnected
-                  ? "Ya estás en la sala, esperando a tu comprador"
-                  : "Ambos conectados en la sala"}
+                  ? tSessions("youAreInRoomWaitingBuyer")
+                  : tSessions("bothConnectedInRoom")}
               </span>
             </div>
           )}

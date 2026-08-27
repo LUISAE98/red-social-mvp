@@ -13,12 +13,14 @@ import {
   EJERCICIO_VIGENTE,
   ejercicioDeFecha,
   MOTOR_VERSION,
+  calcularRetiro,
   type PerfilFiscalCreador,
 } from "../../backend/src/tax/fiscalEngine";
 import {
   resolveSaleTax as saleFront,
   resolveSettlement as settleFront,
   TASAS_POR_EJERCICIO as TASAS_FRONT,
+  calcularRetiro as calcularRetiroFront,
 } from "../../lib/tax/fiscalEngine";
 
 const BASE = 100;
@@ -221,5 +223,76 @@ describe("motor fiscal / paridad entre backend y espejo", () => {
         expect(lf, `liquidación ${pais}`).toEqual(lb);
       }
     }
+  });
+});
+
+describe("motor fiscal / desglose del retiro", () => {
+  // Un mes típico: tres ventas mexicanas. Saldo 225, retenciones 7.50 + 24 + 12.
+  const acumulado = { saldo: 225, isrPendiente: 7.5, ivaPendiente: 24, ivaComisionPendiente: 12 };
+
+  it("retirar todo aplica todas las retenciones", () => {
+    const r = calcularRetiro(acumulado);
+    expect(r.bruto).toBe(225);
+    expect(r.isr).toBe(7.5);
+    expect(r.iva).toBe(24);
+    expect(r.ivaComision).toBe(12);
+    expect(r.neto).toBe(181.5);
+    expect(r.proporcion).toBe(1);
+  });
+
+  it("un retiro parcial consume las retenciones EN PROPORCIÓN", () => {
+    // Un tercio del saldo se lleva un tercio de las retenciones.
+    const r = calcularRetiro({ ...acumulado, solicitado: 75 });
+    expect(r.bruto).toBe(75);
+    expect(r.isr).toBe(2.5);
+    expect(r.iva).toBe(8);
+    expect(r.ivaComision).toBe(4);
+    expect(r.neto).toBe(60.5);
+  });
+
+  it("sacar poco de un saldo grande NO paga el impuesto de todo el saldo", () => {
+    // El error que evita la proporcionalidad: 10 de 1,000 no debe cargar con todo.
+    const r = calcularRetiro({
+      saldo: 1000,
+      solicitado: 10,
+      isrPendiente: 100,
+      ivaPendiente: 200,
+      ivaComisionPendiente: 50,
+    });
+    expect(r.isr).toBe(1);
+    expect(r.iva).toBe(2);
+    expect(r.neto).toBe(6.5);
+  });
+
+  it("no se puede retirar más que el saldo", () => {
+    const r = calcularRetiro({ ...acumulado, solicitado: 9999 });
+    expect(r.bruto).toBe(225);
+    expect(r.proporcion).toBe(1);
+  });
+
+  it("el neto nunca es negativo", () => {
+    // Caso extremo: retenciones mayores que el retiro. Se deposita cero, no en rojo.
+    const r = calcularRetiro({
+      saldo: 10,
+      isrPendiente: 20,
+      ivaPendiente: 20,
+      ivaComisionPendiente: 0,
+    });
+    expect(r.neto).toBe(0);
+  });
+
+  it("sin saldo no hay retiro", () => {
+    const r = calcularRetiro({ saldo: 0, isrPendiente: 0, ivaPendiente: 0, ivaComisionPendiente: 0 });
+    expect(r.bruto).toBe(0);
+    expect(r.neto).toBe(0);
+  });
+
+  it("creador extranjero sin retenciones recibe íntegro", () => {
+    const r = calcularRetiro({ saldo: 300, isrPendiente: 0, ivaPendiente: 0, ivaComisionPendiente: 0 });
+    expect(r.neto).toBe(300);
+  });
+
+  it("backend y espejo dan el mismo desglose", () => {
+    expect(calcularRetiroFront(acumulado)).toEqual(calcularRetiro(acumulado));
   });
 });

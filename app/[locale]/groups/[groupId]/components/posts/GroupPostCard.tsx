@@ -253,9 +253,9 @@ onToggleProfilePin,
   autoOpenComments = false,
   focusCommentId = null,
 }: GroupPostCardProps) {
+  const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
   const tFeed = useTranslations("feed");
-  const tGroups = useTranslations("groups");
   const tPosts = useTranslations("posts");
   const locale = useLocale();
   const priceFmt = usePriceFormat();
@@ -1639,6 +1639,26 @@ const cardStyle: CSSProperties = {
     cursor: "not-allowed",
   };
 
+/**
+ * Un color por momento de la transmisión.
+ *
+ *   EN CURSO   rojo — está pasando ahora, y el rojo es lo único que debe gritar
+ *   PROGRAMADO morado — el mismo de "publicación premium": algo que aún no está
+ *              disponible pero que va a estarlo
+ *   FINALIZADO gris NEUTRO — ya pasó
+ *
+ * ⚠️ El gris no lleva nada de rojo. Un gris con rojo dentro (`#564343`) se lee
+ * café, no gris: el ojo, contra un fondo oscuro, interpreta ese resto de tono
+ * cálido como marrón. Los tres canales van iguales para que no haya dominante.
+ *
+ * Van en sólido y no con transparencia a propósito: la pestaña se pinta sobre la
+ * portada del live, que es una foto distinta en cada post, y un color translúcido
+ * cambiaría de tono según lo que tuviera debajo.
+ */
+const LIVE_ON = "#ef4444";
+const LIVE_SCHEDULED = "#a855f7";
+const LIVE_ENDED = "#4a4a4a";
+
 const menuButtonStyle: CSSProperties = {
   width: 32,
   height: 32,
@@ -1924,6 +1944,28 @@ function renderBlurredMediaBackdrop(
   );
 
   const isLiveActive = post.postType === "live" && activeLiveData?.status === "live";
+  const isLiveEnded = post.postType === "live" && activeLiveData?.status === "ended";
+
+  // El color del live se decide UNA vez y lo usan el marco y la pestaña. Si cada
+  // uno lo dedujera por su cuenta, bastaría con tocar un ternario y olvidar el
+  // otro para que el borde y la etiqueta dejaran de coincidir.
+  //
+  // Programado es el caso por defecto: un live sin `status`, o con uno que aún no
+  // reconocemos, cuenta como que está por ocurrir.
+  const liveColor = isLiveActive
+    ? LIVE_ON
+    : isLiveEnded
+      ? LIVE_ENDED
+      : LIVE_SCHEDULED;
+
+  // El resplandor acompaña al color: rojo en el que está en directo, el mismo
+  // morado tenue del marco premium en el programado, y NINGUNO en el que ya
+  // terminó — un halo sobre gris seguiría pidiendo atención para algo que ya pasó.
+  const liveGlow = isLiveActive
+    ? "0 0 0 1px rgba(239,68,68,0.06), 0 4px 28px rgba(239,68,68,0.18)"
+    : isLiveEnded
+      ? "none"
+      : "0 0 0 1px rgba(168,85,255,0.06), 0 4px 28px rgba(168,85,255,0.1)";
   const livePaidAccessMode = activeLiveData?.paidAccessMode ?? "everyone_pays";
   // Miembros con acceso gratis: mode members_free_non_members_pay y el viewer es miembro (o dueño)
   const memberHasFreeAccess =
@@ -2521,7 +2563,7 @@ const shouldClampFeedPostText =
             <path d="M9 6V4h6v2" />
           </svg>
           <div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#f87171" }}>Post eliminado</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#f87171" }}>{tGroups("postDeleted")}</span>
             {post.deletedAt && (
               <span style={{ fontSize: 10, color: "rgba(239,68,68,0.65)", marginInlineStart: 6 }}>
                 {post.deletedAt.toDate().toLocaleString(intlLocale(locale), { dateStyle: "medium", timeStyle: "short" })}
@@ -2667,7 +2709,7 @@ style={{
     : formatRelativeDate(post.liveData?.startedAt ?? post.createdAt, locale)}
   {(post.editedAt ?? localText !== null) ? (
     <span style={{ opacity: 0.45, fontStyle: "italic", marginInlineStart: 2 }}>
-      {" · Editado"}
+      {tPosts("editedSuffix")}
     </span>
   ) : null}
 </button>
@@ -2908,14 +2950,20 @@ style={{
         borderRadius: 14,
         position: "relative",
         overflow: "hidden",
-        border: hideLiveEndedFrame
-          ? "none"
-          : isLiveActive ? "2.6px solid #ef4444" : "2.6px solid #a855f7",
-        boxShadow: hideLiveEndedFrame
-          ? "none"
-          : isLiveActive
-            ? "0 0 0 1px rgba(239,68,68,0.06), 0 4px 28px rgba(239,68,68,0.18)"
-            : "0 0 0 1px rgba(168,85,255,0.06), 0 4px 28px rgba(168,85,255,0.1)",
+        // Rojo en los TRES estados del live —el rojo identifica a la transmisión
+        // como tal, no al momento en que está— pero ENCENDIDO solo mientras está
+        // en curso. Programado y finalizado llevan el mismo rojo bajado de
+        // intensidad: siguen siendo la misma cosa, pero no están pasando ahora.
+        //
+        // El resplandor va con ello: fuerte solo en el que está en directo. Es lo
+        // que hace que un live en curso salte a la vista al recorrer el feed sin
+        // que los otros dos compitan por la atención.
+        //
+        // El morado queda reservado para lo premium, que es otra cosa: un VOD
+        // premium nacido de un live se envuelve en el marco morado y apaga este
+        // (`hideLiveEndedFrame`), para no encajar un marco dentro de otro.
+        border: hideLiveEndedFrame ? "none" : `2.6px solid ${liveColor}`,
+        boxShadow: hideLiveEndedFrame ? "none" : liveGlow,
         background: "transparent",
       }}
     >
@@ -2931,9 +2979,9 @@ style={{
           display: "inline-flex",
           alignItems: "center",
           gap: 5,
-          background: isLiveActive
-            ? "#ef4444"
-            : "linear-gradient(180deg, #a855f7 0%, #d946b8 100%)",
+          // Roja en los tres estados, igual que el marco, y encendida solo en el
+          // que está en curso.
+          background: liveColor,
           padding: isLivePlayer ? "5px 12px 5px 9px" : "3px 8px 3px 6px",
           fontSize: isLivePlayer ? 11 : 8.5,
           fontWeight: 700,
@@ -3083,24 +3131,35 @@ style={{
               position: "relative",
               width: "100%",
               aspectRatio: "16 / 7",
-              background: "rgba(0,0,0,0.7)",
+              background: "#000",
               overflow: "hidden",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            {activeLiveData?.coverUrl && (
-              <Image
-                src={activeLiveData.coverUrl}
-                alt={activeLiveData.title ?? "En vivo"}
-                fill
-                style={{ objectFit: "cover", opacity: 0.15, filter: "grayscale(40%)" }}
-              />
-            )}
+            {/* Mismo tratamiento de portada que el live PROGRAMADO: la imagen de
+                verdad si la hay, y si no la de reserva de lives, con la misma
+                opacidad y el mismo desteñido.
+
+                Antes la portada iba al 0.15 —y solo si existía—, así que en la
+                práctica esto era un rectángulo negro: el creador subía una
+                portada y al terminar la transmisión desaparecía. */}
+            <Image
+              src={activeLiveData?.coverUrl ?? "/live.webp"}
+              alt={activeLiveData?.title ?? tGroups("liveLabel")}
+              fill
+              style={{
+                objectFit: "cover",
+                opacity: activeLiveData?.coverUrl ? 0.45 : 0.65,
+                filter: activeLiveData?.coverUrl ? "grayscale(20%)" : "none",
+              }}
+            />
             <div style={{
               position: "relative", zIndex: 1, display: "flex", flexDirection: "column",
-              alignItems: "center", gap: 8, color: "rgba(255,255,255,0.45)",
+              // Blanco pleno: sobre una portada visible, el gris al 45% que había
+              // antes se perdía contra la imagen.
+              alignItems: "center", gap: 8, color: "#fff",
               fontFamily: fontStack, textAlign: "center",
             }}>
               {/* CF streams: no VOD management — simple ended state */}
@@ -3158,7 +3217,7 @@ style={{
         >
           <Image
             src={activeLiveData?.coverUrl ?? "/live.webp"}
-            alt={activeLiveData?.title ?? "Live programado"}
+            alt={activeLiveData?.title ?? tGroups("scheduledLive")}
             fill
             style={{
               objectFit: "cover",
@@ -3764,8 +3823,8 @@ cursor: isMobile ? "pointer" : "default",
           >
             {isVideoError
               ? post.processing?.errorMessage ||
-                "Mux no pudo preparar este video. Puedes intentar subirlo nuevamente."
-              : "Mux está preparando la reproducción. El video aparecerá automáticamente cuando esté listo."}
+                tGroups("muxPrepareFailed")
+              : tGroups("muxPreparing")}
           </div>
 
           {isVideoError && (
@@ -3792,7 +3851,7 @@ cursor: isMobile ? "pointer" : "default",
                 WebkitTapHighlightColor: "transparent",
               }}
             >
-              Subir otro video
+              {tGroups("uploadAnotherVideo")}
             </button>
           )}
         </div>
@@ -3994,7 +4053,7 @@ const mediaScale = 1;
           return (
             <Image
               src={media.thumbnailUrl}
-              alt={media.altText || `Video ${index + 1} de la publicación`}
+              alt={media.altText || tGroups("videoOfPost", { index: index + 1 })}
               draggable={false}
               fill
               style={{
@@ -4067,8 +4126,8 @@ const mediaScale = 1;
               alt={
                 media.altText ||
                 (media.type === "video"
-                  ? `Video ${index + 1} de la publicación`
-                  : `Imagen ${index + 1} de la publicación`)
+                  ? tGroups("videoOfPost", { index: index + 1 })
+                  : tGroups("imageOfPost", { index: index + 1 }))
               }
               draggable={false}
               fill
@@ -4270,8 +4329,8 @@ style={{
                     onClick={(e) => openMedia(media, e.currentTarget)}
                     aria-label={
                       media.type === "video"
-                        ? `Reproducir video ${index + 1} de ${totalMedia}`
-                        : `Abrir imagen ${index + 1} de ${totalMedia}`
+                        ? tGroups("playVideoOfTotal", { index: index + 1, total: totalMedia })
+                        : tGroups("openImageOfTotal", { index: index + 1, total: totalMedia })
                     }
 style={{
   position: "absolute",
@@ -4309,7 +4368,7 @@ style={{
                 event.stopPropagation();
                 goToPreviousMedia();
               }}
-              aria-label="Ver archivo anterior"
+              aria-label={tGroups("previousFile")}
               style={{
                 position: "absolute",
                 insetInlineStart: 10,
@@ -4338,7 +4397,7 @@ padding: "0 0 2px 0",
                 event.stopPropagation();
                 goToNextMedia();
               }}
-              aria-label="Ver siguiente archivo"
+              aria-label={tGroups("nextFile")}
               style={{
                 position: "absolute",
                 insetInlineEnd: 10,
@@ -4408,7 +4467,7 @@ padding: "0 0 2px 0",
           </div>
 
           <div
-            aria-label={`Archivo ${activeMediaIndex + 1} de ${totalMedia}`}
+            aria-label={tGroups("fileOfTotal", { index: activeMediaIndex + 1, total: totalMedia })}
             style={{
               marginTop: 9,
               display: "flex",
@@ -4443,7 +4502,7 @@ padding: "0 0 2px 0",
                       key={dotIndex}
                       type="button"
                       onClick={() => setActiveMediaIndex(dotIndex)}
-                      aria-label={`Ver archivo ${dotIndex + 1}`}
+                      aria-label={tGroups("viewFile", { index: dotIndex + 1 })}
                       style={{
                         width: 12,
                         height: 12,
@@ -4662,18 +4721,18 @@ padding: "0 0 2px 0",
         gap: 2,
       }}
     >
-<IconButton label={ optimisticViewerHasFlamed ? "Quitar flamita de la publicación" : "Dar flamita a la publicación" } size="sm" tone="bare" shape="square" style={{ placeItems: "center", transform: optimisticViewerHasFlamed ? "scale(1.04)" : "scale(1)", touchAction: "manipulation" }} onClick={handleToggleFlame} aria-pressed={optimisticViewerHasFlamed}>
+<IconButton label={ optimisticViewerHasFlamed ? tPosts("removeFlameFromPost") : "Dar flamita a la publicación" } size="sm" tone="bare" shape="square" style={{ placeItems: "center", transform: optimisticViewerHasFlamed ? "scale(1.04)" : "scale(1)", touchAction: "manipulation" }} onClick={handleToggleFlame} aria-pressed={optimisticViewerHasFlamed}>
   <span aria-hidden="true" style={flameIconStyle}>
     <VibraFlameIcon active={optimisticViewerHasFlamed} size={22} premium={post.premium?.enabled === true} />
   </span>
 </IconButton>
 
-      <TextButton tone="mute" size="md" style={{ fontFamily: fontStack }} onClick={handleOpenFlamesPanel} aria-label="Ver usuarios que dieron flamita">
+      <TextButton tone="mute" size="md" style={{ fontFamily: fontStack }} onClick={handleOpenFlamesPanel} aria-label={tPosts("viewFlameUsers")}>
        {optimisticLikesCount}
       </TextButton>
     </div>
 
-    <TextButton tone="mute" size="md" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: fontStack }} onClick={isMobile ? handleOpenCommentsPanel : handleToggleCommentsDesktop} disabled={loadingComments} aria-label="Abrir comentarios">
+    <TextButton tone="mute" size="md" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: fontStack }} onClick={isMobile ? handleOpenCommentsPanel : handleToggleCommentsDesktop} disabled={loadingComments} aria-label={tGroups("openComments")}>
 <span aria-hidden="true">
   <VibraCommentIcon size={18} color="rgba(255,255,255,0.88)" />
 </span>
@@ -4704,7 +4763,7 @@ padding: "0 0 2px 0",
       <PostShareButton
         postId={post.id}
         title={post.shareTitle || "Publicación"}
-        text={post.shareDescription || post.text || "Mira esta publicación."}
+        text={post.shareDescription || post.text || tPosts("shareDefaultText")}
       />
     )}
 
@@ -4901,7 +4960,7 @@ padding: "0 0 2px 0",
                           color: "#fff",
                         }}
                       >
-                        Reportar publicación
+                        {tGroups("reportPost")}
                       </button>
                     )}
                   </>
@@ -4920,9 +4979,9 @@ padding: "0 0 2px 0",
             onClick={() => !moderationBusy && setMuteModalOpen(false)}
           >
             <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
-              <h3 style={modalTitleStyle}>Mutear integrante</h3>
+              <h3 style={modalTitleStyle}>{tGroups("muteModalTitle")}</h3>
               <p style={modalTextStyle}>
-                Elige durante cuántos días quieres mutear a{" "}
+                {tGroups("muteDaysPrompt")}{" "}
                 <strong>{postAuthor.authorName}</strong>.
               </p>
 
@@ -4933,7 +4992,7 @@ padding: "0 0 2px 0",
                 value={muteDays}
                 onChange={(e) => setMuteDays(e.target.value)}
                 style={modalInputStyle}
-                placeholder="Ej. 7"
+                placeholder={tGroups("muteModalPlaceholder")}
                 disabled={moderationBusy}
               />
 
@@ -4972,7 +5031,7 @@ padding: "0 0 2px 0",
                       : primaryButtonStyle
                   }
                 >
-                  {moderationBusy ? "Aplicando..." : "Aplicar mute"}
+                  {moderationBusy ? "Aplicando..." : tGroups("muteModalApply")}
                 </button>
               </div>
             </div>

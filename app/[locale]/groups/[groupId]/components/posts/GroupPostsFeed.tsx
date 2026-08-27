@@ -105,6 +105,7 @@ export default function GroupPostsFeed({
   feedLeadingContent = null,
   belowMediaTabs,
 }: GroupPostsFeedProps) {
+  const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
   const tProfile = useTranslations("profile");
   const router = useRouter();
@@ -783,13 +784,13 @@ export default function GroupPostsFeed({
         .filter((item) => item.type === "video");
 
       if (videoItems.length > 3) {
-        setComposerError("Puedes agregar máximo 3 videos por publicación.");
+        setComposerError(tProfile("maxVideosError"));
         return;
       }
 
       if (videoItems.length > 0) {
         setVideoUploadProgress(0);
-        setVideoUploadStatus("Validando videos...");
+        setVideoUploadStatus(tProfile("validatingVideos"));
 
         for (const videoItem of videoItems) {
           const duration = await getVideoDuration(videoItem.file);
@@ -797,7 +798,7 @@ export default function GroupPostsFeed({
           if (duration > VIDEO_MAX_DURATION_SECONDS) {
             setVideoUploadProgress(null);
             setVideoUploadStatus(null);
-            setComposerError("Cada video no puede durar más de 30 minutos.");
+            setComposerError(tProfile("videoDurationError"));
             return;
           }
         }
@@ -822,7 +823,7 @@ export default function GroupPostsFeed({
 
 const uploadedVideoCovers =
   videoCoverItems.length > 0
-    ? (setVideoUploadStatus("Subiendo portadas de videos..."),
+    ? (setVideoUploadStatus(tProfile("uploadingCovers")),
       await uploadPostImages({
         groupId,
         files: videoCoverItems.map((item) => item.coverFile as File),
@@ -838,7 +839,7 @@ const uploadedVideoCovers =
       );
 
       if (videoItems.length > 0) {
-        setVideoUploadStatus("Preparando subida de videos...");
+        setVideoUploadStatus(tProfile("preparingUpload"));
 
         const callable = httpsCallable<
           {
@@ -891,10 +892,10 @@ const uploadedVideoCovers =
         }
 
         if (!sharedPostId) {
-          throw new Error("No se pudo preparar la publicación de video.");
+          throw new Error(tProfile("preparePostError"));
         }
 
-        setVideoUploadStatus("Creando publicación con media...");
+        setVideoUploadStatus(tProfile("creatingPost"));
 
         const videoUploadsPayload = muxUploads.map((upload) => ({
           uploadId: upload.uploadId,
@@ -917,7 +918,7 @@ const uploadedVideoCovers =
           const upload = muxUploads[index];
 
           setVideoUploadStatus(
-            `Subiendo video ${index + 1} de ${muxUploads.length} a Mux...`,
+            tGroups("uploadingVideoToMux", { index: index + 1, total: muxUploads.length }),
           );
 
           await uploadVideoFileToMux({
@@ -928,7 +929,7 @@ const uploadedVideoCovers =
         }
 
         setVideoUploadStatus(
-          "Videos subidos. Mux los está procesando; aparecerán listos en unos momentos.",
+          tProfile("videosUploaded"),
         );
       } else if (uploadedImages.length > 0) {
         await createMediaPost({
@@ -970,7 +971,7 @@ const uploadedVideoCovers =
         setVideoUploadStatus(null);
       }, 2500);
     } catch (e: unknown) {
-      setComposerError((e instanceof Error ? e.message : null) ?? "No se pudo publicar.");
+      setComposerError((e instanceof Error ? e.message : null) ?? tGroups("couldNotPublish"));
       setVideoUploadStatus(null);
       setVideoUploadProgress(null);
     }
@@ -1347,7 +1348,7 @@ const shellStyle: CSSProperties = {
       <section style={shellStyle}>
       <div style={headerStyle}>
         <h2 style={titleStyle}>Publicaciones</h2>
-        <p style={subtitleStyle}>Feed de la comunidad.</p>
+        <p style={subtitleStyle}>{tGroups("communityFeedLabel")}</p>
       </div>
 
       {canCreatePosts ? (
@@ -1501,7 +1502,7 @@ const shellStyle: CSSProperties = {
         // (posts.length === 0 ya cubre el caso en que el live retransmitido
         //  venga por el carril del feed en vez de por el anillo)
         <div style={emptyPostsStyle}>
-          Todavía no hay publicaciones en esta comunidad.
+          {tGroups("noPostsYet")}
         </div>
       )}
 
@@ -1510,7 +1511,7 @@ const shellStyle: CSSProperties = {
         !loadingMore &&
         !hasMore &&
         groupSearchVisibleCount === 0 && (
-          <div style={noticeStyle}>No se encontraron publicaciones.</div>
+          <div style={noticeStyle}>{tGroups("noPostsFound")}</div>
         )}
 
       {(() => {
@@ -1586,7 +1587,7 @@ const shellStyle: CSSProperties = {
 
       {!groupSearchActive && !loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
         <div style={endOfFeedStyle}>
-          Ya viste todas las publicaciones disponibles.
+          {tProfile("allPostsLoaded")}
         </div>
       )}
 

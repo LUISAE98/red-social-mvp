@@ -101,6 +101,7 @@ export default function OwnerSidebarGreetings({
   const tServices = useTranslations("services");
   const tGroups = useTranslations("groups");
   const tSessions = useTranslations("sessions");
+  const tNav = useTranslations("nav");
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
   const pf = usePriceFormat();
@@ -1883,11 +1884,14 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           <PaymentSuccessCard
             avatarUrl={refundDone.avatar}
             providerName={refundDone.name ?? undefined}
-            productType="Devolución aplicada"
+            productType={tSessions("refundAppliedTitle")}
             successMessage={
               refundDone.credited > 0
-                ? `Se agregaron ${pf.formatPlain(refundDone.credited, { baseCurrency: SETTLEMENT_CURRENCY, code: true })} a tu crédito disponible. Úsalo para pagar otras experiencias dentro de la plataforma, o solicita el efectivo desde Experiencias.`
-                : "Tu solicitud de devolución se procesó. Revisa tu crédito disponible en Experiencias."
+                ? tSessions("refundCreditedMessage", {
+                    amount: pf.formatPlain(refundDone.credited, { baseCurrency: SETTLEMENT_CURRENCY, code: true }),
+                    section: tNav("tabExperiences"),
+                  })
+                : tSessions("refundProcessedMessage", { section: tNav("tabExperiences") })
             }
             onClose={() => setRefundDone(null)}
             stacked

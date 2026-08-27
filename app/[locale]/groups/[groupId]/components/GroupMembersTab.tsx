@@ -1352,7 +1352,7 @@ export default function GroupMembersTab({
                 value={muteDays}
                 onChange={(e) => setMuteDays(e.target.value)}
                 style={modalInputStyle}
-                placeholder="Ej. 7"
+                placeholder={tGroups("muteModalPlaceholder")}
                 disabled={actionLoadingForUid === muteTarget.resolvedUid}
               />
 

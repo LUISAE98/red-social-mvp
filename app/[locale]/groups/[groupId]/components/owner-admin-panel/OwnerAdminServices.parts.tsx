@@ -162,17 +162,22 @@ export type Props = {
 
 
 
-export const WEEKDAY_OPTIONS: Array<{
-  key: keyof WeeklyAvailabilityDraft;
-  label: string;
-}> = [
-  { key: "monday", label: "Lunes" },
-  { key: "tuesday", label: "Martes" },
-  { key: "wednesday", label: "Miércoles" },
-  { key: "thursday", label: "Jueves" },
-  { key: "friday", label: "Viernes" },
-  { key: "saturday", label: "Sábado" },
-  { key: "sunday", label: "Domingo" },
+/**
+ * Los días de la semana, SOLO por clave.
+ *
+ * Antes cada entrada traía además su nombre en español en un campo `label`
+ * que no leía nadie. Si alguna vez hay que pintarlos, salen de
+ * `Intl.DateTimeFormat(locale, { weekday: "long" })`, que ya los sabe en los
+ * 47 idiomas; escribirlos a mano sería empezar por el sitio equivocado.
+ */
+export const WEEKDAY_OPTIONS: Array<{ key: keyof WeeklyAvailabilityDraft }> = [
+  { key: "monday" },
+  { key: "tuesday" },
+  { key: "wednesday" },
+  { key: "thursday" },
+  { key: "friday" },
+  { key: "saturday" },
+  { key: "sunday" },
 ];
 
 

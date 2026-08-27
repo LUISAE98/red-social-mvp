@@ -78,6 +78,7 @@ export default function LiveChatViewer({
   creatorName,
   creatorAvatarUrl,
 }: Props) {
+  const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
   const tChat = useTranslations("chat");
   const locale = useLocale();
@@ -290,7 +291,7 @@ export default function LiveChatViewer({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onLike(); }}
-                    aria-label="Me gusta"
+                    aria-label={tChat("like")}
                     style={{
                       display: "flex", alignItems: "center", gap: 5,
                       background: "none", border: "none", padding: 0,
@@ -316,7 +317,7 @@ export default function LiveChatViewer({
                       letterSpacing: "0.01em",
                     }}
                   >
-                    Seguir
+                    {tCommon("follow")}
                   </button>
                 )}
               </div>
@@ -375,7 +376,7 @@ export default function LiveChatViewer({
               }}>
                 {isMuted ? (
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
-                    Fuiste silenciado en este live
+                    {tLive("mutedInLive")}
                   </div>
                 ) : (
                   <>
@@ -519,7 +520,7 @@ export default function LiveChatViewer({
             </div>
           ) : isMuted ? (
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
-              Fuiste silenciado en este live
+              {tLive("mutedInLive")}
             </div>
           ) : (
             <>
@@ -636,10 +637,11 @@ function HeartButton({ onClick }: { onClick: () => void }) {
 }
 
 function SendButton({ onClick, active }: { onClick: () => void; active: boolean }) {
+  const tCommon = useTranslations("common");
   // Flecha morada rellena y redondeada, sin contenedor. Siempre morada (no se apaga).
   const color = "#a855f7";
   return (
-    <IconButton label="Enviar" size="sm" tone="bare" shape="square" onClick={onClick} disabled={!active}>
+    <IconButton label={tCommon("send")} size="sm" tone="bare" shape="square" onClick={onClick} disabled={!active}>
       <svg width="23" height="23" viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" style={{ transform: "rotate(-20deg)" }} aria-hidden="true">
         <path d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z" />
       </svg>

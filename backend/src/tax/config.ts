@@ -10,8 +10,16 @@
 //    VERIFICADA por fiscalista y su moneda local. El 2% FX se DERIVA (moneda ≠ liquidación),
 //    no se pone a mano.
 //
-// ⚠️ LANZAMIENTO — SOLO MÉXICO: únicamente MX está configurado (IVA 16%, MXN). Un país
-//    SIN fila aquí = SIN impuesto y NO cobrable todavía.
+// ✅ ESTADO REAL (act. 2026-08-26): los **147 países de la tabla son cobrables**. Ninguno
+//    está en `cannot_sell`. Por quién recauda el impuesto: 81 lo cobra Vibra (`platform`),
+//    5 lo percibe el banco emisor (`issuer`) y en 61 no hay impuesto que cobrar (`none`).
+//
+//    ⚠️ El comentario anterior decía «SOLO MÉXICO» y llevaba engañando desde las altas del
+//    13 de agosto. Ojo al leer código que asuma un solo país: esa suposición ya no vale, y
+//    ha escondido al menos dos fallos reales (la base de la retención de IVA y el tipo de
+//    servicio que llega a `composeCharge`).
+//
+//    Un país SIN fila aquí = SIN impuesto y NO cobrable.
 //
 // 🔁 El país fiscal del COBRO debe determinarlo el backend de forma AUTORITATIVA (IP del
 //    request + país de la tarjeta), no confiar en el cliente. Ver useBuyerCountry (solo display).
