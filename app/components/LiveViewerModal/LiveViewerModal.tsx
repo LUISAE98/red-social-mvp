@@ -34,7 +34,8 @@ import ReportModal from "@/app/components/ReportModal/ReportModal";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import TaxNote from "@/components/payments/TaxNote";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
-import { createLiveAccessStripeIntent, createLiveDonationStripeIntent } from "@/lib/stripe/stripePayments";
+import LiveTicketPaywall from "@/components/live/LiveTicketPaywall";
+import { createLiveDonationStripeIntent } from "@/lib/stripe/stripePayments";
 import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
 import { FIXED_SERVICE_FEE_USD, DONATION_MIN_AMOUNT_USD } from "@/lib/currency/catalog";
 import {
@@ -64,6 +65,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const tLive = useTranslations("live");
   const locale = useLocale();
   const tPosts = useTranslations("posts");
+  const tFeed = useTranslations("feed");
   const pf = usePriceFormat();
   const formatMoney = pf.format;
   // Lo que MUESTRA una donación o un súper comentario es el total que pagó el fan: la base
@@ -996,13 +998,13 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           color: "rgba(255,255,255,0.9)",
           letterSpacing: "0.01em", textAlign: "center", padding: "0 32px",
         }}>
-          Fuiste baneado de este live
+          {tLive("bannedFromLive")}
         </span>
         <span style={{
           fontSize: 13, color: "rgba(255,255,255,0.4)",
           textAlign: "center", padding: "0 40px", lineHeight: 1.5,
         }}>
-          Ya no puedes acceder a esta transmisión
+          {tLive("bannedNoAccess")}
         </span>
         <button
           type="button"
@@ -1013,7 +1015,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             fontWeight: 600, cursor: "pointer", fontFamily: FONT,
           }}
         >
-          Cerrar
+          {tCommon("close")}
         </button>
       </div>,
       document.body
@@ -1100,7 +1102,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         )}
 
         <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24, textAlign: "center" }}>
-          Este live tiene ticket de entrada
+          {tLive("hasEntryTicket")}
         </span>
 
         {/* Precio */}
@@ -1138,40 +1140,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           fontSize: 11, color: "rgba(255,255,255,0.2)",
           marginTop: 16, textAlign: "center", maxWidth: 260, lineHeight: 1.5,
         }}>
-          Acceso de un solo pago. Sin suscripción.
+          {tLive("oneTimePayment")}
         </span>
 
-        <StripePaymentModal
+        {/* La pasarela es la MISMA que usa el feed de reels. Estuvo escrita
+            aqui dentro hasta que el reel tuvo que ofrecer el boleto sin abrir
+            el visor; copiarla habria dejado dos caminos de cobro para lo
+            mismo. */}
+        <LiveTicketPaywall
+          post={post}
           open={livePayOpen}
-          amount={ticketPrice > 0 ? ticketPrice + FIXED_SERVICE_FEE_USD : null}
-          amountCurrency={SETTLEMENT_CURRENCY}
-          createIntent={async (args) => {
-            // Invitado (sin login): firma anónima antes de cobrar → el ticket
-            // (liveAccess) se liga a ese uid y se verifica server-side; una cuenta
-            // real (otro uid) no lo hereda.
-            await resolveStatsUid();
-            return createLiveAccessStripeIntent({
-              postId: post.id,
-              saveCard: args.saveCard,
-              taxCountry: args.taxCountry,
-              savedPaymentMethodId: args.savedPaymentMethodId,
-              applyCredit: args.applyCredit,
-            });
-          }}
-          productType={tPosts("liveTicketProductType")}
-          providerName={post.authorName ?? post.authorUsername ?? undefined}
-          avatarUrl={post.authorAvatarUrl ?? null}
-          description={tPosts("liveTicketPayDescription")}
-          successMessage={tPosts("liveTicketPaySuccess")}
-          onPaid={() => {
-            // El acceso lo concede el backend al aprobar el pago; la suscripción a
-            // `liveAccess` lo refleja sola en cuanto el webhook lo materializa.
-            registrarCompraGeo({
-              creatorId: post.authorId,
-              serviceType: "live_ticket",
-              grossAmount: ticketPrice || undefined,
-            });
-          }}
           onClose={() => setLivePayOpen(false)}
         />
       </div>,
@@ -1550,7 +1528,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
         <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
           {/* Mute — igual que historias */}
-          <IconButton label={muted ? "Activar sonido" : "Silenciar"} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}>
+          <IconButton label={muted ? tCommon("unmute") : tLive("micMute")} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}>
             {muted ? (
               <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -1567,7 +1545,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
           {/* Fullscreen toggle — solo desktop */}
           {isDesktop && (
-            <IconButton label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); setIsFullscreen(f => !f); }}>
+            <IconButton label={isFullscreen ? tLive("exitFullscreen") : tCommon("fullscreen")} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); setIsFullscreen(f => !f); }}>
               {isFullscreen ? (
                 <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
@@ -1584,7 +1562,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
           {/* Expand/compress — solo celular horizontal (no portrait) */}
           {!isDesktop && !isPortrait && (
-            <IconButton label={mobileFsHorizontal ? "Reducir pantalla" : "Pantalla completa"} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); setMobileFsHorizontal(f => !f); }}>
+            <IconButton label={mobileFsHorizontal ? tLive("shrinkScreen") : tCommon("fullscreen")} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); setMobileFsHorizontal(f => !f); }}>
               {mobileFsHorizontal ? (
                 <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
@@ -1683,7 +1661,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             animation: "lvPulse 1.4s ease-in-out infinite",
           }} />
         )}
-        {isLive ? "EN VIVO" : "Finalizado"}
+        {isLive ? tPosts("mediaLiveBadge") : tLive("statusEnded")}
       </>
     );
 
@@ -1691,7 +1669,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       <button
         type="button"
         onClick={jumpToLive}
-        aria-label="Ir al momento actual del live"
+        aria-label={tLive("goToLiveMoment")}
         style={{ ...sharedStyle, cursor: "pointer" }}
       >
         {inner}
@@ -1777,7 +1755,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               <line x1="9" y1="9" x2="15" y2="15" />
             </svg>
             <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
-              El creador decidió no subir el video
+              {tFeed("creatorNoVideoUpload")}
             </span>
           </>
         ) : !isCF && !confirmed ? (
@@ -1788,7 +1766,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.65)" />
             </svg>
             <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
-              El creador aún no sube el video
+              {tFeed("creatorVideoNotUploaded")}
             </span>
           </>
         ) : (
@@ -1829,13 +1807,13 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           color: "rgba(255,255,255,0.85)",
           letterSpacing: "0.01em", textAlign: "center", padding: "0 24px",
         }}>
-          Fuiste baneado de este live
+          {tLive("bannedFromLive")}
         </span>
         <span style={{
           fontSize: 12, color: "rgba(255,255,255,0.4)",
           fontFamily: FONT, textAlign: "center", padding: "0 32px",
         }}>
-          Ya no puedes participar en esta transmisión
+          {tLive("bannedNoParticipate")}
         </span>
       </div>
     );
@@ -1847,7 +1825,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       <>
         {!ready && liveData?.coverUrl && (
           <Image
-            src={liveData.coverUrl} alt={liveData.title ?? "En vivo"}
+            src={liveData.coverUrl} alt={liveData.title ?? tLive("statusLive")}
             fill
             style={{ objectFit: "cover", opacity: 0.3 }}
           />
@@ -1864,7 +1842,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
               <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.7)" />
             </svg>
-            Conectando al en vivo...
+            {tLive("connectingToLive")}
           </div>
         )}
         {error && (
@@ -1879,7 +1857,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
                 </svg>
-                La transmisión ha finalizado.
+                {tLive("broadcastHasFinished")}
               </>
             ) : (
               <>
@@ -1887,7 +1865,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                   <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
                   <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.7)" />
                 </svg>
-                Conectando con el stream…
+                {tLive("connectingToStream")}
                 {isLive && (
                   <button
                     type="button"
@@ -1900,7 +1878,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                       cursor: "pointer", fontFamily: FONT,
                     }}
                   >
-                    Reintentar ahora
+                    {tLive("retryNow")}
                   </button>
                 )}
               </>
@@ -2355,7 +2333,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                   fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
                 }}
               >
-                Gestionar
+                {tLive("manageAction")}
               </button>
             )}
             {/* Like debajo del botón Seguir/Gestionar (lo empuja hacia abajo, no a la izquierda) */}
@@ -2419,7 +2397,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                   color: "rgba(255,255,255,0.65)", cursor: "pointer", fontFamily: FONT,
                 }}
               >
-                ...más
+                {tLive("moreEllipsis")}
               </span>
             </div>
           )

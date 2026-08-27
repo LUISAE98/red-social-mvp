@@ -21,6 +21,10 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { ReelLivePost } from "@/lib/reels/reelItems";
 import FollowCreatorButton from "@/components/social/FollowCreatorButton";
+import LiveTicketPaywall, {
+  isPaidLive,
+  useLiveTicketTotal,
+} from "@/components/live/LiveTicketPaywall";
 
 /**
  * Aire bajo los botones de la última fila, en píxeles.
@@ -110,6 +114,17 @@ export default function ReelLiveSlide({
   // en vez de recortarse. Es la misma regla que ya siguen las historias.
   const [isPortrait, setIsPortrait] = useState(true);
 
+  // Un live de boleto se ENSEÑA, no se esconde: es su escaparate. Pero se
+  // enseña bloqueado.
+  //
+  // ⚠️ El desenfoque es una CORTINA, no una puerta: el video sigue llegando al
+  // navegador y quitar un filtro de CSS es cosa de diez segundos. Lo que de
+  // verdad cierra el paso es que el proxy exija el boleto antes de servir el
+  // stream, y eso vive en `/api/cf-viewer-proxy`. Esto de aquí es lo que se ve.
+  const bloqueado = isPaidLive(post);
+  const precioBoleto = useLiveTicketTotal(post);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+
   const avatarSz = compact ? 40 : 54;
   const avatarInset = compact ? 5 : 6;
   // Aire por debajo de los botones. Con `safeBottom` numérico (historias en el
@@ -125,7 +140,17 @@ export default function ReelLiveSlide({
     <>
       {/* El reproductor ocupa todo y recibe el toque. Tocar en cualquier sitio
           entra al live, que es lo que la gente intenta hacer por instinto. */}
-      <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 1,
+          filter: bloqueado ? "blur(22px)" : undefined,
+          // El desenfoque encoge la imagen por los bordes; se agranda un poco
+          // para que no asomen franjas transparentes.
+          transform: bloqueado ? "scale(1.08)" : undefined,
+        }}
+      >
         <LiveInlinePlayer
           postId={post.id}
           hlsUrl={ld?.hlsUrl ?? null}
@@ -138,9 +163,9 @@ export default function ReelLiveSlide({
           fit={isPortrait ? "cover" : "contain"}
           onOrientationDetected={setIsPortrait}
           paused={paused}
-          initialMuted={muted}
+          initialMuted={bloqueado ? true : muted}
           onMutedChange={onMutedChange}
-          onClick={onOpen}
+          onClick={() => (bloqueado ? setPaywallOpen(true) : onOpen())}
         />
       </div>
 
@@ -237,7 +262,10 @@ export default function ReelLiveSlide({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onOpen();
+            // Con boleto, el toque lleva a la caja y NO al live. Entrar al visor
+            // solo para toparse con el mismo muro es un paso de mas.
+            if (bloqueado) setPaywallOpen(true);
+            else onOpen();
           }}
           style={{
             flex: 1,
@@ -253,9 +281,22 @@ export default function ReelLiveSlide({
             WebkitTapHighlightColor: "transparent",
           }}
         >
-          {tLive("goToLive")}
+          {bloqueado
+            ? tLive("ticketToEnterLive", { price: precioBoleto ?? "" })
+            : tLive("goToLive")}
         </button>
       </div>
+
+      {/* La caja se abre ENCIMA, sin desmontar el reel: al cerrarla se vuelve a
+          la misma historia y a la misma posicion. Es la misma pasarela que usa
+          el visor del live. */}
+      {bloqueado && (
+        <LiveTicketPaywall
+          post={post}
+          open={paywallOpen}
+          onClose={() => setPaywallOpen(false)}
+        />
+      )}
     </>
   );
 }
