@@ -20,6 +20,7 @@ import { reserveCreditAndSplit, materializeCreditOnlyPurchase } from "./chargeWi
 import { revertBuyerCreditSpend } from "../../wallet/buyerCredit";
 import { stripeIdempotencyKey } from "./idempotency";
 import { SERVICE_MIN_PRICE_USD, SETTLEMENT_CURRENCY } from "../../wallet/ledger";
+import type { LedgerServiceType } from "../../wallet/ledger";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -60,6 +61,8 @@ export const createGreetingStripeIntent = onCall(
     // precio lo lee el servidor de su perfil, así que no era un agujero de seguridad, pero
     // con un cliente modificado se podía dejar guardado un precio por debajo y el cobro
     // pasaba igual.
+    // Tipo de servicio, que decide el tratamiento de exportación del IVA mexicano.
+    const tipoServicio = (intent.serviceType ?? null) as LedgerServiceType | null;
     const minServicio = SERVICE_MIN_PRICE_USD[String(intent.serviceType ?? "greeting")];
     if (minServicio != null && base < minServicio) {
       throw new HttpsError(
@@ -97,7 +100,9 @@ export const createGreetingStripeIntent = onCall(
     // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
-    const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(composeCharge(base, country));
+    const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(
+      composeCharge(base, country, { serviceType: tipoServicio })
+    );
     const totalMxn = charge.chargedAmount;
 
     // Saldo a favor: reserva el crédito y calcula el RESTANTE a cobrar a la tarjeta (hold).

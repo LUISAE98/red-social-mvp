@@ -72,6 +72,33 @@ export const TASAS_POR_EJERCICIO: Readonly<Record<Ejercicio, TasasEjercicio>> = 
 /** Ejercicio vigente. Al cambiar de año se agrega la fila y se mueve esto. */
 export const EJERCICIO_VIGENTE: Ejercicio = 2026;
 
+
+/**
+ * Ejercicio fiscal al que pertenece una operación.
+ *
+ * ⚠️ NO uses `EJERCICIO_VIGENTE` para liquidar: es una constante que se sube a mano y, si se
+ * olvida en enero, todo el año nuevo se calcularía con las tasas del anterior. Peor aún, una
+ * venta del 31 de diciembre que se liquida el 2 de enero pertenece al ejercicio de la VENTA,
+ * no al del día en que se procesó.
+ *
+ * Por eso el ejercicio se deriva de la fecha de la operación, y el resultado se estampa.
+ */
+export function ejercicioDeFecha(fecha: Date | string | number): Ejercicio {
+  const d = fecha instanceof Date ? fecha : new Date(fecha);
+  const anio = d.getUTCFullYear();
+  if (!Number.isFinite(anio)) throw new Error("Fecha inválida para determinar el ejercicio.");
+  return anio;
+}
+
+/**
+ * Versión del motor. Se estampa en cada liquidación junto al ejercicio.
+ *
+ * El ejercicio dice qué TASAS se usaron; esto dice qué FÓRMULA. Si mañana cambia la mecánica
+ * —por ejemplo si el impuesto de la comisión pasara a ir dentro del 25%— hay que poder
+ * distinguir un asiento viejo de uno nuevo sin adivinarlo por la fecha.
+ */
+export const MOTOR_VERSION = 1;
+
 export function tasasDe(ejercicio: Ejercicio): TasasEjercicio {
   const t = TASAS_POR_EJERCICIO[ejercicio];
   if (!t) throw new Error(`Sin tasas fiscales para el ejercicio ${ejercicio}.`);
@@ -105,6 +132,8 @@ export type EntradaVenta = {
   serviceType?: LedgerServiceType | null;
   /** Tasa del impuesto mexicano. Se inyecta para no acoplar el motor a la tabla de países. */
   mxVatRate?: number;
+  /** Tratamiento ya resuelto por el cobro. Si viene, manda sobre el cálculo local. */
+  tratamiento?: TratamientoIvaMx;
 };
 
 export type ResultadoVenta = {
@@ -134,6 +163,12 @@ const IVA_MX = 0.16;
  * ⚠️ El impuesto del país del comprador NO se calcula aquí: lo resuelve la tabla de países
  * (`countryTaxConfig`), que sabe además si Vibra está dada de alta para recaudarlo. Este
  * motor solo necesita el IVA mexicano, porque es el único retenible.
+ *
+ * 🚨 EN EL COBRO REAL manda `composeCharge`, no esta función. Allí el tratamiento sale de
+ * `mxVatTreatmentForSale`, que es la tabla que un fiscalista puede editar servicio por
+ * servicio. Ésta existe para PREVISUALIZAR y para alimentar `resolveSettlement` en pruebas.
+ * Si algún día divergen, la que vale es la del cobro — por eso `tratamiento` se puede
+ * inyectar, para pasarle el valor autoritativo en vez de recalcularlo.
  */
 export function resolveSaleTax(entrada: EntradaVenta): ResultadoVenta {
   const base = round2(entrada.base);
@@ -142,7 +177,7 @@ export function resolveSaleTax(entrada: EntradaVenta): ResultadoVenta {
 
   if (esMexicano) {
     return {
-      tratamiento: "domestic_16",
+      tratamiento: entrada.tratamiento ?? "domestic_16",
       mxVatRate: rate,
       mxVatAmount: round2(base * rate),
       mxVatAbsorbido: 0,
@@ -150,8 +185,8 @@ export function resolveSaleTax(entrada: EntradaVenta): ResultadoVenta {
   }
 
   // Comprador fuera. Los 11 servicios se tratan como exportación (confirmado 2026-08-26);
-  // `export_taxable` queda por si algún servicio futuro no encuadra en el 29-IV.
-  const tratamiento: TratamientoIvaMx = "export_zero";
+  // `export_taxable` queda por si algún servicio futuro no encuadre en el 29-IV.
+  const tratamiento: TratamientoIvaMx = entrada.tratamiento ?? "export_zero";
   return {
     tratamiento,
     mxVatRate: 0,
@@ -216,6 +251,8 @@ export type ResultadoLiquidacion = {
   neto: number;
   /** Ejercicio cuyas tasas se aplicaron. Se estampa para poder recalcular después. */
   ejercicio: Ejercicio;
+  /** Versión de la FÓRMULA, distinta del ejercicio, que es la versión de las TASAS. */
+  motorVersion: number;
 };
 
 /**
@@ -285,6 +322,7 @@ export function resolveSettlement(entrada: EntradaLiquidacion): ResultadoLiquida
     ivaRetenido,
     neto,
     ejercicio,
+    motorVersion: MOTOR_VERSION,
   };
 }
 

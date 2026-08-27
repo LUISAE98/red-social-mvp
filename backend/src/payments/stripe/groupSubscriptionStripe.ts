@@ -173,7 +173,7 @@ export const createGroupSubscription = onCall(
     //   · el redondeo comercial — así que la pasarela enseñaba un total (que sí lo aplica)
     //     y se cobraba otro más bajo.
     const { charge: composicion, displayAmount } = await applyCharmRounding(
-      composeCharge(sub.price, country)
+      composeCharge(sub.price, country, { serviceType: "subscription" })
     );
     const charge = {
       base: composicion.baseAmount,

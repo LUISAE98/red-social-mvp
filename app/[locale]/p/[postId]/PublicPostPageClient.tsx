@@ -20,6 +20,7 @@ import PostFlamesPanel, {
   type PostFlameUser,
 } from "@/app/groups/[groupId]/components/posts/PostFlamesPanel";
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 
 export type PublicPostView = {
   id: string;
@@ -543,6 +544,23 @@ export default function PublicPostPageClient({
             Vibra
           </Link>
 
+          {/* Buscador de LAPTOP: entre la marca y el botón de entrar, como en el
+              resto de pantallas públicas. En celular no cabe en esa fila, así que
+              ahí se esconde y se pinta el de abajo.
+
+              El corte es 900px, el mismo que usa RootChrome para separar laptop
+              de celular en el shell público; con el "sm" de Tailwind (640px) el
+              buscador aparecería en la fila estando aún demasiado estrecha. */}
+          <div className="hidden min-w-0 flex-1 justify-center min-[901px]:flex">
+            <div className="w-full max-w-[460px] min-w-0">
+              <GroupsSearchPanel
+                fontStack="inherit"
+                showCreateGroup={false}
+                createGroupHref="/login"
+              />
+            </div>
+          </div>
+
           {/* "Login" estaba en inglés en una página que por lo demás va toda en
               español, y con un recuadro de borde que no existe en ningún otro
               sitio del producto. Ahora es el mismo botón —y la misma palabra—
@@ -550,6 +568,16 @@ export default function PublicPostPageClient({
           <Link href={entryHref} className="vibra-auth-cta">
             Iniciar sesión
           </Link>
+        </div>
+
+        {/* Buscador de CELULAR: debajo del header y encima de la publicación. */}
+        <div className="px-4 min-[901px]:hidden sm:px-0">
+          <GroupsSearchPanel
+            fontStack="inherit"
+            showCreateGroup={false}
+            createGroupHref="/login"
+            showCloseSearch={false}
+          />
         </div>
 
         <div className="relative z-10">

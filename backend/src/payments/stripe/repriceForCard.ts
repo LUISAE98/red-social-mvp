@@ -26,6 +26,7 @@ import { resolveTaxCountry } from "../../tax/resolveCountry";
 import { composeCharge, chargeFields } from "../../tax/composeCharge";
 import { resolvePresentment, applyCharmRounding } from "../../tax/presentment";
 import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
+import type { LedgerServiceType } from "../../wallet/ledger";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -72,6 +73,9 @@ export const repriceStripeIntentForCard = onCall(
     if (!snap.exists) throw new HttpsError("not-found", "El pago no existe.");
 
     const intent = snap.data() ?? {};
+
+    // Tipo de servicio, que decide el tratamiento de exportación del IVA mexicano.
+    const tipoServicio = (intent.serviceType ?? null) as LedgerServiceType | null;
 
     // Solo el comprador dueño del intent puede re-cotizarlo.
     if (intent.buyerId !== uid) {
@@ -131,7 +135,11 @@ export const repriceStripeIntentForCard = onCall(
 
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
-    const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(composeCharge(base, resolved.country));
+    // El re-cálculo con el país de la tarjeta tiene que usar el MISMO servicio que el cobro
+    // original, o el tratamiento de exportación podría salir distinto entre los dos.
+    const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(
+      composeCharge(base, resolved.country, { serviceType: tipoServicio })
+    );
     // La moneda de cobro también puede cambiar: si la IP decía Alemania y la tarjeta resulta
     // mexicana, se pasa de cobrar en EUR a cobrar en MXN.
     // El total íntegro: se cobra EXACTAMENTE el precio comercial que ve el comprador.

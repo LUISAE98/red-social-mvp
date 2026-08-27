@@ -103,7 +103,7 @@ export const createDonationStripeIntent = onCall(
     // eligió la cifra. El desglose se despeja hacia atrás desde su número.
     const totalExactoLocal = round2(Number(data.exactTotalLocal ?? 0)) || null;
     const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(
-      composeCharge(base, country),
+      composeCharge(base, country, { serviceType: "profile_donation" }),
       totalExactoLocal
     );
     const totalMxn = charge.chargedAmount;

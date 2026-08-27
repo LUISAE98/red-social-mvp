@@ -144,7 +144,11 @@ export const createPremiumPostStripeIntent = onCall(
     // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
-    const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(composeCharge(base, country));
+    // El VOD y el post premium se cobran igual pero son servicios distintos ante el SAT:
+    // lo decide `liveData`, igual que en el ledger (`onPostAccessLedger`).
+    const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(
+      composeCharge(base, country, { serviceType: post.liveData != null ? "vod_ticket" : "premium_post" })
+    );
     const totalMxn = charge.chargedAmount;
     // Saldo a favor: reserva el crédito y calcula el RESTANTE a cobrar a la tarjeta.
     const { creditApplied, remainderMxn, presentment } = await reserveCreditAndSplit({

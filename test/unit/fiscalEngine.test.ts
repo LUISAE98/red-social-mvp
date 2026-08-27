@@ -11,6 +11,8 @@ import {
   requiereCfdiRetenciones,
   TASAS_POR_EJERCICIO,
   EJERCICIO_VIGENTE,
+  ejercicioDeFecha,
+  MOTOR_VERSION,
   type PerfilFiscalCreador,
 } from "../../backend/src/tax/fiscalEngine";
 import {
@@ -174,6 +176,31 @@ describe("motor fiscal / reglas estructurales", () => {
 
   it("un ejercicio sin tasas falla en vez de inventarlas", () => {
     expect(() => settleBack({ base: BASE, mxVatAmount: 16, creador: mxConRfc, ejercicio: 2099 })).toThrow();
+  });
+});
+
+
+describe("motor fiscal / ejercicio y versión", () => {
+  it("el ejercicio sale de la fecha de la operación, no del reloj", () => {
+    expect(ejercicioDeFecha("2026-12-31T23:00:00Z")).toBe(2026);
+    expect(ejercicioDeFecha("2027-01-01T00:30:00Z")).toBe(2027);
+  });
+
+  it("una venta de fin de año pertenece al ejercicio de la venta, no al de su liquidación", () => {
+    // Se vende el 31 de diciembre y se liquida el 2 de enero: manda diciembre.
+    expect(ejercicioDeFecha(new Date("2026-12-31T18:00:00Z"))).toBe(2026);
+  });
+
+  it("cada liquidación estampa la versión de la fórmula, aparte del ejercicio", () => {
+    const liq = settleBack({ base: BASE, mxVatAmount: 16, creador: mxConRfc });
+    expect(liq.motorVersion).toBe(MOTOR_VERSION);
+    expect(liq.ejercicio).toBe(EJERCICIO_VIGENTE);
+  });
+
+  it("el tratamiento del cobro manda sobre el que calcularía el motor", () => {
+    // Si el cobro resolvió `export_taxable`, el motor no debe sobreescribirlo con su default.
+    const v = saleBack({ base: BASE, buyerCountry: "ES", serviceType: "vod_ticket", tratamiento: "export_taxable" });
+    expect(v.tratamiento).toBe("export_taxable");
   });
 });
 
