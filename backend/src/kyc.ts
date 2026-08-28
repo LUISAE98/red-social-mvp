@@ -298,8 +298,35 @@ async function fetchDeclineReason(sessionId: string | undefined): Promise<string
  * resto del sistema.
  */
 const ISO3_A_ISO2: Record<string, string> = {
-  MEX: "MX", USA: "US", ESP: "ES", ARG: "AR", COL: "CO", CHL: "CL", PER: "PE",
-  BRA: "BR", CAN: "CA", GBR: "GB", FRA: "FR", DEU: "DE", ITA: "IT", PRT: "PT",
+  // América
+  MEX: "MX", USA: "US", CAN: "CA", ARG: "AR", BRA: "BR", CHL: "CL", COL: "CO",
+  PER: "PE", URY: "UY", ECU: "EC", PRY: "PY", BOL: "BO", CRI: "CR", DOM: "DO",
+  SLV: "SV", GTM: "GT", HND: "HN", NIC: "NI", PAN: "PA", TTO: "TT", JAM: "JM",
+  LCA: "LC", ATG: "AG", PRI: "PR", VIR: "VI", HTI: "HT", BLZ: "BZ", SUR: "SR",
+  GUF: "GF", GRD: "GD", CYM: "KY", BMU: "BM", TCA: "TC", VGB: "VG", BES: "BQ",
+  VCT: "VC", KNA: "KN", DMA: "DM", AIA: "AI", MSR: "MS", GLP: "GP", MTQ: "MQ",
+  SPM: "PM", GRL: "GL",
+  // Europa
+  ESP: "ES", PRT: "PT", FRA: "FR", DEU: "DE", ITA: "IT", GBR: "GB", IRL: "IE",
+  NLD: "NL", BEL: "BE", LUX: "LU", AUT: "AT", CHE: "CH", POL: "PL", CZE: "CZ",
+  SVK: "SK", HUN: "HU", ROU: "RO", BGR: "BG", GRC: "GR", HRV: "HR", SVN: "SI",
+  EST: "EE", LVA: "LV", LTU: "LT", FIN: "FI", SWE: "SE", DNK: "DK", NOR: "NO",
+  ISL: "IS", MLT: "MT", CYP: "CY", MCO: "MC", SMR: "SM", AND: "AD", VAT: "VA",
+  GIB: "GI", JEY: "JE", GGY: "GG", FRO: "FO", SJM: "SJ", ALB: "AL", SRB: "RS",
+  BIH: "BA", MNE: "ME", MDA: "MD", TUR: "TR",
+  // Asia y Medio Oriente
+  JPN: "JP", KOR: "KR", TWN: "TW", HKG: "HK", SGP: "SG", MYS: "MY", THA: "TH",
+  PHL: "PH", IDN: "ID", VNM: "VN", KHM: "KH", LKA: "LK", BTN: "BT", BRN: "BN",
+  MNG: "MN", NPL: "NP", MDV: "MV", AZE: "AZ", ARE: "AE", SAU: "SA", QAT: "QA",
+  KWT: "KW", JOR: "JO",
+  // África
+  MAR: "MA", EGY: "EG", ZAF: "ZA", NGA: "NG", BWA: "BW", CIV: "CI", MYT: "YT",
+  REU: "RE",
+  // Oceanía
+  AUS: "AU", NZL: "NZ", FJI: "FJ", PNG: "PG", NCL: "NC", PYF: "PF", TON: "TO",
+  SLB: "SB", VUT: "VU", WSM: "WS", KIR: "KI", NRU: "NR", TUV: "TV", NIU: "NU",
+  WLF: "WF", FSM: "FM", MHL: "MH", ASM: "AS", MNP: "MP", GUM: "GU", NFK: "NF",
+  CXR: "CX", CCK: "CC", TKL: "TK", PCN: "PN",
 };
 
 function normalizarPais(valor: unknown): string | null {
@@ -310,24 +337,53 @@ function normalizarPais(valor: unknown): string | null {
   return null;
 }
 
+/**
+ * Saca el país del documento de un payload de Didit.
+ *
+ * ⚠️ **Las claves son PLURALES y son ARRAYS.** La API v3 devuelve `id_verifications: [...]`,
+ * no `id_verification: {...}`. Buscar el singular no encontraba nada y el país se quedaba
+ * vacío en silencio, con la verificación aprobada — que es peor que fallar, porque el creador
+ * veía su identidad en verde y el alta de cobro le pedía «verifica tu identidad».
+ *
+ * Se prueban varias formas porque el webhook y el endpoint de decisión no traen la misma, y
+ * ninguna está documentada como estable.
+ */
 function extractDocumentCountry(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const root = payload as Record<string, unknown>;
   const candidatos: unknown[] = [root, root.decision];
+
+  // El país que MÁS vale es el del documento; la nacionalidad va después porque un mexicano
+  // con documento español tributa donde vive, no donde nació.
+  const CAMPOS = ["issuing_state", "issuing_country", "country", "nationality"];
+  const CLAVES = [
+    "id_verifications", "nfc_verifications", "document_ai_documents",
+    "id_verification", "nfc", "document",
+  ];
+
   for (const src of candidatos) {
     if (!src || typeof src !== "object") continue;
     const o = src as Record<string, unknown>;
-    // El documento puede venir bajo distintas claves según el flujo (OCR o NFC).
-    for (const clave of ["id_verification", "nfc", "document"]) {
-      const d = o[clave] as Record<string, unknown> | undefined;
-      if (!d || typeof d !== "object") continue;
-      for (const campo of ["issuing_state", "issuing_country", "country", "nationality"]) {
-        const p = normalizarPais(d[campo]);
-        if (p) return p;
+
+    for (const clave of CLAVES) {
+      const bruto = o[clave];
+      if (!bruto) continue;
+      // Array o objeto suelto, según la forma que traiga esta versión del payload.
+      const entradas = Array.isArray(bruto) ? bruto : [bruto];
+      for (const d of entradas) {
+        if (!d || typeof d !== "object") continue;
+        for (const campo of CAMPOS) {
+          const p = normalizarPais((d as Record<string, unknown>)[campo]);
+          if (p) return p;
+        }
       }
     }
-    const directo = normalizarPais(o.issuing_state ?? o.document_country);
-    if (directo) return directo;
+
+    // Y en la raíz, que es donde lo pone el listado de sesiones.
+    for (const campo of [...CAMPOS, "document_country"]) {
+      const p = normalizarPais(o[campo]);
+      if (p) return p;
+    }
   }
   return null;
 }
@@ -349,6 +405,43 @@ async function fetchDocumentCountry(sessionId: string | undefined): Promise<stri
 // ────────────────────────────────────────────────────────────────────────────
 // diditWebhook — recibe el resultado de la verificación y actualiza kyc/{uid}.
 // ────────────────────────────────────────────────────────────────────────────
+/**
+ * El país del documento de un creador ya verificado, curándose solo si falta.
+ *
+ * Lo normal es que lo haya escrito el webhook al aprobar. Pero hay dos casos en los que no
+ * está y hay que ir a buscarlo:
+ *
+ * - Verificaciones **anteriores al 2026-08-28**, cuando el extractor buscaba las claves en
+ *   singular (`id_verification`) y la API las devuelve en plural y como array. El país se
+ *   quedaba vacío en silencio, con el KYC aprobado.
+ * - Aprobaciones por **revisión manual**, donde el evento puede llegar sin los datos del
+ *   documento.
+ *
+ * Se consulta a Didit y se guarda, así que cada creador se repara la primera vez que lo
+ * necesita y no hace falta un backfill.
+ */
+export async function resolverPaisDocumento(uid: string): Promise<string | null> {
+  const ref = db.collection("kyc").doc(uid);
+  const d = (await ref.get()).data() ?? {};
+
+  const guardado = normalizarPais(d.documentCountry);
+  if (guardado) return guardado;
+
+  // Sin KYC aprobado no hay país que buscar, y preguntarlo sería gastar una llamada.
+  if (d.kycApproved !== true) return null;
+
+  const sessionId = typeof d.diditSessionId === "string" ? d.diditSessionId : undefined;
+  const pais = await fetchDocumentCountry(sessionId);
+  if (!pais) {
+    logger.warn("kyc_pais_no_resuelto", { uid, sessionId: sessionId ?? null });
+    return null;
+  }
+
+  await ref.set({ documentCountry: pais, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  logger.info("kyc_pais_recuperado", { uid, pais });
+  return pais;
+}
+
 export const diditWebhook = onRequest(
   {
     region: REGION,

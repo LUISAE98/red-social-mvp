@@ -1462,62 +1462,77 @@ SDK de preview: `stripeClient` ya acepta una versión de API por petición (lo u
 ⚠️ Los webhooks son **thin events** y `stripeWebhook` no los entiende. Se puede empezar
 consultando el estado al volver del enlace y dejar el webhook para después.
 
-### 8-octies.8 Los países pagables — CERRADO (2026-08-27)
+### 8-octies.8 Rutas de pago y cobertura — CERRADO (2026-08-27)
 
-> Verificado contra la **tabla oficial de países-destino** de Stripe e implementado. Esta
-> sección sustituye a una versión anterior que traía datos equivocados.
+#### Qué se le pide a cada creador
 
-#### Lo que salió
+| | Todos | Stripe | Wallbit | Mexicano |
+|---|---|---|---|---|
+| 1. Identidad (Didit) | ✅ | ✅ | ✅ | ✅ |
+| 2a. Alta de cuenta Stripe | | ✅ | ❌ | ✅ |
+| 2b. Datos de Wallbit | | ❌ | ✅ | |
+| 3. Datos fiscales + CSD | | | | ✅ |
 
-| Grupo | Países |
-|---|---|
-| Estándar, 25% y 300 USD | **46** |
-| Transferencia cara, 30% y 500 USD | **29** |
-| Territorios que cobran por otro país | **4** |
-| Sin ruta de pago | **68** |
+El KYC es de los **89 países pagables**, sin excepción. El tercer paso aparece cuando el país
+del **documento del KYC** o el de la **cuenta de cobro** dicen México; basta con que una de las
+dos lo diga.
 
-El único cambio respecto a la primera clasificación fue **Costa de Marfil**, que sí cobra por
-transferencia local. Todo lo demás coincidía.
+#### El reparto de los 147
 
-#### ⚠️ El error que se cometió por el camino, para no repetirlo
-
-Se consultó `GET /v2/money_management/payout_methods/bank_account_spec` y, como devolvía
-especificación para Brasil, Argentina, Colombia, Chile y Uruguay, se concluyó que se les
-podía pagar. **Falso.** Ese endpoint devuelve el FORMATO de cuenta bancaria de un país —para
-validar los campos de un formulario— y responde también para países a los que Stripe no
-envía dinero.
-
-La fuente autoritativa es la tabla de **Requirements for supported recipient countries** en
-`docs.stripe.com/global-payouts/recipient-creation`. Da el país, la moneda y **el método**
-(*Local bank method* o *Wire*), que es justo lo que decide el tramo. Es idéntica para empresa
-y para persona física.
-
-#### Los cuatro territorios que cobran por otro país
-
-| Código | Territorio | Cobra como | Por qué |
+| Ruta | Comisión | Mínimo | Países |
 |---|---|---|---|
-| `PR` | Puerto Rico | `US` | Banca estadounidense, routing number |
-| `VI` | Islas Vírgenes de EE. UU. | `US` | Banca estadounidense |
-| `IC` | Islas Canarias | `ES` | IBAN español |
-| `EA` | Ceuta y Melilla | `ES` | IBAN español |
+| Stripe, transferencia local | 25% | 300 USD | 46 |
+| Stripe, solo wire | 30% | 500 USD | 27 |
+| **Wallbit** | **25%** | **300 USD** | **12** |
+| Territorios por cuenta ajena | 25% | 300 USD | 4 |
+| Sin ruta de pago | — | — | 58 |
 
-Se resuelven con `PAYOUT_COUNTRY_ALIAS` antes de buscar el nivel. `IC` y `EA` no son ISO
-3166: vienen de la tabla fiscal, donde existen porque su IVA es distinto al peninsular.
+#### ⚠️ Cómo se verifica la cobertura de Stripe, y cómo NO
+
+Se cometieron **dos errores opuestos** el mismo día antes de dar con la forma correcta:
+
+| Fuente | Qué pasó |
+|---|---|
+| `bank_account_spec` | Se pasa de largo. Devuelve el FORMATO de cuenta de países a los que Stripe no paga. Dio 90 pagables, 15 de más |
+| Tabla de la documentación | Se queda corta. No lista Argentina, Colombia, Nigeria ni Camboya, que sí cobran. Dio 75, 4 de menos |
+| **Crear un destinatario y leer sus capacidades** | ✅ La única fiable |
+
+La prueba real está en `scripts/sondearPayouts.sh`. Crea un destinatario de prueba por país en
+el sandbox y lee el estado de sus capacidades:
+
+```
+unsupported -> no existe la ruta.       NO se puede pagar.
+restricted  -> existe, faltan datos.    SI se puede pagar.
+active      -> lista.
+```
+
+⚠️ La trampa está en `restricted`: **México sale `restricted` y a México sí se le paga.** Leerlo
+como «no se puede» fue lo que dejó fuera a Argentina y Colombia.
+
+#### La ruta de Wallbit
+
+12 países donde Stripe no llega o solo llega por wire. Cobertura según
+`paiseswallbit.md`.
+
+```
+AR BR BO CO GT PA EC SV CL UY PY HN
+```
+
+⚠️ **En CL, UY, PY y HN Wallbit no tiene retiro a banco local**: el creador cobra en dólares y
+su única salida documentada es cripto. Entran por decisión de producto —la alternativa era no
+pagarles nada— y llevan la marca `soloDolares`, que dispara un aviso en el alta.
+
+🚧 **El cuestionario de Didit donde darán sus datos de Wallbit todavía no existe.** Hasta
+entonces el gate queda cerrado para ellos a propósito: abrirlo sin saber a dónde mandar el
+dinero sería el mismo fallo que ya se arregló con Stripe.
 
 #### 🚨 Los sin ruta NO pierden el impuesto
 
-Los países sin ruta de pago **siguen en los 147 de la tabla fiscal**, siguen pagando el IVA
-de su país y siguen generando su factura. `tax/config.ts` no se tocó y sigue teniendo 147
-filas. Lo único que no pueden es **cobrar**.
-
-#### Lo que queda abierto
-
-| | |
-|---|---|
-| Qué hacer con los países sin ruta | 🔴 Decisión de producto. Lista en `docs/paises-sin-ruta-de-pago.tsv` |
-| Estimar la comisión por IP antes del alta | ⬜ Pendiente, ya con la tabla buena |
+Siguen en los 147 de la tabla fiscal, siguen pagando el IVA de su país y siguen generando su
+factura. `tax/config.ts` mantiene sus 147 filas. Lo único que no pueden es **cobrar**.
 
 ---
+
 ### 8-octies.7 Lo construido (2026-08-27)
 
 **Backend**

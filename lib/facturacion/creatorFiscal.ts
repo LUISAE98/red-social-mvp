@@ -229,15 +229,6 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
     profile?.residency ?? (kycCountry || payoutAccountCountry ? (esMexicano ? "MX" : "FOREIGN") : null);
 
   /**
-   * 💰 Su comisión y su mínimo de retiro, según el país de la CUENTA DE COBRO.
-   *
-   * `null` cuando no hay cuenta todavía, o cuando el país no tiene ruta de pago. Los dos
-   * casos se distinguen abajo, porque al creador hay que decirle cosas muy distintas.
-   *
-   * ⚠️ Esto solo SIRVE PARA MOSTRAR. La comisión que cuenta es la que el backend congeló en
-   * cada asiento el día de la venta, y una venta vieja conserva la suya.
-   */
-  /**
    * 🌎 El país que decide su ruta y su comisión.
    *
    * Normalmente es el de su cuenta de cobro, que es a donde viaja el dinero. Pero un creador
@@ -249,6 +240,15 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
    */
   const paisDeCobro = payoutAccountCountry ?? kycCountry;
 
+  /**
+   * 💰 Su comisión, su mínimo y su RUTA de pago.
+   *
+   * `null` cuando aún no se sabe su país, o cuando no tiene ruta de pago. Los dos casos se
+   * distinguen abajo, porque al creador hay que decirle cosas muy distintas.
+   *
+   * ⚠️ Esto solo SIRVE PARA MOSTRAR. La comisión que cuenta es la que el backend congeló en
+   * cada asiento el día de la venta, y una venta vieja conserva la suya.
+   */
   const payoutTerms: Readonly<PayoutTerms> | null = payoutTermsOf(paisDeCobro);
 
   /**

@@ -29,7 +29,16 @@ export const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
  */
 export const stripePayoutsSecretKey = defineSecret("STRIPE_PAYOUTS_SECRET_KEY");
 
-const STRIPE_API_BASE = "https://api.stripe.com/v1";
+const STRIPE_API_ROOT = "https://api.stripe.com";
+
+/**
+ * Base de la API v1, que es la de todos los cobros.
+ *
+ * ⚠️ **La v2 NO cuelga de aquí.** Sus rutas ya vienen con su propio `/v2/` y concatenarlas
+ * sobre esta base daba `/v1/v2/core/accounts`, que Stripe rechaza con «Unrecognized request
+ * URL». Ver cómo se arma la URL más abajo.
+ */
+const STRIPE_API_BASE = `${STRIPE_API_ROOT}/v1`;
 
 /**
  * Tope de espera por llamada a Stripe. Holgado para no cortar una operación
@@ -123,7 +132,13 @@ export async function stripeFetch<T = unknown>(
   );
   if (!key) return { ok: false, status: 0, error: "Falta el secreto STRIPE_SECRET_KEY." };
 
-  const url = path.startsWith("http") ? path : `${STRIPE_API_BASE}${path}`;
+  // La v2 trae su propia versión en la ruta; la v1 la lleva en la base. Sin esta distinción,
+  // una ruta "/v2/core/accounts" acababa en "/v1/v2/core/accounts" y Stripe devolvía 404.
+  const url = path.startsWith("http")
+    ? path
+    : path.startsWith("/v2/")
+      ? `${STRIPE_API_ROOT}${path}`
+      : `${STRIPE_API_BASE}${path}`;
   const headers: Record<string, string> = {
     Authorization: `Bearer ${key}`,
   };

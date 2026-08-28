@@ -23,6 +23,8 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey, stripePayoutsSecretKey } from "./stripeClient";
+import { payoutTermsOf, resolvePayoutCountry } from "../../wallet/payoutTiers";
+import { resolverPaisDocumento, diditApiKey } from "../../kyc";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -139,7 +141,7 @@ async function guardarEstado(
  * sirve una vez, así que guardarlo no tendría sentido. Lo que sí se guarda es la cuenta.
  */
 export const createPayoutAccountLink = onCall(
-  { region: REGION, cors: true, secrets: [stripeSecretKey, stripePayoutsSecretKey] },
+  { region: REGION, cors: true, secrets: [stripeSecretKey, stripePayoutsSecretKey, diditApiKey] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -154,6 +156,45 @@ export const createPayoutAccountLink = onCall(
     const perfil = (await perfilRef.get()).data() ?? {};
     let cuentaId = String(perfil.stripeRecipientId ?? "").trim();
 
+    /**
+     * 🌎 EL PAÍS, que Stripe exige antes que nada.
+     *
+     * «The field identity.country is required before setting configuration.recipient». Sale
+     * del documento del KYC, no se le pregunta: es el dato duro de dónde es la persona, y
+     * mandar uno equivocado significa una cuenta que nunca se va a poder verificar.
+     *
+     * Esto impone el orden del alta —identidad primero, cuenta después— y está bien que así
+     * sea: pedirle datos bancarios a alguien de quien no sabemos quién es, no tiene sentido.
+     */
+    // `resolverPaisDocumento` se cura sola: si el país no está guardado pero el KYC está
+    // aprobado, va a preguntárselo a Didit y lo escribe. Así un creador verificado antes de
+    // que el extractor funcionara se arregla al pulsar este botón, sin backfill.
+    const paisCrudo = (await resolverPaisDocumento(uid)) ?? perfil.payoutAccountCountry;
+    const pais = resolvePayoutCountry(typeof paisCrudo === "string" ? paisCrudo : null);
+
+    if (!pais) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Primero verifica tu identidad. De ahí sacamos tu país."
+      );
+    }
+
+    /**
+     * ⚠️ Y que ese país cobre POR STRIPE.
+     *
+     * Sin esta comprobación, a un creador de ruta Wallbit —o de un país sin ruta— se le
+     * crearía una cuenta que Stripe no puede verificar nunca, y se quedaría esperando en una
+     * pantalla que no avanza. Mejor decirle la verdad aquí.
+     */
+    const condiciones = payoutTermsOf(pais);
+    if (condiciones?.route !== "stripe") {
+      logger.warn("global_payouts_pais_sin_ruta_stripe", { uid, pais, ruta: condiciones?.route ?? null });
+      throw new HttpsError(
+        "failed-precondition",
+        "Tu país no cobra por esta vía. Escríbenos y te decimos cómo pagarte."
+      );
+    }
+
     // 1) La cuenta de destinatario, solo la primera vez.
     if (!cuentaId) {
       const email = String(request.auth?.token?.email ?? "").trim();
@@ -162,6 +203,8 @@ export const createPayoutAccountLink = onCall(
         apiVersion: V2_VERSION,
         usePayoutsKey: true,
         json: {
+          // Obligatorio y primero: sin país, Stripe rechaza toda la petición.
+          identity: { country: pais, entity_type: "individual" },
           ...(email ? { contact_email: email } : {}),
           configuration: {
             recipient: {

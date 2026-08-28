@@ -13,12 +13,15 @@
 **25% de comisión y retiras desde 300 USD. En los países donde la transferencia bancaria es
 cara, 30% y retiras desde 500 USD.**
 
-| Grupo | Comisión | Mínimo de retiro | Países |
+| Ruta | Comisión | Mínimo | Países |
 |---|---|---|---|
-| **Estándar** | 25% | 300 USD | 46 |
-| **Transferencia cara** | 30% | 500 USD | 29 |
-| Territorios que cobran por otro país | — | — | 4 |
-| Sin ruta de pago | — | — | 68 |
+| Stripe, transferencia local | 25% | 300 USD | 46 |
+| Stripe, solo wire | 30% | 500 USD | 27 |
+| **Wallbit** | **25%** | **300 USD** | **12** |
+| Territorios por cuenta ajena | 25% | 300 USD | 4 |
+| Sin ruta de pago | — | — | 58 |
+
+**89 países pagables de 147.**
 
 ---
 
@@ -50,31 +53,64 @@ doble de acumulado. El ahorro no justificaba la barrera.
 
 ---
 
+## Qué se le pide a cada creador
+
+> Actualizado el 2026-08-27, con las dos rutas de pago.
+
+| | Todos | Stripe | Wallbit | Mexicano |
+|---|---|---|---|---|
+| **1. Identidad (Didit)** | ✅ | ✅ | ✅ | ✅ |
+| **2a. Alta de cuenta Stripe** | | ✅ | ❌ | ✅ |
+| **2b. Datos de Wallbit** | | ❌ | ✅ | |
+| **3. Datos fiscales + CSD** | | | | ✅ |
+
+El **KYC de Didit es de los 89 países pagables**, sin excepción. Lo que cambia después es
+por dónde cobra y si tiene que emitir CFDI.
+
+El tercer paso aparece cuando el **país del documento del KYC** o el **país de la cuenta de
+cobro** dicen México. Basta con que una de las dos lo diga. No se pregunta: una respuesta se
+puede equivocar, un pasaporte no.
+
+---
+
 ## Los grupos, país por país
 
-> **Verificado contra la tabla oficial de Stripe el 2026-08-27.** Fuente: Global Payouts →
-> Create recipients → *Requirements for supported recipient countries*, para un remitente en
-> Estados Unidos. La lista es idéntica para empresa y para persona física.
->
-> ⚠️ **No se deduce de `bank_account_spec`.** Ese endpoint devuelve el FORMATO de cuenta de un
-> país y responde también para países a los que Stripe no puede pagar. Leerlo como cobertura
-> dio por pagables a Brasil, Argentina, Colombia, Chile y Uruguay, que no lo son.
+> **Cobertura de Stripe verificada preguntándole a la API país por país**, no leyendo la
+> documentación. El script está en `scripts/sondearPayouts.sh`. Cobertura de Wallbit según
+> `paiseswallbit.md`.
 
-### Estándar — 25%, mínimo 300 USD (46)
+### Stripe, transferencia local — 25%, mínimo 300 USD (46)
 
-Transferencia bancaria local, 1.50 USD fijos.
+1.50 USD fijos por envío. Es la ruta más barata que hay.
 
 ```
 MX AT BE BG CY CZ DE DK EE ES FI FR GR HR HU IE IT LT LU LV MT NL PL PT RO SE SI SK CR DO NO IS AU ID NZ SG CA US PE GB MA TT JM MC SM CI
 ```
 
-### Transferencia cara — 30%, mínimo 500 USD (29)
+### Stripe, solo wire — 30%, mínimo 500 USD (27)
 
-Solo llega el wire, 25 USD fijos.
+25 USD fijos por envío. Sobre un retiro de 300 USD serían más del 8%, y por eso son los
+únicos con comisión y mínimo distintos.
 
 ```
-EC SV GT PA BA HK QA KW JP MY PH TH JO TW ZA EG TR RS AL MD VN AE LC AG LK BT BN MN BW
+BA HK QA KW JP MY PH TH JO TW ZA EG TR RS AL MD VN AE LC AG LK BT BN MN BW NG KH
 ```
+
+### Wallbit — 25%, mínimo 300 USD (12)
+
+Países donde Stripe no llega, o donde solo llega por wire. El creador cobra en una cuenta
+de Wallbit en dólares.
+
+```
+AR BR BO CO GT PA EC SV CL UY PY HN
+```
+
+⚠️ **En CL, UY, PY, HN Wallbit NO tiene retiro a banco local.** El creador cobra en dólares y su
+única salida documentada es cripto. Se incluyen por decisión de producto del 2026-08-27 —la
+alternativa era no pagarles nada— y se les avisa en el alta, antes de que acumulen saldo.
+
+🔁 Si Wallbit confirma que tiene tarjeta de débito, o abre retiro local ahí, se quita la
+marca `soloDolares` y el aviso desaparece solo.
 
 ### Territorios que cobran con la cuenta de otro país (4)
 
@@ -85,35 +121,22 @@ EC SV GT PA BA HK QA KW JP MY PH TH JO TW ZA EG TR RS AL MD VN AE LC AG LK BT BN
 | `IC` | Islas Canarias | España |
 | `EA` | Ceuta y Melilla | España |
 
-Stripe no los lista como destino propio, pero su sistema bancario es el de la metrópoli. Un
-creador en Puerto Rico abre una cuenta estadounidense con routing number, y uno en Canarias
-usa un IBAN español. Sin este mapeo se les trataría como no pagables, que es falso.
+### Sin ruta de pago (58)
 
-⚠️ `IC` y `EA` ni siquiera son ISO 3166: son códigos internos de la UE. Vienen de la tabla
-fiscal, donde existen porque su IVA es distinto al peninsular.
-
-### Sin ruta de pago (68)
-
-⚠️ **Pueden comprar y pueden vender, pero Global Payouts no llega.**
+⚠️ **Compran y venden, pero nadie les puede pagar.** Ni Stripe ni Wallbit llegan.
 
 🚨 **Esto NO les quita el impuesto.** Siguen en los 147 de la tabla fiscal, siguen pagando el
 IVA de su país y siguen generando su factura. Lo único que no pueden es cobrar.
 
-Lista completa para hoja de cálculo, con región y si tienen mercado relevante:
-**`docs/paises-sin-ruta-de-pago.tsv`**.
+Lista para hoja de cálculo: **`docs/paises-sin-ruta-de-pago.tsv`**.
 
 ```
-AR PY BO HN NI GU PG NC FJ BR CO CL UY ME KR SA NG PF TO SB VU WS KI NR TV NU WF FM MH AS MP SR BZ GD KY BM TC VG HT BQ VC KN DM AI MS GL PM JE AD FO GI VA GG SJ AZ KH NP MV NF CX CC TK PN GF YT GP MQ RE
+NI GU PG NC FJ ME KR SA PF TO SB VU WS KI NR TV NU WF FM MH AS MP SR BZ GD KY BM TC VG HT BQ VC KN DM AI MS GL PM JE AD FO GI VA GG SJ AZ NP MV NF CX CC TK PN GF YT GP MQ RE
 ```
 
-Los 17 con mercado real son **Brasil, Argentina, Colombia, Chile, Uruguay, Paraguay,
-Bolivia, Honduras, Nicaragua, Haití, Corea del Sur, Arabia Saudita, Nigeria, Nepal, Papúa
-Nueva Guinea, Azerbaiyán y Camboya**. Los otros 51 son islas y territorios de menos de cien
-mil habitantes.
-
-🔴 **Decisión pendiente:** o se impide monetizar desde estos países, o se busca otra vía de
-pago. Hoy un creador brasileño puede vender y acumular saldo que nadie puede sacarle. Se le
-avisa en Finanzas y el gate no le abre, pero avisar no es resolver.
+Los únicos con mercado real son **Nicaragua, Corea del Sur, Arabia Saudita, Nepal, Haití,
+Papúa Nueva Guinea y Azerbaiyán**. El resto son islas y territorios de menos de cien mil
+habitantes.
 
 ## Reglas de aplicación
 
