@@ -300,23 +300,37 @@ export function truncatePostText(text: string, maxLength: number) {
   return `${sliced.slice(0, lastSpace > 40 ? lastSpace : sliced.length).trim()}...`;
 }
 
-export function buildActionLabel(action: ModerationAction) {
-  if (action === "edit_post") return "Editar publicación";
-  if (action === "mute") return "Mutear";
-  if (action === "unmute") return "Quitar mute";
-  if (action === "ban") return "Banear";
-  if (action === "unban") return "Quitar ban";
-  if (action === "remove") return "Expulsar de la comunidad";
-  if (action === "pin_group_post") return "Fijar en grupo";
-  if (action === "unpin_group_post") return "Desfijar del grupo";
-  if (action === "pin_profile_post") return "Fijar en mi perfil";
-  if (action === "unpin_profile_post") return "Desfijar de mi perfil";
-  if (action === "block_user") return "Bloquear de mi perfil";
-  if (action === "unblock_user") return "Desbloquear de mi perfil";
-  if (action === "block_in_group") return "Bloquear en este grupo";
-  if (action === "unblock_in_group") return "Desbloquear en este grupo";
-  if (action === "hide_post") return "Ocultar publicación";
-  return "Eliminar publicación";
+/**
+ * Etiqueta de una acción de moderación sobre una publicación.
+ *
+ * El traductor entra por parámetro: esto es una utilidad, no un componente.
+ * `t` apunta al grupo `groups`; cinco de las claves ya existían y solo seis
+ * hubo que crear.
+ */
+export function buildActionLabel(
+  action: ModerationAction,
+  t: (key: string) => string,
+  tPosts: (key: string) => string
+) {
+  const CLAVES: Partial<Record<ModerationAction, string>> = {
+    mute: "mute",
+    unmute: "unmute",
+    ban: "ban",
+    unban: "unban",
+    remove: "actionRemoveFull",
+    pin_group_post: "actionPinInGroup",
+    unpin_group_post: "actionUnpinFromGroup",
+    pin_profile_post: "actionPinOnProfile",
+    unpin_profile_post: "actionUnpinFromProfile",
+    block_user: "blockProfile",
+    unblock_user: "unblockProfile",
+    block_in_group: "blockInGroup",
+    unblock_in_group: "unblockInGroup",
+    hide_post: "actionHidePost",
+  };
+
+  if (action === "edit_post") return tPosts("editPostTitle");
+  return t(CLAVES[action] ?? "actionDeletePost");
 }
 
 export function getMenuActionTexts(action: ModerationAction): { loading: string; done: string } | null {

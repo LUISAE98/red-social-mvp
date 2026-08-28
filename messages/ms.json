@@ -731,7 +731,13 @@
     "configureExperiences": "Sediakan pengalaman anda",
     "minimumIs": "Minimum ialah {amount}",
     "preparingImage": "Menyediakan imej",
-    "accumulatedShort": "Terkumpul {amount}"
+    "accumulatedShort": "Terkumpul {amount}",
+    "actionPinInGroup": "Sematkan dalam komuniti",
+    "actionUnpinFromGroup": "Buang sematan dari komuniti",
+    "actionPinOnProfile": "Sematkan pada profil saya",
+    "actionUnpinFromProfile": "Buang sematan dari profil saya",
+    "actionHidePost": "Sembunyikan kiriman",
+    "actionDeletePost": "Padam kiriman"
   },
   "profile": {
     "ariaChangeAvatar": "Tukar gambar profil",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Muat naik meterai digital anda",
     "payoutSetupStepSealHint": "Sijil Meterai Digital anda daripada SAT. Dengannya kami mengeluarkan invois bagi setiap jualan bagi pihak anda. Ia disimpan pada penyedia invois kami, bukan pada platform.",
     "payoutSetupStepSealCta": "Muat naik meterai saya",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Tiada invois dapat dikeluarkan. Pencipta pembelian ini belum ada meterai digital yang dikemas kini.",
     "payoutSetupStartFailed": "Kami tidak dapat memulakan pendaftaran pembayaran anda. Cuba lagi.",
     "payoutSetupFormFailed": "Kami tidak dapat membuka borang. Cuba lagi.",
-    "payoutSetupStatusFailed": "Kami tidak dapat menyemak pendaftaran pembayaran anda."
+    "payoutSetupStatusFailed": "Kami tidak dapat menyemak pendaftaran pembayaran anda.",
+    "verifyIdentityFirst": "Sahkan identiti anda dahulu.",
+    "payoutCountryNotYet": "Kami belum boleh menghantar wang ke negara anda. Kami akan maklumkan sebaik sahaja boleh.",
+    "payoutCountryOtherWay": "Negara anda tidak dibayar melalui jalan ini. Tulis kepada kami dan kami beritahu cara membayar anda."
   },
   "loginLanding": {
     "exp1Eyebrow": "Pengalaman peribadi",

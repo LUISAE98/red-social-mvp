@@ -731,7 +731,13 @@
     "configureExperiences": "設定你的體驗",
     "minimumIs": "最低為 {amount}",
     "preparingImage": "正在準備圖片",
-    "accumulatedShort": "累計 {amount}"
+    "accumulatedShort": "累計 {amount}",
+    "actionPinInGroup": "釘選在社群",
+    "actionUnpinFromGroup": "從社群取消釘選",
+    "actionPinOnProfile": "釘選在我的個人檔案",
+    "actionUnpinFromProfile": "從我的個人檔案取消釘選",
+    "actionHidePost": "隱藏貼文",
+    "actionDeletePost": "刪除貼文"
   },
   "profile": {
     "ariaChangeAvatar": "變更個人檔案照片",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "上傳你的數位印章",
     "payoutSetupStepSealHint": "你在 SAT 取得的數位印章憑證。我們用它代你為每一筆銷售開立發票。它保存在我們的發票服務商，絕不存放於平台。",
     "payoutSetupStepSealCta": "上傳我的印章",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "無法開立任何發票。這些購買的創作者尚未更新數位印章。",
     "payoutSetupStartFailed": "無法開始你的收款登記，請再試一次。",
     "payoutSetupFormFailed": "無法開啟表單，請再試一次。",
-    "payoutSetupStatusFailed": "無法查詢你的收款登記狀態。"
+    "payoutSetupStatusFailed": "無法查詢你的收款登記狀態。",
+    "verifyIdentityFirst": "請先驗證你的身分。",
+    "payoutCountryNotYet": "我們還無法把錢送到你的國家，一旦可以就會通知你。",
+    "payoutCountryOtherWay": "你的國家不透過這個方式收款。來訊給我們，我們會告訴你怎麼付款給你。"
   },
   "loginLanding": {
     "exp1Eyebrow": "專屬體驗",

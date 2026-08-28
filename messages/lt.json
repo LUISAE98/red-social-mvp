@@ -731,7 +731,13 @@
     "configureExperiences": "Sutvarkyk savo patirtis",
     "minimumIs": "Mažiausia suma – {amount}",
     "preparingImage": "Ruošiamas paveikslėlis",
-    "accumulatedShort": "Sukaupta {amount}"
+    "accumulatedShort": "Sukaupta {amount}",
+    "actionPinInGroup": "Prisegti bendruomenėje",
+    "actionUnpinFromGroup": "Atsegti nuo bendruomenės",
+    "actionPinOnProfile": "Prisegti mano profilyje",
+    "actionUnpinFromProfile": "Atsegti nuo mano profilio",
+    "actionHidePost": "Slėpti įrašą",
+    "actionDeletePost": "Ištrinti įrašą"
   },
   "profile": {
     "ariaChangeAvatar": "Keisti profilio nuotrauką",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Įkelk skaitmeninį antspaudą",
     "payoutSetupStepSealHint": "Tavo SAT išduotas skaitmeninio antspaudo sertifikatas. Su juo tavo vardu išrašome sąskaitą už kiekvieną pardavimą. Saugomas pas mūsų sąskaitų tiekėją, niekada platformoje.",
     "payoutSetupStepSealCta": "Įkelti antspaudą",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Nepavyko išrašyti nė vienos sąskaitos. Šių pirkinių kūrėjai dar neturi galiojančio skaitmeninio antspaudo.",
     "payoutSetupStartFailed": "Nepavyko pradėti išmokų registracijos. Bandyk dar kartą.",
     "payoutSetupFormFailed": "Nepavyko atidaryti formos. Bandyk dar kartą.",
-    "payoutSetupStatusFailed": "Nepavyko patikrinti tavo išmokų registracijos."
+    "payoutSetupStatusFailed": "Nepavyko patikrinti tavo išmokų registracijos.",
+    "verifyIdentityFirst": "Pirma patvirtink savo tapatybę.",
+    "payoutCountryNotYet": "Į tavo šalį pinigų dar siųsti negalime. Pranešime, kai tik bus galima.",
+    "payoutCountryOtherWay": "Tavo šaliai šiuo būdu nemokama. Parašyk mums ir pasakysime, kaip tau sumokėti."
   },
   "loginLanding": {
     "exp1Eyebrow": "Asmeniniai potyriai",

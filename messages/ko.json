@@ -731,7 +731,13 @@
     "configureExperiences": "경험을 설정하세요",
     "minimumIs": "최소 금액은 {amount}입니다",
     "preparingImage": "이미지 준비 중",
-    "accumulatedShort": "누적 {amount}"
+    "accumulatedShort": "누적 {amount}",
+    "actionPinInGroup": "커뮤니티에 고정",
+    "actionUnpinFromGroup": "커뮤니티 고정 해제",
+    "actionPinOnProfile": "내 프로필에 고정",
+    "actionUnpinFromProfile": "내 프로필 고정 해제",
+    "actionHidePost": "게시물 숨기기",
+    "actionDeletePost": "게시물 삭제"
   },
   "profile": {
     "ariaChangeAvatar": "프로필 사진 변경",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "디지털 인장 올리기",
     "payoutSetupStepSealHint": "SAT에서 받은 디지털 인장 인증서예요. 이걸로 판매마다 청구서를 대신 발행해요. 청구 서비스 제공업체에 보관되고 플랫폼에는 절대 저장하지 않아요.",
     "payoutSetupStepSealCta": "내 인장 올리기",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "청구서를 발행하지 못했습니다. 이 구매의 크리에이터가 아직 디지털 인장을 갱신하지 않았습니다.",
     "payoutSetupStartFailed": "정산 등록을 시작하지 못했어요. 다시 시도해 주세요.",
     "payoutSetupFormFailed": "양식을 열지 못했어요. 다시 시도해 주세요.",
-    "payoutSetupStatusFailed": "정산 등록 상태를 확인하지 못했어요."
+    "payoutSetupStatusFailed": "정산 등록 상태를 확인하지 못했어요.",
+    "verifyIdentityFirst": "먼저 본인 확인을 완료하세요.",
+    "payoutCountryNotYet": "아직 귀하의 국가로 송금할 수 없습니다. 가능해지면 알려드리겠습니다.",
+    "payoutCountryOtherWay": "귀하의 국가는 이 경로로 정산되지 않습니다. 연락 주시면 지급 방법을 안내해 드립니다."
   },
   "loginLanding": {
     "exp1Eyebrow": "개인적인 경험",

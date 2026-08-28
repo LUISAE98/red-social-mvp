@@ -4930,7 +4930,7 @@ padding: "0 0 2px 0",
                             ...(isDanger && !isBusy ? { color: "#ff8a8a" } : {}),
                           }}
                         >
-                          {isBusy ? tFeed("processing") : buildActionLabel(action)}
+                          {isBusy ? tFeed("processing") : buildActionLabel(action, tGroups, tPosts)}
                         </button>
                       );
                     })}

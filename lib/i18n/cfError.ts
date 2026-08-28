@@ -124,6 +124,11 @@ const MSG_TO_KEY: Record<string, string> = {
   "no se pudo iniciar tu alta de cobro. inténtalo de nuevo.": "payoutSetupStartFailed",
   "no se pudo abrir el formulario. inténtalo de nuevo.": "payoutSetupFormFailed",
   "no se pudo consultar tu alta de cobro.": "payoutSetupStatusFailed",
+  // pagos: envío de dinero al creador (global payouts)
+  "primero verifica tu identidad.": "verifyIdentityFirst",
+  "primero verifica tu identidad. de ahí sacamos tu país.": "verifyIdentityFirst",
+  "todavía no podemos enviar dinero a tu país. te avisamos en cuanto se pueda.": "payoutCountryNotYet",
+  "tu país no cobra por esta vía. escríbenos y te decimos cómo pagarte.": "payoutCountryOtherWay",
   // cobertura por país
   "el cobro no está disponible en tu país por ahora.": "countryNotAvailable",
   "el cobro no está disponible en tu país por ahora": "countryNotAvailable",

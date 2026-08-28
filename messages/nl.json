@@ -731,7 +731,13 @@
     "configureExperiences": "Stel je ervaringen in",
     "minimumIs": "Het minimum is {amount}",
     "preparingImage": "Afbeelding voorbereiden",
-    "accumulatedShort": "{amount} verzameld"
+    "accumulatedShort": "{amount} verzameld",
+    "actionPinInGroup": "Vastzetten in de community",
+    "actionUnpinFromGroup": "Losmaken uit de community",
+    "actionPinOnProfile": "Vastzetten op mijn profiel",
+    "actionUnpinFromProfile": "Losmaken van mijn profiel",
+    "actionHidePost": "Bericht verbergen",
+    "actionDeletePost": "Bericht verwijderen"
   },
   "profile": {
     "ariaChangeAvatar": "Profielfoto wijzigen",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Upload je digitale zegel",
     "payoutSetupStepSealHint": "Je Certificaat van Digitaal Zegel van de SAT. Daarmee maken wij namens jou de factuur van elke verkoop op. Het staat bij onze factuurleverancier, nooit op het platform.",
     "payoutSetupStepSealCta": "Mijn zegel uploaden",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Er kon geen factuur worden uitgegeven. De creators van deze aankopen hebben hun digitale zegel nog niet bijgewerkt.",
     "payoutSetupStartFailed": "We konden je uitbetalingsregistratie niet starten. Probeer het opnieuw.",
     "payoutSetupFormFailed": "We konden het formulier niet openen. Probeer het opnieuw.",
-    "payoutSetupStatusFailed": "We konden je uitbetalingsregistratie niet opvragen."
+    "payoutSetupStatusFailed": "We konden je uitbetalingsregistratie niet opvragen.",
+    "verifyIdentityFirst": "Verifieer eerst je identiteit.",
+    "payoutCountryNotYet": "We kunnen nog geen geld naar jouw land sturen. We laten het weten zodra het kan.",
+    "payoutCountryOtherWay": "Jouw land wordt niet via deze weg uitbetaald. Schrijf ons en we vertellen hoe we je betalen."
   },
   "loginLanding": {
     "exp1Eyebrow": "Persoonlijke ervaringen",

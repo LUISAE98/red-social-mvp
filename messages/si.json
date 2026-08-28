@@ -731,7 +731,13 @@
     "configureExperiences": "ඔබේ අත්දැකීම් සකසන්න",
     "minimumIs": "අවම මුදල {amount}",
     "preparingImage": "රූපය සූදානම් වෙමින්",
-    "accumulatedShort": "එකතු වී ඇත {amount}"
+    "accumulatedShort": "එකතු වී ඇත {amount}",
+    "actionPinInGroup": "ප්‍රජාවේ අමුණන්න",
+    "actionUnpinFromGroup": "ප්‍රජාවෙන් අමුණුම ඉවත් කරන්න",
+    "actionPinOnProfile": "මගේ පැතිකඩේ අමුණන්න",
+    "actionUnpinFromProfile": "මගේ පැතිකඩෙන් අමුණුම ඉවත් කරන්න",
+    "actionHidePost": "පළකිරීම සඟවන්න",
+    "actionDeletePost": "පළකිරීම මකන්න"
   },
   "profile": {
     "ariaChangeAvatar": "පැතිකඩ ඡායාරූපය වෙනස් කරන්න",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "ඔබේ ඩිජිටල් මුද්‍රාව උඩුගත කරන්න",
     "payoutSetupStepSealHint": "SAT වෙතින් ලැබුණු ඔබේ ඩිජිටල් මුද්‍රා සහතිකය. එමගින් අපි ඔබ වෙනුවෙන් සෑම විකුණුමකටම ඉන්වොයිසය නිකුත් කරමු. එය අපගේ ඉන්වොයිස් සැපයුම්කරු සතුව තැන්පත් වේ, කිසිවිටෙක වේදිකාවේ නොවේ.",
     "payoutSetupStepSealCta": "මගේ මුද්‍රාව උඩුගත කරන්න",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "කිසිදු ඉන්වොයිසයක් නිකුත් කළ නොහැකි විය. මෙම මිලදී ගැනීම්වල නිර්මාණකරුවන්ට තවම ඩිජිටල් මුද්‍රාව යාවත්කාලීන නැත.",
     "payoutSetupStartFailed": "ඔබේ ගෙවීම් ලියාපදිංචිය ආරම්භ කළ නොහැකි විය. නැවත උත්සාහ කරන්න.",
     "payoutSetupFormFailed": "පෝරමය විවෘත කළ නොහැකි විය. නැවත උත්සාහ කරන්න.",
-    "payoutSetupStatusFailed": "ඔබේ ගෙවීම් ලියාපදිංචිය පරීක්ෂා කළ නොහැකි විය."
+    "payoutSetupStatusFailed": "ඔබේ ගෙවීම් ලියාපදිංචිය පරීක්ෂා කළ නොහැකි විය.",
+    "verifyIdentityFirst": "පළමුව ඔබේ අනන්‍යතාව තහවුරු කරන්න.",
+    "payoutCountryNotYet": "ඔබේ රටට තවම මුදල් යැවිය නොහැක. හැකි වූ වහාම දන්වන්නෙමු.",
+    "payoutCountryOtherWay": "ඔබේ රටට මේ ක්‍රමයෙන් ගෙවීමක් නොකෙරේ. අපට ලියන්න, ගෙවන ආකාරය කියන්නෙමු."
   },
   "loginLanding": {
     "exp1Eyebrow": "පෞද්ගලික අත්දැකීම්",

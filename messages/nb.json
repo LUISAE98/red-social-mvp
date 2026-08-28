@@ -731,7 +731,13 @@
     "configureExperiences": "Sett opp opplevelsene dine",
     "minimumIs": "Minimum er {amount}",
     "preparingImage": "Forbereder bilde",
-    "accumulatedShort": "Samlet {amount}"
+    "accumulatedShort": "Samlet {amount}",
+    "actionPinInGroup": "Fest i communityet",
+    "actionUnpinFromGroup": "Løsne fra communityet",
+    "actionPinOnProfile": "Fest på profilen min",
+    "actionUnpinFromProfile": "Løsne fra profilen min",
+    "actionHidePost": "Skjul innlegget",
+    "actionDeletePost": "Slett innlegget"
   },
   "profile": {
     "ariaChangeAvatar": "Skift profilbilde",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Last opp det digitale seglet ditt",
     "payoutSetupStepSealHint": "Ditt digitale seglsertifikat fra SAT. Med det utsteder vi fakturaen for hvert salg på dine vegne. Det oppbevares hos faktureringsleverandøren vår, aldri på plattformen.",
     "payoutSetupStepSealCta": "Last opp seglet mitt",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Ingen faktura kunne utstedes. Skaperne av disse kjøpene har ikke oppdatert digitalt segl ennå.",
     "payoutSetupStartFailed": "Vi kunne ikke starte utbetalingsregistreringen din. Prøv igjen.",
     "payoutSetupFormFailed": "Vi kunne ikke åpne skjemaet. Prøv igjen.",
-    "payoutSetupStatusFailed": "Vi kunne ikke sjekke utbetalingsregistreringen din."
+    "payoutSetupStatusFailed": "Vi kunne ikke sjekke utbetalingsregistreringen din.",
+    "verifyIdentityFirst": "Bekreft identiteten din først.",
+    "payoutCountryNotYet": "Vi kan ikke sende penger til landet ditt ennå. Vi sier fra så snart det går.",
+    "payoutCountryOtherWay": "Landet ditt får ikke utbetalt på denne måten. Skriv til oss, så sier vi hvordan vi betaler deg."
   },
   "loginLanding": {
     "exp1Eyebrow": "Personlige opplevelser",

@@ -731,7 +731,13 @@
     "configureExperiences": "Configura le tue esperienze",
     "minimumIs": "Il minimo è {amount}",
     "preparingImage": "Preparazione dell'immagine",
-    "accumulatedShort": "{amount} accumulati"
+    "accumulatedShort": "{amount} accumulati",
+    "actionPinInGroup": "Fissa nella community",
+    "actionUnpinFromGroup": "Rimuovi dalla community",
+    "actionPinOnProfile": "Fissa sul mio profilo",
+    "actionUnpinFromProfile": "Rimuovi dal mio profilo",
+    "actionHidePost": "Nascondi il post",
+    "actionDeletePost": "Elimina il post"
   },
   "profile": {
     "ariaChangeAvatar": "Cambia la foto del profilo",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Carica il tuo sigillo digitale",
     "payoutSetupStepSealHint": "Il tuo Certificato di Sigillo Digitale del SAT. Con quello emettiamo per te la fattura di ogni vendita. Resta presso il nostro fornitore di fatturazione, mai sulla piattaforma.",
     "payoutSetupStepSealCta": "Carica il mio sigillo",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Non è stato possibile emettere nessuna fattura. I creator di questi acquisti non hanno ancora il sigillo digitale aggiornato.",
     "payoutSetupStartFailed": "Non siamo riusciti ad avviare la tua registrazione per i pagamenti. Riprova.",
     "payoutSetupFormFailed": "Non siamo riusciti ad aprire il modulo. Riprova.",
-    "payoutSetupStatusFailed": "Non siamo riusciti a verificare la tua registrazione per i pagamenti."
+    "payoutSetupStatusFailed": "Non siamo riusciti a verificare la tua registrazione per i pagamenti.",
+    "verifyIdentityFirst": "Prima verifica la tua identità.",
+    "payoutCountryNotYet": "Non possiamo ancora inviare denaro nel tuo paese. Ti avvisiamo appena si può.",
+    "payoutCountryOtherWay": "Il tuo paese non viene pagato per questa via. Scrivici e ti diciamo come pagarti."
   },
   "loginLanding": {
     "exp1Eyebrow": "Esperienze personali",

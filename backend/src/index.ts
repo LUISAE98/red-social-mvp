@@ -513,6 +513,10 @@ export {
   refreshPayoutAccountStatus,
 } from "./payments/stripe/globalPayoutsRecipient";
 
+// Declaración de la cuenta de cobro, con un cuestionario de Didit. Dos versiones según la
+// ruta del creador: la cuenta que dará de alta en Stripe, o los datos de su cuenta Wallbit.
+export { createPayoutAccountQuestionnaire } from "./payments/payoutAccountQuestionnaire";
+
 // Facturación (Facturapi — CFDI, modelo vendedor directo). Bloque 0: smoke test de
 // credenciales (org de Vibra + multi-tenant). No emite CFDI ni toca el ledger.
 export { facturapiHealthcheck } from "./facturacion/facturapiHealthcheck";

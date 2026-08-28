@@ -731,7 +731,13 @@
     "configureExperiences": "आफ्ना अनुभव सेट गर्नुहोस्",
     "minimumIs": "न्यूनतम {amount} हो",
     "preparingImage": "तस्बिर तयार हुँदै",
-    "accumulatedShort": "जम्मा {amount}"
+    "accumulatedShort": "जम्मा {amount}",
+    "actionPinInGroup": "समुदायमा पिन गर्नुहोस्",
+    "actionUnpinFromGroup": "समुदायबाट पिन हटाउनुहोस्",
+    "actionPinOnProfile": "मेरो प्रोफाइलमा पिन गर्नुहोस्",
+    "actionUnpinFromProfile": "मेरो प्रोफाइलबाट पिन हटाउनुहोस्",
+    "actionHidePost": "पोस्ट लुकाउनुहोस्",
+    "actionDeletePost": "पोस्ट मेटाउनुहोस्"
   },
   "profile": {
     "ariaChangeAvatar": "प्रोफाइल फोटो परिवर्तन गर्नुहोस्",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "आफ्नो डिजिटल छाप अपलोड गर्नुहोस्",
     "payoutSetupStepSealHint": "SAT बाट प्राप्त तपाईंको डिजिटल छाप प्रमाणपत्र। त्यसैले हामी तपाईंको तर्फबाट हरेक बिक्रीको बिल जारी गर्छौं। यो हाम्रो बिलिङ सेवामा रहन्छ, प्लेटफर्ममा कहिल्यै होइन।",
     "payoutSetupStepSealCta": "मेरो छाप अपलोड गर्नुहोस्",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "कुनै पनि बिल जारी गर्न सकिएन। यी खरिदका सिर्जनाकर्ताहरूको डिजिटल छाप अझै अद्यावधिक छैन।",
     "payoutSetupStartFailed": "तपाईंको भुक्तानी दर्ता सुरु गर्न सकिएन। फेरि प्रयास गर्नुहोस्।",
     "payoutSetupFormFailed": "फारम खोल्न सकिएन। फेरि प्रयास गर्नुहोस्।",
-    "payoutSetupStatusFailed": "तपाईंको भुक्तानी दर्ता जाँच्न सकिएन।"
+    "payoutSetupStatusFailed": "तपाईंको भुक्तानी दर्ता जाँच्न सकिएन।",
+    "verifyIdentityFirst": "पहिले आफ्नो पहिचान प्रमाणित गर्नुहोस्।",
+    "payoutCountryNotYet": "हामी अझै तपाईंको देशमा पैसा पठाउन सक्दैनौं। सम्भव भएपछि तुरुन्तै जानकारी दिनेछौं।",
+    "payoutCountryOtherWay": "तपाईंको देशमा यसरी भुक्तानी हुँदैन। हामीलाई लेख्नुहोस्, कसरी भुक्तानी गर्ने भन्नेछौं।"
   },
   "loginLanding": {
     "exp1Eyebrow": "व्यक्तिगत अनुभव",

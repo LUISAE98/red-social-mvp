@@ -731,7 +731,13 @@
     "configureExperiences": "ތިބާގެ ތަޖުރިބާތައް ސެޓްކުރޭ",
     "minimumIs": "އެންމެ ކުޑަކޮށް {amount}",
     "preparingImage": "ފޮޓޯ ތައްޔާރުވަނީ",
-    "accumulatedShort": "ޖަމާވެފައި {amount}"
+    "accumulatedShort": "ޖަމާވެފައި {amount}",
+    "actionPinInGroup": "ކޮމިއުނިޓީގައި ޕިންކުރޭ",
+    "actionUnpinFromGroup": "ކޮމިއުނިޓީން ޕިން ނަގާ",
+    "actionPinOnProfile": "ޕްރޮފައިލްގައި ޕިންކުރޭ",
+    "actionUnpinFromProfile": "ޕްރޮފައިލުން ޕިން ނަގާ",
+    "actionHidePost": "ޕޯސްޓް ފޮރުވާ",
+    "actionDeletePost": "ޕޯސްޓް ޑިލީޓްކުރޭ"
   },
   "profile": {
     "ariaChangeAvatar": "ޕްރޮފައިލް ފޮޓޯ ބަދަލުކުރައްވާ",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "ޑިޖިޓަލް ސީލް އަޕްލޯޑްކުރޭ",
     "payoutSetupStepSealHint": "SAT އިން ދޫކުރި ޑިޖިޓަލް ސީލް ސެޓްފިކެޓް. އެއިން ކޮންމެ ވިއްކުމަކަށް ބިލް ތިޔަ ނަމުގައި ދޫކުރަން. ރައްކާކުރެވެނީ ބިލިން ޕްރޮވައިޑަރުގައި، ޕްލެޓްފޯމުގައެއް ނޫން.",
     "payoutSetupStepSealCta": "ސީލް އަޕްލޯޑްކުރޭ",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "އެއްވެސް އިންވޮއިސްއެއް ނުހެދުނު. މި ގަތުންތަކުގެ ކްރިއޭޓަރުންގެ ޑިޖިޓަލް ސީލް އަދި އަޕްޑޭޓް ނުވޭ.",
     "payoutSetupStartFailed": "ފައިސާ ލިބޭ ރަޖިސްޓްރީ ފެށޭ ގޮތެއް ނުވި. އަލުން މަސައްކަތްކުރޭ.",
     "payoutSetupFormFailed": "ފޯމް ހުޅުވޭ ގޮތެއް ނުވި. އަލުން މަސައްކަތްކުރޭ.",
-    "payoutSetupStatusFailed": "ފައިސާ ލިބޭ ރަޖިސްޓްރީގެ ހާލަތު ބެލޭ ގޮތެއް ނުވި."
+    "payoutSetupStatusFailed": "ފައިސާ ލިބޭ ރަޖިސްޓްރީގެ ހާލަތު ބެލޭ ގޮތެއް ނުވި.",
+    "verifyIdentityFirst": "ފުރަތަމަ ތިބާގެ އައިޑެންޓިޓީ ކަށަވަރުކުރޭ.",
+    "payoutCountryNotYet": "އަދި ތިބާގެ ޤައުމަށް ފައިސާ ނުފޮނުވޭ. ވީހާވެސް އަވަހަކަށް އަންގާނަން.",
+    "payoutCountryOtherWay": "ތިބާގެ ޤައުމަށް މިގޮތުން ފައިސާއެއް ނުލިބޭ. އަހަރެމެންނަށް ލިޔޭ، ދެން ކިހިނެއްކަން ބުނާނަން."
   },
   "loginLanding": {
     "exp1Eyebrow": "އަމިއްލަ ތަޖުރިބާތައް",

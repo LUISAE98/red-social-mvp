@@ -731,7 +731,13 @@
     "configureExperiences": "Nastavi svoje izkušnje",
     "minimumIs": "Najmanj je {amount}",
     "preparingImage": "Pripravljam sliko",
-    "accumulatedShort": "Zbrano {amount}"
+    "accumulatedShort": "Zbrano {amount}",
+    "actionPinInGroup": "Pripni v skupnosti",
+    "actionUnpinFromGroup": "Odpni iz skupnosti",
+    "actionPinOnProfile": "Pripni na moj profil",
+    "actionUnpinFromProfile": "Odpni z mojega profila",
+    "actionHidePost": "Skrij objavo",
+    "actionDeletePost": "Izbriši objavo"
   },
   "profile": {
     "ariaChangeAvatar": "Zamenjaj profilno sliko",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Naloži svoj digitalni pečat",
     "payoutSetupStepSealHint": "Tvoje potrdilo digitalnega pečata od SAT. Z njim v tvojem imenu izdamo račun za vsako prodajo. Hrani ga naš ponudnik izdajanja računov, nikoli platforma.",
     "payoutSetupStepSealCta": "Naloži pečat",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Nobenega računa ni bilo mogoče izdati. Ustvarjalci teh nakupov še nimajo posodobljenega digitalnega žiga.",
     "payoutSetupStartFailed": "Registracije za izplačila ni bilo mogoče začeti. Poskusi znova.",
     "payoutSetupFormFailed": "Obrazca ni bilo mogoče odpreti. Poskusi znova.",
-    "payoutSetupStatusFailed": "Tvoje registracije za izplačila ni bilo mogoče preveriti."
+    "payoutSetupStatusFailed": "Tvoje registracije za izplačila ni bilo mogoče preveriti.",
+    "verifyIdentityFirst": "Najprej potrdi svojo istovetnost.",
+    "payoutCountryNotYet": "V tvojo državo denarja še ne moremo poslati. Sporočimo ti, takoj ko bo mogoče.",
+    "payoutCountryOtherWay": "Tvoja država se po tej poti ne izplačuje. Piši nam in povemo ti, kako ti plačati."
   },
   "loginLanding": {
     "exp1Eyebrow": "Osebna doživetja",

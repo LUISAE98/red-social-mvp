@@ -731,7 +731,13 @@
     "configureExperiences": "Туршлагуудаа тохируул",
     "minimumIs": "Хамгийн бага дүн {amount}",
     "preparingImage": "Зураг бэлдэж байна",
-    "accumulatedShort": "Хуримтлагдсан {amount}"
+    "accumulatedShort": "Хуримтлагдсан {amount}",
+    "actionPinInGroup": "Нийгэмлэгт бэхлэх",
+    "actionUnpinFromGroup": "Нийгэмлэгээс бэхлэлт авах",
+    "actionPinOnProfile": "Профайлдаа бэхлэх",
+    "actionUnpinFromProfile": "Профайлаас бэхлэлт авах",
+    "actionHidePost": "Нийтлэлийг нуух",
+    "actionDeletePost": "Нийтлэлийг устгах"
   },
   "profile": {
     "ariaChangeAvatar": "Профайлын зургийг солих",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Тоон тамгаа байршуулна уу",
     "payoutSetupStepSealHint": "SAT-аас авсан Тоон Тамганы Гэрчилгээ. Түүгээр таны нэрийн өмнөөс борлуулалт бүрийн нэхэмжлэхийг гаргана. Нэхэмжлэхийн үйлчилгээ үзүүлэгчид хадгалагдана, платформ дээр хэзээ ч биш.",
     "payoutSetupStepSealCta": "Тамгаа байршуулах",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Ямар ч нэхэмжлэх гаргаж чадсангүй. Эдгээр худалдан авалтын бүтээгчид дижитал тамгаа хараахан шинэчлээгүй байна.",
     "payoutSetupStartFailed": "Төлбөр хүлээн авах бүртгэлийг эхлүүлж чадсангүй. Дахин оролдоно уу.",
     "payoutSetupFormFailed": "Маягтыг нээж чадсангүй. Дахин оролдоно уу.",
-    "payoutSetupStatusFailed": "Таны төлбөр хүлээн авах бүртгэлийг шалгаж чадсангүй."
+    "payoutSetupStatusFailed": "Таны төлбөр хүлээн авах бүртгэлийг шалгаж чадсангүй.",
+    "verifyIdentityFirst": "Эхлээд хувийн мэдээллээ баталгаажуул.",
+    "payoutCountryNotYet": "Таны улс руу мөнгө илгээх боломж хараахан алга. Боломжтой болмогц мэдэгдэнэ.",
+    "payoutCountryOtherWay": "Таны улс энэ замаар төлбөр авдаггүй. Бидэнд бичээрэй, хэрхэн төлөхийг хэлье."
   },
   "loginLanding": {
     "exp1Eyebrow": "Хувийн туршлага",

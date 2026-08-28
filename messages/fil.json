@@ -731,7 +731,13 @@
     "configureExperiences": "I-set up ang mga karanasan mo",
     "minimumIs": "Ang minimum ay {amount}",
     "preparingImage": "Inihahanda ang larawan",
-    "accumulatedShort": "Naipon {amount}"
+    "accumulatedShort": "Naipon {amount}",
+    "actionPinInGroup": "I-pin sa komunidad",
+    "actionUnpinFromGroup": "Alisin ang pin sa komunidad",
+    "actionPinOnProfile": "I-pin sa profile ko",
+    "actionUnpinFromProfile": "Alisin ang pin sa profile ko",
+    "actionHidePost": "Itago ang post",
+    "actionDeletePost": "Burahin ang post"
   },
   "profile": {
     "ariaChangeAvatar": "Palitan ang larawan ng profile",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "I-upload ang iyong digital seal",
     "payoutSetupStepSealHint": "Ang iyong Digital Seal Certificate mula sa SAT. Dito namin inii-isyu para sa iyo ang invoice ng bawat benta. Nasa aming invoicing provider ito, hindi kailanman sa platform.",
     "payoutSetupStepSealCta": "I-upload ang seal ko",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Walang invoice na na-issue. Wala pang updated na digital seal ang mga creator ng mga pagbiling ito.",
     "payoutSetupStartFailed": "Hindi namin masimulan ang payout setup mo. Subukan ulit.",
     "payoutSetupFormFailed": "Hindi namin mabuksan ang form. Subukan ulit.",
-    "payoutSetupStatusFailed": "Hindi namin ma-check ang payout setup mo."
+    "payoutSetupStatusFailed": "Hindi namin ma-check ang payout setup mo.",
+    "verifyIdentityFirst": "I-verify muna ang pagkakakilanlan mo.",
+    "payoutCountryNotYet": "Hindi pa kami makapagpadala ng pera sa bansa mo. Sasabihin namin agad kapag puwede na.",
+    "payoutCountryOtherWay": "Hindi ganito binabayaran ang bansa mo. Sulatan mo kami at sasabihin namin kung paano ka babayaran."
   },
   "loginLanding": {
     "exp1Eyebrow": "Personal na karanasan",

@@ -116,6 +116,40 @@ describe("niveles de retiro — territorios que cobran por otro país", () => {
   });
 });
 
+describe("qué país decide la comisión", () => {
+  it("la cuenta de cobro manda sobre el documento", () => {
+    // Un mexicano con cuenta en Estados Unidos se paga por ACH estadounidense, no por SPEI.
+    expect(back.paisDeCobroDe({ payoutAccountCountry: "US", documentCountry: "MX" })).toBe("US");
+  });
+
+  it("sin cuenta, decide el documento", () => {
+    // Es el caso de TODO creador de ruta Wallbit: nunca da de alta cuenta en Stripe.
+    expect(back.paisDeCobroDe({ payoutAccountCountry: null, documentCountry: "BR" })).toBe("BR");
+    expect(back.payoutTermsOf(back.paisDeCobroDe({ documentCountry: "BR" }))).toMatchObject({
+      route: "wallbit",
+      commissionRate: 0.25,
+    });
+  });
+
+  it("sin ninguno de los dos, no hay país", () => {
+    expect(back.paisDeCobroDe({})).toBeNull();
+    expect(back.paisDeCobroDe({ payoutAccountCountry: "", documentCountry: "  " })).toBeNull();
+  });
+
+  it("el espejo aplica el mismo criterio", () => {
+    // Si se separan, el creador ve una comisión y cobra otra.
+    const casos = [
+      { payoutAccountCountry: "US", documentCountry: "MX" },
+      { payoutAccountCountry: null, documentCountry: "BR" },
+      { payoutAccountCountry: "TR", documentCountry: "DE" },
+      {},
+    ];
+    for (const c of casos) {
+      expect(front.paisDeCobroDe(c)).toBe(back.paisDeCobroDe(c));
+    }
+  });
+});
+
 describe("niveles de retiro — rutas de pago", () => {
   it("los 12 de Wallbit cobran al 25% y desde 300, como los de transferencia local", () => {
     // Es el motivo de meterlos en Wallbit: sacarlos del wire de 25 USD por envío.

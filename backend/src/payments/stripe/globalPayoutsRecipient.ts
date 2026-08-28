@@ -89,6 +89,11 @@ type V2Account = {
 
 type V2AccountLink = { url?: string };
 
+type V2PayoutMethod = {
+  id?: string;
+  bank_account?: { last4?: string; bank_name?: string; country?: string };
+};
+
 /** Estado del alta, tal como lo lee el panel. */
 export type EstadoAlta = "none" | "pending" | "verified" | "restricted";
 
@@ -295,7 +300,26 @@ export const refreshPayoutAccountStatus = onCall(
       throw new HttpsError("internal", "No se pudo consultar tu alta de cobro.");
     }
 
-    const estado = await guardarEstado(uid, res.data);
+    /**
+     * 🔍 Los últimos 4 dígitos de la cuenta que de verdad metió.
+     *
+     * Es lo ÚNICO comparable: Stripe no devuelve la cuenta completa ni —fuera del Reino
+     * Unido— el nombre del titular. Con esto se puede contrastar contra lo que el creador
+     * declaró en el cuestionario de Didit y detectar que metió una cuenta distinta.
+     *
+     * ⚠️ Detecta un cambio o un error de tecleo, NO que la cuenta sea suya. Para eso hace
+     * falta Financial Connections, que sigue en vista previa.
+     */
+    const metodos = await stripeFetch<{ data?: V2PayoutMethod[] }>(
+      "/v2/money_management/payout_methods",
+      { method: "GET", apiVersion: V2_VERSION, usePayoutsKey: true, stripeAccount: cuentaId }
+    );
+    const cuenta = metodos.ok ? metodos.data?.data?.[0]?.bank_account : undefined;
+
+    const estado = await guardarEstado(uid, res.data, {
+      ...(cuenta?.last4 ? { stripeAccountLast4: cuenta.last4 } : {}),
+      ...(cuenta?.bank_name ? { stripeAccountBank: cuenta.bank_name } : {}),
+    });
     return { status: estado, country: res.data.identity?.country?.toUpperCase() ?? null };
   }
 );

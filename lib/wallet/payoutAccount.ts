@@ -54,3 +54,27 @@ export async function refreshPayoutAccountStatus(): Promise<{
   const { data } = await fn();
   return data;
 }
+
+/**
+ * Abre el cuestionario donde el creador declara su cuenta de cobro.
+ *
+ * El backend elige cuál según su ruta: el de Stripe pide la cuenta que va a dar de alta ahí, y
+ * el de Wallbit los datos de su cuenta en dólares. Las respuestas viven en Didit; en Vibra solo
+ * quedan los últimos 4 dígitos, para poder compararlos.
+ */
+export async function createPayoutAccountQuestionnaire(): Promise<{
+  url: string;
+  route: "stripe" | "wallbit";
+}> {
+  const fn = httpsCallable<
+    { origin: string; locale: string },
+    { url: string; route: "stripe" | "wallbit" }
+  >(functions, "createPayoutAccountQuestionnaire");
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const locale =
+    typeof document !== "undefined" ? document.documentElement.lang || "es" : "es";
+
+  const { data } = await fn({ origin, locale });
+  return data;
+}

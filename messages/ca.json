@@ -731,7 +731,13 @@
     "configureExperiences": "Configura les teves experiències",
     "minimumIs": "El mínim és {amount}",
     "preparingImage": "Preparant la imatge",
-    "accumulatedShort": "Acumulat {amount}"
+    "accumulatedShort": "Acumulat {amount}",
+    "actionPinInGroup": "Fixar a la comunitat",
+    "actionUnpinFromGroup": "Deixar de fixar de la comunitat",
+    "actionPinOnProfile": "Fixar al meu perfil",
+    "actionUnpinFromProfile": "Deixar de fixar del meu perfil",
+    "actionHidePost": "Amagar la publicació",
+    "actionDeletePost": "Eliminar la publicació"
   },
   "profile": {
     "ariaChangeAvatar": "Canvia la foto de perfil",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Puja el teu segell digital",
     "payoutSetupStepSealHint": "El teu Certificat de Segell Digital del SAT. Amb ell emetem per tu la factura de cada venda. Es guarda al nostre proveïdor de facturació, mai a la plataforma.",
     "payoutSetupStepSealCta": "Pujar el meu segell",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "No s'ha pogut emetre cap factura. Els creadors d'aquestes compres encara no tenen el segell digital al dia.",
     "payoutSetupStartFailed": "No hem pogut iniciar el teu alta de cobrament. Torna-ho a provar.",
     "payoutSetupFormFailed": "No hem pogut obrir el formulari. Torna-ho a provar.",
-    "payoutSetupStatusFailed": "No hem pogut consultar el teu alta de cobrament."
+    "payoutSetupStatusFailed": "No hem pogut consultar el teu alta de cobrament.",
+    "verifyIdentityFirst": "Primer verifica la teva identitat.",
+    "payoutCountryNotYet": "Encara no podem enviar diners al teu país. T'avisarem quan sigui possible.",
+    "payoutCountryOtherWay": "El teu país no cobra per aquesta via. Escriu-nos i t'expliquem com pagar-te."
   },
   "loginLanding": {
     "exp1Eyebrow": "Experiències personals",

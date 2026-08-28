@@ -1354,6 +1354,9 @@ no perder las decisiones ya tomadas.
 
 ### 8-octies.1 El flujo del panel
 
+> ⚠️ **SUPERADA por §8-octies.9.** Describe el flujo tal como se planeó el 2026-08-27, con dos
+> pasos y el tercero condicional. El flujo real tiene CUATRO y añadió la ruta de Wallbit.
+
 Se pulsa el aviso morado de Finanzas y se abre el panel con **dos opciones**:
 
 | | Opción | Quién la resuelve |
@@ -1388,6 +1391,9 @@ El motivo: quien debe facturar en México es quien **tributa** ahí, y eso lo di
 Lo que encarece la transferencia es **a dónde viaja el dinero**, y eso lo dice la cuenta.
 
 ### 8-octies.3 La tercera opción son dos pasos por dentro
+
+> ⚠️ **Renumerada.** Lo que aquí se llama «tercera opción» es el paso **4** del flujo real.
+> Lo que sigue siendo cierto es que el sello no se puede subir sin el RFC antes.
 
 El CSD **no se puede subir sin el RFC antes**: Facturapi valida el sello contra el RFC declarado
 y lo rechaza si no coincide. En pantalla puede ser una sola tarjeta, pero adentro van datos
@@ -1462,6 +1468,54 @@ SDK de preview: `stripeClient` ya acepta una versión de API por petición (lo u
 ⚠️ Los webhooks son **thin events** y `stripeWebhook` no los entiende. Se puede empezar
 consultando el estado al volver del enlace y dejar el webhook para después.
 
+### 8-octies.7 Lo construido (2026-08-27)
+
+**Backend**
+
+| Pieza | Dónde |
+|---|---|
+| `createPayoutAccountLink` — crea la cuenta de destinatario y devuelve el enlace | `backend/src/payments/stripe/globalPayoutsRecipient.ts` |
+| `refreshPayoutAccountStatus` — relee la cuenta al volver y guarda país y estado | mismo módulo |
+| Cuerpo JSON en `stripeFetch` | `stripeClient.ts` — la v2 rechaza el form-encoding |
+| País del documento del KYC | `backend/src/kyc.ts` — el webhook guarda `documentCountry` al aprobar |
+
+**Frontend**
+
+| Pieza | Dónde |
+|---|---|
+| Las dos llamadas | `lib/wallet/payoutAccount.ts` |
+| `esMexicano` derivado, sin preguntar | `lib/facturacion/creatorFiscal.ts` |
+| Panel de tres pasos | `CreatorPayoutSetupPanel.tsx` |
+| Retorno `?alta=ok` / `?alta=reintentar` | `wallet/finanzas/page.tsx` |
+
+**Lo que cambia de comportamiento**
+
+🔴 **El gate del retiro ahora exige la cuenta de cobro.** `payoutReady` pasó de
+«identidad (+ sello si mexicano)» a **«identidad + cuenta de cobro (+ sello si mexicano)»**.
+Faltaba: un creador con solo el KYC aprobado pasaba el gate, pedía su retiro y no había
+cuenta a la que mandárselo. Consecuencia inmediata: **mientras nadie tenga cuenta dada de
+alta, nadie puede retirar** — que es la verdad, no una regresión.
+
+🚫 **Fuera la pregunta de residencia fiscal.** El país sale de dos señales duras y basta con
+que una diga México. `setCreatorResidency` sobrevive como **anulación manual** para el caso
+raro (un mexicano que tributa fuera, o al revés), no como primer paso del alta. Sus seis
+claves de idioma se borraron de los 47 archivos.
+
+**Estado**
+
+| | |
+|---|---|
+| Conector de Stripe en Claude Code | ✅ Activo (2026-08-27) |
+| Sandbox de Global Payouts | ✅ `acct_1U7eCc4PM5Bep8JM` |
+| `createPayoutAccountLink` · `refreshPayoutAccountStatus` | ✅ Desplegadas y verificadas por nombre |
+| Flujo del panel completo | ✅ Construido, ⬜ sin probar contra Stripe |
+| Verificación de empresa (pasaporte) | 🔴 Falta para operar en real |
+| Webhook de la cuenta de destinatario | ⬜ Son *thin events*, `stripeWebhook` no los entiende; se refresca al volver |
+| Traducción a los 45 idiomas restantes | ⬜ Caen al inglés por el respaldo de `i18n/request.ts` |
+| Bloques A–G (tabla de niveles) | ⬜ Sin empezar |
+
+
+---
 ### 8-octies.8 Rutas de pago y cobertura — CERRADO (2026-08-27)
 
 #### Qué se le pide a cada creador
@@ -1533,54 +1587,146 @@ factura. `tax/config.ts` mantiene sus 147 filas. Lo único que no pueden es **co
 
 ---
 
-### 8-octies.7 Lo construido (2026-08-27)
+### 8-octies.9 El alta del creador, paso a paso (2026-08-28)
 
-**Backend**
+#### Qué ve cada creador
 
-| Pieza | Dónde |
+| Paso | Wallbit (12) | Stripe (77) | Mexicano |
+|---|---|---|---|
+| **1. Identidad** (Didit) | ✅ | ✅ | ✅ |
+| **2. Declarar la cuenta** (Didit) | ✅ Datos de Wallbit | ✅ Cuenta que registrará | ✅ |
+| **3. Registrar en Stripe** | ❌ | ✅ | ✅ |
+| **4. Datos fiscales y sello** | ❌ | ❌ | ✅ |
+
+El KYC es de los **89 países pagables**, sin excepción. El paso 4 aparece cuando el país del
+**documento** o el de la **cuenta** dicen México; basta con que uno de los dos lo diga.
+
+#### ⚠️ El orden del 2 y el 3 no es casual
+
+El creador **declara su cuenta ANTES de registrarla** en Stripe, y el paso 3 está bloqueado
+hasta que lo haga.
+
+Al revés no serviría: si declarase después, se limitaría a copiar lo que acaba de escribir y
+la declaración siempre coincidiría. Declarando antes se compromete sin saber todavía si va a
+cuadrar, y ahí la comparación empieza a significar algo.
+
+#### Los cuestionarios de Didit
+
+| | Cuestionario | Workflow |
+|---|---|---|
+| Ruta Stripe | `a6f2475a` | `e44a6d40` |
+| Ruta Wallbit | `c58dc907` | `46336699` |
+
+Van en **sesión aparte**, no dentro del KYC. El motivo: un creador de Wallbit todavía no tiene
+cuenta de Wallbit cuando hace su KYC. Pedírsela ahí sería pedirle algo que no tiene —se
+saldría a abrirla y la sesión ya habría pasado—. Con sesión propia la abre cuando quiere, y si
+cambia de cuenta repite solo ese paso en vez de rehacer su verificación entera.
+
+Los workflows llevan **solo el cuestionario**, sin OCR ni biometría: el creador ya está
+identificado y repetirlo costaría dinero por nada.
+
+⚠️ **El webhook de Didit tiene que distinguirlos.** Los tres workflows llegan por el mismo
+endpoint. Sin el desvío de `esSesionDeCuentaDeCobro`, terminar un cuestionario marcaría la
+identidad del creador como aprobada o rechazada según una sesión que no verificó a nadie.
+
+#### 🚨 Qué se guarda de la cuenta bancaria
+
+**La cuenta completa NO se guarda en Firestore.** Vive en Didit, igual que el sello del SAT
+vive en Facturapi. En el perfil solo quedan:
+
+| Campo | Qué es |
 |---|---|
-| `createPayoutAccountLink` — crea la cuenta de destinatario y devuelve el enlace | `backend/src/payments/stripe/globalPayoutsRecipient.ts` |
-| `refreshPayoutAccountStatus` — relee la cuenta al volver y guarda país y estado | mismo módulo |
-| Cuerpo JSON en `stripeFetch` | `stripeClient.ts` — la v2 rechaza el form-encoding |
-| País del documento del KYC | `backend/src/kyc.ts` — el webhook guarda `documentCountry` al aprobar |
+| `declaredAccountLast4` | Los últimos 4 dígitos que declaró |
+| `declaredHolderName` | El titular que declaró |
+| `stripeAccountLast4` | Los últimos 4 que reporta Stripe |
+| `declaredAccountMatchesStripe` | Si coinciden. `undefined` mientras falte una mitad |
 
-**Frontend**
+#### Lo que la comparación SÍ y NO prueba
 
-| Pieza | Dónde |
-|---|---|
-| Las dos llamadas | `lib/wallet/payoutAccount.ts` |
-| `esMexicano` derivado, sin preguntar | `lib/facturacion/creatorFiscal.ts` |
-| Panel de tres pasos | `CreatorPayoutSetupPanel.tsx` |
-| Retorno `?alta=ok` / `?alta=reintentar` | `wallet/finanzas/page.tsx` |
-
-**Lo que cambia de comportamiento**
-
-🔴 **El gate del retiro ahora exige la cuenta de cobro.** `payoutReady` pasó de
-«identidad (+ sello si mexicano)» a **«identidad + cuenta de cobro (+ sello si mexicano)»**.
-Faltaba: un creador con solo el KYC aprobado pasaba el gate, pedía su retiro y no había
-cuenta a la que mandárselo. Consecuencia inmediata: **mientras nadie tenga cuenta dada de
-alta, nadie puede retirar** — que es la verdad, no una regresión.
-
-🚫 **Fuera la pregunta de residencia fiscal.** El país sale de dos señales duras y basta con
-que una diga México. `setCreatorResidency` sobrevive como **anulación manual** para el caso
-raro (un mexicano que tributa fuera, o al revés), no como primer paso del alta. Sus seis
-claves de idioma se borraron de los 47 archivos.
-
-**Estado**
+Stripe **no comprueba que la cuenta sea del creador en ningún país salvo el Reino Unido**,
+donde el *Confirmation of Payee* es obligatorio. En México y el resto acepta cualquier cuenta
+válida, y tampoco devuelve el nombre del titular — solo los últimos 4 dígitos.
 
 | | |
 |---|---|
-| Conector de Stripe en Claude Code | ✅ Activo (2026-08-27) |
-| Sandbox de Global Payouts | ✅ `acct_1U7eCc4PM5Bep8JM` |
-| `createPayoutAccountLink` · `refreshPayoutAccountStatus` | ✅ Desplegadas y verificadas por nombre |
-| Flujo del panel completo | ✅ Construido, ⬜ sin probar contra Stripe |
-| Verificación de empresa (pasaporte) | 🔴 Falta para operar en real |
-| Webhook de la cuenta de destinatario | ⬜ Son *thin events*, `stripeWebhook` no los entiende; se refresca al volver |
-| Traducción a los 45 idiomas restantes | ⬜ Caen al inglés por el respaldo de `i18n/request.ts` |
-| Bloques A–G (tabla de niveles) | ⬜ Sin empezar |
+| ✅ Detecta | Que registró una cuenta distinta a la que declaró, o un error de tecleo |
+| ❌ No detecta | Que la cuenta sea de otra persona. Quien declare la misma cuenta ajena en los dos sitios pasa |
 
+Lo que sí queda es una **declaración formal de titularidad** hecha por alguien con identidad
+verificada. No previene el fraude, lo hace atribuible — que en el modelo de intermediación,
+donde se paga «por cuenta del creador», es justo lo que hace falta poder demostrar.
+
+🔁 **La verificación de verdad es Financial Connections**: el creador entra a su banca en línea
+y Stripe lee la cuenta, así que la titularidad queda probada por construcción. Está en vista
+previa (`financial_connections_payouts_preview`) y se pide por correo.
+
+#### 🌎 Qué país decide qué
+
+Documento de un país y cuenta de otro **es un caso normal**, no un problema. Lo que cambia es
+quién decide cada cosa:
+
+| Decisión | La toma | Por qué |
+|---|---|---|
+| Comisión, mínimo y ruta | **La cuenta**, con el documento de respaldo | Es a donde viaja el dinero, y es lo único que explica el coste |
+| Si se le piden datos fiscales y sello | **Cualquiera de los dos** | Quien debe facturar en México es quien tributa ahí |
+| Retención de IVA del creador mexicano | **La cuenta, a secas** | Depende de dónde cobra de verdad, no de dónde es |
+
+La primera regla vive en **una sola función**, `paisDeCobroDe` en `wallet/payoutTiers.ts`, que
+usan el ledger —que congela la comisión— y la interfaz —que la muestra—. Tenerla escrita dos
+veces es exactamente cómo se llega a que el creador vea una cifra y cobre otra; hay un test de
+paridad que compara las dos implementaciones.
+
+⚠️ El documento hace de respaldo porque un creador de ruta **Wallbit nunca da de alta cuenta
+en Stripe**, así que `payoutAccountCountry` se queda vacío para siempre. Sin respaldo caía al
+caso provisional y su país real no decidía nada. Hoy coincidiría por accidente —Wallbit
+también es 25%— pero el día que tuviera otro tramo, fallaría en silencio.
+
+#### 💰 La retención de IVA del 50% al 100% — YA PROGRAMADA
+
+En `tax/fiscalEngine.ts`:
+
+```ts
+const cobraFuera = !!c.payoutAccountCountry && c.payoutAccountCountry.toUpperCase() !== "MX";
+ivaRate = !c.hasTaxId || cobraFuera ? t.ivaMxSinRfc : t.ivaMxConRfc;
+```
+
+Con `ivaMxConRfc: 0.5` y `ivaMxSinRfc: 1`. A un creador mexicano que cobra fuera de México se
+le retiene el **100%** del IVA en vez del 50%. Ver `fiscal-iva-isr-plataforma.md` §0.6.
+
+⚠️ Aquí se usa `payoutAccountCountry` **a secas, sin el respaldo del documento**, y es a
+propósito: para lo fiscal importa dónde cobra de verdad. Sin cuenta dada de alta el campo va
+vacío y se retiene el 50%, que es la suposición benigna —retiene de menos, no de más—.
+
+#### Cuatro fallos encontrados al probar el flujo, y arreglados
+
+| | Qué pasaba |
+|---|---|
+| **URL de la v2** | `stripeClient` tenía la base fija en `/v1` y las rutas v2 quedaban en `/v1/v2/core/accounts`. Stripe devolvía «Unrecognized request URL» |
+| **Falta el país** | Stripe exige `identity.country` antes de configurar nada. Ahora sale del documento del KYC |
+| **País del KYC nunca guardado** | El extractor buscaba `id_verification` en singular y la API devuelve `id_verifications`, plural y como array. El KYC quedaba aprobado **sin país**, en silencio, y el alta pedía «verifica tu identidad» a quien ya la tenía verificada |
+| **Cabecera de la v2** | Se mandaba `Stripe-Account`, que la v2 ignora sin quejarse: la lista de métodos de pago volvía con los datos de la plataforma, no los del creador. La v2 usa `Stripe-Context` |
+
+La tabla de conversión de códigos ISO-3 a ISO-2 cubría **14 países**; ahora cubre los 147. Un
+creador japonés o filipino habría tenido el mismo problema aunque el extractor funcionara.
+
+`resolverPaisDocumento` **se cura sola**: si el país falta pero el KYC está aprobado, se lo
+pregunta a Didit y lo guarda. Así los creadores verificados antes del arreglo —y los aprobados
+por revisión manual, donde el evento puede llegar sin los datos del documento— se reparan solos
+sin backfill.
+
+#### Lo que queda abierto
+
+| | |
+|---|---|
+| Verificación de empresa en Stripe | 🔴 Bloquea el paso a producción |
+| `financial_connections_payouts_preview` | ⬜ Es lo que probaría la titularidad de verdad |
+| Confirmar con Wallbit que se puede pagar a terceros | 🔴 Puede tumbar la ruta entera |
+| Comisión y spread reales de Wallbit | ⬜ Sin eso, el 25% de sus 12 países es una apuesta |
+| Tarjeta de débito de Wallbit | ⬜ Decide si CL, UY, PY y HN pueden usar su dinero |
+| Moneda de referencia del «ganarás X» | ⬜ Debería salir del país de la cuenta, sin verificar |
 
 ---
+
 
 ## 9. Dependencias para operar en vivo
 

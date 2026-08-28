@@ -143,7 +143,13 @@ export async function stripeFetch<T = unknown>(
     Authorization: `Bearer ${key}`,
   };
   if (init.idempotencyKey) headers["Idempotency-Key"] = init.idempotencyKey;
-  if (init.stripeAccount) headers["Stripe-Account"] = init.stripeAccount;
+  // ⚠️ La v1 usa `Stripe-Account` y la v2 usa `Stripe-Context` para lo mismo: decir sobre
+  // qué cuenta se opera. Mandar el de la otra versión se ignora en silencio y la respuesta
+  // vuelve con los datos de la plataforma, no los del destinatario.
+  if (init.stripeAccount) {
+    const cabecera = path.startsWith("/v2/") ? "Stripe-Context" : "Stripe-Account";
+    headers[cabecera] = init.stripeAccount;
+  }
   // ⚠️ RESTRICCIÓN DE STRIPE, no decisión de producto: «FX Quotes can only be used with
   // PaymentIntents with automatic captures». La tasa fijada es INCOMPATIBLE con la
   // retención (`capture_method: "manual"`), que es el modelo de saludo, consejo, sesión y

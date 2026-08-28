@@ -171,38 +171,6 @@ export function resolveEffectiveStatus(
   return "active";
 }
 
-export function getRemainingMutedDaysLabel(mutedUntil?: unknown) {
-  const until = getMutedUntilDate(mutedUntil);
-  if (!until) return null;
-
-  const diffMs = until.getTime() - Date.now();
-  if (diffMs <= 0) return null;
-
-  const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-  return days === 1 ? "resta 1 día" : `restan ${days} días`;
-}
-
-export function friendlyRole(role?: string) {
-  const normalized = normalizeRole(role);
-  if (normalized === "owner") return "Owner";
-  if (normalized === "mod") return "Moderador";
-  return "Miembro";
-}
-
-export function friendlyStatus(status?: string, mutedUntil?: unknown) {
-  const normalized = resolveEffectiveStatus(status, mutedUntil);
-
-  if (normalized === "muted") {
-    const remaining = getRemainingMutedDaysLabel(mutedUntil);
-    return remaining ? `Muteado, ${remaining}` : "Muteado";
-  }
-
-  if (normalized === "subscribed") return "Suscrito";
-  if (normalized === "banned") return "Baneado";
-  if (normalized === "removed") return "Expulsado";
-  return "Activo";
-}
-
 export function statusDotColor(status?: string, mutedUntil?: unknown) {
   const normalized = resolveEffectiveStatus(status, mutedUntil);
   if (normalized === "banned") return "#ff4d4f";
@@ -227,16 +195,6 @@ export function memberPrimaryName(member: EnrichedMember) {
     member.handle?.trim() ||
     "Usuario sin nombre"
   );
-}
-
-export function buildActionLabel(action: MemberAction) {
-  if (action === "promote_to_mod") return "Convertir en moderador";
-  if (action === "demote_to_member") return "Quitar moderador";
-  if (action === "mute") return "Mutear";
-  if (action === "unmute") return "Quitar mute";
-  if (action === "ban") return "Banear";
-  if (action === "unban") return "Quitar ban";
-  return "Expulsar de la comunidad";
 }
 
 export function Chevron({

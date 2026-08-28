@@ -731,7 +731,13 @@
     "configureExperiences": "Set up your experiences",
     "minimumIs": "The minimum is {amount}",
     "preparingImage": "Preparing image",
-    "accumulatedShort": "{amount} accumulated"
+    "accumulatedShort": "{amount} accumulated",
+    "actionPinInGroup": "Pin to community",
+    "actionUnpinFromGroup": "Unpin from community",
+    "actionPinOnProfile": "Pin to my profile",
+    "actionUnpinFromProfile": "Unpin from my profile",
+    "actionHidePost": "Hide post",
+    "actionDeletePost": "Delete post"
   },
   "profile": {
     "ariaChangeAvatar": "Change profile photo",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Upload your digital seal",
     "payoutSetupStepSealHint": "Your digital seal certificate from the SAT. With it we issue the invoice for each sale on your behalf. It is stored with our invoicing provider, never on the platform.",
     "payoutSetupStepSealCta": "Upload my seal",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "No invoice could be issued. The creators of these purchases don't have their digital seal up to date yet.",
     "payoutSetupStartFailed": "We couldn't start your payout setup. Try again.",
     "payoutSetupFormFailed": "We couldn't open the form. Try again.",
-    "payoutSetupStatusFailed": "We couldn't check your payout setup."
+    "payoutSetupStatusFailed": "We couldn't check your payout setup.",
+    "verifyIdentityFirst": "Verify your identity first.",
+    "payoutCountryNotYet": "We can't send money to your country yet. We'll let you know as soon as we can.",
+    "payoutCountryOtherWay": "Your country doesn't get paid this way. Write to us and we'll tell you how to get paid."
   },
   "loginLanding": {
     "exp1Eyebrow": "Personal experiences",

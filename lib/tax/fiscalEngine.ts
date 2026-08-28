@@ -215,6 +215,17 @@ export type PerfilFiscalCreador = {
    */
   payoutAccountCountry?: string | null;
   /**
+   * País del documento con el que se verificó (ISO-2).
+   *
+   * Respaldo del anterior para decidir comisión y ruta: un creador que cobra por Wallbit
+   * nunca da de alta cuenta en Stripe, así que `payoutAccountCountry` se queda vacío para
+   * siempre. Ver `paisDeCobroDe` en `wallet/payoutTiers.ts`.
+   *
+   * ⚠️ NO sustituye al de la cuenta para lo fiscal: la retención de IVA depende de dónde
+   * cobra, no de dónde es.
+   */
+  documentCountry?: string | null;
+  /**
    * Creador extranjero cuyo pago se caracteriza como REGALÍA en vez de servicio.
    * Aplica sobre todo a contenido grabado y publicaciones de pago.
    */

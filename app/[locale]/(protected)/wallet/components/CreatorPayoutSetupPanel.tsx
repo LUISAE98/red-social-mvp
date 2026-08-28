@@ -27,6 +27,7 @@ import { useCreatorTaxProfile } from "@/lib/facturacion/creatorFiscal";
 import {
   createPayoutAccountLink,
   refreshPayoutAccountStatus,
+  createPayoutAccountQuestionnaire,
 } from "@/lib/wallet/payoutAccount";
 import { IconButton, TextButton } from "@/components/ui";
 
@@ -82,6 +83,10 @@ export default function CreatorPayoutSetupPanel({
     payoutCountryUnpayable,
     /** Por dónde cobra. Decide si el paso 2 es el alta de Stripe o los datos de Wallbit. */
     payoutRoute,
+    /** ¿Ya declaró su cuenta en el cuestionario de Didit? */
+    payoutAccountDeclared: cuentaDeclarada,
+    /** Declaró una y en Stripe metió otra. Hay que resolverlo antes de cobrar. */
+    declaredAccountMismatch: cuentaNoCoincide,
     loading,
   } = useCreatorTaxProfile(user?.uid);
 
@@ -143,6 +148,24 @@ export default function CreatorPayoutSetupPanel({
    * El enlace se pide al pulsar, no antes: caduca a los 10 minutos y solo sirve una vez, así
    * que uno generado al abrir el panel llegaría muerto.
    */
+  /**
+   * Abre el cuestionario donde declara su cuenta.
+   *
+   * Para el creador de Wallbit ES su registro de cobro. Para el de Stripe es la declaración
+   * de titularidad, que se compara luego contra lo que Stripe reporte.
+   */
+  async function abrirCuestionarioDeCuenta() {
+    setGuardando(true);
+    setError(null);
+    try {
+      const { url } = await createPayoutAccountQuestionnaire();
+      window.location.href = url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setGuardando(false);
+    }
+  }
+
   async function abrirAltaDeCobro() {
     setGuardando(true);
     setError(null);
@@ -302,22 +325,34 @@ export default function CreatorPayoutSetupPanel({
                   mínimo (`docs/payout-tiers.md`).
 
                   **Wallbit** para los 12 donde Stripe no llega o solo llega por wire. Ahí no
-                  hay alta de Stripe que hacer: mandarlo a ese formulario sería mandarlo a que
-                  le rechacen el país. 🚧 El cuestionario donde dará sus datos de Wallbit
-                  todavía no existe, así que el paso se enseña sin acción — a propósito: el
-                  creador tiene que saber que le falta algo antes de ver su dinero. */}
-              {porWallbit ? (
+                  hay alta de Stripe que hacer —mandarlo a ese formulario sería mandarlo a que
+                  le rechacen el país—, así que su cuestionario ES su registro de cobro. */}
+              <Paso
+                numero={2}
+                estado={cuentaDeclarada ? "listo" : "pendiente"}
+                titulo={t(porWallbit ? "payoutSetupStepWallbit" : "payoutSetupStepDeclare")}
+                descripcion={t(
+                  porWallbit ? "payoutSetupStepWallbitHint" : "payoutSetupStepDeclareHint"
+                )}
+                accion={
+                  guardando
+                    ? t("payoutSetupStepPayoutOpening")
+                    : t(porWallbit ? "payoutSetupStepWallbitCta" : "payoutSetupStepDeclareCta")
+                }
+                onAccion={guardando ? undefined : abrirCuestionarioDeCuenta}
+              />
+
+              {/* 3. REGISTRAR LA CUENTA EN STRIPE — solo la ruta de Stripe.
+
+                  Va DESPUÉS de declararla, y el orden importa: si declarase al final se
+                  limitaría a copiar lo que acaba de escribir y la declaración no probaría
+                  nada. Declarando antes se compromete sin saber todavía si va a cuadrar, y
+                  ahí la comparación empieza a significar algo.
+
+                  Se enseña bloqueado hasta que declare, para que el orden se entienda solo. */}
+              {!porWallbit && (
                 <Paso
-                  numero={2}
-                  estado="pendiente"
-                  titulo={t("payoutSetupStepWallbit")}
-                  descripcion={t("payoutSetupStepWallbitHint")}
-                  accion={t("payoutSetupStepWallbitSoon")}
-                  onAccion={undefined}
-                />
-              ) : (
-                <Paso
-                  numero={2}
+                  numero={3}
                   estado={pasoCobro}
                   titulo={t("payoutSetupStepPayout")}
                   descripcion={
@@ -332,12 +367,23 @@ export default function CreatorPayoutSetupPanel({
                         ? t("payoutSetupStepPayoutResume")
                         : t("payoutSetupStepPayoutCta")
                   }
-                  onAccion={guardando || refrescando ? undefined : abrirAltaDeCobro}
+                  onAccion={
+                    // Sin declarar antes, no se abre: es lo que impone el orden.
+                    !cuentaDeclarada || guardando || refrescando ? undefined : abrirAltaDeCobro
+                  }
                 />
               )}
 
               {!porWallbit && cobroRestringido && (
                 <Aviso tono="alerta" texto={t("payoutSetupPayoutRestricted")} />
+              )}
+
+              {/* 🔴 Declaró una cuenta y en Stripe metió otra.
+
+                  Puede ser un error de tecleo o algo peor. En cualquier caso el creador tiene
+                  que resolverlo antes de cobrar, y alguien de Vibra ya lo tiene en los logs. */}
+              {cuentaNoCoincide && (
+                <Aviso tono="alerta" texto={t("payoutSetupAccountMismatch")} />
               )}
 
               {/* ⚠️ Cobra en dólares pero no puede pasarlos a su banco.
@@ -396,7 +442,7 @@ export default function CreatorPayoutSetupPanel({
                   pedirle y este paso ni se le enseña. */}
               {esMexicano && (
                 <Paso
-                  numero={3}
+                  numero={4}
                   estado={pasoSello}
                   titulo={t("payoutSetupStepSeal")}
                   descripcion={t("payoutSetupStepSealHint")}

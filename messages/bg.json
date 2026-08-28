@@ -731,7 +731,13 @@
     "configureExperiences": "Настрой преживяванията си",
     "minimumIs": "Минимумът е {amount}",
     "preparingImage": "Подготвя се изображението",
-    "accumulatedShort": "Натрупано {amount}"
+    "accumulatedShort": "Натрупано {amount}",
+    "actionPinInGroup": "Закачи в общността",
+    "actionUnpinFromGroup": "Откачи от общността",
+    "actionPinOnProfile": "Закачи в профила ми",
+    "actionUnpinFromProfile": "Откачи от профила ми",
+    "actionHidePost": "Скрий публикацията",
+    "actionDeletePost": "Изтрий публикацията"
   },
   "profile": {
     "ariaChangeAvatar": "Смени профилната снимка",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Качи дигиталния си печат",
     "payoutSetupStepSealHint": "Сертификатът ти за дигитален печат от SAT. С него издаваме от твое име фактурата за всяка продажба. Съхранява се при нашия доставчик за фактуриране, никога на платформата.",
     "payoutSetupStepSealCta": "Качи печата ми",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Не беше издадена нито една фактура. Създателите на тези покупки още нямат актуален цифров печат.",
     "payoutSetupStartFailed": "Регистрацията за плащания не можа да започне. Опитай отново.",
     "payoutSetupFormFailed": "Формулярът не можа да се отвори. Опитай отново.",
-    "payoutSetupStatusFailed": "Не можахме да проверим регистрацията ти за плащания."
+    "payoutSetupStatusFailed": "Не можахме да проверим регистрацията ти за плащания.",
+    "verifyIdentityFirst": "Първо потвърди самоличността си.",
+    "payoutCountryNotYet": "Още не можем да изпращаме пари в твоята държава. Ще те уведомим веднага щом стане възможно.",
+    "payoutCountryOtherWay": "Твоята държава не получава плащания по този начин. Пиши ни и ще ти кажем как да ти платим."
   },
   "loginLanding": {
     "exp1Eyebrow": "Лични преживявания",

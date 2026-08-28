@@ -731,7 +731,13 @@
     "configureExperiences": "Állítsd be az élményeidet",
     "minimumIs": "A minimum {amount}",
     "preparingImage": "Kép előkészítése",
-    "accumulatedShort": "Összegyűlt {amount}"
+    "accumulatedShort": "Összegyűlt {amount}",
+    "actionPinInGroup": "Kitűzés a közösségben",
+    "actionUnpinFromGroup": "Kitűzés visszavonása a közösségben",
+    "actionPinOnProfile": "Kitűzés a profilomra",
+    "actionUnpinFromProfile": "Kitűzés visszavonása a profilomról",
+    "actionHidePost": "Bejegyzés elrejtése",
+    "actionDeletePost": "Bejegyzés törlése"
   },
   "profile": {
     "ariaChangeAvatar": "Profilkép módosítása",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Töltsd fel a digitális bélyegződ",
     "payoutSetupStepSealHint": "A SAT által kiadott digitális bélyegző tanúsítványod. Ezzel állítjuk ki a nevedben minden értékesítés számláját. A számlázási szolgáltatónknál tároljuk, soha nem a platformon.",
     "payoutSetupStepSealCta": "Bélyegző feltöltése",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Egyetlen számlát sem sikerült kiállítani. E vásárlások készítőinek még nincs naprakész digitális pecsétje.",
     "payoutSetupStartFailed": "Nem tudtuk elindítani a kifizetési regisztrációdat. Próbáld újra.",
     "payoutSetupFormFailed": "Nem tudtuk megnyitni az űrlapot. Próbáld újra.",
-    "payoutSetupStatusFailed": "Nem tudtuk lekérdezni a kifizetési regisztrációdat."
+    "payoutSetupStatusFailed": "Nem tudtuk lekérdezni a kifizetési regisztrációdat.",
+    "verifyIdentityFirst": "Előbb igazold a személyazonosságodat.",
+    "payoutCountryNotYet": "Az országodba még nem tudunk pénzt küldeni. Szólunk, amint lehetséges.",
+    "payoutCountryOtherWay": "Az országodba nem így fizetünk. Írj nekünk, és elmondjuk, hogyan fizetünk neked."
   },
   "loginLanding": {
     "exp1Eyebrow": "Személyes élmények",

@@ -214,6 +214,40 @@ export const PAYOUT_TIER_BY_COUNTRY: Readonly<Record<string, PayoutTier>> = Obje
   )
 );
 
+
+/**
+ * 🌎 Qué país decide la comisión, el mínimo y la ruta.
+ *
+ * **La cuenta de cobro manda sobre el documento.** Es a donde viaja el dinero de verdad, y es
+ * lo único que explica el coste: un mexicano con cuenta en Estados Unidos se paga por ACH
+ * estadounidense, no por SPEI, cueste lo que cueste su pasaporte.
+ *
+ * El documento es el RESPALDO, y hace falta por dos motivos:
+ *
+ * - Un creador de ruta **Wallbit** nunca da de alta cuenta en Stripe, así que
+ *   `payoutAccountCountry` se queda vacío para siempre. Sin este respaldo caería al caso
+ *   provisional y su país real no decidiría nada.
+ * - Antes de completar el alta hay que poder enseñarle algo, y su documento es lo único que
+ *   se sabe de él.
+ *
+ * 🚨 **Esta función es la ÚNICA fuente del criterio.** La usan el ledger —que congela la
+ * comisión— y la interfaz —que la muestra—. Tenerlo escrito dos veces es exactamente cómo se
+ * llega a que el creador vea una cifra y cobre otra.
+ *
+ * ⚠️ Que el documento sea de un país y la cuenta de otro **no es un problema**: es un caso
+ * normal y previsto. Lo único que cambia es que su comisión la decide su banco. Ojo con el
+ * otro efecto, que vive aparte: a un creador MEXICANO, cobrar fuera de México le sube la
+ * retención de IVA del 50% al 100% (`fiscal-iva-isr-plataforma.md` §0.6).
+ */
+export function paisDeCobroDe(fuentes: {
+  payoutAccountCountry?: string | null;
+  documentCountry?: string | null;
+}): string | null {
+  const cuenta = (fuentes.payoutAccountCountry ?? "").trim();
+  const documento = (fuentes.documentCountry ?? "").trim();
+  return cuenta || documento || null;
+}
+
 /** Resuelve un territorio a la matriz cuyo banco usa. Lo demás pasa tal cual. */
 export function resolvePayoutCountry(country: string | null | undefined): string {
   const key = (country ?? "").trim().toUpperCase();

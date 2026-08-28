@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import {
   payoutTermsOf,
+  paisDeCobroDe,
   isKnownUnpayableCountry,
   PAYOUT_TERMS_PROVISIONAL,
   type PayoutTerms,
@@ -117,6 +118,25 @@ export type CreatorTaxProfile = {
    * del formulario alojado.
    */
   stripeAccountStatus?: "none" | "pending" | "verified" | "restricted";
+  /**
+   * ¿Declaró su cuenta de cobro en el cuestionario de Didit?
+   *
+   * Para un creador de ruta WALLBIT ese cuestionario ES su registro de cobro. Para uno de
+   * Stripe es la declaración de titularidad, que Stripe no comprueba en ningún país salvo el
+   * Reino Unido.
+   */
+  payoutAccountDeclared?: boolean;
+  /**
+   * ¿Coinciden los últimos 4 dígitos que declaró con los que Stripe reporta?
+   *
+   * `undefined` mientras falte alguna de las dos mitades. Solo `false` es una discrepancia
+   * real, y esa sí hay que resolverla antes de pagarle.
+   */
+  declaredAccountMatchesStripe?: boolean;
+  /** Los últimos 4 de la cuenta que declaró. La completa vive en Didit. */
+  declaredAccountLast4?: string;
+  /** Los últimos 4 de la cuenta que Stripe reporta. Es lo único comparable que da. */
+  stripeAccountLast4?: string;
   taxId?: string;
   legalName?: string;
   taxSystem?: string;
@@ -238,7 +258,7 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
    * El orden importa: si llegara a existir un país de cuenta, ese manda — es el dato duro
    * sobre a dónde va el dinero, mientras que el documento solo dice de dónde es la persona.
    */
-  const paisDeCobro = payoutAccountCountry ?? kycCountry;
+  const paisDeCobro = paisDeCobroDe({ payoutAccountCountry, documentCountry: kycCountry });
 
   /**
    * 💰 Su comisión, su mínimo y su RUTA de pago.
@@ -293,8 +313,14 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
    */
   const payoutAccountReady =
     payoutTerms?.route === "wallbit"
-      ? false
-      : profile?.stripeAccountStatus === "verified";
+      ? // Para Wallbit el cuestionario ES el registro de cobro: no hay alta de Stripe que
+        // esperar. Sale de ahí porque es donde da los datos de su cuenta en dólares.
+        profile?.payoutAccountDeclared === true
+      : // Para Stripe hacen falta las DOS mitades: que declarara su cuenta y que Stripe la
+        // verificara. Sin la declaración no hay constancia de quién dice ser el titular;
+        // sin la verificación, la cuenta puede no existir.
+        profile?.stripeAccountStatus === "verified" &&
+        profile?.payoutAccountDeclared === true;
 
   /**
    * ¿Puede retirar?
@@ -332,6 +358,15 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
     payoutTerms,
     /** Por dónde cobra. `null` mientras no se sepa su país. */
     payoutRoute: payoutTerms?.route ?? null,
+    /** ¿Declaró su cuenta en el cuestionario de Didit? */
+    payoutAccountDeclared: profile?.payoutAccountDeclared === true,
+    /**
+     * 🔴 Declaró una cuenta y en Stripe metió otra.
+     *
+     * Solo es `true` cuando hay las dos mitades y NO coinciden. Que falte una no es una
+     * discrepancia, es que todavía no hay nada que comparar.
+     */
+    declaredAccountMismatch: profile?.declaredAccountMatchesStripe === false,
     /** El país que decidió su ruta: el de su cuenta, o el de su documento. */
     paisDeCobro,
     /** El país de su cuenta vende pero no cobra. Hay que decírselo. */

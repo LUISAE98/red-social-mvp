@@ -731,7 +731,13 @@
     "configureExperiences": "Configura tus experiencias",
     "minimumIs": "El mínimo es {amount}",
     "preparingImage": "Preparando imagen",
-    "accumulatedShort": "Acumulado {amount}"
+    "accumulatedShort": "Acumulado {amount}",
+    "actionPinInGroup": "Fijar en la comunidad",
+    "actionUnpinFromGroup": "Desfijar de la comunidad",
+    "actionPinOnProfile": "Fijar en mi perfil",
+    "actionUnpinFromProfile": "Desfijar de mi perfil",
+    "actionHidePost": "Ocultar publicación",
+    "actionDeletePost": "Eliminar publicación"
   },
   "profile": {
     "ariaChangeAvatar": "Cambiar foto de perfil",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe no puede enviar dinero a tu país, así que te pagamos por Wallbit en dólares. Abrirás una cuenta gratuita de Wallbit y nos darás sus datos aquí.",
     "payoutSetupStepWallbitSoon": "Disponible en breve",
     "payoutSetupWallbitUsdOnly": "Un aviso importante, en tu país Wallbit no puede transferir a un banco local. Recibes dólares y, por ahora, la única salida documentada es cripto. Asegúrate de que eso te sirve antes de empezar a acumular saldo.",
+    "payoutSetupStepWallbitCta": "Ingresar mis datos de Wallbit",
+    "payoutSetupStepDeclare": "Confirma que la cuenta es tuya",
+    "payoutSetupStepDeclareHint": "Dinos qué cuenta acabas de registrar y confirma que eres su titular. Tarda un minuto y es lo que nos permite pagarte sin sorpresas.",
+    "payoutSetupStepDeclareCta": "Confirmar mi cuenta",
+    "payoutSetupAccountMismatch": "La cuenta que declaraste no es la que registraste en Stripe. Revisa las dos y corrige la que esté mal, no podemos pagarte hasta que coincidan.",
     "payoutSetupStepSeal": "Sube tu sello digital",
     "payoutSetupStepSealHint": "Tu Certificado de Sello Digital (CSD) del SAT. Con él emitimos por ti la factura de cada venta. Se guarda con nuestro proveedor de facturación, nunca en la plataforma.",
     "payoutSetupStepSealCta": "Subir mi sello",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "No se pudo emitir ninguna factura. Los creadores de estas compras aún no tienen su sello digital al día.",
     "payoutSetupStartFailed": "No se pudo iniciar tu alta de cobro, inténtalo de nuevo.",
     "payoutSetupFormFailed": "No se pudo abrir el formulario, inténtalo de nuevo.",
-    "payoutSetupStatusFailed": "No se pudo consultar tu alta de cobro."
+    "payoutSetupStatusFailed": "No se pudo consultar tu alta de cobro.",
+    "verifyIdentityFirst": "Primero verifica tu identidad.",
+    "payoutCountryNotYet": "Todavía no podemos enviar dinero a tu país. Te avisamos en cuanto se pueda.",
+    "payoutCountryOtherWay": "Tu país no cobra por esta vía. Escríbenos y te decimos cómo pagarte."
   },
   "loginLanding": {
     "exp1Eyebrow": "Experiencias personales",

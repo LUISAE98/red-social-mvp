@@ -731,7 +731,13 @@
     "configureExperiences": "体験を設定する",
     "minimumIs": "最低額は {amount} です",
     "preparingImage": "画像を準備しています",
-    "accumulatedShort": "累計 {amount}"
+    "accumulatedShort": "累計 {amount}",
+    "actionPinInGroup": "コミュニティに固定",
+    "actionUnpinFromGroup": "コミュニティの固定を解除",
+    "actionPinOnProfile": "自分のプロフィールに固定",
+    "actionUnpinFromProfile": "プロフィールの固定を解除",
+    "actionHidePost": "投稿を非表示",
+    "actionDeletePost": "投稿を削除"
   },
   "profile": {
     "ariaChangeAvatar": "プロフィール画像を変更",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "デジタル印章をアップロード",
     "payoutSetupStepSealHint": "SAT が発行したデジタル印章証明書です。これを使って、売上ごとの請求書をあなたに代わって発行します。請求書サービス提供者が保管し、プラットフォームには保存しません。",
     "payoutSetupStepSealCta": "印章をアップロード",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "請求書を発行できませんでした。これらの購入のクリエイターはまだデジタル印章を更新していません。",
     "payoutSetupStartFailed": "送金登録を開始できませんでした。もう一度お試しください。",
     "payoutSetupFormFailed": "フォームを開けませんでした。もう一度お試しください。",
-    "payoutSetupStatusFailed": "送金登録の状態を確認できませんでした。"
+    "payoutSetupStatusFailed": "送金登録の状態を確認できませんでした。",
+    "verifyIdentityFirst": "まず本人確認をしてください。",
+    "payoutCountryNotYet": "まだあなたの国へは送金できません。可能になり次第お知らせします。",
+    "payoutCountryOtherWay": "あなたの国はこの方法では受け取れません。ご連絡いただければお支払い方法をご案内します。"
   },
   "loginLanding": {
     "exp1Eyebrow": "パーソナルな体験",

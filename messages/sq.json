@@ -731,7 +731,13 @@
     "configureExperiences": "Konfiguro përvojat e tua",
     "minimumIs": "Minimumi është {amount}",
     "preparingImage": "Po përgatitet imazhi",
-    "accumulatedShort": "Grumbulluar {amount}"
+    "accumulatedShort": "Grumbulluar {amount}",
+    "actionPinInGroup": "Fikso në komunitet",
+    "actionUnpinFromGroup": "Hiq fiksimin nga komuniteti",
+    "actionPinOnProfile": "Fikso në profilin tim",
+    "actionUnpinFromProfile": "Hiq fiksimin nga profili im",
+    "actionHidePost": "Fshih postimin",
+    "actionDeletePost": "Fshi postimin"
   },
   "profile": {
     "ariaChangeAvatar": "Ndrysho foton e profilit",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Ngarko vulën tënde dixhitale",
     "payoutSetupStepSealHint": "Certifikata jote e Vulës Dixhitale nga SAT. Me të lëshojmë në emrin tënd faturën e çdo shitjeje. Ruhet te ofruesi ynë i faturimit, kurrë në platformë.",
     "payoutSetupStepSealCta": "Ngarko vulën time",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Nuk u lëshua asnjë faturë. Krijuesit e këtyre blerjeve nuk e kanë ende vulën dixhitale të përditësuar.",
     "payoutSetupStartFailed": "Nuk arritëm ta nisim regjistrimin tënd për pagesat. Provo sërish.",
     "payoutSetupFormFailed": "Nuk arritëm ta hapim formularin. Provo sërish.",
-    "payoutSetupStatusFailed": "Nuk arritëm ta kontrollojmë regjistrimin tënd për pagesat."
+    "payoutSetupStatusFailed": "Nuk arritëm ta kontrollojmë regjistrimin tënd për pagesat.",
+    "verifyIdentityFirst": "Së pari verifiko identitetin tënd.",
+    "payoutCountryNotYet": "Ende nuk mund të dërgojmë para në vendin tënd. Të njoftojmë sapo të jetë e mundur.",
+    "payoutCountryOtherWay": "Vendi yt nuk paguhet nëpërmjet kësaj rruge. Na shkruaj dhe të themi si të të paguajmë."
   },
   "loginLanding": {
     "exp1Eyebrow": "Përvoja personale",

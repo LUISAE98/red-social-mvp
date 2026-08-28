@@ -16,6 +16,10 @@ import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
+import {
+  esSesionDeCuentaDeCobro,
+  guardarCuentaDeclarada,
+} from "./payments/payoutAccountQuestionnaire";
 import { defineSecret } from "firebase-functions/params";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { checkAndRecord } from "./rateLimiter";
@@ -388,6 +392,31 @@ function extractDocumentCountry(payload: unknown): string | null {
   return null;
 }
 
+/**
+ * Las respuestas de un cuestionario, desde la API.
+ *
+ * El webhook avisa de que terminó pero no trae lo que contestó, así que hay que ir a por
+ * ello. Se devuelve la lista tal cual y quien la usa decide qué mira.
+ */
+async function fetchRespuestasCuestionario(sessionId: string | undefined): Promise<unknown> {
+  if (!sessionId) return null;
+  try {
+    const res = await fetch(`${DIDIT_API_BASE}/v3/session/${sessionId}/decision/`, {
+      headers: { "x-api-key": diditApiKey.value().trim() },
+    });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { questionnaire_responses?: unknown };
+    const q = j.questionnaire_responses;
+    // Didit lo devuelve como lista de sesiones de cuestionario; interesa la primera.
+    const primera = Array.isArray(q) ? q[0] : q;
+    if (!primera || typeof primera !== "object") return null;
+    const o = primera as Record<string, unknown>;
+    return o.responses ?? o.answers ?? o.form_responses ?? primera;
+  } catch {
+    return null;
+  }
+}
+
 /** Lee el país del documento desde la API, cuando el webhook no lo trae. */
 async function fetchDocumentCountry(sessionId: string | undefined): Promise<string | null> {
   if (!sessionId) return null;
@@ -501,6 +530,31 @@ export const diditWebhook = onRequest(
 
     if (!uid || !rawStatus) {
       // Nada que actualizar; respondemos 200 para que Didit no reintente.
+      res.status(200).json({ received: true });
+      return;
+    }
+
+    /**
+     * 🔀 No toda sesión de Didit es un KYC.
+     *
+     * Desde el 2026-08-28 hay dos workflows más —los cuestionarios donde el creador declara
+     * su cuenta de cobro— que llegan por este mismo webhook. Sin este desvío, terminar un
+     * cuestionario marcaría su identidad como aprobada o rechazada según el estado de una
+     * sesión que no verificó a nadie.
+     */
+    if (esSesionDeCuentaDeCobro(event.workflow_id)) {
+      if (mapDiditStatus(rawStatus).approved) {
+        try {
+          await guardarCuentaDeclarada(uid, await fetchRespuestasCuestionario(sessionId));
+        } catch (err) {
+          // Un fallo aquí no puede tumbar el webhook: Didit reintentaría y el creador se
+          // quedaría viendo un formulario que ya envió.
+          logger.error("cuenta_cobro_guardado_falló", {
+            uid,
+            err: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
       res.status(200).json({ received: true });
       return;
     }

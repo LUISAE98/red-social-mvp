@@ -380,10 +380,17 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
               transparent 100%
             );
           }
+          /* La caja la define la TARJETA, no la miniatura de dentro: mismas
+             medidas, mismo radio y mismo fondo que la real. Así lo que se pinta
+             mientras carga ocupa exactamente el sitio que ocupará después. */
           .skelCard {
             width: ${CARD_WIDTH};
             flex-shrink: 0;
             position: relative;
+            aspect-ratio: ${CARD_RATIO};
+            border-radius: ${CARD_RADIUS}px;
+            overflow: hidden;
+            background: #141420;
           }
           /* El autor va DENTRO de la tarjeta, igual que en las reales, para que
              al llegar el contenido no se mueva nada de sitio. */
@@ -395,8 +402,18 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
             display: flex;
             align-items: center;
             gap: 6px;
-            padding: 8px;
+            /* El mismo padding y el mismo degradado que la tarjeta real. Con
+               8px planos el avatar y el nombre nacían 10px más abajo y daban un
+               salto al llegar el contenido, que es justo lo que un skeleton
+               tiene que evitar. */
+            padding: 18px 8px 8px;
             box-sizing: border-box;
+            background: linear-gradient(
+              to top,
+              rgba(0, 0, 0, 0.78) 0%,
+              rgba(0, 0, 0, 0.45) 45%,
+              rgba(0, 0, 0, 0) 100%
+            );
           }
           .vb-skel {
             background: linear-gradient(
@@ -422,11 +439,12 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
               background: rgba(255, 255, 255, 0.07);
             }
           }
+          /* Rellena la tarjeta entera. El tamaño ya lo pone .skelCard, que es
+             quien lo comparte con la tarjeta real. */
           .skelMedia {
-            width: 100%;
-            aspect-ratio: ${CARD_RATIO};
+            position: absolute;
+            inset: 0;
             display: block;
-            border-radius: ${CARD_RADIUS}px;
           }
           /* Sobre el bloque de la miniatura hace falta más contraste que el
              relleno base, o el avatar y el nombre no se distinguen de él. */

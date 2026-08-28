@@ -25,6 +25,7 @@ import {
 } from "../tax/fiscalEngine";
 import {
   payoutTermsOf,
+  paisDeCobroDe,
   PAYOUT_TERMS_PROVISIONAL,
   type PayoutTerms,
 } from "./payoutTiers";
@@ -296,18 +297,35 @@ export type RecordEarningParams = {
  */
 async function perfilFiscalDe(creatorId: string): Promise<PerfilFiscalCreador> {
   try {
-    const snap = await db.collection("creatorTaxProfiles").doc(creatorId).get();
+    const [snap, kycSnap] = await Promise.all([
+      db.collection("creatorTaxProfiles").doc(creatorId).get(),
+      db.collection("kyc").doc(creatorId).get(),
+    ]);
     const d = snap.exists ? snap.data() ?? {} : {};
+    const kyc = kycSnap.exists ? kycSnap.data() ?? {} : {};
     const residency = d.residency === "FOREIGN" ? "FOREIGN" : "MX";
     return {
       residency,
       hasTaxId: typeof d.taxId === "string" && d.taxId.trim().length > 0,
       payoutAccountCountry:
         typeof d.payoutAccountCountry === "string" ? d.payoutAccountCountry : null,
+      /**
+       * País del documento del KYC, de respaldo para quien no tiene cuenta de Stripe.
+       *
+       * Se lee en la MISMA transacción de lectura que el perfil, no en una aparte: es un
+       * dato más del creador y separarlo solo añadiría una consulta.
+       */
+      documentCountry:
+        typeof kyc?.documentCountry === "string" ? kyc.documentCountry : null,
     };
   } catch {
     // Un fallo de lectura no puede tumbar una venta ya cobrada. Se asume el caso base.
-    return { residency: "MX", hasTaxId: false, payoutAccountCountry: null };
+    return {
+      residency: "MX",
+      hasTaxId: false,
+      payoutAccountCountry: null,
+      documentCountry: null,
+    };
   }
 }
 
@@ -362,7 +380,7 @@ export async function recordEarning(
    * registro, y se resuelve en el gate con `isPayableCountry`.
    */
   const terms: Readonly<PayoutTerms> =
-    payoutTermsOf(perfil.payoutAccountCountry) ?? PAYOUT_TERMS_PROVISIONAL;
+    payoutTermsOf(paisDeCobroDe(perfil)) ?? PAYOUT_TERMS_PROVISIONAL;
   const net = netFromGross(gross, terms.commissionRate);
 
   /**

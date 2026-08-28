@@ -731,7 +731,13 @@
     "configureExperiences": "اضبط تجاربك",
     "minimumIs": "الحد الأدنى هو {amount}",
     "preparingImage": "جارٍ تجهيز الصورة",
-    "accumulatedShort": "المتراكم {amount}"
+    "accumulatedShort": "المتراكم {amount}",
+    "actionPinInGroup": "تثبيت في المجتمع",
+    "actionUnpinFromGroup": "إلغاء التثبيت من المجتمع",
+    "actionPinOnProfile": "تثبيت في ملفي",
+    "actionUnpinFromProfile": "إلغاء التثبيت من ملفي",
+    "actionHidePost": "إخفاء المنشور",
+    "actionDeletePost": "حذف المنشور"
   },
   "profile": {
     "ariaChangeAvatar": "تغيير صورة الملف الشخصي",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "ارفع ختمك الرقمي",
     "payoutSetupStepSealHint": "شهادة الختم الرقمي الصادرة من SAT. بها نصدر نيابة عنك فاتورة كل عملية بيع. تُحفظ لدى مزوّد الفوترة، وليس على المنصة أبدًا.",
     "payoutSetupStepSealCta": "رفع ختمي",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "تعذّر إصدار أي فاتورة. لم يحدّث منشئو هذه المشتريات ختمهم الرقمي بعد.",
     "payoutSetupStartFailed": "تعذّر بدء تسجيل بيانات التحصيل. حاول مرة أخرى.",
     "payoutSetupFormFailed": "تعذّر فتح النموذج. حاول مرة أخرى.",
-    "payoutSetupStatusFailed": "تعذّر التحقق من حالة تسجيل بيانات التحصيل."
+    "payoutSetupStatusFailed": "تعذّر التحقق من حالة تسجيل بيانات التحصيل.",
+    "verifyIdentityFirst": "تحقّق من هويتك أولًا.",
+    "payoutCountryNotYet": "لا يمكننا إرسال الأموال إلى بلدك بعد. سنُعلمك فور توفّر ذلك.",
+    "payoutCountryOtherWay": "بلدك لا يستلم بهذه الطريقة. راسلنا وسنخبرك كيف نرسل لك المبلغ."
   },
   "loginLanding": {
     "exp1Eyebrow": "تجارب شخصية",

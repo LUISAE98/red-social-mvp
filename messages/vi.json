@@ -731,7 +731,13 @@
     "configureExperiences": "Thiết lập trải nghiệm của bạn",
     "minimumIs": "Tối thiểu là {amount}",
     "preparingImage": "Đang chuẩn bị ảnh",
-    "accumulatedShort": "Đã tích lũy {amount}"
+    "accumulatedShort": "Đã tích lũy {amount}",
+    "actionPinInGroup": "Ghim trong cộng đồng",
+    "actionUnpinFromGroup": "Bỏ ghim khỏi cộng đồng",
+    "actionPinOnProfile": "Ghim trên trang cá nhân",
+    "actionUnpinFromProfile": "Bỏ ghim khỏi trang cá nhân",
+    "actionHidePost": "Ẩn bài đăng",
+    "actionDeletePost": "Xóa bài đăng"
   },
   "profile": {
     "ariaChangeAvatar": "Đổi ảnh hồ sơ",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Tải lên con dấu số của bạn",
     "payoutSetupStepSealHint": "Chứng thư Con dấu Số của bạn từ SAT. Nhờ đó chúng tôi xuất hóa đơn cho từng giao dịch thay mặt bạn. Nó được lưu tại nhà cung cấp hóa đơn của chúng tôi, không bao giờ trên nền tảng.",
     "payoutSetupStepSealCta": "Tải lên con dấu",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Không thể xuất hóa đơn nào. Nhà sáng tạo của các giao dịch này chưa cập nhật con dấu điện tử.",
     "payoutSetupStartFailed": "Không thể bắt đầu đăng ký nhận tiền của bạn. Hãy thử lại.",
     "payoutSetupFormFailed": "Không thể mở biểu mẫu. Hãy thử lại.",
-    "payoutSetupStatusFailed": "Không thể kiểm tra đăng ký nhận tiền của bạn."
+    "payoutSetupStatusFailed": "Không thể kiểm tra đăng ký nhận tiền của bạn.",
+    "verifyIdentityFirst": "Hãy xác minh danh tính của bạn trước.",
+    "payoutCountryNotYet": "Chúng tôi chưa thể gửi tiền đến quốc gia của bạn. Sẽ báo ngay khi có thể.",
+    "payoutCountryOtherWay": "Quốc gia của bạn không nhận tiền theo cách này. Hãy viết cho chúng tôi để biết cách nhận thanh toán."
   },
   "loginLanding": {
     "exp1Eyebrow": "Trải nghiệm cá nhân",

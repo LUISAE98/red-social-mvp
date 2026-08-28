@@ -84,6 +84,15 @@ export default function LiveRingAvatar({
   }
 
   const ringPad = 2.5;
+  /**
+   * Hueco entre el aro y el avatar. TRANSPARENTE.
+   *
+   * ⚠️ Antes era un borde de `GAP_COLOR` sobre un círculo rojo relleno, y encima
+   * de una miniatura o de una tarjeta clara se leía como un segundo anillo negro.
+   * Ahora el aro es un borde sobre una caja sin fondo, así que el hueco enseña lo
+   * que haya detrás en vez de un color fijo que este componente no puede conocer.
+   */
+  const gapPad = 1.5;
   const initials = (() => {
     const parts = displayName.trim().split(/\s+/).filter(Boolean);
     return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
@@ -131,17 +140,20 @@ export default function LiveRingAvatar({
           }}
           aria-label={tLive("watchLiveOf", { name: displayName })}
         >
-          {/* Anillo rojo */}
+          {/* Anillo rojo. Es un BORDE sobre una caja sin fondo, y el hueco hasta
+              el avatar es su padding: dos capas, no tres, y la de en medio no
+              pinta nada. */}
           <div
             style={{
               width: "100%",
               height: "100%",
               borderRadius: "50%",
-              background: LIVE_RED,
+              border: `${ringPad}px solid ${LIVE_RED}`,
+              background: "transparent",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              padding: ringPad,
+              padding: gapPad,
               boxSizing: "border-box",
             }}
           >
@@ -151,7 +163,6 @@ export default function LiveRingAvatar({
                 width: "100%",
                 height: "100%",
                 borderRadius: "50%",
-                border: `1.5px solid ${GAP_COLOR}`,
                 overflow: "hidden",
                 background: "#1a1a2e",
                 display: "flex",

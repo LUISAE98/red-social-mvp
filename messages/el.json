@@ -731,7 +731,13 @@
     "configureExperiences": "Ρύθμισε τις εμπειρίες σου",
     "minimumIs": "Το ελάχιστο είναι {amount}",
     "preparingImage": "Προετοιμασία εικόνας",
-    "accumulatedShort": "Συγκεντρωμένα {amount}"
+    "accumulatedShort": "Συγκεντρωμένα {amount}",
+    "actionPinInGroup": "Καρφίτσωμα στην κοινότητα",
+    "actionUnpinFromGroup": "Ξεκαρφίτσωμα από την κοινότητα",
+    "actionPinOnProfile": "Καρφίτσωμα στο προφίλ μου",
+    "actionUnpinFromProfile": "Ξεκαρφίτσωμα από το προφίλ μου",
+    "actionHidePost": "Απόκρυψη δημοσίευσης",
+    "actionDeletePost": "Διαγραφή δημοσίευσης"
   },
   "profile": {
     "ariaChangeAvatar": "Αλλαγή φωτογραφίας προφίλ",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Ανέβασε την ψηφιακή σου σφραγίδα",
     "payoutSetupStepSealHint": "Το πιστοποιητικό ψηφιακής σφραγίδας από την SAT. Με αυτό εκδίδουμε για λογαριασμό σου το τιμολόγιο κάθε πώλησης. Φυλάσσεται στον πάροχο τιμολόγησης, ποτέ στην πλατφόρμα.",
     "payoutSetupStepSealCta": "Ανέβασμα σφραγίδας",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Δεν εκδόθηκε κανένα τιμολόγιο. Οι δημιουργοί αυτών των αγορών δεν έχουν ακόμη ενημερωμένη την ψηφιακή τους σφραγίδα.",
     "payoutSetupStartFailed": "Δεν μπορέσαμε να ξεκινήσουμε την εγγραφή πληρωμών. Δοκίμασε ξανά.",
     "payoutSetupFormFailed": "Δεν μπορέσαμε να ανοίξουμε τη φόρμα. Δοκίμασε ξανά.",
-    "payoutSetupStatusFailed": "Δεν μπορέσαμε να ελέγξουμε την εγγραφή πληρωμών σου."
+    "payoutSetupStatusFailed": "Δεν μπορέσαμε να ελέγξουμε την εγγραφή πληρωμών σου.",
+    "verifyIdentityFirst": "Πρώτα επαλήθευσε την ταυτότητά σου.",
+    "payoutCountryNotYet": "Δεν μπορούμε ακόμη να στείλουμε χρήματα στη χώρα σου. Θα σε ενημερώσουμε μόλις γίνει εφικτό.",
+    "payoutCountryOtherWay": "Η χώρα σου δεν πληρώνεται με αυτόν τον τρόπο. Γράψε μας και θα σου πούμε πώς θα σε πληρώσουμε."
   },
   "loginLanding": {
     "exp1Eyebrow": "Προσωπικές εμπειρίες",

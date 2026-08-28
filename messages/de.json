@@ -731,7 +731,13 @@
     "configureExperiences": "Richte deine Erlebnisse ein",
     "minimumIs": "Das Minimum ist {amount}",
     "preparingImage": "Bild wird vorbereitet",
-    "accumulatedShort": "{amount} gesammelt"
+    "accumulatedShort": "{amount} gesammelt",
+    "actionPinInGroup": "In der Community anpinnen",
+    "actionUnpinFromGroup": "Aus der Community lösen",
+    "actionPinOnProfile": "An mein Profil anpinnen",
+    "actionUnpinFromProfile": "Von meinem Profil lösen",
+    "actionHidePost": "Beitrag ausblenden",
+    "actionDeletePost": "Beitrag löschen"
   },
   "profile": {
     "ariaChangeAvatar": "Profilbild ändern",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "Lade dein digitales Siegel hoch",
     "payoutSetupStepSealHint": "Dein Zertifikat des digitalen Siegels vom SAT. Damit stellen wir für dich die Rechnung zu jedem Verkauf aus. Es liegt bei unserem Rechnungsdienstleister, nie auf der Plattform.",
     "payoutSetupStepSealCta": "Mein Siegel hochladen",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "Es konnte keine Rechnung ausgestellt werden. Die Creator dieser Käufe haben ihr digitales Siegel noch nicht aktuell.",
     "payoutSetupStartFailed": "Wir konnten deine Auszahlungsanmeldung nicht starten. Versuch es noch mal.",
     "payoutSetupFormFailed": "Wir konnten das Formular nicht öffnen. Versuch es noch mal.",
-    "payoutSetupStatusFailed": "Wir konnten deine Auszahlungsanmeldung nicht abfragen."
+    "payoutSetupStatusFailed": "Wir konnten deine Auszahlungsanmeldung nicht abfragen.",
+    "verifyIdentityFirst": "Bestätige zuerst deine Identität.",
+    "payoutCountryNotYet": "Wir können noch kein Geld in dein Land senden. Wir melden uns, sobald es geht.",
+    "payoutCountryOtherWay": "Dein Land wird nicht auf diesem Weg ausgezahlt. Schreib uns und wir sagen dir, wie wir dich bezahlen."
   },
   "loginLanding": {
     "exp1Eyebrow": "Persönliche Erlebnisse",

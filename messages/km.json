@@ -731,7 +731,13 @@
     "configureExperiences": "រៀបចំបទពិសោធន៍របស់អ្នក",
     "minimumIs": "អប្បបរមាគឺ {amount}",
     "preparingImage": "កំពុងរៀបចំរូបភាព",
-    "accumulatedShort": "បានប្រមូល {amount}"
+    "accumulatedShort": "បានប្រមូល {amount}",
+    "actionPinInGroup": "ខ្ទាស់ក្នុងសហគមន៍",
+    "actionUnpinFromGroup": "ដកខ្ទាស់ចេញពីសហគមន៍",
+    "actionPinOnProfile": "ខ្ទាស់លើប្រវត្តិរូបខ្ញុំ",
+    "actionUnpinFromProfile": "ដកខ្ទាស់ចេញពីប្រវត្តិរូបខ្ញុំ",
+    "actionHidePost": "លាក់ការបង្ហោះ",
+    "actionDeletePost": "លុបការបង្ហោះ"
   },
   "profile": {
     "ariaChangeAvatar": "ប្តូររូបថតប្រវត្តិរូប",
@@ -1513,6 +1519,11 @@
     "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
     "payoutSetupStepWallbitSoon": "Available shortly",
     "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
+    "payoutSetupStepWallbitCta": "Enter my Wallbit details",
+    "payoutSetupStepDeclare": "Confirm your account is yours",
+    "payoutSetupStepDeclareHint": "Tell us the account you just registered and confirm you are its holder. It takes a minute and it is what lets us pay you without surprises.",
+    "payoutSetupStepDeclareCta": "Confirm my account",
+    "payoutSetupAccountMismatch": "The account you declared is not the one registered with Stripe. Check both and fix whichever is wrong, we cannot pay you until they match.",
     "payoutSetupStepSeal": "ផ្ទុកត្រាឌីជីថលរបស់អ្នក",
     "payoutSetupStepSealHint": "វិញ្ញាបនបត្រត្រាឌីជីថលពី SAT។ ជាមួយវា យើងចេញវិក្កយបត្រសម្រាប់ការលក់នីមួយៗជំនួសអ្នក។ វាត្រូវរក្សាទុកនៅអ្នកផ្តល់សេវាវិក្កយបត្រ មិនមែននៅលើវេទិកាទេ។",
     "payoutSetupStepSealCta": "ផ្ទុកត្រារបស់ខ្ញុំ",
@@ -3073,7 +3084,10 @@
     "creatorsMissingTaxSeal": "មិនអាចចេញវិក្កយបត្រណាមួយបានទេ។ អ្នកបង្កើតនៃការទិញទាំងនេះមិនទាន់មានត្រាឌីជីថលទាន់សម័យទេ។",
     "payoutSetupStartFailed": "យើងមិនអាចចាប់ផ្តើមការចុះឈ្មោះទទួលប្រាក់បានទេ។ សូមព្យាយាមម្ដងទៀត។",
     "payoutSetupFormFailed": "យើងមិនអាចបើកទម្រង់បែបបទបានទេ។ សូមព្យាយាមម្ដងទៀត។",
-    "payoutSetupStatusFailed": "យើងមិនអាចពិនិត្យការចុះឈ្មោះទទួលប្រាក់របស់អ្នកបានទេ។"
+    "payoutSetupStatusFailed": "យើងមិនអាចពិនិត្យការចុះឈ្មោះទទួលប្រាក់របស់អ្នកបានទេ។",
+    "verifyIdentityFirst": "សូមផ្ទៀងផ្ទាត់អត្តសញ្ញាណរបស់អ្នកជាមុនសិន។",
+    "payoutCountryNotYet": "យើងមិនទាន់អាចផ្ញើប្រាក់ទៅប្រទេសរបស់អ្នកបានទេ។ យើងនឹងជូនដំណឹងភ្លាមៗនៅពេលអាចធ្វើបាន។",
+    "payoutCountryOtherWay": "ប្រទេសរបស់អ្នកមិនទទួលប្រាក់តាមផ្លូវនេះទេ។ សូមសរសេរមកយើង យើងនឹងប្រាប់វិធីបង់ប្រាក់ជូនអ្នក។"
   },
   "loginLanding": {
     "exp1Eyebrow": "បទពិសោធន៍ផ្ទាល់ខ្លួន",
