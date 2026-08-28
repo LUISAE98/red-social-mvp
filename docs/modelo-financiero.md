@@ -7,8 +7,21 @@
 > y añade el IVA de la comisión. Ver `docs/legal/fiscal-iva-isr-plataforma.md` §0 y §5.
 
 ## Comisión y reparto
-- **Comisión Vibra: 25%** sobre el precio base (subió de 23% para cubrir devoluciones + sueldos y
-  mantener 10% de utilidad).
+
+> ⚠️ **YA NO ES PLANA (2026-08-27).** Son dos grupos según el país de la cuenta de cobro del
+> creador. Fuente de verdad: **`docs/payout-tiers.md`**.
+>
+> | Grupo | Comisión | Mínimo de retiro | Países |
+> |---|---|---|---|
+> | Estándar | **25%** | 300 USD | 45 |
+> | Transferencia cara (wire) | **30%** | 500 USD | 29 |
+> | Sin ruta de pago | — | — | 73 |
+>
+> Con esa regla, lo que le queda a Vibra cae entre **18.14% y 20.10%** en todos los casos,
+> contra un rango de once puntos con comisión plana.
+
+- **Comisión Vibra: 25% u 30%** sobre el precio base según el grupo (subió de 23% para cubrir
+  devoluciones + sueldos y mantener 10% de utilidad).
 - **Reparto: Creador 75% / Vibra 25%.** El creador conserva el 75% de la base, íntegro antes de sus
   propias retenciones.
 - **El IVA de la comisión va POR ENCIMA del 25%, nunca dentro.** Con creador mexicano la comisión es
@@ -23,7 +36,7 @@
 | **$3 fijo por cobro** | **Comprador** | Protege el margen en cobros chicos (donde el fijo es brutal). |
 | **FX del cobro (~2%)** | **Comprador** | ❌ NO es Stripe Adaptive Pricing (esa función es solo para Checkout/Prices fijos; nosotros usamos PaymentIntents dinámicos). **La conversión la hacemos NOSOTROS**: convertimos el precio del creador (MXN) → moneda local del comprador con nuestro FX **+ 2%**, y cobramos en esa moneda local. El 2% cubre el spread de conversión de Stripe al liquidar a MXN. Solo aplica a compradores extranjeros. Ver `docs/stripe-integracion.md §13`. |
 | **Stripe payin (%)** | **Vibra** | Tarjeta MX **3.6%** · tarjeta extranjera **4.1%** (3.6% + 0.5% intl). Sobre el total cobrado. |
-| **Stripe payout (%)** | **Vibra** | 0.25% + $12/transferencia + $35/mes cuenta activa. Con retiro a $10,000 → **0.72%**. |
+| **Stripe payout (%)** | **Vibra** | ⚠️ **DESACTUALIZADO** — ese 0.72% era de Connect, que no llega a México. Con **Global Payouts** a México: **1.50 USD fijos + 0.25% transfronteriza + 1% de conversión USD→MXN**. Sobre el mínimo de 300 USD son **1.75%**. Ver `docs/stripe-integracion.md` §8-sexies.7-ter. |
 | **FX del payout (MXN→USD)** | **Banco del creador** | NO lo absorbe Vibra — lo aplica el banco/fintech del creador (Wallbit/Takenos) al convertir a USD. Confirmado en junta con Stripe. |
 | **Retenciones ISR/IVA del creador** | **Creador** | MX: vía CFDI (Facturapi). Extranjero: en su país. |
 

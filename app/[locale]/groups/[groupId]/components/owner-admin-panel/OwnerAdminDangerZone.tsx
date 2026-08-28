@@ -19,8 +19,8 @@ export default function OwnerAdminDangerZone({
   groupId,
   groupName,
 }: OwnerAdminDangerZoneProps) {
-  const router = useRouter();
   const tGroups = useTranslations("groups");
+  const router = useRouter();
   const tCommon = useTranslations("common");
 
   const [isOpen, setIsOpen] = useState(false);
@@ -151,10 +151,8 @@ export default function OwnerAdminDangerZone({
                   textAlign: "justify",
                 }}
               >
-                Esta acción ocultará la comunidad para todos los usuarios.
-                También desactivará sus posts, invitaciones, solicitudes y
-                accesos materializados. Los datos se conservarán internamente
-                para auditoría, soporte y trazabilidad.
+                {tGroups("hideCommunityWarning")}
+
               </p>
 
               {groupName ? (
@@ -166,7 +164,7 @@ export default function OwnerAdminDangerZone({
                     color: "rgba(255,255,255,0.62)",
                   }}
                 >
-                  Comunidad:{" "}
+                  {tGroups("communityLabel")}{" "}
                   <span style={{ color: "#fff", fontWeight: 500 }}>
                     {groupName}
                   </span>
@@ -182,7 +180,7 @@ export default function OwnerAdminDangerZone({
                   color: "rgba(255,255,255,0.86)",
                 }}
               >
-                Motivo interno opcional
+                {tGroups("internalReasonOptional")}
               </span>
 
               <textarea
@@ -217,7 +215,7 @@ export default function OwnerAdminDangerZone({
                   color: "rgba(255,255,255,0.86)",
                 }}
               >
-                Escribe ELIMINAR para confirmar
+                {tGroups("typeDeleteToConfirm")}
               </span>
 
               <input
@@ -338,8 +336,8 @@ export default function OwnerAdminDangerZone({
                   lineHeight: 1.2,
                 }}
               >
-                ¿Seguro que quieres eliminar tu comunidad o solo quieres
-                pausarla?
+                {tGroups("deleteOrPauseQuestion")}
+
               </h3>
 
               <p
@@ -350,9 +348,8 @@ export default function OwnerAdminDangerZone({
                   lineHeight: 1.55,
                 }}
               >
-                Si la pausas, la comunidad queda inactiva sin eliminar su
-                historial. Si la eliminas, se ocultará y se desactivarán sus
-                accesos relacionados.
+                {tGroups("deleteOrPauseExplain")}
+
               </p>
             </div>
 
@@ -378,7 +375,7 @@ export default function OwnerAdminDangerZone({
                   opacity: isPausing || isDeleting ? 0.7 : 1,
                 }}
               >
-                {isPausing ? "Pausando..." : "Solo pausarla"}
+                {isPausing ? "Pausando..." : tGroups("justPause")}
               </button>
 
               <button
@@ -397,7 +394,7 @@ export default function OwnerAdminDangerZone({
                   opacity: isPausing || isDeleting ? 0.76 : 1,
                 }}
               >
-                {isDeleting ? "Eliminando..." : "Sí, eliminar comunidad"}
+                {isDeleting ? "Eliminando..." : tGroups("yesDeleteCommunity")}
               </button>
 
               <TextButton

@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import {
   FIXED_SERVICE_FEE_LABEL,
   FIXED_SERVICE_FEE_NOTE,
@@ -65,7 +65,8 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
   const vodHasValidPrice =
     priceInput.trim() !== "" && Number.isFinite(vodPriceNum) && vodPriceNum > 0;
   const vodBelowMin = vodHasValidPrice && vodPriceNum < PREMIUM_MIN_PRICE_USD;
-  const vodEarnings = vodHasValidPrice ? vodPriceNum * WALLET_NET_RATE : null;
+  const { netRate } = useCreatorNetRate();
+  const vodEarnings = vodHasValidPrice ? vodPriceNum * netRate : null;
   const vodEarningsVisible = vodEarnings != null && vodEarnings > 0 && !vodBelowMin;
 
   // Mobile swipe state
@@ -274,7 +275,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
                 {/* Referencia en la moneda del creador, el mismo componente que usan las
                     experiencias y el composer premium. El precio SIEMPRE se fija en la de
                     liquidación; esto solo lo ayuda a ubicarse. */}
-                <LocalPriceHint value={vodHasValidPrice ? vodPriceNum : null} netRate={WALLET_NET_RATE} />
+                <LocalPriceHint value={vodHasValidPrice ? vodPriceNum : null} showEarnings />
               </div>
             </div>
           </div>

@@ -1195,8 +1195,19 @@ con un error genérico. Es lo que costó media tarde localizar.
 * Está en **vista previa**: SDK del canal de preview, y la API puede cambiar.
 * Los webhooks son **"thin events"**, otro formato. `stripeWebhook` no los entiende.
 
-✅ **El KYC viene resuelto**: `AccountLink` lleva al creador a un formulario de Stripe y
-vuelve. No hace falta buscar otro proveedor de identidad.
+🔴 **EL KYC NO VIENE RESUELTO.** Corregido el 2026-08-27; antes esta línea decía lo contrario y
+era falso.
+
+La documentación de Stripe lo dice sin rodeos: *«Your business is responsible for all
+interactions with your recipients and for collecting all the necessary information to verify
+them.»* **Global Payouts no verifica identidad.** El `AccountLink` recoge los DATOS DE COBRO
+—cuenta bancaria, CLABE—, no comprueba quién es la persona. Eso lo hace Connect, no esto.
+
+⚠️ Consecuencia: **hace falta un proveedor de identidad** (Didit u otro). El plan de sustituir
+a Didit por «el KYC de Stripe» no se sostiene con Global Payouts.
+
+Existe una vía opcional en vista previa —Financial Connections— para confirmar de quién es la
+cuenta bancaria enlazada. Es titularidad de la cuenta, no identidad de la persona.
 
 ⚠️ El enlace del formulario **caduca a los 3 días**, o al abrirlo dos veces. Hay que poder
 regenerarlo. Y por cumplimiento **no se pueden capturar datos de tarjeta de débito a mano**:
@@ -1240,6 +1251,29 @@ salen transferencias a más de 160 países. El creador no tiene cuenta de Stripe
 ⚠️ **Consecuencia de arquitectura:** Stripe no sabe cuánto le toca a cada creador. El saldo por
 creador vive en el ledger de Vibra y en ningún otro sitio. Eso convierte al ledger en la única
 fuente de verdad del dinero de cada quien, no en una copia de lo que Stripe ya sabe.
+
+### 8-sexies.7-ter Coste real a México (verificado 2026-08-27)
+
+| Concepto | Coste |
+|---|---|
+| Fijo por pago (remitente US) | **1.50 USD** |
+| Transfronteriza a México | **0.25%** |
+| Conversión USD → MXN | **1%** (remitente US; sería 2% si no lo fuera) |
+| Fondear la cuenta financiera por ACH | Gratis |
+| Fondear por wire | 2 USD |
+
+**Sobre el mínimo de 300 USD: `1.50 + 0.75 + 3.00 = 5.25 USD`, o sea 1.75%.**
+
+🚨 **Es MUCHO más caro que Connect** (0.25% + 0.25 USD). La diferencia es el **1% de
+conversión**: Connect movía dólares a dólares; aquí se convierte a pesos en cada pago.
+
+⚠️ `docs/modelo-financiero.md` tiene apuntado **0.72% de payout**, que era el número de Connect.
+Con Global Payouts y el mínimo actual son **1.75%**, y como Vibra absorbe el coste para que al
+creador le llegue su 75% íntegro, ese punto de más sale de la comisión del 25%.
+
+**Moneda:** al creador mexicano se le paga en **MXN**, a cuenta bancaria local. Stripe solo
+exige de él **correo y nombre** más la cuenta. El descalce sigue en pie: se cobra en USD, el
+ledger vive en USD y el pago sale en pesos.
 
 ### 8-sexies.8 Enlaces
 
@@ -1310,6 +1344,170 @@ sin retención alguna, se queda en comprobante de liquidación.
 
 > 🚨 **La tasa de ISR es de vigencia anual.** El 2.5% viene de la Ley de Ingresos, no del artículo 113-A
 > (que sigue diciendo 1%). Debe ser configurable por ejercicio y revisarse cada diciembre.
+
+---
+
+## 8-octies. Alta de cobro del creador — plan acordado (2026-08-27)
+
+Lo que hay que construir para que un creador pueda retirar. Anotado **antes** de programar, para
+no perder las decisiones ya tomadas.
+
+### 8-octies.1 El flujo del panel
+
+Se pulsa el aviso morado de Finanzas y se abre el panel con **dos opciones**:
+
+| | Opción | Quién la resuelve |
+|---|---|---|
+| 1 | **Verificación de identidad** | Didit |
+| 2 | **Registro de cuenta de cobro** | Stripe Global Payouts |
+
+Y **si cualquiera de las dos detecta que el creador es de México**, aparece una **tercera**:
+
+| | Opción | Contiene |
+|---|---|---|
+| 3 | **Datos fiscales y sello** | RFC, régimen y CP · después el CSD |
+
+🚫 **Se elimina la pregunta de residencia fiscal.** Hoy el panel arranca preguntando «¿dónde
+declaras impuestos?». Sobra: el país sale del **documento del KYC** y del **país de la cuenta
+bancaria**, que son datos duros y no una respuesta que el creador puede equivocar.
+
+⚠️ Consecuencia: `setCreatorResidency` deja de ser una pregunta y pasa a **derivarse**. El
+callable puede quedarse para corregir manualmente un caso raro, pero no como primer paso del alta.
+
+### 8-octies.2 Qué gana cuando los dos detectan cosas distintas
+
+Un mexicano con cuenta en Estados Unidos, o un español con cuenta mexicana. Son casos raros pero
+existen, y **cada dato decide una cosa distinta**:
+
+| Dato | Decide |
+|---|---|
+| **País del documento del KYC** | Si se le pide **CSD y datos fiscales** |
+| **País de la cuenta de cobro** | Su **comisión** y su **mínimo de retiro** |
+
+El motivo: quien debe facturar en México es quien **tributa** ahí, y eso lo dice su documento.
+Lo que encarece la transferencia es **a dónde viaja el dinero**, y eso lo dice la cuenta.
+
+### 8-octies.3 La tercera opción son dos pasos por dentro
+
+El CSD **no se puede subir sin el RFC antes**: Facturapi valida el sello contra el RFC declarado
+y lo rechaza si no coincide. En pantalla puede ser una sola tarjeta, pero adentro van datos
+fiscales primero y sello después. El backend ya lo exige:
+
+> `"Primero completa tus datos fiscales (RFC, régimen, CP)."`
+
+### 8-octies.4 Comisión y mínimo de retiro
+
+Decidido el 2026-08-27. Fuente de verdad: **`docs/payout-tiers.md`**.
+
+| Grupo | Comisión | Mínimo | Países | Le queda a Vibra |
+|---|---|---|---|---|
+| **Estándar** | **25%** | **300 USD** | 45 | 18.14% – 20.10% |
+| **Transferencia cara** | **30%** | **500 USD** | 29 | 18.60% – 19.60% |
+| Sin ruta de pago | — | — | 73 | — |
+
+**Estándar (45)** — transferencia bancaria local:
+
+```
+US · AT BE BG CY CZ DE EE ES FI FR GB GR HR IE IS IT LT LU LV MT NL PT SI SK
+CA HU MX NO SE · DK ID JM MA NZ PL SG TT · MC SM · RO · AU CR DO · PE
+```
+
+**Transferencia cara (29)** — wire, 25 USD fijos:
+
+```
+EC PA SV · HK TH ZA · TR
+AE AG AL BA BN BT BW EG GT JO JP KW LC LK MD MN MY PH QA RS TW VN
+```
+
+**Sin ruta de pago (73)** — venden pero no se les puede pagar. Incluye Brasil, Argentina,
+Colombia, Chile, Uruguay, Paraguay, Bolivia, Corea del Sur, Arabia Saudita, Nigeria.
+
+```
+AD AI AR AS AZ BM BO BQ BR BZ CC CI CL CO CX DM EA FJ FM FO GD GF GG GI GL GP GU HN HT IC
+JE KH KI KN KR KY ME MH MP MQ MS MV NC NF NG NI NP NR NU PF PG PM PN PR PY RE SA SB SJ SR
+TC TK TO TV UY VA VC VG VI VU WF WS YT
+```
+
+⚠️ **La lista vive en DOS sitios y tienen que coincidir**, igual que la tabla de impuestos y el
+motor fiscal: el **backend** decide (es quien calcula la comisión que se congela en el asiento) y
+el **frontend** solo muestra (el «ganarás X», el mínimo en la barra de progreso). Un test de
+paridad los compara, porque si se desalinean el creador ve una cifra y cobra otra.
+
+### 8-octies.5 Los bloques, en orden
+
+| | Bloque | Depende de |
+|---|---|---|
+| **A** | **Tabla de niveles por país.** Módulo puro: país de la cuenta → comisión y mínimo. Espejo front/back con test de paridad. Un país sin fila **no es 25% por defecto, es no pagable**: los 73 tienen que fallar ruidosamente. | — |
+| **B** | **País de la cuenta en el perfil.** `setCreatorPayoutAccountCountry` ya existe pero **nada lo escribe**. Sale del alta de Stripe. | Alta de Stripe |
+| **C** | **Congelar la comisión en el asiento.** Hoy el ledger escribe la constante; debe escribir la del creador en ese momento, como ya hace con las retenciones. Es lo que hace cumplible la regla de no recalcular hacia atrás. | A, B |
+| **D** | **Los doce archivos que muestran el 75%.** `serviceDraft`, panel del live, resumen de fin de live, config de súper comentarios, compositor, bandeja de solicitudes, overlays de saludos, calendario. A un creador de 30% le prometen de más. | A |
+| **E** | **Gate del retiro.** `canWithdrawNow`, la barra y el «te faltan X» usan 300 fijos. Pasan a leer el mínimo del creador. **Y falta añadir la cuenta bancaria al gate**: hoy se podría retirar sin destino. | A, B |
+| **F** | **Contarlo bien.** Su comisión y su mínimo antes de activar monetización y antes del primer retiro, con el motivo — la transferencia a su país cuesta más, no es castigo. 47 idiomas. | A |
+| **G** | **Backfill.** Los asientos existentes traen `commissionRate: 0.25`. Se respetan, por la misma regla de no recalcular hacia atrás. | C |
+
+**Orden:** A y B en paralelo → C → D, E, F → G.
+
+### 8-octies.6 Lo que hay que construir del lado de Stripe
+
+| Pieza | Para qué |
+|---|---|
+| `Account` con configuración de destinatario | El creador |
+| `AccountLink` | Formulario alojado: datos bancarios y CLABE |
+| Retorno del enlace | Leer el estado y guardar país, identificador y estado |
+| Regeneración del enlace | **Caduca a los 3 días** o al abrirlo dos veces |
+
+⚠️ Es **API v2**, distinta de la v1 de los cobros, y está en **vista previa**. No hace falta el
+SDK de preview: `stripeClient` ya acepta una versión de API por petición (lo usa `fxQuotes`).
+
+⚠️ Los webhooks son **thin events** y `stripeWebhook` no los entiende. Se puede empezar
+consultando el estado al volver del enlace y dejar el webhook para después.
+
+### 8-octies.7 Lo construido (2026-08-27)
+
+**Backend**
+
+| Pieza | Dónde |
+|---|---|
+| `createPayoutAccountLink` — crea la cuenta de destinatario y devuelve el enlace | `backend/src/payments/stripe/globalPayoutsRecipient.ts` |
+| `refreshPayoutAccountStatus` — relee la cuenta al volver y guarda país y estado | mismo módulo |
+| Cuerpo JSON en `stripeFetch` | `stripeClient.ts` — la v2 rechaza el form-encoding |
+| País del documento del KYC | `backend/src/kyc.ts` — el webhook guarda `documentCountry` al aprobar |
+
+**Frontend**
+
+| Pieza | Dónde |
+|---|---|
+| Las dos llamadas | `lib/wallet/payoutAccount.ts` |
+| `esMexicano` derivado, sin preguntar | `lib/facturacion/creatorFiscal.ts` |
+| Panel de tres pasos | `CreatorPayoutSetupPanel.tsx` |
+| Retorno `?alta=ok` / `?alta=reintentar` | `wallet/finanzas/page.tsx` |
+
+**Lo que cambia de comportamiento**
+
+🔴 **El gate del retiro ahora exige la cuenta de cobro.** `payoutReady` pasó de
+«identidad (+ sello si mexicano)» a **«identidad + cuenta de cobro (+ sello si mexicano)»**.
+Faltaba: un creador con solo el KYC aprobado pasaba el gate, pedía su retiro y no había
+cuenta a la que mandárselo. Consecuencia inmediata: **mientras nadie tenga cuenta dada de
+alta, nadie puede retirar** — que es la verdad, no una regresión.
+
+🚫 **Fuera la pregunta de residencia fiscal.** El país sale de dos señales duras y basta con
+que una diga México. `setCreatorResidency` sobrevive como **anulación manual** para el caso
+raro (un mexicano que tributa fuera, o al revés), no como primer paso del alta. Sus seis
+claves de idioma se borraron de los 47 archivos.
+
+**Estado**
+
+| | |
+|---|---|
+| Conector de Stripe en Claude Code | ✅ Activo (2026-08-27) |
+| Sandbox de Global Payouts | ✅ `acct_1U7eCc4PM5Bep8JM` |
+| `createPayoutAccountLink` · `refreshPayoutAccountStatus` | ✅ Desplegadas y verificadas por nombre |
+| Flujo del panel completo | ✅ Construido, ⬜ sin probar contra Stripe |
+| Verificación de empresa (pasaporte) | 🔴 Falta para operar en real |
+| Webhook de la cuenta de destinatario | ⬜ Son *thin events*, `stripeWebhook` no los entiende; se refresca al volver |
+| Traducción a los 45 idiomas restantes | ⬜ Caen al inglés por el respaldo de `i18n/request.ts` |
+| Bloques A–G (tabla de niveles) | ⬜ Sin empezar |
+
 
 ---
 

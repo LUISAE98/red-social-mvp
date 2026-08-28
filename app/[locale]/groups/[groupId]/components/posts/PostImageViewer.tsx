@@ -173,6 +173,7 @@ export default function PostImageViewer({
   showActionsMenu = false,
   onOpenActionsMenu,
 }: PostImageViewerProps) {
+  const tGroups = useTranslations("groups");
   const tPosts = useTranslations("posts");
   const tCommon = useTranslations("common");
   const [mounted, setMounted] = useState(false);
@@ -1787,7 +1788,6 @@ const previewUrl = media.url;
         {renderCurrentMedia()}
         {renderMediaPreview(nextMedia, tPosts("nextMedia"))}
 
-
         {/* ── Center: Skip-10 · Play/Pause · Skip+10 ── */}
         {isCurrentVideo && !mobileVideoTrueFullscreen && (
           <div
@@ -2052,7 +2052,7 @@ const previewUrl = media.url;
           >
             <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.38)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                Velocidad de reproducción
+                {tGroups("playbackSpeed")}
               </span>
             </div>
             {([0.5, 1, 1.5, 2] as const).map((rate) => (
@@ -2211,7 +2211,6 @@ const previewUrl = media.url;
               }}
             />
           )}
-
 
           {currentMedia.type === "video" && (currentVideoSrc || externalVideoElement) && (
             <>
@@ -2650,7 +2649,7 @@ const previewUrl = media.url;
                           WebkitTapHighlightColor: "transparent",
                         }}
                       >
-                        {desktopPostTextExpanded ? "- Ver menos" : "+ Ver más"}
+                        {desktopPostTextExpanded ? tGroups("seeLess") : tGroups("seeMore")}
                       </button>
                     )}
                   </span>

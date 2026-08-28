@@ -68,7 +68,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { capitalizeFirst, formatDateTime, formatTime } from "@/lib/i18n/dateTime";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -114,6 +114,7 @@ export default function OwnerSidebarMyGroups({
 }: Props) {
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
+  const { netRate } = useCreatorNetRate();
   const tNav = useTranslations("nav");
   const tGroups = useTranslations("groups");
   const tSessions = useTranslations("sessions");
@@ -168,7 +169,7 @@ export default function OwnerSidebarMyGroups({
             : typeof offering?.price === "number" ? (offering.price as number)
             : null;
           const formatted = rawPrice != null && rawPrice > 0
-            ? formatMoney(rawPrice * WALLET_NET_RATE, { baseCurrency: typeof offering?.currency === "string" ? offering.currency : "MXN", code: true })
+            ? formatMoney(rawPrice * netRate, { baseCurrency: typeof offering?.currency === "string" ? offering.currency : "MXN", code: true })
             : null;
           return [key, formatted] as const;
         } catch {
@@ -1536,7 +1537,7 @@ boxShadow:
                                   const busy = !!meetGreetBusyMap[r.id];
                                   const sessionEarning =
                                     req.priceSnapshot != null && req.priceSnapshot > 0
-                                      ? formatMoney(req.priceSnapshot * WALLET_NET_RATE, { baseCurrency: getRequestCurrency(req), code: true })
+                                      ? formatMoney(req.priceSnapshot * netRate, { baseCurrency: getRequestCurrency(req), code: true })
                                       : null;
 
                                   return (
@@ -1727,14 +1728,14 @@ maxWidth: 220,
           serviceKind={sessionOverlayData.serviceKind}
           earning={
             sessionOverlayData.req.priceSnapshot != null && sessionOverlayData.req.priceSnapshot > 0
-              ? pf.formatAnchor(sessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { code: true })
+              ? pf.formatAnchor(sessionOverlayData.req.priceSnapshot * netRate, { code: true })
               : null
           }
           earningLocal={
             sessionOverlayData.req.priceSnapshot != null &&
             sessionOverlayData.req.priceSnapshot > 0 &&
             pf.currency !== SETTLEMENT_CURRENCY
-              ? pf.formatPlain(sessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { baseCurrency: SETTLEMENT_CURRENCY, code: true })
+              ? pf.formatPlain(sessionOverlayData.req.priceSnapshot * netRate, { baseCurrency: SETTLEMENT_CURRENCY, code: true })
               : null
           }
           busy={!!meetGreetBusyMap[sessionOverlayData.id]}

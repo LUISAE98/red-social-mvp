@@ -29,7 +29,7 @@ import {
   declineExclusiveSessionReschedule,
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import ListSkeleton from "@/components/ui/ListSkeleton";
 import type {
   GreetingRequestDoc,
@@ -259,9 +259,10 @@ export default function ExperienceRequestsInbox({
    * Tampoco se usa ya la moneda guardada en el documento: la base vive siempre en la de
    * liquidación, y fiarse de la del documento resucita el fallo de leer dólares como pesos.
    */
+  const { netRate } = useCreatorNetRate();
   const earningOf = (price?: number | null): { usd: string; local: string | null } | null => {
     if (price == null || price <= 0) return null;
-    const neto = price * WALLET_NET_RATE;
+    const neto = price * netRate;
     return {
       usd: pf.formatAnchor(neto, { code: true }),
       local:

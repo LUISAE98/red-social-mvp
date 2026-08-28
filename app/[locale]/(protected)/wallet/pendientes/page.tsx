@@ -10,7 +10,7 @@ import {
   isExpiredScheduledService,
 } from "@/lib/wallet/ownerWallet";
 import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import { useWalletData } from "../components/WalletDataContext";
 import WalletSectionShell from "../components/WalletSectionShell";
 import {
@@ -92,6 +92,7 @@ function rowToFakeRequest(row: WalletServiceItem): MeetGreetRequestDoc {
 }
 
 export default function WalletPendientesPage() {
+  const { netRate } = useCreatorNetRate();
   const tWallet = useTranslations("wallet");
   const tServices = useTranslations("services");
   // Dinero del CREADOR, en USD o en su moneda según el switch de la wallet.
@@ -138,7 +139,7 @@ export default function WalletPendientesPage() {
   const totalPendingAmount = useMemo(() => {
     const sum = safePendingItems.reduce((acc, item) => {
       if (item.priceSnapshot == null) return acc;
-      return acc + Math.round(item.priceSnapshot * WALLET_NET_RATE * 100) / 100;
+      return acc + Math.round(item.priceSnapshot * netRate * 100) / 100;
     }, 0);
     return sum > 0 ? sum : null;
   }, [safePendingItems]);
@@ -174,7 +175,7 @@ export default function WalletPendientesPage() {
 
   const viewItemEarning = useMemo(() => {
     if (!viewItem?.priceSnapshot || viewItem.priceSnapshot <= 0) return null;
-    return formatMoney(viewItem.priceSnapshot * WALLET_NET_RATE);
+    return formatMoney(viewItem.priceSnapshot * netRate);
   }, [viewItem, formatMoney]);
 
   function closeViewItem() {

@@ -464,8 +464,16 @@ export { onDirectMessageDeletedCleanupImage } from "./directMessageImageCleanup"
 // Mensajes directos — URLs firmadas y caducas para las imágenes adjuntas
 export { getDirectMessageImageUrls } from "./dmImages";
 
-// KYC — pendiente de reemplazo. Didit se eliminó por completo el 2026-08-13; la
-// verificación de identidad pasará a hacerse en el alta de cuenta Stripe del creador.
+// KYC con Didit — vuelve el 2026-08-27.
+//
+// Se quitó el 2026-08-13 dando por hecho que la verificación de identidad la haría
+// el alta de cuenta de Stripe Connect. Ese camino se abandonó: la plataforma pasa a
+// Global Payouts, que NO trae verificación incluida, así que la obligación de
+// identificar al creador vuelve a ser de Vibra y Didit vuelve con ella.
+//
+// El contrato nunca se llegó a borrar —`types/kyc.ts`, la regla `kyc/{uid}` y
+// `notifyKycStatus`—, así que esto es reconectar el emisor, no rehacer el sistema.
+export { createKycSession, diditWebhook } from "./kyc";
 
 // Pagos (Stripe — Vibra migró 100% a Stripe; Mercado Pago retirado). S1: smoke test.
 export { stripeHealthcheck } from "./payments/stripe/stripeHealthcheck";
@@ -496,6 +504,14 @@ export { createLiveDonationStripeIntent } from "./payments/stripe/liveDonationSt
 export { createSuperCommentStripeIntent } from "./payments/stripe/superCommentStripeIntent";
 // Suscripción MENSUAL a comunidad con Stripe (Subscriptions nativas; (base + $3) × IVA/mes).
 export { createGroupSubscription, cancelGroupSubscriptionStripe } from "./payments/stripe/groupSubscriptionStripe";
+
+// Alta de cobro del creador (Stripe Global Payouts). El creador es DESTINATARIO, no una
+// cuenta conectada: da sus datos bancarios en un formulario alojado por Stripe y vuelve.
+// ⚠️ Es API v2 y está en vista previa; la versión va fijada en el módulo.
+export {
+  createPayoutAccountLink,
+  refreshPayoutAccountStatus,
+} from "./payments/stripe/globalPayoutsRecipient";
 
 // Facturación (Facturapi — CFDI, modelo vendedor directo). Bloque 0: smoke test de
 // credenciales (org de Vibra + multi-tenant). No emite CFDI ni toca el ledger.

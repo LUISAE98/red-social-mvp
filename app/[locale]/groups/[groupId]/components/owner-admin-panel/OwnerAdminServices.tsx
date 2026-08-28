@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/currency/format";
 import { SETTLEMENT_CURRENCY, DONATION_MIN_AMOUNT_USD } from "@/lib/currency/catalog";
 import { AVISOS_SERVICIOS } from "@/lib/services/avisosServicios";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useVibraToast, type ToastType } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -73,7 +74,22 @@ export default function OwnerAdminServices({
   currentDonation = null,
   onChangeVisibility,
 }: Props) {
+  const tGroups = useTranslations("groups");
   const tServices = useTranslations("services");
+
+  /**
+   * El «ganarás X» de los paneles de configurar servicios, con SU comisión.
+   *
+   * 25% en los 45 países de transferencia local y 30% en los 29 donde solo llega el wire.
+   * Ver `docs/payout-tiers.md`. `calcNetAmount` es una utilidad pura y no puede leer el hook
+   * por sí misma, así que se envuelve aquí; los paneles la reciben como prop y no se
+   * enteran del cambio.
+   */
+  const { netRate } = useCreatorNetRate();
+  const calcNetAmountConTasa = useCallback(
+    (raw: string) => calcNetAmount(raw, netRate),
+    [netRate]
+  );
 
   /** Compone el aviso de la transición: la frase y, si la hay, su cola de contadores. */
   const textoAvisoTransicion = (aviso: AvisoTransicion) => {
@@ -321,7 +337,6 @@ export default function OwnerAdminServices({
     // las cards llevan margen negativo para ir de lado a lado.
     minWidth: 0,
   };
-
 
   const noticeStyle: React.CSSProperties = {
     borderRadius: 9,
@@ -768,7 +783,7 @@ export default function OwnerAdminServices({
           error: errorGuardado,
           monetization: { ...commerce.monetization, transitions: nextTransitions },
         });
-        throw new Error(`No se pudo guardar la configuración de la comunidad: ${detalle}`);
+        throw new Error(tGroups("couldNotSaveCommunityConfig", { detail: detalle }));
       }
 
       let successMessage =
@@ -998,7 +1013,7 @@ export default function OwnerAdminServices({
           fontFamily: fontStack,
         }}
       >
-        Configura tus experiencias
+        {tGroups("configureExperiences")}
       </h2>
       <div id="admin-subscription" style={{ scrollMarginTop: 80 }}>
       <Subscription
@@ -1016,7 +1031,7 @@ export default function OwnerAdminServices({
         descriptionStyle={richStyles.descriptionStyle}
         inputStyle={richStyles.inputStyle}
         buttonSecondaryStyle={buttonSecondaryStyle}
-        calcNetAmount={calcNetAmount}
+        calcNetAmount={calcNetAmountConTasa}
         formatMoney={formatMoney}
         SwitchComponent={RichSwitch}
         OverlayModalComponent={SubscriptionOverlay}
@@ -1039,7 +1054,7 @@ export default function OwnerAdminServices({
         subtleStyle={richStyles.subtleStyle}
         inputStyle={richStyles.inputStyle}
         buttonSecondaryStyle={richStyles.buttonSecondaryStyle}
-        calcNetAmount={calcNetAmount}
+        calcNetAmount={calcNetAmountConTasa}
         formatMoney={formatMoney}
         SwitchComponent={RichSwitch}
         OverlayModalComponent={SaludoOverlay}
@@ -1059,7 +1074,7 @@ export default function OwnerAdminServices({
         subtleStyle={richStyles.subtleStyle}
         inputStyle={richStyles.inputStyle}
         buttonSecondaryStyle={richStyles.buttonSecondaryStyle}
-        calcNetAmount={calcNetAmount}
+        calcNetAmount={calcNetAmountConTasa}
         formatMoney={formatMoney}
         SwitchComponent={RichSwitch}
         OverlayModalComponent={ConsejoOverlay}
@@ -1079,7 +1094,7 @@ export default function OwnerAdminServices({
         subtleStyle={richStyles.subtleStyle}
         inputStyle={richStyles.inputStyle}
         buttonSecondaryStyle={richStyles.buttonSecondaryStyle}
-        calcNetAmount={calcNetAmount}
+        calcNetAmount={calcNetAmountConTasa}
         formatMoney={formatMoney}
         SwitchComponent={RichSwitch}
         OverlayModalComponent={MeetGreetOverlay}
@@ -1101,7 +1116,7 @@ export default function OwnerAdminServices({
         subtleStyle={richStyles.subtleStyle}
         inputStyle={richStyles.inputStyle}
         buttonSecondaryStyle={richStyles.buttonSecondaryStyle}
-        calcNetAmount={calcNetAmount}
+        calcNetAmount={calcNetAmountConTasa}
         formatMoney={formatMoney}
         SwitchComponent={RichSwitch}
         OverlayModalComponent={CustomClassOverlay}

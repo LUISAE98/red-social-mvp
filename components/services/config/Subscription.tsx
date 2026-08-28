@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletRates";
 import { LocalPriceHint } from "./serviceConfigKit";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -833,7 +832,7 @@ function handleModify() {
             </div>
           {/* Referencia en la moneda del creador. El precio SIEMPRE se fija en la de
               liquidación; esto solo lo ayuda a ubicarse. */}
-          <LocalPriceHint value={Number(overlayDraft.subscription.price)} netRate={WALLET_NET_RATE} />
+          <LocalPriceHint value={Number(overlayDraft.subscription.price)} showEarnings />
           </div>
           {/* Leyenda fija del cargo de Stripe (mismo patrón que las demás experiencias). */}
           <div style={{ ...subtleStyle, opacity: 0.7, fontSize: 11, marginTop: 3 }}>

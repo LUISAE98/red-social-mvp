@@ -2,27 +2,32 @@
 
 // Alta de cobro del creador: lo que tiene que completar antes de poder retirar.
 //
-// Se abre desde el aviso morado de Finanzas y bifurca por RESIDENCIA FISCAL, porque los dos
-// caminos no piden lo mismo:
+// Se abre desde el aviso morado de Finanzas y enseña DOS pasos, que son de todos:
 //
-//   · Creador MEXICANO   → identidad + sello digital. Los DOS con palomita verde o no retira.
-//     Sin sello, Vibra no puede emitir sus facturas de venta, y dejarlo cobrar sería dejarlo
-//     vender sin poder facturar.
-//   · Creador EXTRANJERO → solo identidad. No emite CFDI, así que no hay sello que pedirle.
+//   1. Verificación de identidad (Didit)
+//   2. Registro de cuenta de cobro (Stripe Global Payouts)
 //
-// Por eso lo primero es preguntar dónde tributa: sin ese dato no se sabe qué pedirle. Se
-// pregunta, no se infiere por IP — la IP dice dónde está hoy, no dónde declara.
+// Y aparece un TERCERO —datos fiscales y sello— solo cuando alguno de los dos detecta que el
+// creador es de México.
+//
+// ⚠️ **YA NO SE PREGUNTA LA RESIDENCIA (2026-08-27).** Antes lo primero era «¿dónde declaras
+// impuestos?», y sobraba: una respuesta se puede equivocar, un pasaporte no. El país sale del
+// documento del KYC y del país de la cuenta bancaria, que son datos duros. Ver `esMexicano`
+// en `useCreatorTaxProfile`.
+//
+// El tercer paso son dos cosas por dentro —datos fiscales primero, sello después— porque el
+// proveedor valida el sello contra el RFC declarado y lo rechaza si no está antes.
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import { useCreatorTaxProfile } from "@/lib/facturacion/creatorFiscal";
 import {
-  useCreatorTaxProfile,
-  setCreatorResidency,
-  type CreatorResidency,
-} from "@/lib/facturacion/creatorFiscal";
+  createPayoutAccountLink,
+  refreshPayoutAccountStatus,
+} from "@/lib/wallet/payoutAccount";
 import { IconButton, TextButton } from "@/components/ui";
 
 const DIVIDER = "1px solid rgba(255,255,255,0.08)";
@@ -32,16 +37,43 @@ type Props = {
   onClose: () => void;
   /** Abre el panel fiscal existente, donde el creador sube su sello. */
   onOpenSello: () => void;
+  /** Lanza la verificación de identidad en Didit. */
+  onIniciarKyc: () => void;
+  /** Deshabilita el paso de identidad: ya en curso, o en revisión manual. */
+  kycBloqueado?: boolean;
+  /**
+   * El creador acaba de volver del formulario de Stripe.
+   *
+   * Cuando llega en `true` se relee la cuenta nada más abrir, porque Stripe avisa por
+   * webhook pero son «thin events» que todavía no se procesan, y sin releer el paso se
+   * quedaría en amarillo con la cuenta ya dada de alta.
+   */
+  volviendoDeStripe?: boolean;
 };
 
 /** Estado visual de cada paso. */
 type EstadoPaso = "listo" | "pendiente" | "bloqueado";
 
-export default function CreatorPayoutSetupPanel({ open, onClose, onOpenSello }: Props) {
+export default function CreatorPayoutSetupPanel({
+  open,
+  onClose,
+  onOpenSello,
+  onIniciarKyc,
+  kycBloqueado,
+  volviendoDeStripe,
+}: Props) {
   const t = useTranslations("wallet");
   const { user } = useAuth();
-  const { residency, csdReady, csdVencido, cobraFueraDeMexico, identityReady, loading } =
-    useCreatorTaxProfile(user?.uid);
+  const {
+    esMexicano,
+    csdReady,
+    csdVencido,
+    cobraFueraDeMexico,
+    identityReady,
+    payoutAccountReady,
+    stripeAccountStatus,
+    loading,
+  } = useCreatorTaxProfile(user?.uid);
 
   // Desmontado diferido para animar la salida (vibra_style.md).
   const [rendered, setRendered] = useState(open);
@@ -50,6 +82,7 @@ export default function CreatorPayoutSetupPanel({ open, onClose, onOpenSello }: 
 
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refrescando, setRefrescando] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -66,23 +99,61 @@ export default function CreatorPayoutSetupPanel({ open, onClose, onOpenSello }: 
     return () => clearTimeout(t);
   }, [open, rendered]);
 
-  async function elegirResidencia(valor: CreatorResidency) {
+  // Al volver del formulario, releer la cuenta una vez.
+  useEffect(() => {
+    if (!open || !volviendoDeStripe || !user?.uid) return;
+    let vivo = true;
+    let terminado = false;
+
+    // El «Abriendo…» se pinta en el fotograma siguiente, no en el cuerpo del efecto, para
+    // no encadenar un render de más. Y si la lectura ya volvió para entonces, no se pinta:
+    // un parpadeo de estado que nace ya caducado es peor que no verlo.
+    const raf = requestAnimationFrame(() => {
+      if (vivo && !terminado) setRefrescando(true);
+    });
+
+    refreshPayoutAccountStatus()
+      // El estado se pinta desde Firestore, que el hook ya escucha en vivo. Aquí solo se
+      // provoca la relectura, por eso no se hace nada con el resultado.
+      .catch(() => {})
+      .finally(() => {
+        terminado = true;
+        if (vivo) setRefrescando(false);
+      });
+
+    return () => {
+      vivo = false;
+      cancelAnimationFrame(raf);
+    };
+  }, [open, volviendoDeStripe, user?.uid]);
+
+  /**
+   * Abre el formulario alojado de Stripe donde el creador mete su cuenta bancaria.
+   *
+   * El enlace se pide al pulsar, no antes: caduca a los 10 minutos y solo sirve una vez, así
+   * que uno generado al abrir el panel llegaría muerto.
+   */
+  async function abrirAltaDeCobro() {
     setGuardando(true);
     setError(null);
     try {
-      await setCreatorResidency(valor);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
+      const { url } = await createPayoutAccountLink();
+      window.location.href = url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
       setGuardando(false);
     }
   }
 
   if (!rendered || typeof document === "undefined") return null;
 
-  const esMexicano = residency === "MX";
   const pasoIdentidad: EstadoPaso = identityReady ? "listo" : "pendiente";
+  const pasoCobro: EstadoPaso = payoutAccountReady ? "listo" : "pendiente";
   const pasoSello: EstadoPaso = csdReady ? "listo" : "pendiente";
+
+  // Dado de alta pero sin capacidad activa todavía: Stripe lo está revisando.
+  const cobroEnRevision = stripeAccountStatus === "pending";
+  const cobroRestringido = stripeAccountStatus === "restricted";
 
   return createPortal(
     <div
@@ -170,32 +241,7 @@ export default function CreatorPayoutSetupPanel({ open, onClose, onOpenSello }: 
             <div style={{ display: "grid", gap: 10 }}>
               <Esqueleto alto={64} />
               <Esqueleto alto={64} />
-            </div>
-          ) : residency == null ? (
-            /* Sin residencia declarada no se sabe qué pedirle. Es la primera pregunta. */
-            <div style={{ display: "grid", gap: 16 }}>
-              <div>
-                <div style={{ fontSize: 15.5, fontWeight: 600, marginBottom: 6 }}>
-                  {t("payoutSetupResidencyTitle")}
-                </div>
-                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.55, margin: 0 }}>
-                  {t("payoutSetupResidencyHint")}
-                </p>
-              </div>
-              <div style={{ display: "grid", gap: 10 }}>
-                <OpcionResidencia
-                  label={t("payoutSetupResidencyMx")}
-                  hint={t("payoutSetupResidencyMxHint")}
-                  disabled={guardando}
-                  onClick={() => elegirResidencia("MX")}
-                />
-                <OpcionResidencia
-                  label={t("payoutSetupResidencyForeign")}
-                  hint={t("payoutSetupResidencyForeignHint")}
-                  disabled={guardando}
-                  onClick={() => elegirResidencia("FOREIGN")}
-                />
-              </div>
+              <Esqueleto alto={64} />
             </div>
           ) : (
             <div style={{ display: "grid", gap: 14 }}>
@@ -203,32 +249,69 @@ export default function CreatorPayoutSetupPanel({ open, onClose, onOpenSello }: 
                 {esMexicano ? t("payoutSetupIntroMx") : t("payoutSetupIntroForeign")}
               </p>
 
+              {/* 1. IDENTIDAD — el KYC de Didit. Es de todos, mexicanos y extranjeros, y va
+                  primero: sin saber quién es alguien no tiene sentido pedirle datos fiscales
+                  ni de cobro.
+
+                  Además es una de las dos señales que deciden si aparece el tercer paso, el
+                  país del DOCUMENTO con el que se verificó. Ver `esMexicano` en
+                  `useCreatorTaxProfile`. */}
               <Paso
                 numero={1}
                 estado={pasoIdentidad}
                 titulo={t("payoutSetupStepIdentity")}
-                descripcion={
-                  esMexicano
-                    ? t("payoutSetupStepIdentityHint")
-                    : t("payoutSetupStepIdentityHintForeign")
-                }
+                descripcion={t("payoutSetupStepIdentityHint")}
                 accion={t("payoutSetupStepIdentityCta")}
-                /* 🚧 SIN CONECTAR: el alta de cuenta de Stripe todavía no existe.
-
-                   Cuando exista, este paso debe recoger también el **país de la cuenta de
-                   cobro** y guardarlo con `setCreatorPayoutAccountCountry`. Es donde el creador
-                   da sus datos de depósito, así que es su sitio natural — y es un dato FISCAL:
-                   cobrar fuera de México le sube la retención de IVA del 50% al 100%.
-
-                   Mientras no exista, el campo queda vacío y el motor asume México, que es la
-                   suposición benigna (retiene de menos, no de más). Ver
-                   `docs/legal/fiscal-iva-isr-plataforma.md` §0.6. */
-                onAccion={undefined}
+                onAccion={
+                  pasoIdentidad === "listo" || kycBloqueado
+                    ? undefined
+                    : () => {
+                        onClose();
+                        onIniciarKyc();
+                      }
+                }
               />
 
+              {/* 2. CUENTA DE COBRO — Stripe Global Payouts.
+
+                  El creador sale de Vibra a un formulario alojado por Stripe y vuelve a
+                  Finanzas con `?alta=ok`. Los datos bancarios NUNCA pasan por aquí.
+
+                  De aquí sale el PAÍS DE LA CUENTA, que es dato fiscal por partida doble: a
+                  un creador mexicano, cobrar fuera de México le sube la retención de IVA del
+                  50% al 100% (`fiscal-iva-isr-plataforma.md` §0.6), y además decide su
+                  comisión y su mínimo de retiro (`docs/payout-tiers.md`). */}
+              <Paso
+                numero={2}
+                estado={pasoCobro}
+                titulo={t("payoutSetupStepPayout")}
+                descripcion={
+                  cobroEnRevision
+                    ? t("payoutSetupStepPayoutReviewing")
+                    : t("payoutSetupStepPayoutHint")
+                }
+                accion={
+                  guardando || refrescando
+                    ? t("payoutSetupStepPayoutOpening")
+                    : cobroEnRevision || cobroRestringido
+                      ? t("payoutSetupStepPayoutResume")
+                      : t("payoutSetupStepPayoutCta")
+                }
+                onAccion={guardando || refrescando ? undefined : abrirAltaDeCobro}
+              />
+
+              {cobroRestringido && (
+                <Aviso tono="alerta" texto={t("payoutSetupPayoutRestricted")} />
+              )}
+
+              {/* 3. DATOS FISCALES Y SELLO — solo si alguna de las dos señales dice México.
+
+                  No se pregunta, se deduce: el país del documento del KYC o el de la cuenta
+                  bancaria. Un creador extranjero no emite CFDI, así que no hay sello que
+                  pedirle y este paso ni se le enseña. */}
               {esMexicano && (
                 <Paso
-                  numero={2}
+                  numero={3}
                   estado={pasoSello}
                   titulo={t("payoutSetupStepSeal")}
                   descripcion={t("payoutSetupStepSealHint")}
@@ -304,42 +387,6 @@ function Esqueleto({ alto }: { alto: number }) {
         background: "rgba(255,255,255,0.06)",
       }}
     />
-  );
-}
-
-function OpcionResidencia({
-  label,
-  hint,
-  disabled,
-  onClick,
-}: {
-  label: string;
-  hint: string;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        textAlign: "start",
-        border: DIVIDER,
-        borderRadius: 12,
-        background: "rgba(255,255,255,0.05)",
-        color: "#fff",
-        padding: "13px 15px",
-        cursor: disabled ? "default" : "pointer",
-        fontFamily: "inherit",
-        display: "grid",
-        gap: 3,
-        opacity: disabled ? 0.6 : 1,
-      }}
-    >
-      <span style={{ fontSize: 14.5, fontWeight: 600 }}>{label}</span>
-      <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>{hint}</span>
-    </button>
   );
 }
 

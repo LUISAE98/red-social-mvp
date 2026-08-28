@@ -57,6 +57,7 @@ export default function PostComposerDesktopOverlay({
   onPreviewPointerMove,
   onPreviewPointerUp,
 }: PostComposerDesktopOverlayProps) {
+  const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
   const tPosts = useTranslations("posts");
   const tLive = useTranslations("live");
@@ -96,7 +97,6 @@ export default function PostComposerDesktopOverlay({
 
   useEffect(() => {
     if (!open) return;
-
 
     const timer = window.setTimeout(() => {
       textareaRef.current?.focus();
@@ -155,7 +155,6 @@ const mediaPreviewWrapStyle: CSSProperties = {
   position: "relative",
   flex: "0 0 auto",
 };
-
 
 const removeMediaButtonStyle: CSSProperties = {
   position: "absolute",
@@ -728,7 +727,7 @@ style={{
                     (_, index) => (
                       <div
                         key={`processing-image-${index}`}
-                        aria-label="Preparando imagen"
+                        aria-label={tGroups("preparingImage")}
                         style={{
                           ...mediaPreviewWrapStyle,
                           animation:

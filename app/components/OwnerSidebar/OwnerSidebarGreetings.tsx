@@ -6,7 +6,7 @@ import { useCfError } from "@/lib/i18n/cfError";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import {
   acceptMeetGreetRequest,
   proposeMeetGreetSchedule,
@@ -97,6 +97,7 @@ export default function OwnerSidebarGreetings({
   activeSection,
 }: Props) {
   const tCommon = useTranslations("common");
+  const { netRate } = useCreatorNetRate();
   const cfError = useCfError();
   const tServices = useTranslations("services");
   const tGroups = useTranslations("groups");
@@ -1983,14 +1984,14 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         serviceKind={incomingSessionOverlayData.serviceKind}
         earning={
           incomingSessionOverlayData.req.priceSnapshot != null && incomingSessionOverlayData.req.priceSnapshot > 0
-            ? pf.formatAnchor(incomingSessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { code: true })
+            ? pf.formatAnchor(incomingSessionOverlayData.req.priceSnapshot * netRate, { code: true })
             : null
         }
         earningLocal={
           incomingSessionOverlayData.req.priceSnapshot != null &&
           incomingSessionOverlayData.req.priceSnapshot > 0 &&
           pf.currency !== SETTLEMENT_CURRENCY
-            ? pf.formatPlain(incomingSessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { baseCurrency: SETTLEMENT_CURRENCY, code: true })
+            ? pf.formatPlain(incomingSessionOverlayData.req.priceSnapshot * netRate, { baseCurrency: SETTLEMENT_CURRENCY, code: true })
             : null
         }
         busy={!!busyMap[incomingSessionOverlayData.id]}

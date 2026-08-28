@@ -17,7 +17,7 @@ import {
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
 import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import {
@@ -537,6 +537,7 @@ export function WalletServiceRow({
 }) {
   const [busy, setBusy] = useState(false);
   const { toast: walletRowToast, showToast: showWalletRowToast } = useVibraToast();
+  const { netRate } = useCreatorNetRate();
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -849,7 +850,7 @@ export function WalletServiceRow({
                 </span>
                 {row.priceSnapshot != null ? (
                   <span style={{ color: isHistory && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                    +{formatMoney(Math.round(row.priceSnapshot * WALLET_NET_RATE * 100) / 100, { code: true })}
+                    +{formatMoney(Math.round(row.priceSnapshot * netRate * 100) / 100, { code: true })}
                   </span>
                 ) : null}
               </div>
@@ -921,7 +922,7 @@ export function WalletServiceRow({
                 </span>
                 {row.priceSnapshot != null ? (
                   <span style={{ color: mode === "history" && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                    +{formatMoney(Math.round(row.priceSnapshot * WALLET_NET_RATE * 100) / 100, { code: true })}
+                    +{formatMoney(Math.round(row.priceSnapshot * netRate * 100) / 100, { code: true })}
                   </span>
                 ) : null}
               </div>
@@ -1103,7 +1104,7 @@ export function WalletServiceRow({
               </span>
               {row.priceSnapshot != null ? (
                 <span style={{ color: "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                  +{formatMoney(Math.round(row.priceSnapshot * WALLET_NET_RATE * 100) / 100, { code: true })}
+                  +{formatMoney(Math.round(row.priceSnapshot * netRate * 100) / 100, { code: true })}
                 </span>
               ) : null}
             </div>

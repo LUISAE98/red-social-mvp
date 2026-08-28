@@ -378,11 +378,11 @@ export default function OwnerAdminStatus({
           marginTop: 10,
         }}
       >
-        <h4 style={sectionTitleStyle}>Permisos de la comunidad</h4>
+        <h4 style={sectionTitleStyle}>{tGroups("permissionsTitle")}</h4>
 
         <PermissionSwitchRow
           label="Publicaciones"
-          description="Define si solo tú puedes publicar o si cualquier miembro puede hacerlo."
+          description={tGroups("permissionsWhoPosts")}
           checked={postingMode === "owner_only"}
           busy={postingBusy}
           leftLabel="Cualquier miembro puede publicar"
@@ -396,7 +396,7 @@ export default function OwnerAdminStatus({
 
         <PermissionSwitchRow
           label="Comentarios"
-          description="Define si los comentarios quedan abiertos para miembros o reservados al creador."
+          description={tGroups("permissionsWhoComments")}
           checked={!commentsEnabled}
           busy={commentsBusy}
           leftLabel="Cualquier miembro puede comentar"
@@ -417,7 +417,7 @@ export default function OwnerAdminStatus({
         <h4 style={sectionTitleStyle}>Estado de la comunidad</h4>
 
         <div style={subtleTextStyle}>
-          Pausar una comunidad la marca como inactiva. No elimina contenido.
+          {tGroups("pauseExplains")}
         </div>
 
         <div style={statusActionsStyle}>
@@ -468,7 +468,7 @@ export default function OwnerAdminStatus({
       </div>
 
       <div style={subtleTextStyle}>
-        Esta pantalla guarda como fuente de verdad únicamente{" "}
+        {tGroups("sourceOfTruthNote")}{" "}
         <code>permissions.postingMode</code>,{" "}
         <code>permissions.commentsEnabled</code>, <code>isActive</code> y{" "}
         <code>updatedAt</code>.

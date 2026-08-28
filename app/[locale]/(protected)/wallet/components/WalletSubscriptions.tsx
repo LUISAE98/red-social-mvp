@@ -10,11 +10,9 @@ import {
 import { WalletCard } from "./WalletUi";
 import WalletScopeToggle, { type StatScope } from "./WalletScopeToggle";
 import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 
 const DAY = 86400000;
-// El creador recibe el neto (precio menos la comisión de la plataforma, 25%).
-const NET_RATE = WALLET_NET_RATE;
 
 
 /**
@@ -33,6 +31,9 @@ export default function WalletSubscriptions({
   /** Si se pasa, limita las métricas a esas comunidades; null = todas. */
   communityIds?: string[] | null;
 }) {
+  // El creador recibe el neto, que es su precio menos SU comisión: 25% o 30% según el país
+  // de su cuenta de cobro. Ver `docs/payout-tiers.md`.
+  const { netRate: NET_RATE } = useCreatorNetRate();
   const tWallet = useTranslations("wallet");
   // Dinero del CREADOR, en USD o en su moneda según el switch de la wallet.
   // Formateador único: ver `useWalletMoney`.
@@ -75,7 +76,7 @@ export default function WalletSubscriptions({
     const churn = base > 0 ? (bajas / base) * 100 : null;
 
     return { active, mrr, newSubs, bajas, churn, incomeNet };
-  }, [communities, entries, cancels, filterKey, scope]);
+  }, [communities, entries, cancels, filterKey, scope, NET_RATE]);
 
   // Ocultar por completo mientras carga o si no hay comunidades de suscripción.
   if (!loaded || communities.length === 0) return null;

@@ -23,6 +23,11 @@ import {
   ejercicioDeFecha,
   type PerfilFiscalCreador,
 } from "../tax/fiscalEngine";
+import {
+  payoutTermsOf,
+  PAYOUT_TERMS_PROVISIONAL,
+  type PayoutTerms,
+} from "./payoutTiers";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -31,8 +36,17 @@ if (admin.apps.length === 0) {
 const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
 
-/** Comisión de la plataforma. El creador recibe el neto (1 - comisión).
- *  25% desde 2026-07-31 (reparto 75/25). Ver docs/modelo-financiero.md. */
+/**
+ * Comisión del caso ESTÁNDAR. El creador recibe el neto (1 - comisión).
+ *
+ * 25% desde 2026-07-31 (reparto 75/25). Ver docs/modelo-financiero.md.
+ *
+ * ⚠️ **Ya no es LA comisión de todos (2026-08-27).** Depende del país de la cuenta de cobro:
+ * donde la transferencia bancaria es cara son 30%. La comisión de cada venta sale de
+ * `payoutTermsOf` y se CONGELA en el asiento. Esta constante sigue siendo el caso estándar,
+ * que es el de 45 de los 74 países pagables y el que se muestra a quien todavía no tiene
+ * cuenta. Ver `docs/payout-tiers.md`.
+ */
 export const WALLET_COMMISSION_RATE = 0.25;
 export const WALLET_NET_RATE = 1 - WALLET_COMMISSION_RATE; // 0.75
 
@@ -141,9 +155,16 @@ function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-/** Neto (lo que recibe el creador) a partir del bruto (lo que pagó el cliente). */
-export function netFromGross(gross: number): number {
-  return round2(gross * WALLET_NET_RATE);
+/**
+ * Neto (lo que recibe el creador) a partir del bruto (lo que pagó el cliente).
+ *
+ * Sin comisión explícita usa la estándar, que es lo correcto para quien todavía no tiene
+ * cuenta de cobro y para las llamadas que solo quieren una estimación. Quien registra una
+ * venta de verdad SÍ debe pasarla, porque es la que se congela en el asiento.
+ */
+export function netFromGross(gross: number, commissionRate?: number): number {
+  const rate = typeof commissionRate === "number" ? commissionRate : WALLET_COMMISSION_RATE;
+  return round2(gross * (1 - rate));
 }
 
 /** Normaliza la fecha real de la venta a Timestamp; si no hay, usa el reloj del servidor. */
@@ -298,7 +319,6 @@ export async function recordEarning(
   params: RecordEarningParams
 ): Promise<void> {
   const gross = round2(params.grossAmount);
-  const net = netFromGross(gross);
   // 🧾 IVA — Impuesto cobrado al comprador (informativo; no es del creador).
   const taxAmount = round2(params.taxAmount ?? 0);
   const status: LedgerStatus = params.earnedImmediately ? "earned" : "pending";
@@ -325,6 +345,25 @@ export async function recordEarning(
   // completa cada vez que el creador tocara sus datos, por una venta que no tiene nada que
   // ver. El perfil cambia rara vez; la venta es la que no puede fallar.
   const perfil = await perfilFiscalDe(creatorId);
+
+  /**
+   * 💰 LA COMISIÓN DE ESTA VENTA, decidida por el país de la CUENTA DE COBRO.
+   *
+   * 25% en los 45 países de transferencia local, 30% en los 29 donde solo llega el wire y
+   * cuesta 25 USD fijos. Ver `docs/payout-tiers.md`.
+   *
+   * Se resuelve aquí, junto al perfil, y se CONGELA en el asiento unas líneas más abajo. Es
+   * lo que hace cumplible la promesa de no recalcular hacia atrás: si el creador se muda o
+   * cambia de banco, sus ventas anteriores conservan la comisión que tenían.
+   *
+   * ⚠️ Sin país conocido —o con un país sin ruta de pago— se aplica la ESTÁNDAR. La venta ya
+   * se cobró al comprador y el asiento no se puede rechazar; entre las dos, la benigna para
+   * el creador es la baja. Que no se le pueda pagar es un problema del retiro, no del
+   * registro, y se resuelve en el gate con `isPayableCountry`.
+   */
+  const terms: Readonly<PayoutTerms> =
+    payoutTermsOf(perfil.payoutAccountCountry) ?? PAYOUT_TERMS_PROVISIONAL;
+  const net = netFromGross(gross, terms.commissionRate);
 
   /**
    * ⚠️ LA BASE DE LA RETENCIÓN ES LA VENTA DEL CREADOR, NO EL TOTAL COBRADO.
@@ -356,6 +395,9 @@ export async function recordEarning(
     mxVatAmount: ventaFiscal.mxVatAmount,
     creador: perfil,
     ejercicio: ejercicioDeFecha(new Date()),
+    // La MISMA del asiento. Sin pasarla, el motor caía a su 25% de respaldo y a un creador
+    // de 30% se le calculaba el IVA de una comisión que no es la suya.
+    commissionRate: terms.commissionRate,
   });
 
   await db.runTransaction(async (tx) => {
@@ -378,7 +420,16 @@ export async function recordEarning(
       status,
       grossAmount: gross,
       netAmount: net,
-      commissionRate: WALLET_COMMISSION_RATE,
+      /**
+       * 💰 CONGELADOS. La comisión que se aplicó y de dónde salió.
+       *
+       * `payoutCountry` se guarda aunque sea `null` para que un asiento viejo se pueda
+       * explicar solo, sin ir a buscar cómo estaba el perfil aquel día — que es justo el
+       * dato que ya no existe cuando el creador cambia de banco.
+       */
+      commissionRate: terms.commissionRate,
+      commissionTier: terms.tier,
+      payoutCountry: perfil.payoutAccountCountry ?? null,
       // 🧾 IVA — desglose fiscal por venta (informativo; el IVA va al SAT, no al creador).
       taxCountry: params.taxCountry ?? null,
       taxAmount,

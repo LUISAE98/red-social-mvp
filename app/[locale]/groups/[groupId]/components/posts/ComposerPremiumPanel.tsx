@@ -6,7 +6,7 @@ import { formatCurrency } from "@/lib/currency/format";
 import { LocalPriceHint } from "@/components/services/config/serviceConfigKit";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import {
   FIXED_SERVICE_FEE_USD,
   FIXED_SERVICE_FEE_LABEL,
@@ -221,7 +221,9 @@ export default function ComposerPremiumPanel({
   disabled = false,
   isEditMode = false,
 }: ComposerPremiumPanelProps) {
+  const tGroups = useTranslations("groups");
   const tPosts = useTranslations("posts");
+  const { netRate } = useCreatorNetRate();
   const priceFmt = usePriceFormat();
 
   const accessModeLabels: Record<
@@ -294,7 +296,6 @@ export default function ComposerPremiumPanel({
 
   const requiresPrice = true;
 
-
   const parsedPrice = parseFloat(priceInput);
   const hasValidPrice =
     priceInput !== "" && Number.isFinite(parsedPrice) && parsedPrice > 0;
@@ -307,7 +308,7 @@ export default function ComposerPremiumPanel({
   // convertida e inflada. Lo que él fija y lo que cobra viven en la moneda de liquidación.
   const creatorEarnings =
     anchorPrice != null
-      ? formatCurrency(anchorPrice * WALLET_NET_RATE, SETTLEMENT_CURRENCY, priceFmt.locale, { code: true })
+      ? formatCurrency(anchorPrice * netRate, SETTLEMENT_CURRENCY, priceFmt.locale, { code: true })
       : null;
 
   // Por debajo del mínimo → aviso rojo, no se debe publicar.
@@ -510,7 +511,7 @@ export default function ComposerPremiumPanel({
                   fontFamily: fontStack,
                 }}
               >
-                {`El mínimo es $${PREMIUM_MIN_PRICE_USD}`}
+                {tGroups("minimumIs", { amount: `${PREMIUM_MIN_PRICE_USD}` })}
               </span>
             </div>
 
@@ -556,7 +557,7 @@ export default function ComposerPremiumPanel({
 
           {/* Referencia en la moneda del creador, igual que en el resto de experiencias.
               El precio SIEMPRE se fija en la de liquidación; esto solo lo ayuda a ubicarse. */}
-          <LocalPriceHint value={anchorPrice} netRate={WALLET_NET_RATE} />
+          <LocalPriceHint value={anchorPrice} showEarnings />
         </>
       ) : null}
     </div>

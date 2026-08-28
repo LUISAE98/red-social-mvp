@@ -17,9 +17,9 @@ import WalletPhonePreview from "./WalletPhonePreview";
 import WalletOnboardingGlobe from "./WalletOnboardingGlobe";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 import { buildCollageTiles } from "@/lib/collage";
-import { WALLET_COMMISSION_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import {
-  COLLAGE_TILES, COMMISSION_PCT, COMMUNITY_TYPES, FEE_PERK_KEYS, HERO_LIST_KEYS,
+  COLLAGE_TILES, COMMUNITY_TYPES, FEE_PERK_KEYS, HERO_LIST_KEYS,
   MERGE_META, ONBOARDING_USER_KEYS, PERK_KEYS, SERVICE_ACCENT, SERVICE_ACTIVATE_KEY,
   SERVICE_IMAGES, SERVICE_ORDER, SERVICE_PREVIEW_KEY, USER_SERVICE_ENTRIES,
 } from "./WalletOnboarding.parts";
@@ -84,6 +84,19 @@ export default function WalletOnboarding({
         rawWallet.rich(resolveKey(key), values),
     },
   );
+  /**
+   * El porcentaje que se le enseña es EL SUYO.
+   *
+   * 25% en los 45 países de transferencia local y 30% en los 29 donde solo llega el wire, que
+   * cuesta 25 USD fijos. Ver `docs/payout-tiers.md`. Mientras no tenga cuenta de cobro se le
+   * enseña el estándar, que es lo correcto: todavía no se sabe a qué país va a cobrar.
+   *
+   * ⚠️ Esta pantalla es lo primero que un creador lee sobre el reparto. Un número que luego
+   * no cuadre con su wallet es exactamente lo que no puede pasar aquí.
+   */
+  const { commissionRate } = useCreatorNetRate();
+  const comisionPct = Math.round(commissionRate * 100);
+
   // Servicios que se van a listar, ya sin los excluidos. Se calcula aquí —y no
   // dentro del mosaico— porque el TÍTULO también lo necesita: dice "N
   // experiencias", y ese número tiene que cuadrar con las cards que se ven.
@@ -1723,7 +1736,7 @@ export default function WalletOnboarding({
 
           <div className="commissionFigureRow">
             <span className="commissionPct">
-              <VibraGradientText>{COMMISSION_PCT}%</VibraGradientText>
+              <VibraGradientText>{comisionPct}%</VibraGradientText>
             </span>
 
             <ul className="onboardingPerks">
@@ -1849,7 +1862,7 @@ export default function WalletOnboarding({
                       />
                     </svg>
                   </span>
-                  {tWallet(key, { pct: COMMISSION_PCT })}
+                  {tWallet(key, { pct: comisionPct })}
                 </li>
               ))}
             </ul>

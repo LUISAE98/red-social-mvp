@@ -18,6 +18,7 @@ import type {
 import {
   buildNormalizedProfileCommerceState,
 } from "@/lib/profile/profileServiceCatalog";
+import { invalidateWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 
 type PartialOffering = Partial<GroupOffering> | null | undefined;
 type PartialDonation = Partial<GroupDonationSettings> | null | undefined;
@@ -55,4 +56,9 @@ export async function updateProfileOfferings(
     donation: normalized.donation,
     updatedAt: serverTimestamp(),
   });
+
+  // Acabamos de cambiar justo lo que decide si el creador tiene wallet. Sin esto,
+  // la respuesta vieja seguía en caché y activar un servicio no encendía la wallet
+  // hasta recargar la página entera.
+  invalidateWalletVisibility();
 }

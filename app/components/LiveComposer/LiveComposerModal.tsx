@@ -10,7 +10,7 @@ import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react"
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import { LIVE_TICKET_MIN_PRICE_USD } from "@/lib/currency/catalog";
 import { createPortal } from "react-dom";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -44,6 +44,9 @@ export default function LiveComposerModal({
   groupVisibility,
 }: LiveComposerModalProps) {
   const tServices = useTranslations("services");
+  // Su comisión, para el «ganarás X» del precio del ticket. Va aquí arriba y no junto al
+  // cálculo porque más abajo hay un `return null` y un hook no puede quedar detrás de él.
+  const { netRate } = useCreatorNetRate();
   const tCommon = useTranslations("common");
   // Fecha y hora en paneles SEPARADOS: seis tambores a la vez son un muro, y
   // casi siempre se cambia una cosa o la otra, no las dos.
@@ -540,7 +543,7 @@ export default function LiveComposerModal({
   const ticketHasValidPrice =
     ticketPrice.trim() !== "" && Number.isFinite(ticketPriceNum) && ticketPriceNum > 0;
   const ticketBelowMin = ticketHasValidPrice && ticketPriceNum < LIVE_TICKET_MIN_PRICE_USD;
-  const ticketEarnings = ticketHasValidPrice ? ticketPriceNum * WALLET_NET_RATE : null;
+  const ticketEarnings = ticketHasValidPrice ? ticketPriceNum * netRate : null;
   const ticketEarningsVisible = ticketEarnings != null && ticketEarnings > 0 && !ticketBelowMin;
 
   const scrollContent = (
@@ -655,7 +658,7 @@ export default function LiveComposerModal({
             {/* Referencia en la moneda del creador, el mismo componente que usan las
                 experiencias, el composer premium y el panel del VOD. El precio SIEMPRE se
                 fija en la de liquidación; esto solo lo ayuda a ubicarse. */}
-            <LocalPriceHint value={ticketHasValidPrice ? ticketPriceNum : null} netRate={WALLET_NET_RATE} />
+            <LocalPriceHint value={ticketHasValidPrice ? ticketPriceNum : null} showEarnings />
           </div>
 
           {/* "Quién paga": aparece de inmediato al elegir entrada de pago en una comunidad

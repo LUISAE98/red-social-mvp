@@ -82,8 +82,23 @@ desactivando la monetización.
 
 ## 4. Reparto económico
 
-4.1. Sobre el **precio base** de cada venta (sin el impuesto que paga el Comprador), el Creador recibe el
-**75%** y Vibra retiene el **25%** como comisión por intermediación, cobro y operación de la Plataforma.
+4.1. Sobre el **precio base** de cada venta (sin el impuesto que paga el Comprador), Vibra retiene una
+**comisión** por intermediación, cobro y operación de la Plataforma, y el Creador recibe el resto.
+
+4.1.1. **La comisión depende del país de la cuenta donde el Creador cobra**, porque el coste de
+enviarle el dinero cambia mucho de un país a otro:
+
+| Grupo | Comisión | El Creador recibe | Mínimo de retiro |
+|---|---|---|---|
+| Estándar | **25%** | 75% | 300 USD |
+| Países con transferencia de coste elevado | **30%** | 70% | 500 USD |
+
+4.1.2. Vibra publica y mantiene la lista de países de cada grupo, y **se la informa al Creador antes**
+de que active la monetización y de nuevo antes de su primer retiro.
+
+4.1.3. **Cambiar de grupo no afecta a lo ya vendido.** Si el Creador cambia su cuenta de cobro a otro
+país, la nueva comisión rige **solo para las ventas posteriores**; las anteriores conservan la que
+tenían cuando ocurrieron.
 
 4.2. **La comisión de Vibra causa su propio impuesto, que se suma por encima del 25% y no se descuenta de
 él.** Cuando el Creador es contribuyente mexicano con actividad gravada, ese impuesto es acreditable para

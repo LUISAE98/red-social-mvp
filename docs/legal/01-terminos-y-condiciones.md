@@ -411,8 +411,10 @@ Todo se muestra desglosado o incluido en el total **antes de confirmar**.
 
 ## 35. Reparto económico con el Creador
 
-35.1. Del **precio base** de cada venta, el Creador conserva el **75%** y Vibra retiene el **25%** como
-comisión por intermediación, cobro y operación de la Plataforma.
+35.1. Del **precio base** de cada venta, Vibra retiene una **comisión** por intermediación, cobro y
+operación de la Plataforma, y el Creador conserva el resto. **La comisión depende del país de la
+cuenta donde el Creador cobra:** 25% en el grupo estándar y 30% en los países donde la transferencia
+bancaria tiene un coste elevado. El mínimo de retiro es 300 y 500 USD respectivamente.
 
 35.2. **La comisión de Vibra causa su propio impuesto, que se suma por encima del 25%**, no se descuenta
 de él. Cuando el Creador es contribuyente con actividad gravada, ese impuesto le es acreditable.

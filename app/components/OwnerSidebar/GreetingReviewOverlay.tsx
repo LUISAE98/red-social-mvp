@@ -38,7 +38,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 
 const fontStack =
   'inherit';
@@ -134,6 +134,7 @@ export default function GreetingReviewOverlay({
   zIndex = 10050,
 }: Props) {
   const tCommon = useTranslations("common");
+  const { netRate } = useCreatorNetRate();
   const tSessions = useTranslations("sessions");
   const cfError = useCfError();
   const tServices = useTranslations("services");
@@ -364,7 +365,7 @@ export default function GreetingReviewOverlay({
       // ⚠️ NO se convierte: el precio guardado ya vive en la moneda de liquidación. Antes
       // se leía con la moneda del documento y, a falta de ella, se daba "MXN" por supuesto,
       // así que un neto de 30 USD se dividía entre el tipo de cambio y salía como 1.76.
-      setEarningUsd(snapshot * WALLET_NET_RATE);
+      setEarningUsd(snapshot * netRate);
     }
 
     const source = req.source ?? "group";
@@ -405,7 +406,7 @@ export default function GreetingReviewOverlay({
         : [offering.memberPrice, offering.publicPrice, offering.price];
       const rawPrice = priceCandidates.find((v): v is number => typeof v === "number" && v > 0) ?? null;
       if (rawPrice == null || rawPrice <= 0) return;
-      setEarningUsd(rawPrice * WALLET_NET_RATE); // ya en moneda de liquidación
+      setEarningUsd(rawPrice * netRate); // ya en moneda de liquidación
     }).catch(() => {});
   }, [currentIndex, items]);
 

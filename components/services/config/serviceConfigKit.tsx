@@ -12,6 +12,7 @@ import { IconButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { formatCurrency, roundReference } from "@/lib/currency/format";
@@ -88,13 +89,21 @@ export const SERVICE_COLORS = {
  */
 export function LocalPriceHint({
   value,
-  netRate,
+  showEarnings,
 }: {
   value: number | null | undefined;
-  /** Proporción que se queda el creador (0.75). Si se omite, no se muestra la ganancia. */
-  netRate?: number;
+  /**
+   * Añadir «y ganarás aproximadamente X».
+   *
+   * ⚠️ Antes era `netRate` y los ocho llamantes le pasaban la misma constante. Desde que la
+   * comisión depende del país de la cuenta de cobro —25% o 30%, ver `docs/payout-tiers.md`—
+   * esa constante mentía a los creadores de los 29 países caros. La tasa se resuelve ahora
+   * aquí dentro, para que ningún llamante pueda volver a pasar la equivocada.
+   */
+  showEarnings?: boolean;
 }) {
   const pf = usePriceFormat();
+  const { netRate } = useCreatorNetRate();
   const n = typeof value === "number" && Number.isFinite(value) ? value : Number(value);
   if (!Number.isFinite(n) || n <= 0) return null;
   if (pf.currency === SETTLEMENT_CURRENCY) return null;
@@ -112,7 +121,7 @@ export function LocalPriceHint({
   return (
     <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 2, lineHeight: 1.45 }}>
       Estás fijando tu precio en aproximadamente <strong>{fmt(local)}</strong>
-      {netRate ? (
+      {showEarnings ? (
         <> y ganarás aproximadamente <strong>{fmt(local * netRate)}</strong></>
       ) : null}
       .

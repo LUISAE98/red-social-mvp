@@ -61,7 +61,7 @@ import { subscribeToPeakRevenue, updatePeakRevenueIfRecord } from "@/lib/liveCre
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import { formatCurrency, roundReference } from "@/lib/currency/format";
 import {
@@ -71,6 +71,7 @@ import {
 } from "./LiveCreatorPanel.parts";
 
 export default function LiveCreatorPanel({ open, onClose, post, portrait = false }: Props) {
+  const { netRate } = useCreatorNetRate();
   const tFeed = useTranslations("feed");
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
@@ -90,7 +91,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   // Referencia de esa ganancia en la moneda del creador, para la línea sutil de debajo.
   // Null si ya mira en la de liquidación: ahí la cifra de arriba ya es la buena.
   const netEarnedLocal = (base: number): string | null => {
-    const neto = base * WALLET_NET_RATE;
+    const neto = base * netRate;
     if (!(neto > 0) || pf.currency === SETTLEMENT_CURRENCY) return null;
     const local = pf.fromAnchor(neto);
     if (local == null) return null;
@@ -98,7 +99,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   };
 
   const netEarned = (base: number) =>
-    formatCurrency(base * WALLET_NET_RATE, SETTLEMENT_CURRENCY, pf.locale, { code: true });
+    formatCurrency(base * netRate, SETTLEMENT_CURRENCY, pf.locale, { code: true });
   const { user } = useAuth();
   const { messages, deleteMessage } = useLiveChat(open ? post.id : null, 50);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -527,7 +528,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   // Actualiza el récord en tiempo real si se rompe durante el live
   useEffect(() => {
     if (!open || !post.authorId) return;
-    const CREATOR_SHARE = WALLET_NET_RATE;
+    const CREATOR_SHARE = netRate;
     const paidSCs = superComments.filter(sc => sc.status === "paid" && !sc.isDeleted);
     const grossTotal = paidSCs.reduce((sum, sc) => sum + sc.amount, 0) + ticketRevenue + vodRevenue;
     const netTotal = grossTotal * CREATOR_SHARE;
@@ -991,7 +992,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   };
 
   function renderMobileStatsSection(cols: 2 | 3 = 2) {
-    const CREATOR_SHARE = WALLET_NET_RATE;
+    const CREATOR_SHARE = netRate;
     const paidSuperComments = superComments.filter(sc => sc.status === "paid" && !sc.isDeleted);
     const donations    = paidSuperComments.filter(sc => !sc.text);
     const actualSCs    = paidSuperComments.filter(sc => !!sc.text);
@@ -1096,7 +1097,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       { label: "VOD",             amount: vodRevenue,       color: "#60a5fa" },
     ].filter((s) => s.amount > 0);
 
-    const CREATOR_SHARE = WALLET_NET_RATE; // plataforma retiene 25%
+    const CREATOR_SHARE = netRate; // plataforma retiene 25%
     const net = (amount: number) => amount * CREATOR_SHARE;
     // ⚠️ Ingresos del creador: no se convierten. Ver la nota del otro `fmtMoney`.
     const fmtMoney = (amount: number) =>

@@ -17,7 +17,7 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { formatCurrency, roundReference } from "@/lib/currency/format";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
@@ -58,6 +58,7 @@ function etiquetaAcumulado(
   netoPorUnidad: number | null,
   unlockCount: number,
   pf: ReturnType<typeof usePriceFormat>,
+  t: (key: string, values?: Record<string, string>) => string,
   /**
    * Recorta la frase para donde el ancho manda. En el aviso del ticket en
    * celular, "Acumulado aproximado de …" parte en dos renglones y descuadra la
@@ -70,7 +71,7 @@ function etiquetaAcumulado(
 
   if (pf.currency === SETTLEMENT_CURRENCY) {
     const importe = formatCurrency(total, SETTLEMENT_CURRENCY, pf.locale, { code: true });
-    return short ? `Acumulado ${importe}` : `Acumulado de ${importe}`;
+    return short ? t("accumulatedShort", { amount: importe }) : t("accumulatedOf", { amount: importe });
   }
 
   const local = pf.fromAnchor(total);
@@ -81,11 +82,12 @@ function etiquetaAcumulado(
     pf.locale,
     { code: true, approx: true }
   );
-  return short ? `Acumulado aprox. ${importe}` : `Acumulado aproximado de ${importe}`;
+  return short ? t("accumulatedApprox", { amount: importe }) : t("accumulatedApproxLong", { amount: importe });
 }
 function GananciaCreador({ neto }: { neto: number }) {
   const pf = usePriceFormat();
   const tPosts = useTranslations("posts");
+  const tGroups = useTranslations("groups");
   return (
     <>
       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", fontFamily: fontStack, lineHeight: 1.3 }}>
@@ -122,6 +124,8 @@ export function PremiumPostPanel({
   isMobile?: boolean;
 }) {
   const tPosts = useTranslations("posts");
+  const tGroups = useTranslations("groups");
+  const { netRate } = useCreatorNetRate();
   const priceFmt = usePriceFormat();
   const isUnlocked = !state.isBlocked;
   const isAuthor = state.state === "unlocked_author";
@@ -137,12 +141,12 @@ export function PremiumPostPanel({
 
   const netEarnings =
     isAuthor && typeof oneTimePrice === "number" && oneTimePrice > 0
-      ? Math.round(oneTimePrice * WALLET_NET_RATE * 100) / 100 // = round2 del ledger
+      ? Math.round(oneTimePrice * netRate * 100) / 100 // = round2 del ledger
       : null;
 
   // Lo que lleva reunido con esta publicación. A la derecha ve lo que gana por cada
   // desbloqueo; aquí, la suma. Ver `etiquetaAcumulado`.
-  const referenciaLocal = etiquetaAcumulado(netEarnings, unlockCount, priceFmt);
+  const referenciaLocal = etiquetaAcumulado(netEarnings, unlockCount, priceFmt, tGroups);
 
   return (
     <div
@@ -300,6 +304,8 @@ export function LiveTicketPanel({
   isMobile?: boolean;
 }) {
   const tPosts = useTranslations("posts");
+  const tGroups = useTranslations("groups");
+  const { netRate } = useCreatorNetRate();
   const priceFmt = usePriceFormat();
   // El comprador ve el precio YA con todo incluido: (base + $3) + IVA.
   // La pasarela desglosa solo el IVA (recibe amount = base + $3).
@@ -311,10 +317,11 @@ export function LiveTicketPanel({
   // que las dos tarjetas no puedan decir cosas distintas. Ver `etiquetaAcumulado`.
   const acumuladoLocal = etiquetaAcumulado(
     isAuthor && typeof ticketPrice === "number" && ticketPrice > 0
-      ? ticketPrice * WALLET_NET_RATE
+      ? ticketPrice * netRate
       : null,
     unlockCount,
     priceFmt,
+    tGroups,
     isMobile
   );
 
@@ -336,7 +343,7 @@ export function LiveTicketPanel({
   // Ganancia del creador (75% de la base), como en el panel de post premium.
   const netEarnings =
     isAuthor && typeof ticketPrice === "number" && ticketPrice > 0
-      ? Math.round(ticketPrice * WALLET_NET_RATE * 100) / 100 // = round2 del ledger
+      ? Math.round(ticketPrice * netRate * 100) / 100 // = round2 del ledger
       : null;
 
   return (

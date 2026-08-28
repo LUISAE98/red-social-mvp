@@ -23,6 +23,13 @@ import { WALLET_COMMISSION_RATE } from "@/lib/wallet/walletFinances";
 
 // Deriva el porcentaje de la comisión real: si algún día cambia la tasa, este
 // texto de marketing se actualiza con ella en vez de quedar desincronizado.
+/**
+ * El porcentaje del caso ESTÁNDAR.
+ *
+ * ⚠️ Ya no vale para todos: en los 29 países de transferencia cara es 30%. Ver
+ * `docs/payout-tiers.md`. La pantalla de onboarding lo resuelve con `useCreatorNetRate`, que
+ * sí conoce al creador; esta constante se queda para lo que se pinta sin saber quién mira.
+ */
 export const COMMISSION_PCT = Math.round(WALLET_COMMISSION_RATE * 100);
 
 // `onboardingPerk2` ("Sin censura política") queda fuera a propósito. La clave

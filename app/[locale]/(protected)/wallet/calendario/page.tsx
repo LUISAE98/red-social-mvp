@@ -11,7 +11,7 @@ import {
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
 import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import { useWalletData } from "../components/WalletDataContext";
 import { proposeExclusiveSessionSchedule } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { proposeMeetGreetSchedule } from "@/lib/meetGreet/meetGreetRequests";
@@ -271,6 +271,7 @@ function CalendarEventCard({
   // Dinero del CREADOR, en USD o en su moneda según el switch de la wallet.
   // Formateador único: ver `useWalletMoney`.
   const { formatMoney } = useWalletMoney();
+  const { netRate } = useCreatorNetRate();
   const initial = (item.buyerDisplayName ?? "U").charAt(0).toUpperCase();
 
   // Variante para lives: informativa, sin comprador. La portada del live es el
@@ -509,7 +510,7 @@ function CalendarEventCard({
                 flexShrink: 0,
               }}
             >
-              +{formatMoney(Math.round(item.priceSnapshot * WALLET_NET_RATE * 100) / 100, { code: true })}
+              +{formatMoney(Math.round(item.priceSnapshot * netRate * 100) / 100, { code: true })}
             </span>
           ) : null}
         </div>
@@ -1130,6 +1131,7 @@ export default function WalletCalendarioPage() {
   // con el 2% de colchón FX y el redondeo comercial. Ahora la misma lectura que el resto
   // de la wallet, y sigue su switch de moneda.
   const { formatMoney } = useWalletMoney();
+  const { netRate } = useCreatorNetRate();
   const { user } = useAuth();
   const walletData = useWalletData();
   const { toast, showToast } = useVibraToast();
@@ -1200,7 +1202,7 @@ export default function WalletCalendarioPage() {
 
   const viewItemEarning =
     viewItem?.priceSnapshot != null && viewItem.priceSnapshot > 0
-      ? formatMoney(viewItem.priceSnapshot * WALLET_NET_RATE)
+      ? formatMoney(viewItem.priceSnapshot * netRate)
       : null;
 
   function closeViewItem() {

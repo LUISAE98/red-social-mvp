@@ -19,7 +19,7 @@ import {
   aroDegradado,
 } from "@/lib/liveChat/types";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import {
   FIXED_SERVICE_FEE_LABEL,
   FIXED_SERVICE_FEE_NOTE,
@@ -102,6 +102,7 @@ function SkeletonNiveles() {
   );
 }
 export default function SuperCommentConfigPanel({ open, onClose, postId }: Props) {
+  const { netRate } = useCreatorNetRate();
   const tLive = useTranslations("live");
   const tCommon = useTranslations("common");
   const pf = usePriceFormat();
@@ -305,10 +306,10 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
               // ⚠️ NO se usa `formatMoney` (= `pf.format`): ese calcula el precio del
               // COMPRADOR —convierte, suma el 2% y redondea al paso—, así que la ganancia
               // del creador salía convertida e inflada.
-              const creatorEarns = formatCurrency(base * WALLET_NET_RATE, SETTLEMENT_CURRENCY, pf.locale, { code: true });
+              const creatorEarns = formatCurrency(base * netRate, SETTLEMENT_CURRENCY, pf.locale, { code: true });
               // Lo que gana, en SU moneda. Null si ya mira en la de liquidación: repetir
               // la misma cifra dos veces no informa de nada.
-              const netoLocal = pf.currency === SETTLEMENT_CURRENCY ? null : pf.fromAnchor(base * WALLET_NET_RATE);
+              const netoLocal = pf.currency === SETTLEMENT_CURRENCY ? null : pf.fromAnchor(base * netRate);
               const refNivel =
                 netoLocal == null
                   ? null

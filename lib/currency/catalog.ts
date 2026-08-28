@@ -272,6 +272,15 @@ export const SUBSCRIPTION_MIN_PRICE_USD = 1.5;
  *
  * ⚠️ La comisión la absorbe Vibra: al creador le llega el 75% de lo que programó, íntegro.
  */
+/**
+ * ⚠️ **YA NO ES UNO SOLO (decisión 2026-08-27).** El mínimo depende del país de la cuenta de
+ * cobro: **300 USD estándar, 500 USD donde la transferencia va por wire** y cuesta 25 USD fijos.
+ *
+ * El motivo del mínimo es el coste del retiro: con wire, subirlo de 300 a 500 ahorra 3.33 puntos;
+ * con transferencia local ahorraría 0.29 y no compensa. Ver `docs/payout-tiers.md`.
+ *
+ * 🚧 Se conserva como el mínimo del grupo ESTÁNDAR mientras se construye el sistema de niveles.
+ */
 export const PAYOUT_MIN_USD = 300;
 
 const CHARGE_SET: ReadonlySet<string> = new Set(CHARGE_CURRENCIES);

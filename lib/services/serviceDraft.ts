@@ -402,9 +402,19 @@ export function sameDraft(a: ServiceDraft, b: ServiceDraft) {
   );
 }
 
-export function calcNetAmount(raw: string) {
+/**
+ * Lo que le queda al creador de un precio que está escribiendo.
+ *
+ * ⚠️ `netRate` es SUYO, no de todos: 0.75 en los 45 países de transferencia local y 0.70 en
+ * los 29 donde solo llega el wire. Ver `docs/payout-tiers.md`. Se pasa como parámetro y no
+ * se lee de una constante porque este módulo es puro y no puede llamar a un hook; quien lo
+ * usa envuelve la llamada con `useCreatorNetRate`.
+ *
+ * Sin `netRate` cae al estándar, que es lo correcto para una estimación sin creador a mano.
+ */
+export function calcNetAmount(raw: string, netRate: number = WALLET_NET_RATE) {
   const n = Number(raw);
   if (raw.trim() === "" || Number.isNaN(n) || n <= 0) return null;
-  const net = n * WALLET_NET_RATE;
+  const net = n * netRate;
   return { gross: n, net };
 }

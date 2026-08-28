@@ -11,6 +11,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { captureError } from "@/lib/observability/captureError";
 
 type WalletVisibilityCache = {
   ownerId: string | null;
@@ -23,6 +24,21 @@ let walletVisibilityCache: WalletVisibilityCache = {
   hasWallet: false,
   loaded: false,
 };
+
+/**
+ * Olvida lo que se sabía sobre la wallet de este usuario.
+ *
+ * La caché vive en el módulo y, una vez resuelta, NO se vuelve a consultar en
+ * toda la sesión. Eso está bien para no repetir cinco consultas en cada
+ * pantalla, pero significa que activar un servicio no encendía la wallet hasta
+ * recargar la página entera.
+ *
+ * Quien cambie algo que pueda encenderla —activar un servicio, publicar una
+ * experiencia— llama aquí y el siguiente montaje vuelve a preguntar.
+ */
+export function invalidateWalletVisibility(): void {
+  walletVisibilityCache = { ownerId: null, hasWallet: false, loaded: false };
+}
 
 async function ownerHasAnyActiveGroupServices(ownerId: string): Promise<boolean> {
   const q = query(
@@ -89,20 +105,27 @@ async function ownerHasProfileActiveServices(ownerId: string): Promise<boolean> 
     Array.isArray(data.offerings) &&
     data.offerings.some((item) => item?.enabled === true);
 
+  // ⚠️ `donationsEnabled` estaba declarado arriba pero NO se comprobaba aquí.
+  // Un creador con donaciones activas —y solo donaciones— no tenía wallet.
   const monetizationFlagsActive =
     data.monetization?.greetingsEnabled === true ||
     data.monetization?.adviceEnabled === true ||
     data.monetization?.customClassEnabled === true ||
-    data.monetization?.digitalMeetGreetEnabled === true;
+    data.monetization?.digitalMeetGreetEnabled === true ||
+    data.monetization?.donationsEnabled === true;
 
   return offeringsActive || monetizationFlagsActive;
 }
 
 async function ownerHasEverHadServiceRequest(ownerId: string): Promise<boolean> {
+  // `profileDonations` va en la lista porque una donación ES dinero recibido.
+  // Sin ella, alguien podía cobrar una donación real y no tener dónde verla:
+  // había saldo y no había wallet.
   const requestCollections = [
     "greetingRequests",
     "meetGreetRequests",
     "exclusiveSessionRequests",
+    "profileDonations",
   ];
 
   const checks = await Promise.all(
@@ -167,15 +190,39 @@ export function useWalletVisibility(ownerId?: string | null) {
       }
 
       try {
-        const [hasGroupServices, hasProfileServices, hasEverHadRequest] =
-          await Promise.all([
-            ownerHasAnyActiveGroupServices(ownerId),
-            ownerHasProfileActiveServices(ownerId),
-            ownerHasEverHadServiceRequest(ownerId),
-          ]);
+        /**
+         * ⚠️ `allSettled`, NO `all`.
+         *
+         * Estas comprobaciones son INDEPENDIENTES y se combinan con un OR: que
+         * una falle no dice nada de las otras. Con `Promise.all`, un solo error
+         * —una regla que deniega, un índice que falta— rechazaba el conjunto,
+         * el `catch` de abajo dejaba la wallet en `false` y lo guardaba en
+         * caché. El creador tenía servicios activos y la wallet no aparecía,
+         * sin un solo mensaje de error en ningún sitio.
+         *
+         * Ahora cada una responde por sí misma y el fallo se REPORTA en vez de
+         * tragarse: un error aquí apaga una funcionalidad entera y tiene que
+         * doler en la consola, no en silencio.
+         */
+        const resultados = await Promise.allSettled([
+          ownerHasAnyActiveGroupServices(ownerId),
+          ownerHasProfileActiveServices(ownerId),
+          ownerHasEverHadServiceRequest(ownerId),
+        ]);
 
-        const nextHasWallet =
-          hasGroupServices || hasProfileServices || hasEverHadRequest;
+        const nombres = ["servicios de comunidad", "servicios de perfil", "ingresos recibidos"];
+        resultados.forEach((r, i) => {
+          if (r.status === "rejected") {
+            captureError(r.reason, {
+              scope: "wallet",
+              extra: { where: "useWalletVisibility", comprobacion: nombres[i] },
+            });
+          }
+        });
+
+        const nextHasWallet = resultados.some(
+          (r) => r.status === "fulfilled" && r.value === true
+        );
 
         walletVisibilityCache = {
           ownerId,
@@ -187,7 +234,11 @@ export function useWalletVisibility(ownerId?: string | null) {
           setHasWallet(nextHasWallet);
           setLoaded(true);
         }
-      } catch {
+      } catch (err) {
+        captureError(err, {
+          scope: "wallet",
+          extra: { where: "useWalletVisibility", comprobacion: "inesperado" },
+        });
         walletVisibilityCache = {
           ownerId,
           hasWallet: false,

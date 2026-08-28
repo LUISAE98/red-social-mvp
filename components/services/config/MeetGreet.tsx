@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletRates";
 import { LocalPriceHint } from "./serviceConfigKit";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
@@ -529,7 +528,7 @@ export default function MeetGreet({
           </div>
           {/* Referencia en la moneda del creador. El precio SIEMPRE se fija en la de
               liquidación; esto solo lo ayuda a ubicarse. */}
-          <LocalPriceHint value={Number(overlayDraft.meetGreet.price)} netRate={WALLET_NET_RATE} />
+          <LocalPriceHint value={Number(overlayDraft.meetGreet.price)} showEarnings />
         </div>
         <div style={{ ...subtleStyle, opacity: 0.7, fontSize: 11, marginTop: 3 }}>
           {FIXED_SERVICE_FEE_NOTE}

@@ -8,6 +8,12 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
+import {
+  payoutTermsOf,
+  isKnownUnpayableCountry,
+  PAYOUT_TERMS_PROVISIONAL,
+  type PayoutTerms,
+} from "@/lib/wallet/payoutTiers";
 import { db } from "@/lib/firebase";
 
 // ── Datos fiscales (Bloque 1a) ───────────────────────────────────────────────
@@ -103,10 +109,12 @@ export type CreatorTaxProfile = {
   /** ¿Hay constancia de residencia fiscal en el expediente? Sin ella no aplica el tratado. */
   residencyCertificate?: boolean;
   /**
-   * Estado del alta de cobro con la procesadora, que incluye su verificación de identidad.
+   * Estado del alta de cobro en Stripe Global Payouts.
    *
-   * 🚧 Todavía nada lo escribe: el alta de Stripe no existe. Cuando exista, su webhook pone
-   * aquí `"verified"` y el gate del retiro se abre solo, sin tocar esta lógica.
+   * ⚠️ **No es su identidad.** Esa la da el KYC de Didit. Esto dice si tiene una cuenta
+   * bancaria verificada a la que mandarle el dinero, que es otra cosa. Lo escribe
+   * `backend/src/payments/stripe/globalPayoutsRecipient.ts` al crear la cuenta y al volver
+   * del formulario alojado.
    */
   stripeAccountStatus?: "none" | "pending" | "verified" | "restricted";
   taxId?: string;
@@ -122,6 +130,17 @@ export type CreatorTaxProfile = {
 export function useCreatorTaxProfile(uid: string | null | undefined) {
   const [profile, setProfile] = useState<CreatorTaxProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  /**
+   * Identidad verificada, leída de `kyc/{uid}` — el documento que escribe el
+   * webhook de Didit y que nadie más puede tocar (ver `firestore.rules`).
+   *
+   * Vive aquí y no en la página para que TODO lo que pregunte si el creador
+   * puede cobrar reciba la misma respuesta: el panel de alta, el botón de
+   * retiro y cualquier pantalla futura.
+   */
+  const [kycAprobado, setKycAprobado] = useState(false);
+  /** País del documento con el que se verificó. Lo escribe el webhook al aprobar. */
+  const [kycCountry, setKycCountry] = useState<string | null>(null);
 
   useEffect(() => {
     if (!uid) {
@@ -137,6 +156,27 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
         setLoading(false);
       },
       () => setLoading(false)
+    );
+    return () => unsub();
+  }, [uid]);
+
+  useEffect(() => {
+    // Sin uid no se toca el estado: escribirlo aquí sería un setState en el cuerpo
+    // del efecto, que dispara renders en cascada. El caso "sin sesión" lo resuelve
+    // `identityReady` exigiendo uid, más abajo.
+    if (!uid) return;
+    const unsub = onSnapshot(
+      doc(db, "kyc", uid),
+      (snap) => {
+        setKycAprobado(snap.data()?.kycApproved === true);
+        const p = snap.data()?.documentCountry;
+        setKycCountry(typeof p === "string" && p ? p.toUpperCase() : null);
+      },
+      // Si la lectura falla, NO se asume verificado: sin identidad no se cobra.
+      () => {
+        setKycAprobado(false);
+        setKycCountry(null);
+      }
     );
     return () => unsub();
   }, [uid]);
@@ -162,20 +202,91 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
     return Number.isFinite(t) && t <= ahora;
   })();
   const csdReady = profile?.csdStatus === "valid" && !csdVencido;
-  const residency = profile?.residency ?? null;
+
+  const payoutAccountCountry = profile?.payoutAccountCountry ?? null;
+
+  /**
+   * ¿Es mexicano para efectos de facturación?
+   *
+   * ⚠️ **YA NO SE PREGUNTA (2026-08-27).** Antes el panel arrancaba con «¿dónde declaras
+   * impuestos?». Sobra: una respuesta se puede equivocar, un documento no. Se deduce de dos
+   * señales duras, y basta con que UNA apunte a México:
+   *
+   * - El **país del documento** del KYC — es la que de verdad decide, porque quien debe
+   *   facturar en México es quien tributa ahí.
+   * - El **país de la cuenta de cobro** — no prueba residencia fiscal, pero una CLABE
+   *   mexicana es señal suficiente para pedirle los datos y que él confirme.
+   *
+   * `profile.residency` se conserva como ANULACIÓN MANUAL, para el caso raro que las dos
+   * señales resuelvan mal: un mexicano que tributa fuera, o al revés.
+   */
+  const esMexicano =
+    profile?.residency === "MX" ||
+    (profile?.residency !== "FOREIGN" &&
+      (kycCountry === "MX" || payoutAccountCountry === "MX"));
+
+  const residency: CreatorResidency | null =
+    profile?.residency ?? (kycCountry || payoutAccountCountry ? (esMexicano ? "MX" : "FOREIGN") : null);
+
+  /**
+   * 💰 Su comisión y su mínimo de retiro, según el país de la CUENTA DE COBRO.
+   *
+   * `null` cuando no hay cuenta todavía, o cuando el país no tiene ruta de pago. Los dos
+   * casos se distinguen abajo, porque al creador hay que decirle cosas muy distintas.
+   *
+   * ⚠️ Esto solo SIRVE PARA MOSTRAR. La comisión que cuenta es la que el backend congeló en
+   * cada asiento el día de la venta, y una venta vieja conserva la suya.
+   */
+  const payoutTerms: Readonly<PayoutTerms> | null = payoutTermsOf(payoutAccountCountry);
+
+  /**
+   * 🔴 Vende pero no cobra.
+   *
+   * 73 países donde Global Payouts no llega. Su creador puede acumular saldo que hoy nadie
+   * le puede sacar, así que hay que decírselo, no dejarlo descubrirlo al pedir el retiro.
+   */
+  const payoutCountryUnpayable = isKnownUnpayableCountry(payoutAccountCountry);
+
+  // Lo que se enseña mientras no hay cuenta: el caso estándar, que es el de 45 de los 74
+  // países pagables. En cuanto da de alta su cuenta, manda su país de verdad.
+  const terminosVisibles = payoutTerms ?? PAYOUT_TERMS_PROVISIONAL;
+  /**
+   * ¿Sabemos quién es?
+   *
+   * ⚠️ La identidad la da el KYC de Didit, no `stripeAccountStatus`. Ese campo era un
+   * marcador de posición de cuando se pensaba que la verificación vendría en el alta de
+   * Stripe Connect. Ese camino se abandonó —la plataforma pasa a Global Payouts, que no trae
+   * verificación de destinatarios— así que nadie lo escribió nunca y el gate estuvo cerrado
+   * para todos. Hoy `stripeAccountStatus` sí se escribe, pero significa otra cosa: que tiene
+   * cuenta a la que cobrar, no que sepamos quién es.
+   */
+  const identityReady = !!uid && kycAprobado;
+
+  /**
+   * ¿Tiene a dónde cobrar?
+   *
+   * 🔴 Faltaba en el gate. Sin esto un creador con solo el KYC aprobado pasaba, pedía su
+   * retiro y no había cuenta a la que mandárselo — se descubría en el peor momento.
+   */
+  const payoutAccountReady = profile?.stripeAccountStatus === "verified";
+
   /**
    * ¿Puede retirar?
    *
-   * El mexicano necesita identidad **y** sello: sin sello, Vibra no puede emitir sus facturas
-   * de venta, y dejarlo cobrar sería dejarlo vender sin poder facturar. El extranjero no emite
-   * CFDI, así que le basta la identidad.
+   * Identidad y cuenta de cobro son de TODOS. El sello solo del mexicano: sin él, Vibra no
+   * puede emitir sus facturas de venta, y dejarlo cobrar sería dejarlo vender sin poder
+   * facturar. El extranjero no emite CFDI, así que no hay sello que pedirle.
    *
-   * 🚧 Hoy nadie escribe `stripeAccountStatus`, así que esto es false para todos — que es el
-   * comportamiento seguro. Cuando el alta de Stripe lo ponga en `"verified"`, el gate se abre
-   * solo: no hay que volver a tocar esta función.
+   * Y el país tiene que tener ruta de pago. En la práctica lo cubre `payoutAccountReady`
+   * —Stripe no verifica una cuenta de un país al que no llega—, pero se comprueba aparte
+   * porque es lo que permite explicárselo, y porque atarlo a una suposición sobre lo que
+   * Stripe hace es exactamente el tipo de gate que se abre solo el día que Stripe cambia.
    */
-  const identityReady = profile?.stripeAccountStatus === "verified";
-  const payoutReady = residency === "FOREIGN" ? identityReady : identityReady && csdReady;
+  const payoutReady =
+    identityReady &&
+    payoutAccountReady &&
+    payoutTerms != null &&
+    (esMexicano ? csdReady : true);
   return {
     profile,
     loading,
@@ -183,10 +294,25 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
     csdReady,
     csdVencido,
     residency,
-    payoutAccountCountry: profile?.payoutAccountCountry ?? null,
+    /** Derivado de las señales duras; `profile.residency` lo anula si está puesto. */
+    esMexicano,
+    /** País del documento del KYC. `null` mientras no haya verificación aprobada. */
+    kycCountry,
+    payoutAccountCountry,
+    /** Estado del alta de cobro en Stripe. */
+    stripeAccountStatus: profile?.stripeAccountStatus ?? "none",
+    payoutAccountReady,
+    /** Sus condiciones reales, o `null` si aún no hay cuenta o el país no es pagable. */
+    payoutTerms,
+    /** El país de su cuenta vende pero no cobra. Hay que decírselo. */
+    payoutCountryUnpayable,
+    /** Su comisión, con el estándar como respaldo mientras no hay cuenta. Solo para MOSTRAR. */
+    commissionRate: terminosVisibles.commissionRate,
+    /** Su mínimo de retiro en USD, con el estándar como respaldo. Solo para MOSTRAR. */
+    minWithdrawalUsd: terminosVisibles.minWithdrawalUsd,
     /** ¿Cobra fuera de México? Le sube la retención de IVA al 100%. */
     cobraFueraDeMexico:
-      residency === "MX" &&
+      esMexicano &&
       !!profile?.payoutAccountCountry &&
       profile.payoutAccountCountry.toUpperCase() !== "MX",
     identityReady,

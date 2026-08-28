@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/currency/format";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
@@ -21,6 +21,7 @@ import ProfileDonation from "./ProfileDonation";
 
 import { updateProfileOfferings } from "@/lib/profile/updateProfileOfferings";
 import { SETTLEMENT_CURRENCY, DONATION_MIN_AMOUNT_USD } from "@/lib/currency/catalog";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
 
@@ -53,6 +54,20 @@ export default function ProfileServicesTab({
   onProfileServicesChanged,
 }: Props) {
   const tServices = useTranslations("services");
+
+  /**
+   * El «ganarás X» de los paneles de configurar servicios, con SU comisión.
+   *
+   * 25% en los 45 países de transferencia local y 30% en los 29 donde solo llega el wire.
+   * Ver `docs/payout-tiers.md`. `calcNetAmount` es una utilidad pura y no puede leer el hook
+   * por sí misma, así que se envuelve aquí; los paneles la reciben como prop y no se
+   * enteran del cambio.
+   */
+  const { netRate } = useCreatorNetRate();
+  const calcNetAmountConTasa = useCallback(
+    (raw: string) => calcNetAmount(raw, netRate),
+    [netRate]
+  );
 
   const isOwner = useMemo(
     () => profileUserId === currentUserId,
@@ -655,7 +670,7 @@ export default function ProfileServicesTab({
         subtleStyle={subtleStyle}
         inputStyle={inputStyle}
         buttonSecondaryStyle={buttonSecondaryStyle}
-        calcNetAmount={calcNetAmount}
+        calcNetAmount={calcNetAmountConTasa}
         formatMoney={formatMoney}
         SwitchComponent={Switch}
         OverlayModalComponent={SaludoOverlay}
@@ -679,7 +694,7 @@ export default function ProfileServicesTab({
         subtleStyle={subtleStyle}
         inputStyle={inputStyle}
         buttonSecondaryStyle={buttonSecondaryStyle}
-        calcNetAmount={calcNetAmount}
+        calcNetAmount={calcNetAmountConTasa}
         formatMoney={formatMoney}
         SwitchComponent={Switch}
         OverlayModalComponent={ConsejoOverlay}
@@ -703,7 +718,7 @@ export default function ProfileServicesTab({
         subtleStyle={subtleStyle}
         inputStyle={inputStyle}
         buttonSecondaryStyle={buttonSecondaryStyle}
-        calcNetAmount={calcNetAmount}
+        calcNetAmount={calcNetAmountConTasa}
         formatMoney={formatMoney}
         SwitchComponent={Switch}
         OverlayModalComponent={MeetGreetOverlay}
@@ -726,7 +741,7 @@ export default function ProfileServicesTab({
         subtleStyle={subtleStyle}
         inputStyle={inputStyle}
         buttonSecondaryStyle={buttonSecondaryStyle}
-        calcNetAmount={calcNetAmount}
+        calcNetAmount={calcNetAmountConTasa}
         formatMoney={formatMoney}
         SwitchComponent={Switch}
         OverlayModalComponent={CustomClassOverlay}

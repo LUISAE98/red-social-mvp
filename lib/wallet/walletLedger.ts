@@ -48,6 +48,18 @@ export type LedgerEntry = {
   liveId: string | null;
   /** Id de la publicación (tickets: post premium / VOD); null si no aplica. */
   postId: string | null;
+  /**
+   * 💰 La comisión que se aplicó a ESTA venta, congelada el día que se registró.
+   *
+   * `undefined` en los asientos anteriores al 2026-08-27, que se registraron todos al 25%.
+   * Para leerla usa `netRateOfEntry`, que ya resuelve ese caso.
+   *
+   * 🚨 Una venta vieja conserva SU comisión aunque el creador cambie de país. Recalcular
+   * hacia atrás es lo primero que se nota en el saldo, y destruye la confianza.
+   */
+  commissionRate?: number;
+  /** El grupo del que salió esa comisión. `undefined` en los asientos viejos. */
+  commissionTier?: "standard" | "expensive";
 };
 
 /** Clave de traducción (namespace wallet) para el nombre de cada servicio. */

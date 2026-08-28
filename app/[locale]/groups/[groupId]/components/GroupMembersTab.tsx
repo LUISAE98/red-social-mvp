@@ -60,8 +60,8 @@ export default function GroupMembersTab({
   canInviteModerators = false,
   initialShowModeratorPanel = false,
 }: GroupMembersTabProps) {
-  const currentUid = auth.currentUser?.uid ?? null;
   const tGroups = useTranslations("groups");
+  const currentUid = auth.currentUser?.uid ?? null;
   const tCommon = useTranslations("common");
 
   function localizedRole(role?: string): string {
@@ -480,7 +480,7 @@ export default function GroupMembersTab({
 
     const durationDays = Number(muteDays);
     if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 365) {
-      avisar("Debes elegir entre 1 y 365.");
+      avisar(tGroups("chooseBetween1And365"));
       return;
     }
 
@@ -988,11 +988,11 @@ export default function GroupMembersTab({
         <div style={topRow}>
           <div style={titleBlock}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, minWidth: 0 }}>
-              <h2 style={{ ...titleStyle, minWidth: 0 }}>Integrantes de la comunidad</h2>
+              <h2 style={{ ...titleStyle, minWidth: 0 }}>{tGroups("membersTitle")}</h2>
               {titleAction}
             </div>
             <p style={subtitleStyle}>
-              Busca, filtra y administra los miembros del comunidad.
+              {tGroups("membersSubtitle")}
             </p>
           </div>
 
@@ -1147,7 +1147,7 @@ export default function GroupMembersTab({
                       }
                       aria-haspopup="menu"
                       aria-expanded={menuOpen}
-                      aria-label={`Abrir acciones para ${displayName}`}
+                      aria-label={tGroups("openActionsFor", { name: displayName })}
                       disabled={isProcessing}
                       style={{
                         ...leftMenuButtonStyle,
@@ -1178,7 +1178,7 @@ export default function GroupMembersTab({
                       <Link
                         href={`/u/${member.handle}`}
                         style={nameLinkStyle}
-                        title={`Ir al perfil de ${displayName}`}
+                        title={tGroups("goToProfileOf", { name: displayName })}
                       >
                         {displayName}
                       </Link>

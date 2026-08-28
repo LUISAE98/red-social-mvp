@@ -22,7 +22,7 @@ import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 import ServicePublishedSuccess from "@/components/services/ServicePublishedSuccess";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import {
   DEFAULT_DONATION_SUGGESTED_AMOUNTS,
   normalizeSuggestedAmounts,
@@ -131,6 +131,7 @@ export default function DonationConfigCard({
   publishSuccess,
   onSaveDraft,
 }: Props) {
+  const { netRate } = useCreatorNetRate();
   const tProfile = useTranslations("profile");
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
@@ -553,7 +554,7 @@ export default function DonationConfigCard({
               const rawI = overlayAmounts[i] ?? "";
               const amtI = Number(rawI);
               const belowMinI = rawI.trim() !== "" && Number.isFinite(amtI) && amtI < DONATION_MIN_PER_AMOUNT;
-              const netI = Number.isFinite(amtI) && amtI > 0 ? amtI * WALLET_NET_RATE : null; // neto = 75% de la donación
+              const netI = Number.isFinite(amtI) && amtI > 0 ? amtI * netRate : null; // neto = 75% de la donación
               const showEarnI = netI != null && netI > 0 && !belowMinI;
               return (
               <div key={i} style={{ display: "grid", gap: 2 }}>

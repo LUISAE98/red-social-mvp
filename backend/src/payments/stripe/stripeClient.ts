@@ -82,6 +82,14 @@ export async function stripeFetch<T = unknown>(
      * de la cuenta. Hoy solo lo usa la FX Quotes API.
      */
     apiVersion?: string;
+    /**
+     * Cuerpo JSON, para la **API v2**.
+     *
+     * La v1 habla formularios y la v2 habla JSON; no es una preferencia, es que la v2
+     * rechaza el formulario. Se pasa `json` en vez de `form` y el cliente cambia de
+     * Content-Type solo. Global Payouts es v2 entera.
+     */
+    json?: unknown;
   } = {}
 ): Promise<StripeResult<T>> {
   const key = stripeSecretKey.value().trim();
@@ -111,7 +119,10 @@ export async function stripeFetch<T = unknown>(
   else if (form && form.fx_quote) headers["Stripe-Version"] = STRIPE_PREVIEW_VERSION;
 
   let body: string | undefined;
-  if (form) {
+  if (init.json !== undefined) {
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify(init.json);
+  } else if (form) {
     headers["Content-Type"] = "application/x-www-form-urlencoded";
     body = encodeForm(form).join("&");
   }

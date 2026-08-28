@@ -473,7 +473,7 @@ export default function GroupPostComposer({
 
     if (files.length > availableSlots) {
       setLocalError(
-        `Solo se agregaron ${availableSlots} imágenes. El máximo es ${MAX_POST_IMAGES}.`,
+        tGroups("onlySomeImagesAdded", { added: availableSlots, max: MAX_POST_IMAGES }),
       );
     }
 
@@ -554,7 +554,7 @@ export default function GroupPostComposer({
           const maxMin = Math.round(maxDuration / 60);
           setLocalError(
             isPremium
-              ? `Tu video excede el límite de ${maxMin} minutos para posts premium.`
+              ? tGroups("videoTooLongPremium", { minutes: maxMin })
               : `Tu video excede los ${maxMin} minutos permitidos. Activa "Monetizar Video" antes de subirlo para poder subir videos de hasta 3 horas.`,
           );
           return;

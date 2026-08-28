@@ -58,6 +58,7 @@ export default function PostComposerMobileOverlay({
   onPreviewPointerMove,
   onPreviewPointerUp,
 }: PostComposerMobileOverlayProps) {
+  const tGroups = useTranslations("groups");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const tCommon = useTranslations("common");
   const tPosts = useTranslations("posts");
@@ -131,7 +132,6 @@ export default function PostComposerMobileOverlay({
 
   useEffect(() => {
     if (!open) return;
-
 
     const timer = window.setTimeout(() => {
       textareaRef.current?.focus();
@@ -996,7 +996,7 @@ export default function PostComposerMobileOverlay({
                     (_, index) => (
                       <div
                         key={`processing-image-${index}`}
-                        aria-label="Preparando imagen"
+                        aria-label={tGroups("preparingImage")}
                         style={{
                           ...mediaPreviewWrapStyle,
                           animation:

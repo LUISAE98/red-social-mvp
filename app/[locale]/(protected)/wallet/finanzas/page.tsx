@@ -14,7 +14,7 @@ import {
 } from "@/lib/wallet/walletFinances";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
-import { PAYOUT_MIN_USD } from "@/lib/currency/catalog";
+
 import { useBalanceHidden, toggleBalanceHidden } from "@/lib/wallet/useBalanceHidden";
 import MaskedAmount from "@/app/components/MaskedAmount";
 import WalletFigureSkeleton from "../components/WalletFigureSkeleton";
@@ -24,7 +24,40 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import WithdrawFiscalPanel from "../components/WithdrawFiscalPanel";
 import CreatorPayoutSetupPanel from "../components/CreatorPayoutSetupPanel";
 import { useCreatorTaxProfile } from "@/lib/facturacion/creatorFiscal";
+import { useKyc } from "@/lib/kyc/useKyc";
 import { calcularRetiro } from "@/lib/tax/fiscalEngine";
+
+/**
+ * Códigos de rechazo de Didit → clave de traducción.
+ *
+ * Didit manda el motivo en crudo y en inglés. Sin este mapa, al creador se le
+ * enseñaría "DOCUMENT_EXPIRED" tal cual; con él, sabe que su documento venció y
+ * que puede reintentar. Varios códigos caen en el mismo mensaje a propósito: al
+ * creador le importa QUÉ hacer, no el matiz interno del proveedor.
+ */
+const KYC_REASON_KEY: Record<string, string> = {
+  POSSIBLE_DUPLICATED_USER: "kycReasonDuplicate",
+  DUPLICATED_USER: "kycReasonDuplicate",
+  DUPLICATED_FACE: "kycReasonDuplicate",
+  DOCUMENT_EXPIRED: "kycReasonDocExpired",
+  EXPIRED_DOCUMENT: "kycReasonDocExpired",
+  DOCUMENT_TYPE_NOT_ALLOWED: "kycReasonDocUnsupported",
+  DOCUMENT_NOT_SUPPORTED: "kycReasonDocUnsupported",
+  UNSUPPORTED_DOCUMENT: "kycReasonDocUnsupported",
+  FACE_NOT_MATCHING: "kycReasonFaceMismatch",
+  FACE_MISMATCH: "kycReasonFaceMismatch",
+  LIVENESS_FAILED: "kycReasonLiveness",
+  NOT_LIVE: "kycReasonLiveness",
+  SPOOFING_DETECTED: "kycReasonLiveness",
+  DOCUMENT_MANIPULATED: "kycReasonManipulated",
+  TAMPERED_DOCUMENT: "kycReasonManipulated",
+  FRAUD: "kycReasonManipulated",
+  UNDERAGE: "kycReasonUnderage",
+  AGE_NOT_MET: "kycReasonUnderage",
+  BAD_QUALITY: "kycReasonQuality",
+  LOW_QUALITY: "kycReasonQuality",
+  UNREADABLE_DOCUMENT: "kycReasonQuality",
+};
 
 
 
@@ -184,25 +217,104 @@ export default function WalletFinanzasPage() {
   const loadingAmounts = summaryLoading || !user?.uid;
 
   /**
+   * ¿El creador puede retirar?
+   *
+   * Lo decide su perfil, no una bandera suelta: identidad verificada y cuenta de cobro dada
+   * de alta, más el sello digital si es mexicano. Ver `useCreatorTaxProfile`.
+   *
+   * ⚠️ Mientras no complete el alta no pasa el gate, y eso es lo correcto: al llegar al
+   * mínimo desaparece la barra y queda el aviso del alta, sin botón de retirar. Prometerle un
+   * botón que lleva a un pago sin destino es peor que no enseñarlo.
+   */
+  const {
+    payoutReady: puedeCobrar,
+    esMexicano,
+    csdReady: selloListo,
+    /**
+     * 💰 Su mínimo, no el de todos.
+     *
+     * 300 USD donde hay transferencia local y 500 donde solo llega el wire, que cuesta 25
+     * USD fijos y a 300 se comería más del 8%. Mientras no tenga cuenta de cobro se le
+     * enseña el estándar. Ver `docs/payout-tiers.md`.
+     */
+    minWithdrawalUsd: minimoRetiro,
+    payoutCountryUnpayable: paisSinRutaDePago,
+  } = useCreatorTaxProfile(user?.uid);
+  /**
    * El retiro se habilita al alcanzar el MÍNIMO, no en una fecha.
    *
    * Antes dependía del fin de mes y se anunciaba con «Disponible para retirar el X de Y».
    * Ahora el creador ve una barra que se llena y, al llegar, el botón. El motivo del mínimo
-   * es el coste del retiro, que por debajo se come un porcentaje enorme (ver `PAYOUT_MIN_USD`).
+   * es el coste del retiro, que por debajo se come un porcentaje enorme.
+   *
+   * ⚠️ El mínimo es SUYO, no el de todos (2026-08-27). Sale del país de su cuenta de cobro.
+   * `PAYOUT_MIN_USD` sigue siendo el estándar y es lo que se le enseña mientras no tiene
+   * cuenta, pero ya no es la cifra que decide.
    */
-  const canWithdrawNow = disponibleNeto >= PAYOUT_MIN_USD;
+  const canWithdrawNow = disponibleNeto >= minimoRetiro;
   /**
-   * ¿El creador puede retirar?
+   * ¿Viene de vuelta del formulario de Stripe?
    *
-   * Lo decide su perfil fiscal, no una bandera suelta: el mexicano necesita identidad **y**
-   * sello digital; el extranjero, solo identidad. Ver `useCreatorTaxProfile`.
+   * El alta de la cuenta de cobro se hace fuera de Vibra y Stripe devuelve al creador con
+   * `?alta=ok` (terminó) o `?alta=reintentar` (el enlace caducó, caduca a los 10 minutos).
+   * En los dos casos se le vuelve a abrir el panel donde lo dejó, en vez de soltarlo en una
+   * Finanzas idéntica a la que dejó y que no le dice nada de lo que acaba de hacer.
    *
-   * 🚧 La verificación de identidad sigue en false hasta que exista el alta de cuenta de
-   * Stripe, así que hoy nadie pasa el gate. Es el comportamiento seguro: al llegar al mínimo
-   * desaparece la barra y queda el aviso del alta, sin botón de retirar.
+   * Se lee una sola vez, al montar, y se limpia la URL para que recargar no lo repita.
    */
-  const { payoutReady: altaStripeCompleta } = useCreatorTaxProfile(user?.uid);
-  const [setupPanelOpen, setSetupPanelOpen] = useState(false);
+  const [retornoAlta] = useState<"ok" | "reintentar" | null>(() => {
+    if (typeof window === "undefined") return null;
+    const v = new URLSearchParams(window.location.search).get("alta");
+    return v === "ok" || v === "reintentar" ? v : null;
+  });
+  const [setupPanelOpen, setSetupPanelOpen] = useState(retornoAlta != null);
+
+  // Fuera el parámetro de la barra de direcciones: ya cumplió, y si se queda, recargar
+  // volvería a disparar la relectura y a reabrir el panel.
+  useEffect(() => {
+    if (!retornoAlta || typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("alta");
+    window.history.replaceState(null, "", url.toString());
+  }, [retornoAlta]);
+
+  // ── Identidad (KYC) ───────────────────────────────────────────────────────
+  const kyc = useKyc(user?.uid);
+
+  const kycReasonText = tWallet(
+    (kyc.reason && KYC_REASON_KEY[kyc.reason]) || "kycReasonGeneric"
+  );
+
+  // "in_review" = Didit lo está revisando a mano: no hay nada que pulsar.
+  // "pending" = sesión abierta sin terminar → se puede continuar.
+  const kycCtaLabel =
+    kyc.status === "in_review"
+      ? tWallet("kycPending")
+      : kyc.status === "pending"
+        ? tWallet("kycContinue")
+        : kyc.status === "declined"
+          ? tWallet("kycRejectedReason", { reason: kycReasonText })
+          : tWallet("kycWithdrawCta");
+  const kycCtaDisabled = kyc.status === "in_review" || kyc.starting || kyc.loading;
+
+  async function handleKycClick() {
+    if (kycCtaDisabled) return;
+    try {
+      await kyc.startKyc(locale);
+    } catch {
+      showWalletToast(tWallet("kycStartError"), "error");
+    }
+  }
+
+  /**
+   * Los datos fiscales solo se le piden al creador MEXICANO: es quien emite CFDI.
+   * Y solo DESPUÉS de tener la identidad verificada — pedir el sello a alguien que
+   * aún no sabemos quién es sería recoger datos fiscales de un desconocido.
+   *
+   * Ser mexicano ya no se pregunta, se deduce del país del documento del KYC y del país de
+   * la cuenta de cobro. Ver `esMexicano` en `useCreatorTaxProfile`.
+   */
+  const mostrarAltaFiscal = kyc.approved && esMexicano && !selloListo;
 
   /**
    * Qué le llega al retirar.
@@ -240,8 +352,8 @@ export default function WalletFinanzasPage() {
   useAjusteAUnRenglon(cajaCifraRef, cifraRef, medidaCifraRef, textoCifraFinal);
 
   /** Cuánto le falta, y qué porción de la barra lleva. */
-  const faltaParaRetirar = Math.max(0, PAYOUT_MIN_USD - disponibleNeto);
-  const progresoRetiro = Math.min(1, Math.max(0, disponibleNeto / PAYOUT_MIN_USD));
+  const faltaParaRetirar = Math.max(0, minimoRetiro - disponibleNeto);
+  const progresoRetiro = Math.min(1, Math.max(0, disponibleNeto / minimoRetiro));
 
   function handleWithdrawClick() {
     if (!canWithdrawNow) return;
@@ -482,10 +594,34 @@ export default function WalletFinanzasPage() {
               </div>
             )}
 
+            {/* 🔴 Vende pero no cobra.
+
+                73 países donde Global Payouts no llega. Se le dice aquí, junto al saldo, y no
+                al pulsar retirar: el creador tiene que poder decidir si le compensa seguir
+                acumulando, y esa decisión no se toma el día que ya lo hizo. */}
+            {!loadingAmounts && paisSinRutaDePago && (
+              <div
+                style={{
+                  width: "100%",
+                  maxWidth: 260,
+                  marginTop: 12,
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  background: "rgba(248,113,113,0.09)",
+                  border: "1px solid rgba(248,113,113,0.28)",
+                  color: "#fca5a5",
+                  fontSize: 11.5,
+                  lineHeight: 1.45,
+                }}
+              >
+                {tWallet("payoutNoRouteWarning")}
+              </div>
+            )}
+
             {/* Mismo hueco que la barra: al alcanzar el mínimo, una desaparece y aparece el
                 otro. Nunca los dos. Si el alta de Stripe no está hecha, no hay botón — queda
                 a la vista el aviso morado del registro, que es lo que toca resolver primero. */}
-            {!loadingAmounts && canWithdrawNow && altaStripeCompleta && (
+            {!loadingAmounts && canWithdrawNow && puedeCobrar && (
               <div style={{ width: "100%", maxWidth: 260, marginTop: 12, animation: "vbPayoutIn 420ms cubic-bezier(0.2,0.8,0.2,1) both" }}>
                 <TextButton tone="brand" size="sm" onClick={handleWithdrawClick} style={{ width: "100%" }}>
                   {tWallet("withdrawButton")}
@@ -494,22 +630,62 @@ export default function WalletFinanzasPage() {
             )}
           </div>
 
-          {/* Alta de cobro: abre el panel que bifurca por residencia fiscal. Al mexicano le
-              pide identidad y sello; al extranjero, solo identidad. */}
-          <TextButton
-            tone="brand"
-            size="sm"
-            onClick={() => setSetupPanelOpen(true)}
-            style={{
-              width: "100%",
-              marginTop: -14,
-              lineHeight: 1.35,
-              textAlign: "center",
-              justifyContent: "center",
-            }}
-          >
-            {tWallet("stripeAccountCta")}
-          </TextButton>
+          {/* DOS registros, dos botones, cada uno con su estado.
+
+              1. IDENTIDAD (KYC de Didit) — se le pide a todo el mundo.
+              2. DATOS FISCALES (RFC y sello) — solo al creador mexicano, y solo
+                 después de tener la identidad resuelta.
+
+              Van separados porque fallan por motivos distintos y se arreglan en
+              sitios distintos: juntarlos en un botón obligaba a adivinar cuál de
+              los dos era el que faltaba. */}
+
+          {/* 1. Identidad. Mientras Didit revisa a mano no hay nada que pulsar, y si
+                 rechazó, el propio botón dice por qué. */}
+          {kyc.loading ? null : !kyc.approved ? (
+            <TextButton
+              tone="brand"
+              size="sm"
+              // Abre el PANEL, no Didit. Desde ahí el creador ve todo lo que le
+              // falta —identidad, cuenta de cobro y, si es mexicano, el sello— y
+              // elige por dónde empezar. Saltar directo a Didit escondía los
+              // otros pasos hasta que ya era tarde.
+              onClick={() => setSetupPanelOpen(true)}
+              disabled={kyc.loading}
+              style={{
+                width: "100%",
+                marginTop: -14,
+                lineHeight: 1.35,
+                textAlign: "center",
+                justifyContent: "center",
+                // El rechazo se avisa en rojo: es lo único de este bloque que pide
+                // una acción distinta a "sigue adelante".
+                ...(kyc.status === "declined" ? { color: "#f87171" } : {}),
+                opacity: kyc.starting ? 0.6 : 1,
+              }}
+            >
+              {kycCtaLabel}
+            </TextButton>
+          ) : null}
+
+          {/* 2. Datos fiscales. Aparece cuando la identidad ya está y todavía falta
+                 el sello. Al extranjero no se le enseña nunca: no emite CFDI. */}
+          {mostrarAltaFiscal && (
+            <TextButton
+              tone="brand"
+              size="sm"
+              onClick={() => setSetupPanelOpen(true)}
+              style={{
+                width: "100%",
+                marginTop: -14,
+                lineHeight: 1.35,
+                textAlign: "center",
+                justifyContent: "center",
+              }}
+            >
+              {tWallet("fiscalSetupCta")}
+            </TextButton>
+          )}
 
           <VibraToast toast={walletToast} />
 
@@ -736,6 +912,9 @@ export default function WalletFinanzasPage() {
         open={setupPanelOpen}
         onClose={() => setSetupPanelOpen(false)}
         onOpenSello={() => setWithdrawPanelOpen(true)}
+        onIniciarKyc={handleKycClick}
+        kycBloqueado={kycCtaDisabled}
+        volviendoDeStripe={retornoAlta === "ok"}
       />
 
       <WithdrawFiscalPanel
