@@ -100,6 +100,15 @@ const EXPENSIVE: readonly string[] = [
 /**
  * Sin ruta de pago (73 países).
  *
+ * 🔴 **ESTA LISTA ESTÁ MAL (verificado el 2026-08-27).** Se sacó de la cobertura de
+ * transferencia local, pero Stripe también hace wire y admite formatos locales (CBU, NUBAN) en
+ * países que no aparecen ahí. Contra la API salen **90 pagables y 55 sin ruta**, no 74 y 73:
+ * toda Latinoamérica cobra, incluidos Brasil, Argentina, Colombia, Chile y Uruguay.
+ *
+ * Se deja como está A PROPÓSITO hasta haber probado el alta de punta a punta. Hoy no afecta a
+ * nadie porque nadie tiene cuenta de cobro; deja de ser inocuo en cuanto el alta se abra.
+ * Plan para cerrarlo en `docs/stripe-integracion.md` §8-octies.8.
+ *
  * ⚠️ **Compran y venden, pero Global Payouts no llega.** Se listan a propósito en vez de
  * dejarlos fuera sin más: la diferencia entre «no lo tengo dado de alta» y «no existe forma de
  * pagarle» es justo lo que hay que poder decirle al creador.

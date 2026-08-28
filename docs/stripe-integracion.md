@@ -1462,6 +1462,81 @@ SDK de preview: `stripeClient` ya acepta una versión de API por petición (lo u
 ⚠️ Los webhooks son **thin events** y `stripeWebhook` no los entiende. Se puede empezar
 consultando el estado al volver del enlace y dejar el webhook para después.
 
+### 8-octies.8 🔴 Los países pagables, verificados contra la API (2026-08-27)
+
+> **Pendiente a propósito.** Se deja anotado y NO se toca el código todavía: primero se prueba
+> el flujo de alta de punta a punta con los países que ya están, y luego se abre el resto. Sacar
+> 16 países nuevos sin haber probado uno solo sería al revés.
+
+#### Lo que se creía, y lo que es
+
+| | Se creía | Es |
+|---|---|---|
+| Con cuenta bancaria en Stripe | 74 | **90** |
+| Sin ruta de pago | 73 | **55** |
+| Ni siquiera son ISO 3166 | — | **2** (`IC`, `EA`) |
+
+#### De dónde salió el error
+
+La lista de 73 se sacó leyendo la cobertura de **transferencia local** y dando por hecho que
+sin transferencia local no había nada. Falso: Stripe también hace **wire**, y admite formatos
+de cuenta locales —CBU argentino, NUBAN nigeriano, bank_code + branch brasileño— en países que
+no aparecen en la lista de rails locales.
+
+⚠️ **La lección, para la próxima:** esto se consulta a la API, no se deduce de la
+documentación. El endpoint es
+`GET /v2/money_management/payout_methods/bank_account_spec?countries[]=XX`, y si se le pasa un
+país sin soporte **el propio error enumera cuáles no lo tienen**, que es la forma más rápida de
+sacar la lista entera de una vez.
+
+#### Los que se daban por perdidos y sí cobran (16)
+
+```
+AR BO BR CL CO PY UY · HN NI · KR NG SA · AZ KH LK BT BN MN BW CI MD GI
+```
+
+**Toda Latinoamérica cobra.** Brasil, Argentina, Colombia, Chile, Uruguay, Bolivia y Paraguay
+estaban en la lista de «vende pero no cobra» y no debían estarlo.
+
+#### Los 55 que de verdad no cobran
+
+```
+GU PG NC FJ ME PF TO SB VU WS KI NR TV NU WF FM MH AS MP SR BZ GD KY
+BM TC VG PR VI HT BQ VC KN DM AI MS GL PM JE AD FO VA GG SJ NP MV NF
+CX CC TK PN GF YT GP MQ RE
+```
+
+Casi todos son islas y territorios diminutos. Los que pesan algo: **Montenegro, Nepal,
+Maldivas, Surinam, Belice, Haití, Groenlandia, Andorra**.
+
+⚠️ **Dos casos con truco.** `PR` y `VI` (Puerto Rico e Islas Vírgenes de EE. UU.) no salen como
+país propio, pero sus bancos son estadounidenses: su creador pondría una cuenta `US` y cobraría.
+Lo mismo con `IC` y `EA` (Canarias, Ceuta y Melilla), que son España y usan IBAN español. Al
+abrir esto habrá que decidir si se mapean a su matriz o se dejan fuera.
+
+#### Consecuencia para lo ya construido
+
+🔴 **`backend/src/wallet/payoutTiers.ts` está sobre datos equivocados.** Los tres grupos —45
+estándar, 29 caros, 73 sin ruta— salieron de la lista mala. Su test de cobertura pasa en verde
+porque compara la tabla consigo misma contra los 147 vendibles, no contra Stripe.
+
+Mientras no se rehaga, un creador brasileño o argentino **no puede retirar aunque Stripe sí
+podría pagarle**. Hoy no afecta a nadie porque nadie tiene cuenta de cobro dada de alta, y por
+eso se puede dejar pendiente sin prisa — pero deja de ser inocuo en cuanto el alta se abra al
+público.
+
+#### Lo que falta para cerrarlo
+
+| | Paso |
+|---|---|
+| 1 | Probar el alta de punta a punta con un país que ya está (hace falta la verificación de empresa) |
+| 2 | Consultar a la API el método de cada uno de los 90, para saber cuál es local y cuál wire |
+| 3 | Decidir en qué tramo entran los 16 nuevos, con el coste real delante |
+| 4 | Rehacer `payoutTiers.ts`, su espejo y `docs/payout-tiers.md` |
+| 5 | Decidir qué se hace con `PR`, `VI`, `IC` y `EA` |
+
+---
+
 ### 8-octies.7 Lo construido (2026-08-27)
 
 **Backend**

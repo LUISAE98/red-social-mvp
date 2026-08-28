@@ -22,7 +22,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
-import { stripeFetch, stripeSecretKey } from "./stripeClient";
+import { stripeFetch, stripeSecretKey, stripePayoutsSecretKey } from "./stripeClient";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -108,7 +108,7 @@ async function guardarEstado(
  * sirve una vez, así que guardarlo no tendría sentido. Lo que sí se guarda es la cuenta.
  */
 export const createPayoutAccountLink = onCall(
-  { region: REGION, cors: true, secrets: [stripeSecretKey] },
+  { region: REGION, cors: true, secrets: [stripeSecretKey, stripePayoutsSecretKey] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -123,6 +123,7 @@ export const createPayoutAccountLink = onCall(
       const res = await stripeFetch<V2Account>("/v2/core/accounts", {
         method: "POST",
         apiVersion: V2_VERSION,
+        usePayoutsKey: true,
         json: {
           ...(email ? { contact_email: email } : {}),
           configuration: {
@@ -153,6 +154,7 @@ export const createPayoutAccountLink = onCall(
     const link = await stripeFetch<V2AccountLink>("/v2/core/account_links", {
       method: "POST",
       apiVersion: V2_VERSION,
+      usePayoutsKey: true,
       json: {
         account: cuentaId,
         use_case: {
@@ -186,7 +188,7 @@ export const createPayoutAccountLink = onCall(
  * creador vuelve — que es el momento en que le importa verlo.
  */
 export const refreshPayoutAccountStatus = onCall(
-  { region: REGION, cors: true, secrets: [stripeSecretKey] },
+  { region: REGION, cors: true, secrets: [stripeSecretKey, stripePayoutsSecretKey] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -202,7 +204,7 @@ export const refreshPayoutAccountStatus = onCall(
 
     const res = await stripeFetch<V2Account>(
       `/v2/core/accounts/${cuentaId}?${params.toString()}`,
-      { method: "GET", apiVersion: V2_VERSION }
+      { method: "GET", apiVersion: V2_VERSION, usePayoutsKey: true }
     );
     if (!res.ok) {
       logger.error("global_payouts_leer_cuenta_falló", { uid, cuentaId, error: String(res.error).slice(0, 300) });

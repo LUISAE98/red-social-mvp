@@ -14,6 +14,21 @@ import { defineSecret } from "firebase-functions/params";
 
 export const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 
+/**
+ * Clave para GLOBAL PAYOUTS, aparte de la de cobros.
+ *
+ * 🚧 **Es un apaño de PRUEBAS, y tiene fecha de caducidad.** Global Payouts está en vista
+ * preliminar y no existe en el «modo de prueba» clásico de una cuenta, solo en los sandbox
+ * nuevos —que son cuentas distintas, con claves distintas—. Así que en pruebas los cobros
+ * viven en una cuenta y el alta de cobro en otra.
+ *
+ * En PRODUCCIÓN las dos cosas van en la misma cuenta y este secreto lleva el mismo valor que
+ * `STRIPE_SECRET_KEY`. Cuando Global Payouts salga de vista preliminar, esto se puede borrar.
+ *
+ * Si no está puesto, se cae a `STRIPE_SECRET_KEY`, que es lo correcto para producción.
+ */
+export const stripePayoutsSecretKey = defineSecret("STRIPE_PAYOUTS_SECRET_KEY");
+
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
 
 /**
@@ -90,9 +105,22 @@ export async function stripeFetch<T = unknown>(
      * Content-Type solo. Global Payouts es v2 entera.
      */
     json?: unknown;
+    /**
+     * Usa la clave de GLOBAL PAYOUTS en vez de la de cobros.
+     *
+     * Solo lo necesita el alta de cuenta del creador, y solo mientras Global Payouts esté en
+     * vista preliminar. Ver `stripePayoutsSecretKey`.
+     */
+    usePayoutsKey?: boolean;
   } = {}
 ): Promise<StripeResult<T>> {
-  const key = stripeSecretKey.value().trim();
+  // Sin secreto de payouts se cae al de cobros: en producción son la misma cuenta y la
+  // misma clave, así que ese es el caso normal, no un respaldo de emergencia.
+  const key = (
+    init.usePayoutsKey
+      ? stripePayoutsSecretKey.value().trim() || stripeSecretKey.value().trim()
+      : stripeSecretKey.value().trim()
+  );
   if (!key) return { ok: false, status: 0, error: "Falta el secreto STRIPE_SECRET_KEY." };
 
   const url = path.startsWith("http") ? path : `${STRIPE_API_BASE}${path}`;
