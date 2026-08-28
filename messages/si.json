@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "සියලු චලනයන්",
     "payoutProgressLabel": "මුදල් ලබා ගැනීමට තව {amount} ක් අවශ්‍යයි",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "දැන් ඔබට ඔබේ ශේෂය ලබා ගත හැකියි",
     "approxAmountLong": "දළ වශයෙන් {amount}",
     "walletCurrencyLabel": "පෙන්වන මුදල් ඒකකය",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "මෙම මිලදී ගැනීම දැන් ඉන්වොයිස් කිරීමට විනිමය අනුපාතයක් නැත.",
     "selectAtLeastOneMovement": "අවම වශයෙන් එක් ගනුදෙනුවක් තෝරන්න.",
     "creatorInvoiceUnavailable": "නිර්මාණකරුගේ ඉන්වොයිසයට ප්‍රවේශ විය නොහැකි විය.",
-    "creatorsMissingTaxSeal": "කිසිදු ඉන්වොයිසයක් නිකුත් කළ නොහැකි විය. මෙම මිලදී ගැනීම්වල නිර්මාණකරුවන්ට තවම ඩිජිටල් මුද්‍රාව යාවත්කාලීන නැත."
+    "creatorsMissingTaxSeal": "කිසිදු ඉන්වොයිසයක් නිකුත් කළ නොහැකි විය. මෙම මිලදී ගැනීම්වල නිර්මාණකරුවන්ට තවම ඩිජිටල් මුද්‍රාව යාවත්කාලීන නැත.",
+    "payoutSetupStartFailed": "ඔබේ ගෙවීම් ලියාපදිංචිය ආරම්භ කළ නොහැකි විය. නැවත උත්සාහ කරන්න.",
+    "payoutSetupFormFailed": "පෝරමය විවෘත කළ නොහැකි විය. නැවත උත්සාහ කරන්න.",
+    "payoutSetupStatusFailed": "ඔබේ ගෙවීම් ලියාපදිංචිය පරීක්ෂා කළ නොහැකි විය."
   },
   "loginLanding": {
     "exp1Eyebrow": "පෞද්ගලික අත්දැකීම්",

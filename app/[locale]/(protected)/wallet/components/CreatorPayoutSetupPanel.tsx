@@ -72,6 +72,14 @@ export default function CreatorPayoutSetupPanel({
     identityReady,
     payoutAccountReady,
     stripeAccountStatus,
+    /**
+     * 💰 Su comisión y su mínimo reales. `null` mientras no hay cuenta de cobro.
+     *
+     * Solo se le enseñan cuando ya son SUYOS. Antes de dar de alta la cuenta no se sabe a
+     * qué país va a cobrar, y adelantar un 25% que luego resulte 30% es peor que callar.
+     */
+    payoutTerms,
+    payoutCountryUnpayable,
     loading,
   } = useCreatorTaxProfile(user?.uid);
 
@@ -302,6 +310,46 @@ export default function CreatorPayoutSetupPanel({
 
               {cobroRestringido && (
                 <Aviso tono="alerta" texto={t("payoutSetupPayoutRestricted")} />
+              )}
+
+              {/* 🔴 Su país vende pero no cobra.
+
+                  Se le dice aquí, en el alta, y no el día que pulse retirar: tiene derecho a
+                  decidir si le compensa seguir acumulando, y esa decisión no se toma cuando
+                  ya lo hizo. */}
+              {payoutCountryUnpayable && (
+                <Aviso tono="alerta" texto={t("payoutNoRouteWarning")} />
+              )}
+
+              {/* 💰 Su comisión y su mínimo, con el MOTIVO.
+
+                  Al del grupo caro hay que explicarle por qué le toca 30% y 500, o lo lee
+                  como un castigo arbitrario. No lo es: la transferencia a su país cuesta 25
+                  USD por envío frente a 1.50 en los demás, y a 300 se le comería el 8%.
+
+                  Solo aparece cuando ya tiene cuenta: antes no se sabe su país. */}
+              {payoutTerms && (
+                <div
+                  style={{
+                    padding: "11px 14px",
+                    borderRadius: 12,
+                    background: "rgba(168,85,247,0.09)",
+                    border: "1px solid rgba(168,85,247,0.28)",
+                    color: "#d8b4fe",
+                    fontSize: 12.5,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {t(
+                    payoutTerms.tier === "expensive"
+                      ? "payoutTermsExpensive"
+                      : "payoutTermsStandard",
+                    {
+                      pct: Math.round(payoutTerms.commissionRate * 100),
+                      min: payoutTerms.minWithdrawalUsd,
+                    }
+                  )}
+                </div>
               )}
 
               {/* 3. DATOS FISCALES Y SELLO — solo si alguna de las dos señales dice México.

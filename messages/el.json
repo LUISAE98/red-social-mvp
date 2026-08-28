@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Όλες οι κινήσεις",
     "payoutProgressLabel": "Απομένουν {amount} για να μπορείς να κάνεις ανάληψη",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Μπορείς να κάνεις ανάληψη του υπολοίπου σου",
     "approxAmountLong": "Περίπου {amount}",
     "walletCurrencyLabel": "Νόμισμα εμφάνισης",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Δεν υπάρχει ισοτιμία για να τιμολογηθεί αυτή η αγορά τώρα.",
     "selectAtLeastOneMovement": "Διάλεξε τουλάχιστον μία κίνηση.",
     "creatorInvoiceUnavailable": "Δεν μπορέσαμε να δούμε το τιμολόγιο του δημιουργού.",
-    "creatorsMissingTaxSeal": "Δεν εκδόθηκε κανένα τιμολόγιο. Οι δημιουργοί αυτών των αγορών δεν έχουν ακόμη ενημερωμένη την ψηφιακή τους σφραγίδα."
+    "creatorsMissingTaxSeal": "Δεν εκδόθηκε κανένα τιμολόγιο. Οι δημιουργοί αυτών των αγορών δεν έχουν ακόμη ενημερωμένη την ψηφιακή τους σφραγίδα.",
+    "payoutSetupStartFailed": "Δεν μπορέσαμε να ξεκινήσουμε την εγγραφή πληρωμών. Δοκίμασε ξανά.",
+    "payoutSetupFormFailed": "Δεν μπορέσαμε να ανοίξουμε τη φόρμα. Δοκίμασε ξανά.",
+    "payoutSetupStatusFailed": "Δεν μπορέσαμε να ελέγξουμε την εγγραφή πληρωμών σου."
   },
   "loginLanding": {
     "exp1Eyebrow": "Προσωπικές εμπειρίες",

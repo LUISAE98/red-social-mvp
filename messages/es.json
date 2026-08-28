@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Todos los movimientos",
     "payoutProgressLabel": "Te faltan {amount} para poder retirar",
     "payoutNoRouteWarning": "Todavía no podemos enviar dinero al país de tu cuenta. Tu saldo se sigue acumulando, pero por ahora no hay forma de pagártelo. Te avisamos en cuanto la haya.",
+    "payoutTermsStandard": "Tu comisión es del {pct}% y puedes retirar desde {min} USD. Las transferencias a tu país son baratas, así que este es el mejor trato que tenemos.",
+    "payoutTermsExpensive": "Tu comisión es del {pct}% y puedes retirar desde {min} USD. Los bancos de tu país solo aceptan transferencias internacionales, que nos cuestan 25 USD por envío en vez de 1.50. El mínimo más alto es lo que evita que esa comisión se coma tu dinero, no un castigo.",
+    "payoutMinimumWhy": "Tu mínimo es más alto porque las transferencias a tu país cuestan más.",
     "payoutProgressReady": "Ya puedes retirar tu saldo",
     "approxAmountLong": "Aproximadamente {amount}",
     "walletCurrencyLabel": "Moneda de lectura",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "No hay tipo de cambio para facturar esta compra ahora.",
     "selectAtLeastOneMovement": "Selecciona al menos un movimiento.",
     "creatorInvoiceUnavailable": "No pudimos acceder a la factura del creador.",
-    "creatorsMissingTaxSeal": "No se pudo emitir ninguna factura. Los creadores de estas compras aún no tienen su sello digital al día."
+    "creatorsMissingTaxSeal": "No se pudo emitir ninguna factura. Los creadores de estas compras aún no tienen su sello digital al día.",
+    "payoutSetupStartFailed": "No se pudo iniciar tu alta de cobro, inténtalo de nuevo.",
+    "payoutSetupFormFailed": "No se pudo abrir el formulario, inténtalo de nuevo.",
+    "payoutSetupStatusFailed": "No se pudo consultar tu alta de cobro."
   },
   "loginLanding": {
     "exp1Eyebrow": "Experiencias personales",

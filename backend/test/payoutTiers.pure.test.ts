@@ -41,10 +41,12 @@ describe("niveles de retiro — paridad backend / frontend", () => {
 });
 
 describe("niveles de retiro — cobertura", () => {
-  it("los tres grupos suman los 147 países de la tabla fiscal, sin sobras ni faltas", () => {
+  it("los cuatro grupos suman los 147 países de la tabla fiscal, sin sobras ni faltas", () => {
     const clasificados = new Set([
       ...Object.keys(back.PAYOUT_TIER_BY_COUNTRY),
       ...back.UNPAYABLE_COUNTRIES,
+      // Los territorios que cobran con la cuenta de otro país también están resueltos.
+      ...Object.keys(back.PAYOUT_COUNTRY_ALIAS),
     ]);
     const vendibles = new Set(Object.keys(COUNTRY_TAX_CONFIG));
 
@@ -63,18 +65,56 @@ describe("niveles de retiro — cobertura", () => {
     expect(duplicados).toEqual([]);
   });
 
-  it("los tamaños de los grupos son los acordados", () => {
+  it("los tamaños de los grupos son los de la tabla oficial de Stripe", () => {
     const porNivel = Object.values(back.PAYOUT_TIER_BY_COUNTRY);
-    expect(porNivel.filter((t) => t === "standard").length).toBe(45);
-    expect(porNivel.filter((t) => t === "expensive").length).toBe(29);
-    expect(back.UNPAYABLE_COUNTRIES.length).toBe(73);
+    expect(porNivel.filter((t) => t === "standard").length).toBe(46);
+    expect(porNivel.filter((t) => t === "expensive").length).toBe(33);
+    expect(back.UNPAYABLE_COUNTRIES.length).toBe(64);
+    expect(Object.keys(back.PAYOUT_COUNTRY_ALIAS).length).toBe(4);
+  });
+
+  it("un alias no aparece además como país propio", () => {
+    // Estaría en dos sitios y ganaría el que se consultara primero.
+    for (const c of Object.keys(back.PAYOUT_COUNTRY_ALIAS)) {
+      expect(c in back.PAYOUT_TIER_BY_COUNTRY).toBe(false);
+      expect(back.UNPAYABLE_COUNTRIES.includes(c)).toBe(false);
+    }
+  });
+});
+
+describe("niveles de retiro — territorios que cobran por otro país", () => {
+  it("Puerto Rico y las Islas Vírgenes cobran como Estados Unidos", () => {
+    // Sus bancos son estadounidenses: routing number, no un sistema propio.
+    for (const c of ["PR", "VI"]) {
+      expect(back.payoutTermsOf(c)).toEqual(back.payoutTermsOf("US"));
+      expect(back.isPayableCountry(c)).toBe(true);
+    }
+  });
+
+  it("Canarias y Ceuta y Melilla cobran como España", () => {
+    // ⚠️ `IC` y `EA` ni siquiera son ISO 3166; vienen de la tabla fiscal, donde existen
+    // porque su IVA es distinto al peninsular. Su banco es español.
+    for (const c of ["IC", "EA"]) {
+      expect(back.payoutTermsOf(c)).toEqual(back.payoutTermsOf("ES"));
+      expect(back.isPayableCountry(c)).toBe(true);
+    }
+  });
+
+  it("el espejo resuelve los alias igual que el backend", () => {
+    for (const c of Object.keys(back.PAYOUT_COUNTRY_ALIAS)) {
+      expect(front.payoutTermsOf(c)).toEqual(back.payoutTermsOf(c));
+    }
+    expect(front.PAYOUT_COUNTRY_ALIAS).toEqual(back.PAYOUT_COUNTRY_ALIAS);
   });
 });
 
 describe("niveles de retiro — resolución", () => {
   it("un país sin ruta de pago devuelve null, NO el estándar", () => {
     // Es la regla que evita prometerle a un creador brasileño un retiro que no existe.
-    for (const c of ["BR", "AR", "CO", "CL", "KR"]) {
+    // ⚠️ Brasil sí y Argentina no: se preguntó a la API una por una. Brasil tiene las dos
+    // capacidades en `unsupported`; Argentina y Colombia salen `restricted`, que significa
+    // «se puede, faltan datos», así que están en el grupo de wire.
+    for (const c of ["BR", "CL", "UY", "PY", "KR"]) {
       expect(back.payoutTermsOf(c)).toBeNull();
       expect(back.isPayableCountry(c)).toBe(false);
       expect(back.isKnownUnpayableCountry(c)).toBe(true);

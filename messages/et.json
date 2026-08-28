@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Kõik tehingud",
     "payoutProgressLabel": "Väljamakseni on puudu {amount}",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Saad oma saldo nüüd välja võtta",
     "approxAmountLong": "Ligikaudu {amount}",
     "walletCurrencyLabel": "Kuvamisvaluuta",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Praegu pole selle ostu arveldamiseks vahetuskurssi.",
     "selectAtLeastOneMovement": "Vali vähemalt üks liikumine.",
     "creatorInvoiceUnavailable": "Me ei pääsenud looja arvele ligi.",
-    "creatorsMissingTaxSeal": "Ühtegi arvet ei õnnestunud väljastada. Nende ostude loojatel pole digitempel veel ajakohane."
+    "creatorsMissingTaxSeal": "Ühtegi arvet ei õnnestunud väljastada. Nende ostude loojatel pole digitempel veel ajakohane.",
+    "payoutSetupStartFailed": "Väljamaksete registreerimist ei õnnestunud alustada. Proovi uuesti.",
+    "payoutSetupFormFailed": "Vormi ei õnnestunud avada. Proovi uuesti.",
+    "payoutSetupStatusFailed": "Sinu väljamaksete registreerimist ei õnnestunud kontrollida."
   },
   "loginLanding": {
     "exp1Eyebrow": "Isiklikud elamused",

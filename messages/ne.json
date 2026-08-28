@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "सबै कारोबारहरू",
     "payoutProgressLabel": "निकाल्न सक्न {amount} बाँकी छ",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "अब तपाईं आफ्नो ब्यालेन्स निकाल्न सक्नुहुन्छ",
     "approxAmountLong": "लगभग {amount}",
     "walletCurrencyLabel": "देखाउने मुद्रा",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "अहिले यो खरिदको बिल बनाउन विनिमय दर छैन।",
     "selectAtLeastOneMovement": "कम्तीमा एउटा कारोबार छान्नुहोस्।",
     "creatorInvoiceUnavailable": "हामीले सिर्जनाकर्ताको बिलमा पहुँच पाउन सकेनौं।",
-    "creatorsMissingTaxSeal": "कुनै पनि बिल जारी गर्न सकिएन। यी खरिदका सिर्जनाकर्ताहरूको डिजिटल छाप अझै अद्यावधिक छैन।"
+    "creatorsMissingTaxSeal": "कुनै पनि बिल जारी गर्न सकिएन। यी खरिदका सिर्जनाकर्ताहरूको डिजिटल छाप अझै अद्यावधिक छैन।",
+    "payoutSetupStartFailed": "तपाईंको भुक्तानी दर्ता सुरु गर्न सकिएन। फेरि प्रयास गर्नुहोस्।",
+    "payoutSetupFormFailed": "फारम खोल्न सकिएन। फेरि प्रयास गर्नुहोस्।",
+    "payoutSetupStatusFailed": "तपाईंको भुक्तानी दर्ता जाँच्न सकिएन।"
   },
   "loginLanding": {
     "exp1Eyebrow": "व्यक्तिगत अनुभव",

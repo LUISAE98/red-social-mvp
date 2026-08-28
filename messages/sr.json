@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Sve stavke",
     "payoutProgressLabel": "Nedostaje još {amount} da možeš da isplatiš",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Sada možeš da isplatiš svoj saldo",
     "approxAmountLong": "Približno {amount}",
     "walletCurrencyLabel": "Valuta prikaza",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Trenutno nema kursa za fakturisanje ove kupovine.",
     "selectAtLeastOneMovement": "Izaberi bar jednu transakciju.",
     "creatorInvoiceUnavailable": "Nismo mogli da pristupimo fakturi kreatora.",
-    "creatorsMissingTaxSeal": "Nijedna faktura nije izdata. Kreatori ovih kupovina još nemaju ažuran digitalni pečat."
+    "creatorsMissingTaxSeal": "Nijedna faktura nije izdata. Kreatori ovih kupovina još nemaju ažuran digitalni pečat.",
+    "payoutSetupStartFailed": "Нисмо могли да започнемо пријаву за исплате. Покушај поново.",
+    "payoutSetupFormFailed": "Нисмо могли да отворимо образац. Покушај поново.",
+    "payoutSetupStatusFailed": "Нисмо могли да проверимо твоју пријаву за исплате."
   },
   "loginLanding": {
     "exp1Eyebrow": "Лични доживљаји",

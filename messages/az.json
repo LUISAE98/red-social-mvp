@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Bütün hərəkətlər",
     "payoutProgressLabel": "Çıxarış üçün daha {amount} lazımdır",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Balansınızı indi çıxara bilərsiniz",
     "approxAmountLong": "Təxminən {amount}",
     "walletCurrencyLabel": "Göstərmə valyutası",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Bu alışa indi faktura kəsmək üçün məzənnə yoxdur.",
     "selectAtLeastOneMovement": "Ən azı bir hərəkət seç.",
     "creatorInvoiceUnavailable": "Yaradıcının fakturasına giriş alınmadı.",
-    "creatorsMissingTaxSeal": "Heç bir faktura kəsilmədi. Bu alışların yaradıcılarının rəqəmsal möhürü hələ güncəl deyil."
+    "creatorsMissingTaxSeal": "Heç bir faktura kəsilmədi. Bu alışların yaradıcılarının rəqəmsal möhürü hələ güncəl deyil.",
+    "payoutSetupStartFailed": "Ödəniş qeydiyyatını başlatmaq alınmadı. Yenidən cəhd et.",
+    "payoutSetupFormFailed": "Forma açılmadı. Yenidən cəhd et.",
+    "payoutSetupStatusFailed": "Ödəniş qeydiyyatının vəziyyətini yoxlamaq alınmadı."
   },
   "loginLanding": {
     "exp1Eyebrow": "Şəxsi təcrübələr",

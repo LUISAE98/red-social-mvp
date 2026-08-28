@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Alle transacties",
     "payoutProgressLabel": "Je hebt nog {amount} nodig om te kunnen uitbetalen",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Je kunt je saldo nu uitbetalen",
     "approxAmountLong": "Ongeveer {amount}",
     "walletCurrencyLabel": "Weergavevaluta",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Er is nu geen wisselkoers om deze aankoop te factureren.",
     "selectAtLeastOneMovement": "Selecteer minstens één beweging.",
     "creatorInvoiceUnavailable": "We konden de factuur van de creator niet openen.",
-    "creatorsMissingTaxSeal": "Er kon geen factuur worden uitgegeven. De creators van deze aankopen hebben hun digitale zegel nog niet bijgewerkt."
+    "creatorsMissingTaxSeal": "Er kon geen factuur worden uitgegeven. De creators van deze aankopen hebben hun digitale zegel nog niet bijgewerkt.",
+    "payoutSetupStartFailed": "We konden je uitbetalingsregistratie niet starten. Probeer het opnieuw.",
+    "payoutSetupFormFailed": "We konden het formulier niet openen. Probeer het opnieuw.",
+    "payoutSetupStatusFailed": "We konden je uitbetalingsregistratie niet opvragen."
   },
   "loginLanding": {
     "exp1Eyebrow": "Persoonlijke ervaringen",

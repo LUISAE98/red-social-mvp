@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Allar hreyfingar",
     "payoutProgressLabel": "Þig vantar {amount} til að geta tekið út",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Þú getur tekið út inneignina þína núna",
     "approxAmountLong": "Um það bil {amount}",
     "walletCurrencyLabel": "Birtingargjaldmiðill",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Það er ekkert gengi til að gefa út reikning fyrir þessi kaup núna.",
     "selectAtLeastOneMovement": "Veldu að minnsta kosti eina hreyfingu.",
     "creatorInvoiceUnavailable": "Við komumst ekki í reikning höfundarins.",
-    "creatorsMissingTaxSeal": "Ekki tókst að gefa út neinn reikning. Höfundar þessara kaupa eru ekki með uppfært stafrænt innsigli enn."
+    "creatorsMissingTaxSeal": "Ekki tókst að gefa út neinn reikning. Höfundar þessara kaupa eru ekki með uppfært stafrænt innsigli enn.",
+    "payoutSetupStartFailed": "Ekki tókst að hefja skráningu fyrir útgreiðslur. Reyndu aftur.",
+    "payoutSetupFormFailed": "Ekki tókst að opna eyðublaðið. Reyndu aftur.",
+    "payoutSetupStatusFailed": "Ekki tókst að fletta upp skráningu þinni fyrir útgreiðslur."
   },
   "loginLanding": {
     "exp1Eyebrow": "Persónuleg upplifun",

@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Lahat ng galaw",
     "payoutProgressLabel": "Kulang pa ng {amount} bago ka makapag-withdraw",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Puwede mo nang i-withdraw ang balanse mo",
     "approxAmountLong": "Humigit-kumulang {amount}",
     "walletCurrencyLabel": "Pananalapi ng pagpapakita",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Walang palitan para ma-invoice ang pagbiling ito ngayon.",
     "selectAtLeastOneMovement": "Pumili ng kahit isang galaw.",
     "creatorInvoiceUnavailable": "Hindi namin na-access ang invoice ng creator.",
-    "creatorsMissingTaxSeal": "Walang invoice na na-issue. Wala pang updated na digital seal ang mga creator ng mga pagbiling ito."
+    "creatorsMissingTaxSeal": "Walang invoice na na-issue. Wala pang updated na digital seal ang mga creator ng mga pagbiling ito.",
+    "payoutSetupStartFailed": "Hindi namin masimulan ang payout setup mo. Subukan ulit.",
+    "payoutSetupFormFailed": "Hindi namin mabuksan ang form. Subukan ulit.",
+    "payoutSetupStatusFailed": "Hindi namin ma-check ang payout setup mo."
   },
   "loginLanding": {
     "exp1Eyebrow": "Personal na karanasan",

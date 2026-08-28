@@ -7,12 +7,19 @@
 // test de paridad compara las dos tablas, porque si se separan el creador ve una cifra y
 // cobra otra, que es el peor fallo posible en la wallet.
 //
-// Fuente de verdad de las cifras y del porqué: `docs/payout-tiers.md`.
+// Fuente de verdad de las cifras: `docs/payout-tiers.md`. La clasificación de cada país sale
+// de la **tabla oficial de países-destino de Stripe** (Global Payouts → Create recipients →
+// Requirements for supported recipient countries), para un remitente en Estados Unidos.
+//
+// ⚠️ **NO se deduce de `bank_account_spec`.** Ese endpoint devuelve el FORMATO de cuenta de un
+// país —para validar los campos del formulario— y responde para países a los que Stripe no
+// puede pagar. Leerlo como cobertura de pago fue un error real (2026-08-27): daba por pagables
+// a Brasil, Argentina, Colombia, Chile y Uruguay, que no lo son.
 //
 // ── La regla, en una frase ──────────────────────────────────────────────────────────────
 //
-// 25% de comisión y retiras desde 300 USD. En los países donde la transferencia bancaria es
-// cara, 30% y desde 500 USD.
+// 25% de comisión y retiras desde 300 USD. En los países donde solo llega el wire, 30% y desde
+// 500 USD.
 //
 // Lo que separa a los dos grupos no es el porcentaje sino el MÉTODO DE TRANSFERENCIA. La
 // transferencia local cuesta 1.50 USD fijos y el mínimo casi no cambia nada —subirlo de 300 a
@@ -24,9 +31,13 @@
 // 🚨 **Decide el país de la CUENTA DE COBRO**, no la residencia fiscal ni la IP. Es el país al
 //    que de verdad viaja el dinero, y es lo único que explica el coste.
 //
-// 🚨 **Un país sin fila NO es 25% por defecto, es NO PAGABLE.** Los 73 países sin ruta de pago
+// 🚨 **Un país sin fila NO es 25% por defecto, es NO PAGABLE.** Los 64 países sin ruta de pago
 //    tienen que fallar ruidosamente: si cayeran al estándar, el creador vería un 25% y un
 //    mínimo alcanzable para un dinero que Global Payouts no le puede mandar.
+//
+// 🚨 **Esto NO toca los impuestos.** Los 64 sin ruta siguen VENDIENDO y siguen pagando el
+//    impuesto de su país. Lo que no pueden es cobrar. La tabla fiscal (`tax/config.ts`) sigue
+//    teniendo sus 147 países y no se le quita ninguno.
 //
 // 🚨 **Al cambiar de nivel se respeta lo ya vendido.** La comisión se CONGELA en el asiento del
 //    ledger, igual que las retenciones. Un creador que se muda o cambia de banco conserva la
@@ -66,65 +77,70 @@ export const PAYOUT_TERMS: Readonly<Record<PayoutTier, Readonly<PayoutTerms>>> =
 export const PAYOUT_TERMS_PROVISIONAL: Readonly<PayoutTerms> = PAYOUT_TERMS.standard;
 
 /**
- * Estándar — 25%, mínimo 300 USD (45 países).
+ * Territorios que cobran con la cuenta bancaria de OTRO país.
  *
- * Transferencia bancaria local, 1.50 USD fijos. Ordenados del más barato al más caro para
- * Vibra, que es como se leen en `docs/payout-tiers.md`.
+ * Stripe no los lista como destino propio, pero su sistema bancario es el de la metrópoli: un
+ * creador en Puerto Rico abre una cuenta estadounidense con su routing number, y uno en
+ * Canarias usa un IBAN español. Sin este mapeo se les trataría como no pagables, que es falso.
+ *
+ * ⚠️ `IC` y `EA` ni siquiera son ISO 3166: son códigos internos de la UE para Canarias y para
+ * Ceuta y Melilla. Vienen de la tabla fiscal, donde existen porque su IVA es distinto al
+ * peninsular. Aquí se resuelven a España, que es de donde es su banco.
+ */
+export const PAYOUT_COUNTRY_ALIAS: Readonly<Record<string, string>> = {
+  // Territorios de Estados Unidos: bancos estadounidenses.
+  PR: "US",
+  VI: "US",
+  // España: IBAN español.
+  IC: "ES",
+  EA: "ES",
+};
+
+/**
+ * Estándar — 25%, mínimo 300 USD (46 países).
+ *
+ * Transferencia bancaria local, 1.50 USD fijos.
  */
 const STANDARD: readonly string[] = [
-  // El más bajo.
-  "US",
-  // Muy bajo — zona única de pagos en euros.
-  "AT", "BE", "BG", "CY", "CZ", "DE", "EE", "ES", "FI", "FR", "GB", "GR",
-  "HR", "IE", "IS", "IT", "LT", "LU", "LV", "MT", "NL", "PT", "SI", "SK",
-  // Bajo.
-  "CA", "HU", "MX", "NO", "SE",
-  // Medio.
-  "DK", "ID", "JM", "MA", "NZ", "PL", "SG", "TT", "MC", "SM",
-  // Medio-alto.
-  "RO", "AU", "CR", "DO", "PE",
+  "MX", "AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GR", "HR", "HU",
+  "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK", "CR", "DO",
+  "NO", "IS", "AU", "ID", "NZ", "SG", "CA", "US", "PE", "GB", "MA", "TT", "JM", "MC", "SM",
+  "CI",
 ];
 
 /**
- * Transferencia cara — 30%, mínimo 500 USD (29 países).
+ * Transferencia cara — 30%, mínimo 500 USD (33 países).
  *
  * Solo llega el wire, que cuesta 25 USD fijos. De ahí el mínimo alto: es lo único que diluye
  * un coste fijo tan grande.
  */
 const EXPENSIVE: readonly string[] = [
-  "EC", "PA", "SV", "HK", "TH", "ZA", "TR",
-  "AE", "AG", "AL", "BA", "BN", "BT", "BW", "EG", "GT", "JO", "JP", "KW",
-  "LC", "LK", "MD", "MN", "MY", "PH", "QA", "RS", "TW", "VN",
+  "EC", "SV", "GT", "PA", "BA", "HK", "QA", "KW", "JP", "MY", "PH", "TH", "JO", "TW", "ZA",
+  "EG", "TR", "RS", "AL", "MD", "VN", "AE", "LC", "AG", "LK", "BT", "BN", "MN", "BW", "AR",
+  "CO", "NG", "KH",
 ];
 
 /**
- * Sin ruta de pago (73 países).
- *
- * 🔴 **ESTA LISTA ESTÁ MAL (verificado el 2026-08-27).** Se sacó de la cobertura de
- * transferencia local, pero Stripe también hace wire y admite formatos locales (CBU, NUBAN) en
- * países que no aparecen ahí. Contra la API salen **90 pagables y 55 sin ruta**, no 74 y 73:
- * toda Latinoamérica cobra, incluidos Brasil, Argentina, Colombia, Chile y Uruguay.
- *
- * Se deja como está A PROPÓSITO hasta haber probado el alta de punta a punta. Hoy no afecta a
- * nadie porque nadie tiene cuenta de cobro; deja de ser inocuo en cuanto el alta se abra.
- * Plan para cerrarlo en `docs/stripe-integracion.md` §8-octies.8.
+ * Sin ruta de pago (64 países).
  *
  * ⚠️ **Compran y venden, pero Global Payouts no llega.** Se listan a propósito en vez de
  * dejarlos fuera sin más: la diferencia entre «no lo tengo dado de alta» y «no existe forma de
  * pagarle» es justo lo que hay que poder decirle al creador.
  *
- * Incluye Brasil, Argentina, Colombia, Chile, Uruguay, Paraguay, Bolivia, Corea del Sur,
- * Arabia Saudita, Nigeria, Honduras, Nicaragua y Puerto Rico.
+ * Los únicos con mercado real son **Brasil, Argentina, Colombia, Chile, Uruguay, Paraguay,
+ * Bolivia, Corea del Sur, Nigeria, Arabia Saudita, Nepal, Haití y Papúa Nueva Guinea**. El
+ * resto son islas y territorios de menos de cien mil habitantes.
  *
  * 🔴 **Decisión pendiente:** o se impide monetizar desde estos países, o se busca otra vía de
- * pago. Hoy un creador brasileño puede vender y acumular saldo que nadie puede sacarle.
+ * pago. Hoy un creador brasileño puede vender y acumular saldo que nadie puede sacarle. Se le
+ * avisa en Finanzas y el gate no le abre, pero avisar no es resolver.
  */
 export const UNPAYABLE_COUNTRIES: readonly string[] = [
-  "AD", "AI", "AR", "AS", "AZ", "BM", "BO", "BQ", "BR", "BZ", "CC", "CI", "CL", "CO", "CX",
-  "DM", "EA", "FJ", "FM", "FO", "GD", "GF", "GG", "GI", "GL", "GP", "GU", "HN", "HT", "IC",
-  "JE", "KH", "KI", "KN", "KR", "KY", "ME", "MH", "MP", "MQ", "MS", "MV", "NC", "NF", "NG",
-  "NI", "NP", "NR", "NU", "PF", "PG", "PM", "PN", "PR", "PY", "RE", "SA", "SB", "SJ", "SR",
-  "TC", "TK", "TO", "TV", "UY", "VA", "VC", "VG", "VI", "VU", "WF", "WS", "YT",
+  "PY", "BO", "HN", "NI", "GU", "PG", "NC", "FJ", "BR", "CL", "UY", "ME", "KR", "SA", "PF",
+  "TO", "SB", "VU", "WS", "KI", "NR", "TV", "NU", "WF", "FM", "MH", "AS", "MP", "SR", "BZ",
+  "GD", "KY", "BM", "TC", "VG", "HT", "BQ", "VC", "KN", "DM", "AI", "MS", "GL", "PM", "JE",
+  "AD", "FO", "GI", "VA", "GG", "SJ", "AZ", "NP", "MV", "NF", "CX", "CC", "TK", "PN", "GF",
+  "YT", "GP", "MQ", "RE",
 ];
 
 /** País → nivel. Se arma de las dos listas para que no se puedan desincronizar. */
@@ -135,6 +151,12 @@ export const PAYOUT_TIER_BY_COUNTRY: Readonly<Record<string, PayoutTier>> = Obje
   ])
 );
 
+/** Resuelve un territorio a la matriz cuyo banco usa. Lo demás pasa tal cual. */
+export function resolvePayoutCountry(country: string | null | undefined): string {
+  const key = (country ?? "").trim().toUpperCase();
+  return PAYOUT_COUNTRY_ALIAS[key] ?? key;
+}
+
 /**
  * Qué comisión y qué mínimo le tocan a una cuenta de cobro de ese país.
  *
@@ -143,7 +165,7 @@ export const PAYOUT_TIER_BY_COUNTRY: Readonly<Record<string, PayoutTier>> = Obje
  * dejar retirar y explicar por qué.
  */
 export function payoutTermsOf(country: string | null | undefined): Readonly<PayoutTerms> | null {
-  const key = (country ?? "").trim().toUpperCase();
+  const key = resolvePayoutCountry(country);
   if (!key) return null;
   const tier = PAYOUT_TIER_BY_COUNTRY[key];
   return tier ? PAYOUT_TERMS[tier] : null;
@@ -161,6 +183,6 @@ export function isPayableCountry(country: string | null | undefined): boolean {
  * llegó vacío. Este responde «sí, lo conocemos, y no hay forma de pagarle».
  */
 export function isKnownUnpayableCountry(country: string | null | undefined): boolean {
-  const key = (country ?? "").trim().toUpperCase();
+  const key = resolvePayoutCountry(country);
   return key ? UNPAYABLE_COUNTRIES.includes(key) : false;
 }

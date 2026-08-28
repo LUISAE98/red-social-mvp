@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Všechny pohyby",
     "payoutProgressLabel": "Do výběru zbývá {amount}",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Svůj zůstatek si už můžeš vybrat",
     "approxAmountLong": "Přibližně {amount}",
     "walletCurrencyLabel": "Měna zobrazení",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Pro fakturaci tohoto nákupu teď není kurz.",
     "selectAtLeastOneMovement": "Vyber aspoň jeden pohyb.",
     "creatorInvoiceUnavailable": "K faktuře tvůrce se nepodařilo dostat.",
-    "creatorsMissingTaxSeal": "Nepodařilo se vystavit žádnou fakturu. Tvůrci těchto nákupů zatím nemají aktuální digitální pečeť."
+    "creatorsMissingTaxSeal": "Nepodařilo se vystavit žádnou fakturu. Tvůrci těchto nákupů zatím nemají aktuální digitální pečeť.",
+    "payoutSetupStartFailed": "Nepodařilo se zahájit registraci pro výplaty. Zkus to znovu.",
+    "payoutSetupFormFailed": "Formulář se nepodařilo otevřít. Zkus to znovu.",
+    "payoutSetupStatusFailed": "Nepodařilo se ověřit tvou registraci pro výplaty."
   },
   "loginLanding": {
     "exp1Eyebrow": "Osobní zážitky",

@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Visos operacijos",
     "payoutProgressLabel": "Iki išmokėjimo trūksta {amount}",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Jau gali atsiimti savo likutį",
     "approxAmountLong": "Maždaug {amount}",
     "walletCurrencyLabel": "Rodymo valiuta",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Šiuo metu nėra valiutos kurso šiam pirkiniui apmokestinti.",
     "selectAtLeastOneMovement": "Pasirink bent vieną operaciją.",
     "creatorInvoiceUnavailable": "Nepavyko pasiekti kūrėjo sąskaitos.",
-    "creatorsMissingTaxSeal": "Nepavyko išrašyti nė vienos sąskaitos. Šių pirkinių kūrėjai dar neturi galiojančio skaitmeninio antspaudo."
+    "creatorsMissingTaxSeal": "Nepavyko išrašyti nė vienos sąskaitos. Šių pirkinių kūrėjai dar neturi galiojančio skaitmeninio antspaudo.",
+    "payoutSetupStartFailed": "Nepavyko pradėti išmokų registracijos. Bandyk dar kartą.",
+    "payoutSetupFormFailed": "Nepavyko atidaryti formos. Bandyk dar kartą.",
+    "payoutSetupStatusFailed": "Nepavyko patikrinti tavo išmokų registracijos."
   },
   "loginLanding": {
     "exp1Eyebrow": "Asmeniniai potyriai",

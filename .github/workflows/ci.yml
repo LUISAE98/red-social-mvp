@@ -36,11 +36,18 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Unit tests (frontend — dinero puro)
-        run: npm test
-
+      # ⚠️ ANTES de los tests del frontend, no después.
+      #
+      # Nueve tests de `test/unit/` importan de `backend/src/` —el motor fiscal, el
+      # acumulado mensual, los mensajes de error del cobro—, y esos módulos importan
+      # `firebase-functions`, que solo vive en `backend/node_modules`. En local pasa
+      # desapercibido porque esa carpeta ya está instalada; en CI se clona limpio y
+      # `npm test` reventaba con ERR_MODULE_NOT_FOUND.
       - name: Install backend dependencies
         run: npm install --prefix backend
+
+      - name: Unit tests (frontend — dinero puro)
+        run: npm test
 
       - name: Unit tests (backend — ledger, firma MP, reconcile, Connect)
         run: npm test --prefix backend

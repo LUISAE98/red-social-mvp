@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Wszystkie operacje",
     "payoutProgressLabel": "Do wypłaty brakuje {amount}",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Możesz już wypłacić swoje saldo",
     "approxAmountLong": "Około {amount}",
     "walletCurrencyLabel": "Waluta wyświetlania",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Teraz nie ma kursu wymiany, żeby wystawić fakturę do tego zakupu.",
     "selectAtLeastOneMovement": "Wybierz co najmniej jedną operację.",
     "creatorInvoiceUnavailable": "Nie udało nam się otworzyć faktury twórcy.",
-    "creatorsMissingTaxSeal": "Nie udało się wystawić żadnej faktury. Twórcy tych zakupów nie mają jeszcze aktualnej pieczęci cyfrowej."
+    "creatorsMissingTaxSeal": "Nie udało się wystawić żadnej faktury. Twórcy tych zakupów nie mają jeszcze aktualnej pieczęci cyfrowej.",
+    "payoutSetupStartFailed": "Nie udało się rozpocząć rejestracji wypłat. Spróbuj ponownie.",
+    "payoutSetupFormFailed": "Nie udało się otworzyć formularza. Spróbuj ponownie.",
+    "payoutSetupStatusFailed": "Nie udało się sprawdzić twojej rejestracji wypłat."
   },
   "loginLanding": {
     "exp1Eyebrow": "Osobiste doświadczenia",

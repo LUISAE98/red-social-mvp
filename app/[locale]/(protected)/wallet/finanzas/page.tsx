@@ -239,6 +239,8 @@ export default function WalletFinanzasPage() {
      */
     minWithdrawalUsd: minimoRetiro,
     payoutCountryUnpayable: paisSinRutaDePago,
+    /** Sus condiciones reales; `null` mientras no tenga cuenta de cobro. */
+    payoutTerms: condicionesRetiro,
   } = useCreatorTaxProfile(user?.uid);
   /**
    * El retiro se habilita al alcanzar el MÍNIMO, no en una fecha.
@@ -591,6 +593,14 @@ export default function WalletFinanzasPage() {
                     amount: formatMoney(faltaParaRetirar, { code: true }),
                   })}
                 </div>
+
+                {/* Por qué su mínimo es más alto que el de otros. Va pegado a la barra,
+                    que es donde se le hace larga la espera y donde nace la pregunta. */}
+                {condicionesRetiro?.tier === "expensive" && (
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginTop: 4, lineHeight: 1.45 }}>
+                    {tWallet("payoutMinimumWhy")}
+                  </div>
+                )}
               </div>
             )}
 

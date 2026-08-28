@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Tous les mouvements",
     "payoutProgressLabel": "Il te manque {amount} pour pouvoir retirer",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Tu peux maintenant retirer ton solde",
     "approxAmountLong": "Environ {amount}",
     "walletCurrencyLabel": "Devise d'affichage",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Il n'y a pas de taux de change pour facturer cet achat maintenant.",
     "selectAtLeastOneMovement": "Sélectionne au moins un mouvement.",
     "creatorInvoiceUnavailable": "Nous n'avons pas pu accéder à la facture du créateur.",
-    "creatorsMissingTaxSeal": "Aucune facture n'a pu être émise. Les créateurs de ces achats n'ont pas encore leur sceau numérique à jour."
+    "creatorsMissingTaxSeal": "Aucune facture n'a pu être émise. Les créateurs de ces achats n'ont pas encore leur sceau numérique à jour.",
+    "payoutSetupStartFailed": "Impossible de démarrer ton inscription au versement. Réessaie.",
+    "payoutSetupFormFailed": "Impossible d'ouvrir le formulaire. Réessaie.",
+    "payoutSetupStatusFailed": "Impossible de vérifier ton inscription au versement."
   },
   "loginLanding": {
     "exp1Eyebrow": "Expériences personnelles",

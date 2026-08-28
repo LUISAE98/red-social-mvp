@@ -15,9 +15,10 @@ cara, 30% y retiras desde 500 USD.**
 
 | Grupo | Comisión | Mínimo de retiro | Países |
 |---|---|---|---|
-| **Estándar** | 25% | 300 USD | 45 |
+| **Estándar** | 25% | 300 USD | 46 |
 | **Transferencia cara** | 30% | 500 USD | 29 |
-| Sin ruta de pago | — | — | 73 |
+| Territorios que cobran por otro país | — | — | 4 |
+| Sin ruta de pago | — | — | 68 |
 
 ---
 
@@ -51,41 +52,68 @@ doble de acumulado. El ahorro no justificaba la barrera.
 
 ## Los grupos, país por país
 
-### Estándar — 25%, mínimo 300 USD (45)
+> **Verificado contra la tabla oficial de Stripe el 2026-08-27.** Fuente: Global Payouts →
+> Create recipients → *Requirements for supported recipient countries*, para un remitente en
+> Estados Unidos. La lista es idéntica para empresa y para persona física.
+>
+> ⚠️ **No se deduce de `bank_account_spec`.** Ese endpoint devuelve el FORMATO de cuenta de un
+> país y responde también para países a los que Stripe no puede pagar. Leerlo como cobertura
+> dio por pagables a Brasil, Argentina, Colombia, Chile y Uruguay, que no lo son.
 
-Ordenados del más barato al más caro para Vibra:
+### Estándar — 25%, mínimo 300 USD (46)
 
-| Coste de Stripe | Países |
-|---|---|
-| El más bajo | US |
-| Muy bajo | AT BE BG CY CZ DE EE ES FI FR GB GR HR IE IS IT LT LU LV MT NL PT SI SK |
-| Bajo | CA HU MX NO SE |
-| Medio | DK ID JM MA NZ PL SG TT · MC SM |
-| Medio-alto | RO · AU CR DO · PE |
+Transferencia bancaria local, 1.50 USD fijos.
+
+```
+MX AT BE BG CY CZ DE DK EE ES FI FR GR HR HU IE IT LT LU LV MT NL PL PT RO SE SI SK CR DO NO IS AU ID NZ SG CA US PE GB MA TT JM MC SM CI
+```
 
 ### Transferencia cara — 30%, mínimo 500 USD (29)
 
-| Países |
-|---|
-| EC PA SV · HK TH ZA · TR |
-| AE AG AL BA BN BT BW EG GT JO JP KW LC LK MD MN MY PH QA RS TW VN |
-
-### Sin ruta de pago (73)
-
-⚠️ **Pueden comprar y pueden vender, pero Global Payouts no llega.** Incluye **Brasil,
-Argentina, Colombia, Chile, Uruguay, Paraguay, Bolivia**, Corea del Sur, Arabia Saudita,
-Nigeria, Honduras, Nicaragua y Puerto Rico.
+Solo llega el wire, 25 USD fijos.
 
 ```
-AD AI AR AS AZ BM BO BQ BR BZ CC CI CL CO CX DM EA FJ FM FO GD GF GG GI GL GP GU HN HT IC
-JE KH KI KN KR KY ME MH MP MQ MS MV NC NF NG NI NP NR NU PF PG PM PN PR PY RE SA SB SJ SR
-TC TK TO TV UY VA VC VG VI VU WF WS YT
+EC SV GT PA BA HK QA KW JP MY PH TH JO TW ZA EG TR RS AL MD VN AE LC AG LK BT BN MN BW
 ```
+
+### Territorios que cobran con la cuenta de otro país (4)
+
+| Código | Territorio | Cobra como |
+|---|---|---|
+| `PR` | Puerto Rico | Estados Unidos |
+| `VI` | Islas Vírgenes de EE. UU. | Estados Unidos |
+| `IC` | Islas Canarias | España |
+| `EA` | Ceuta y Melilla | España |
+
+Stripe no los lista como destino propio, pero su sistema bancario es el de la metrópoli. Un
+creador en Puerto Rico abre una cuenta estadounidense con routing number, y uno en Canarias
+usa un IBAN español. Sin este mapeo se les trataría como no pagables, que es falso.
+
+⚠️ `IC` y `EA` ni siquiera son ISO 3166: son códigos internos de la UE. Vienen de la tabla
+fiscal, donde existen porque su IVA es distinto al peninsular.
+
+### Sin ruta de pago (68)
+
+⚠️ **Pueden comprar y pueden vender, pero Global Payouts no llega.**
+
+🚨 **Esto NO les quita el impuesto.** Siguen en los 147 de la tabla fiscal, siguen pagando el
+IVA de su país y siguen generando su factura. Lo único que no pueden es cobrar.
+
+Lista completa para hoja de cálculo, con región y si tienen mercado relevante:
+**`docs/paises-sin-ruta-de-pago.tsv`**.
+
+```
+AR PY BO HN NI GU PG NC FJ BR CO CL UY ME KR SA NG PF TO SB VU WS KI NR TV NU WF FM MH AS MP SR BZ GD KY BM TC VG HT BQ VC KN DM AI MS GL PM JE AD FO GI VA GG SJ AZ KH NP MV NF CX CC TK PN GF YT GP MQ RE
+```
+
+Los 17 con mercado real son **Brasil, Argentina, Colombia, Chile, Uruguay, Paraguay,
+Bolivia, Honduras, Nicaragua, Haití, Corea del Sur, Arabia Saudita, Nigeria, Nepal, Papúa
+Nueva Guinea, Azerbaiyán y Camboya**. Los otros 51 son islas y territorios de menos de cien
+mil habitantes.
 
 🔴 **Decisión pendiente:** o se impide monetizar desde estos países, o se busca otra vía de
-pago. Hoy un creador brasileño puede vender y acumular saldo que **nadie puede sacarle**.
-
----
+pago. Hoy un creador brasileño puede vender y acumular saldo que nadie puede sacarle. Se le
+avisa en Finanzas y el gate no le abre, pero avisar no es resolver.
 
 ## Reglas de aplicación
 
@@ -132,7 +160,7 @@ Actualizado el 2026-08-27. Los bloques son los de `docs/stripe-integracion.md` �
 
 | | Bloque | Estado | Dónde |
 |---|---|---|---|
-| **A** | Tabla de niveles por país | ✅ | `backend/src/wallet/payoutTiers.ts` + espejo `lib/wallet/payoutTiers.ts` + `backend/test/payoutTiers.pure.test.ts` |
+| **A** | Tabla de niveles por país | ✅ Rehecha con la tabla oficial de Stripe | `backend/src/wallet/payoutTiers.ts` + espejo `lib/wallet/payoutTiers.ts` + `backend/test/payoutTiers.pure.test.ts` |
 | **B** | País de la cuenta en el perfil | ✅ | Lo escribe el alta de Stripe (`globalPayoutsRecipient.ts`) |
 | **C** | Congelar la comisión en el asiento | ✅ | `backend/src/wallet/ledger.ts` — `commissionRate`, `commissionTier`, `payoutCountry` |
 | **D** | Los archivos que mostraban el 75% | ✅ | `lib/wallet/useCreatorNetRate.ts`, adoptado en 20 archivos |

@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Бүх гүйлгээ",
     "payoutProgressLabel": "Мөнгө татахад {amount} дутуу байна",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Одоо үлдэгдлээ татах боломжтой",
     "approxAmountLong": "Ойролцоогоор {amount}",
     "walletCurrencyLabel": "Харуулах валют",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Одоогоор энэ худалдан авалтад нэхэмжлэх гаргах ханш алга.",
     "selectAtLeastOneMovement": "Дор хаяж нэг гүйлгээ сонго.",
     "creatorInvoiceUnavailable": "Бүтээгчийн нэхэмжлэхэд хандаж чадсангүй.",
-    "creatorsMissingTaxSeal": "Ямар ч нэхэмжлэх гаргаж чадсангүй. Эдгээр худалдан авалтын бүтээгчид дижитал тамгаа хараахан шинэчлээгүй байна."
+    "creatorsMissingTaxSeal": "Ямар ч нэхэмжлэх гаргаж чадсангүй. Эдгээр худалдан авалтын бүтээгчид дижитал тамгаа хараахан шинэчлээгүй байна.",
+    "payoutSetupStartFailed": "Төлбөр хүлээн авах бүртгэлийг эхлүүлж чадсангүй. Дахин оролдоно уу.",
+    "payoutSetupFormFailed": "Маягтыг нээж чадсангүй. Дахин оролдоно уу.",
+    "payoutSetupStatusFailed": "Таны төлбөр хүлээн авах бүртгэлийг шалгаж чадсангүй."
   },
   "loginLanding": {
     "exp1Eyebrow": "Хувийн туршлага",

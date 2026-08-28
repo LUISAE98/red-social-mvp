@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "所有交易",
     "payoutProgressLabel": "還差 {amount} 才能提領",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "你現在可以提領餘額了",
     "approxAmountLong": "約 {amount}",
     "walletCurrencyLabel": "顯示貨幣",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "目前沒有匯率可為這筆購買開立發票。",
     "selectAtLeastOneMovement": "請至少選擇一筆異動。",
     "creatorInvoiceUnavailable": "我們無法存取創作者的發票。",
-    "creatorsMissingTaxSeal": "無法開立任何發票。這些購買的創作者尚未更新數位印章。"
+    "creatorsMissingTaxSeal": "無法開立任何發票。這些購買的創作者尚未更新數位印章。",
+    "payoutSetupStartFailed": "無法開始你的收款登記，請再試一次。",
+    "payoutSetupFormFailed": "無法開啟表單，請再試一次。",
+    "payoutSetupStatusFailed": "無法查詢你的收款登記狀態。"
   },
   "loginLanding": {
     "exp1Eyebrow": "專屬體驗",

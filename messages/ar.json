@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "كل الحركات",
     "payoutProgressLabel": "يتبقى {amount} حتى تتمكن من السحب",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "يمكنك سحب رصيدك الآن",
     "approxAmountLong": "تقريبًا {amount}",
     "walletCurrencyLabel": "عملة العرض",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "لا يوجد سعر صرف لإصدار فاتورة لهذه العملية الآن.",
     "selectAtLeastOneMovement": "اختر حركة واحدة على الأقل.",
     "creatorInvoiceUnavailable": "تعذّر الوصول إلى فاتورة المنشئ.",
-    "creatorsMissingTaxSeal": "تعذّر إصدار أي فاتورة. لم يحدّث منشئو هذه المشتريات ختمهم الرقمي بعد."
+    "creatorsMissingTaxSeal": "تعذّر إصدار أي فاتورة. لم يحدّث منشئو هذه المشتريات ختمهم الرقمي بعد.",
+    "payoutSetupStartFailed": "تعذّر بدء تسجيل بيانات التحصيل. حاول مرة أخرى.",
+    "payoutSetupFormFailed": "تعذّر فتح النموذج. حاول مرة أخرى.",
+    "payoutSetupStatusFailed": "تعذّر التحقق من حالة تسجيل بيانات التحصيل."
   },
   "loginLanding": {
     "exp1Eyebrow": "تجارب شخصية",

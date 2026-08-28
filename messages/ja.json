@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "すべての取引",
     "payoutProgressLabel": "出金できるまであと {amount}",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "残高を出金できます",
     "approxAmountLong": "約 {amount}",
     "walletCurrencyLabel": "表示通貨",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "この購入の請求書を発行するための為替レートが今ありません。",
     "selectAtLeastOneMovement": "少なくとも1件の取引を選んでください。",
     "creatorInvoiceUnavailable": "クリエイターの請求書にアクセスできませんでした。",
-    "creatorsMissingTaxSeal": "請求書を発行できませんでした。これらの購入のクリエイターはまだデジタル印章を更新していません。"
+    "creatorsMissingTaxSeal": "請求書を発行できませんでした。これらの購入のクリエイターはまだデジタル印章を更新していません。",
+    "payoutSetupStartFailed": "送金登録を開始できませんでした。もう一度お試しください。",
+    "payoutSetupFormFailed": "フォームを開けませんでした。もう一度お試しください。",
+    "payoutSetupStatusFailed": "送金登録の状態を確認できませんでした。"
   },
   "loginLanding": {
     "exp1Eyebrow": "パーソナルな体験",

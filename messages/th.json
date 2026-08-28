@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "ธุรกรรมทั้งหมด",
     "payoutProgressLabel": "ยังขาดอีก {amount} จึงจะถอนได้",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "คุณถอนยอดคงเหลือได้แล้ว",
     "approxAmountLong": "ประมาณ {amount}",
     "walletCurrencyLabel": "สกุลเงินที่แสดง",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "ตอนนี้ไม่มีอัตราแลกเปลี่ยนสำหรับออกใบแจ้งหนี้การซื้อนี้",
     "selectAtLeastOneMovement": "เลือกอย่างน้อยหนึ่งรายการ",
     "creatorInvoiceUnavailable": "เราเข้าถึงใบแจ้งหนี้ของครีเอเตอร์ไม่ได้",
-    "creatorsMissingTaxSeal": "ออกใบแจ้งหนี้ไม่ได้เลย ครีเอเตอร์ของการซื้อเหล่านี้ยังไม่มีตราประทับดิจิทัลที่เป็นปัจจุบัน"
+    "creatorsMissingTaxSeal": "ออกใบแจ้งหนี้ไม่ได้เลย ครีเอเตอร์ของการซื้อเหล่านี้ยังไม่มีตราประทับดิจิทัลที่เป็นปัจจุบัน",
+    "payoutSetupStartFailed": "เราเริ่มการลงทะเบียนรับเงินไม่ได้ ลองอีกครั้ง",
+    "payoutSetupFormFailed": "เราเปิดแบบฟอร์มไม่ได้ ลองอีกครั้ง",
+    "payoutSetupStatusFailed": "เราตรวจสอบการลงทะเบียนรับเงินของคุณไม่ได้"
   },
   "loginLanding": {
     "exp1Eyebrow": "ประสบการณ์ส่วนตัว",

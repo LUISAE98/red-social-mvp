@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Tots els moviments",
     "payoutProgressLabel": "Et falten {amount} per poder retirar",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Ja pots retirar el teu saldo",
     "approxAmountLong": "Aproximadament {amount}",
     "walletCurrencyLabel": "Moneda de lectura",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Ara mateix no hi ha tipus de canvi per facturar aquesta compra.",
     "selectAtLeastOneMovement": "Selecciona com a mínim un moviment.",
     "creatorInvoiceUnavailable": "No hem pogut accedir a la factura del creador.",
-    "creatorsMissingTaxSeal": "No s'ha pogut emetre cap factura. Els creadors d'aquestes compres encara no tenen el segell digital al dia."
+    "creatorsMissingTaxSeal": "No s'ha pogut emetre cap factura. Els creadors d'aquestes compres encara no tenen el segell digital al dia.",
+    "payoutSetupStartFailed": "No hem pogut iniciar el teu alta de cobrament. Torna-ho a provar.",
+    "payoutSetupFormFailed": "No hem pogut obrir el formulari. Torna-ho a provar.",
+    "payoutSetupStatusFailed": "No hem pogut consultar el teu alta de cobrament."
   },
   "loginLanding": {
     "exp1Eyebrow": "Experiències personals",

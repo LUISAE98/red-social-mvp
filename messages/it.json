@@ -1489,6 +1489,9 @@
     "filterStatusAllValue": "Tutti i movimenti",
     "payoutProgressLabel": "Ti mancano {amount} per poter prelevare",
     "payoutNoRouteWarning": "We cannot yet send money to your account's country. Your balance keeps building up, but there is no way to pay it out for now. We will let you know the moment there is one.",
+    "payoutTermsStandard": "Your commission is {pct}% and you can withdraw from {min} USD. Bank transfers to your country are cheap, so this is the best deal we have.",
+    "payoutTermsExpensive": "Your commission is {pct}% and you can withdraw from {min} USD. Banks in your country only accept international wires, which cost us 25 USD per transfer instead of 1.50. The higher minimum is what keeps that fee from eating your money, not a penalty.",
+    "payoutMinimumWhy": "Your minimum is higher because transfers to your country cost more to send.",
     "payoutProgressReady": "Ora puoi prelevare il tuo saldo",
     "approxAmountLong": "Circa {amount}",
     "walletCurrencyLabel": "Valuta di visualizzazione",
@@ -3062,7 +3065,10 @@
     "invoiceFxUnavailable": "Non c'è un tasso di cambio per fatturare questo acquisto adesso.",
     "selectAtLeastOneMovement": "Seleziona almeno un movimento.",
     "creatorInvoiceUnavailable": "Non siamo riusciti ad accedere alla fattura del creator.",
-    "creatorsMissingTaxSeal": "Non è stato possibile emettere nessuna fattura. I creator di questi acquisti non hanno ancora il sigillo digitale aggiornato."
+    "creatorsMissingTaxSeal": "Non è stato possibile emettere nessuna fattura. I creator di questi acquisti non hanno ancora il sigillo digitale aggiornato.",
+    "payoutSetupStartFailed": "Non siamo riusciti ad avviare la tua registrazione per i pagamenti. Riprova.",
+    "payoutSetupFormFailed": "Non siamo riusciti ad aprire il modulo. Riprova.",
+    "payoutSetupStatusFailed": "Non siamo riusciti a verificare la tua registrazione per i pagamenti."
   },
   "loginLanding": {
     "exp1Eyebrow": "Esperienze personali",

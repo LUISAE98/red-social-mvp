@@ -120,6 +120,10 @@ const MSG_TO_KEY: Record<string, string> = {
   "no se pudo acceder a la factura del creador.": "creatorInvoiceUnavailable",
   "no se pudo emitir ninguna factura. los creadores de estas compras aún no tienen su sello digital al día.": "creatorsMissingTaxSeal",
   "una de las compras no tiene creador asociado.": "internalError",
+  // pagos: alta de cobro del creador (Global Payouts)
+  "no se pudo iniciar tu alta de cobro. inténtalo de nuevo.": "payoutSetupStartFailed",
+  "no se pudo abrir el formulario. inténtalo de nuevo.": "payoutSetupFormFailed",
+  "no se pudo consultar tu alta de cobro.": "payoutSetupStatusFailed",
   // cobertura por país
   "el cobro no está disponible en tu país por ahora.": "countryNotAvailable",
   "el cobro no está disponible en tu país por ahora": "countryNotAvailable",
