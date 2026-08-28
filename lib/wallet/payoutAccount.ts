@@ -21,11 +21,18 @@ export type EstadoAltaCobro = "none" | "pending" | "verified" | "restricted";
  * sirve una vez, así que uno generado por adelantado llegaría muerto.
  */
 export async function createPayoutAccountLink(): Promise<{ url: string; accountId: string }> {
-  const fn = httpsCallable<void, { url: string; accountId: string }>(
-    functions,
-    "createPayoutAccountLink"
-  );
-  const { data } = await fn();
+  const fn = httpsCallable<
+    { origin: string; locale: string },
+    { url: string; accountId: string }
+  >(functions, "createPayoutAccountLink");
+
+  // De dónde sale y en qué idioma, para que Stripe lo devuelva al mismo sitio y no a
+  // producción en inglés. El backend los valida los dos antes de usarlos.
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const locale =
+    typeof document !== "undefined" ? document.documentElement.lang || "es" : "es";
+
+  const { data } = await fn({ origin, locale });
   return data;
 }
 

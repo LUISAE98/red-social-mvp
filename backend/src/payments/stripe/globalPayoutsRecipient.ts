@@ -33,10 +33,41 @@ const REGION = "us-central1";
 /** Versión de la API v2 de Global Payouts. 🔁 Vista previa: revisar cuando Stripe la mueva. */
 const V2_VERSION = "2026-08-26.preview";
 
-/** Dónde vuelve el creador tras el formulario alojado. */
-const BASE_URL = "https://vibraon.com";
-const RETURN_URL = `${BASE_URL}/wallet/finanzas?alta=ok`;
-const REFRESH_URL = `${BASE_URL}/wallet/finanzas?alta=reintentar`;
+/**
+ * Dónde puede volver el creador tras el formulario alojado.
+ *
+ * 🚨 **Lista blanca, no lo que mande el cliente.** El origen viaja en la petición para poder
+ * probar desde local, pero se comprueba contra esta lista antes de usarlo. Aceptar una URL
+ * arbitraria sería una redirección abierta con la firma de Stripe encima.
+ */
+const ORIGENES_PERMITIDOS = [
+  "https://vibraon.com",
+  "https://www.vibraon.com",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+];
+
+const ORIGEN_POR_DEFECTO = "https://vibraon.com";
+
+/**
+ * Los idiomas de la plataforma. Se valida el que llega porque acaba dentro de una URL.
+ *
+ * ⚠️ Sin idioma, el enlace caía en `/wallet/finanzas` y el middleware lo mandaba al idioma
+ * por defecto —inglés—: un creador mexicano terminaba su alta y volvía a una pantalla en un
+ * idioma que no eligió.
+ */
+const LOCALE_VALIDO = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
+
+/** Arma las dos URLs de vuelta, quedándose solo con lo que se reconoce. */
+function urlsDeVuelta(origen: unknown, locale: unknown): { retorno: string; reintento: string } {
+  const o = typeof origen === "string" ? origen.trim().replace(/\/$/, "") : "";
+  const base = ORIGENES_PERMITIDOS.includes(o) ? o : ORIGEN_POR_DEFECTO;
+  const l = typeof locale === "string" && LOCALE_VALIDO.test(locale.trim()) ? locale.trim() : "es";
+  return {
+    retorno: `${base}/${l}/wallet/finanzas?alta=ok`,
+    reintento: `${base}/${l}/wallet/finanzas?alta=reintentar`,
+  };
+}
 
 type V2Account = {
   id: string;
@@ -113,6 +144,12 @@ export const createPayoutAccountLink = onCall(
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
 
+    // De dónde salió y en qué idioma, para devolverlo al mismo sitio. Ambos se validan.
+    const { retorno, reintento } = urlsDeVuelta(
+      (request.data as { origin?: unknown } | undefined)?.origin,
+      (request.data as { locale?: unknown } | undefined)?.locale
+    );
+
     const perfilRef = db.collection("creatorTaxProfiles").doc(uid);
     const perfil = (await perfilRef.get()).data() ?? {};
     let cuentaId = String(perfil.stripeRecipientId ?? "").trim();
@@ -161,8 +198,8 @@ export const createPayoutAccountLink = onCall(
           type: "account_onboarding",
           account_onboarding: {
             configurations: ["recipient"],
-            return_url: RETURN_URL,
-            refresh_url: REFRESH_URL,
+            return_url: retorno,
+            refresh_url: reintento,
           },
         },
       },
