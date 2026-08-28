@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "Upload je digitale zegel",
     "payoutSetupStepSealHint": "Je Certificaat van Digitaal Zegel van de SAT. Daarmee maken wij namens jou de factuur van elke verkoop op. Het staat bij onze factuurleverancier, nooit op het platform.",
     "payoutSetupStepSealCta": "Mijn zegel uploaden",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "afbeeldingen van lage kwaliteit of onleesbaar",
     "kycApproved": "Identiteit geverifieerd",
     "kycRetry": "Verificatie afgewezen. Klik om het opnieuw te proberen",
-    "fiscalSetupCta": "Vul je fiscale gegevens in om te kunnen factureren"
+    "fiscalSetupCta": "Vul je fiscale gegevens in om te kunnen factureren",
+    "payoutAccountSetupCta": "Koppel je uitbetalingsrekening om te kunnen uitbetalen"
   },
   "services": {
     "confirmLabel": "Bevestigen",

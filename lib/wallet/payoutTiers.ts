@@ -1,108 +1,119 @@
-// Comisión y mínimo de retiro por país — espejo FRONTEND.
+// Comisión, mínimo de retiro y RUTA DE PAGO por país — espejo FRONTEND.
 //
 // Módulo PURO: sin framework y sin Firebase, importable desde middleware (edge), servidor y
 // cliente por igual. Aquí es SOLO PARA MOSTRAR — el «ganarás X», el mínimo de la barra de
-// progreso, el desglose del retiro.
+// progreso, qué pasos se le piden en el alta.
 //
 // 🚨 **Quien decide es el backend** (`backend/src/wallet/payoutTiers.ts`): es quien congela la
 // comisión en el asiento del ledger. Un test de paridad compara las dos tablas, porque si se
 // separan el creador ve una cifra y cobra otra, que es el peor fallo posible en la wallet.
 //
-// Fuente de verdad de las cifras: `docs/payout-tiers.md`. La clasificación de cada país sale
-// de la **tabla oficial de países-destino de Stripe** (Global Payouts → Create recipients →
-// Requirements for supported recipient countries), para un remitente en Estados Unidos.
+// Fuente de verdad de las cifras: `docs/payout-tiers.md`. La cobertura de Stripe se verificó
+// **preguntándole a la API país por país** (ver `scripts/sondearPayouts.sh`); la de Wallbit,
+// contra su documentación pública (ver `paiseswallbit.md`).
 //
-// ⚠️ **NO se deduce de `bank_account_spec`.** Ese endpoint devuelve el FORMATO de cuenta de un
-// país —para validar los campos del formulario— y responde para países a los que Stripe no
-// puede pagar. Leerlo como cobertura de pago fue un error real (2026-08-27): daba por pagables
-// a Brasil, Argentina, Colombia, Chile y Uruguay, que no lo son.
+// ⚠️ **La cobertura de Stripe NO se deduce de la documentación ni de `bank_account_spec`.** La
+// documentación se queda corta —no lista Argentina ni Colombia, que sí cobran por wire— y
+// `bank_account_spec` se pasa de largo —devuelve el formato de cuenta de países a los que no se
+// puede pagar—. Las dos lecturas costaron un error real el 2026-08-27. Lo único fiable es crear
+// un destinatario de prueba y leer el estado de sus capacidades:
 //
-// ── La regla, en una frase ──────────────────────────────────────────────────────────────
+//     unsupported → no existe la ruta.       NO se puede pagar.
+//     restricted  → existe, faltan datos.    SÍ se puede pagar.
+//     active      → lista.
 //
-// 25% de comisión y retiras desde 300 USD. En los países donde solo llega el wire, 30% y desde
-// 500 USD.
+// ── Las dos rutas ───────────────────────────────────────────────────────────────────────
 //
-// Lo que separa a los dos grupos no es el porcentaje sino el MÉTODO DE TRANSFERENCIA. La
-// transferencia local cuesta 1.50 USD fijos y el mínimo casi no cambia nada —subirlo de 300 a
-// 700 ahorra 0.29 puntos—. El wire cuesta 25 USD fijos y ahí el mínimo lo es todo, subirlo de
-// 300 a 500 ahorra 3.33 puntos, once veces más. Por eso solo el grupo caro tiene mínimo alto.
+// **Stripe Global Payouts** — el creador da su cuenta bancaria en un formulario alojado y
+// Stripe le transfiere. Es la ruta por defecto y la de menos fricción.
+//
+// **Wallbit** — el creador cobra en una cuenta de Wallbit en dólares. Se usa donde Stripe no
+// llega o donde solo llega por wire, que cuesta 25 USD por envío. Ver `paiseswallbit.md`.
+//
+// ⚠️ **En Chile, Uruguay, Paraguay y Honduras, Wallbit NO tiene retiro a banco local**: el
+// creador cobra en dólares y su única salida documentada es cripto. Se incluyen igual por
+// decisión de producto del 2026-08-27 —la alternativa era no pagarles nada—, pero hay que
+// decírselo antes de que acumule saldo, no después.
+//
+// ── La regla de la comisión ─────────────────────────────────────────────────────────────
+//
+// 25% y retiras desde 300 USD. Solo los países que **únicamente** tienen wire de Stripe pagan
+// 30% y retiran desde 500, porque ahí cada envío cuesta 25 USD fijos frente a 1.50 de una
+// transferencia local, y a 300 USD se comería más del 8%.
 //
 // ── Reglas de aplicación ────────────────────────────────────────────────────────────────
 //
 // 🚨 **Decide el país de la CUENTA DE COBRO**, no la residencia fiscal ni la IP. Es el país al
 //    que de verdad viaja el dinero, y es lo único que explica el coste.
 //
-// 🚨 **Un país sin fila NO es 25% por defecto, es NO PAGABLE.** Los 64 países sin ruta de pago
-//    tienen que fallar ruidosamente: si cayeran al estándar, el creador vería un 25% y un
-//    mínimo alcanzable para un dinero que Global Payouts no le puede mandar.
+// 🚨 **Un país sin fila NO es 25% por defecto, es NO PAGABLE.** Los 58 países sin ruta tienen
+//    que fallar ruidosamente: si cayeran al estándar, el creador vería un mínimo alcanzable
+//    para un dinero que nadie le puede mandar.
 //
-// 🚨 **Esto NO toca los impuestos.** Los 64 sin ruta siguen VENDIENDO y siguen pagando el
-//    impuesto de su país. Lo que no pueden es cobrar. La tabla fiscal (`tax/config.ts`) sigue
-//    teniendo sus 147 países y no se le quita ninguno.
+// 🚨 **Esto NO toca los impuestos.** Los 58 sin ruta siguen VENDIENDO y siguen pagando el
+//    impuesto de su país. La tabla fiscal (`tax/config.ts`) mantiene sus 147 países intactos.
 //
 // 🚨 **Al cambiar de nivel se respeta lo ya vendido.** La comisión se CONGELA en el asiento del
-//    ledger, igual que las retenciones. Un creador que se muda o cambia de banco conserva la
-//    comisión de sus ventas anteriores. Recalcular hacia atrás destruye la confianza y es lo
+//    ledger, igual que las retenciones. Recalcular hacia atrás destruye la confianza y es lo
 //    primero que se nota en el saldo.
 
-/** Los dos grupos. No hay más, y añadir un tercero es decisión de producto. */
+/** Los dos grupos de comisión. */
 export type PayoutTier = "standard" | "expensive";
 
-/** Lo que le toca a un creador de un nivel. */
+/** Por dónde le llega el dinero al creador. */
+export type PayoutRoute = "stripe" | "wallbit";
+
+/** Lo que le toca a un creador de un país. */
 export type PayoutTerms = {
   tier: PayoutTier;
+  /** Quién le paga. Decide qué se le pide en el alta. */
+  route: PayoutRoute;
   /** Fracción que se queda Vibra sobre el precio base. 0.25 = 25%. */
   commissionRate: number;
   /** Mínimo acumulado para poder pedir un retiro, en USD. */
   minWithdrawalUsd: number;
+  /**
+   * Cobra en dólares pero **no puede pasarlos a su banco**: su única salida es cripto.
+   *
+   * Solo pasa en Chile, Uruguay, Paraguay y Honduras. Hay que avisárselo ANTES de que empiece
+   * a acumular, porque para la mayoría de creadores eso no es cobrar.
+   */
+  soloDolares?: true;
 };
 
-/**
- * Las dos filas de la tabla.
- *
- * Con estas cifras, lo que le queda a Vibra cae entre 18.14% y 20.10% en los doce niveles de
- * coste de Stripe, contra un rango de once puntos con comisión plana.
- */
-export const PAYOUT_TERMS: Readonly<Record<PayoutTier, Readonly<PayoutTerms>>> = {
-  standard: { tier: "standard", commissionRate: 0.25, minWithdrawalUsd: 300 },
-  expensive: { tier: "expensive", commissionRate: 0.3, minWithdrawalUsd: 500 },
-};
+const T = (tier: PayoutTier, route: PayoutRoute, soloDolares?: true): Readonly<PayoutTerms> =>
+  Object.freeze({
+    tier,
+    route,
+    commissionRate: tier === "standard" ? 0.25 : 0.3,
+    minWithdrawalUsd: tier === "standard" ? 300 : 500,
+    ...(soloDolares ? { soloDolares } : {}),
+  });
+
+/** Las condiciones de cada combinación. */
+export const PAYOUT_TERMS = {
+  /** Transferencia bancaria local de Stripe, 1.50 USD fijos. */
+  standard: T("standard", "stripe"),
+  /** Solo wire de Stripe, 25 USD fijos. De ahí el mínimo alto. */
+  expensive: T("expensive", "stripe"),
+  /** Wallbit con retiro a banco local en su moneda. */
+  wallbit: T("standard", "wallbit"),
+  /** Wallbit sin retiro local: cobra en dólares y solo puede sacarlos por cripto. */
+  wallbitSoloDolares: T("standard", "wallbit", true),
+} as const;
 
 /**
  * Lo que se le enseña a un creador que TODAVÍA NO tiene cuenta de cobro.
  *
  * No es un respaldo para países sin fila —esos son no pagables y deben fallar—, es lo que se
- * muestra mientras no se sabe a qué país va a cobrar. En cuanto da de alta su cuenta, manda su
- * país. Ver `payoutTermsOf`, que sí devuelve `null` para lo desconocido.
+ * muestra mientras no se sabe a qué país va a cobrar.
  */
 export const PAYOUT_TERMS_PROVISIONAL: Readonly<PayoutTerms> = PAYOUT_TERMS.standard;
 
 /**
- * Territorios que cobran con la cuenta bancaria de OTRO país.
- *
- * Stripe no los lista como destino propio, pero su sistema bancario es el de la metrópoli: un
- * creador en Puerto Rico abre una cuenta estadounidense con su routing number, y uno en
- * Canarias usa un IBAN español. Sin este mapeo se les trataría como no pagables, que es falso.
- *
- * ⚠️ `IC` y `EA` ni siquiera son ISO 3166: son códigos internos de la UE para Canarias y para
- * Ceuta y Melilla. Vienen de la tabla fiscal, donde existen porque su IVA es distinto al
- * peninsular. Aquí se resuelven a España, que es de donde es su banco.
+ * Stripe, transferencia local — 25%, mínimo 300 USD (46 países).
  */
-export const PAYOUT_COUNTRY_ALIAS: Readonly<Record<string, string>> = {
-  // Territorios de Estados Unidos: bancos estadounidenses.
-  PR: "US",
-  VI: "US",
-  // España: IBAN español.
-  IC: "ES",
-  EA: "ES",
-};
-
-/**
- * Estándar — 25%, mínimo 300 USD (46 países).
- *
- * Transferencia bancaria local, 1.50 USD fijos.
- */
-const STANDARD: readonly string[] = [
+const STRIPE_LOCAL: readonly string[] = [
   "MX", "AT", "BE", "BG", "CY", "CZ", "DE", "DK", "EE", "ES", "FI", "FR", "GR", "HR", "HU",
   "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK", "CR", "DO",
   "NO", "IS", "AU", "ID", "NZ", "SG", "CA", "US", "PE", "GB", "MA", "TT", "JM", "MC", "SM",
@@ -110,46 +121,98 @@ const STANDARD: readonly string[] = [
 ];
 
 /**
- * Transferencia cara — 30%, mínimo 500 USD (33 países).
+ * Stripe, solo wire — 30%, mínimo 500 USD (27 países).
  *
- * Solo llega el wire, que cuesta 25 USD fijos. De ahí el mínimo alto: es lo único que diluye
- * un coste fijo tan grande.
+ * 25 USD fijos por envío. Es lo único que justifica un mínimo distinto.
  */
-const EXPENSIVE: readonly string[] = [
-  "EC", "SV", "GT", "PA", "BA", "HK", "QA", "KW", "JP", "MY", "PH", "TH", "JO", "TW", "ZA",
-  "EG", "TR", "RS", "AL", "MD", "VN", "AE", "LC", "AG", "LK", "BT", "BN", "MN", "BW", "AR",
-  "CO", "NG", "KH",
+const STRIPE_WIRE: readonly string[] = [
+  "BA", "HK", "QA", "KW", "JP", "MY", "PH", "TH", "JO", "TW", "ZA", "EG", "TR", "RS", "AL",
+  "MD", "VN", "AE", "LC", "AG", "LK", "BT", "BN", "MN", "BW", "NG", "KH",
 ];
 
 /**
- * Sin ruta de pago (64 países).
+ * Wallbit CON retiro a banco local en moneda local (8 países).
  *
- * ⚠️ **Compran y venden, pero Global Payouts no llega.** Se listan a propósito en vez de
- * dejarlos fuera sin más: la diferencia entre «no lo tengo dado de alta» y «no existe forma de
- * pagarle» es justo lo que hay que poder decirle al creador.
- *
- * Los únicos con mercado real son **Brasil, Argentina, Colombia, Chile, Uruguay, Paraguay,
- * Bolivia, Corea del Sur, Nigeria, Arabia Saudita, Nepal, Haití y Papúa Nueva Guinea**. El
- * resto son islas y territorios de menos de cien mil habitantes.
- *
- * 🔴 **Decisión pendiente:** o se impide monetizar desde estos países, o se busca otra vía de
- * pago. Hoy un creador brasileño puede vender y acumular saldo que nadie puede sacarle. Se le
- * avisa en Finanzas y el gate no le abre, pero avisar no es resolver.
+ * Ruta completa: el creador cobra en Wallbit y lo pasa a su banco. Panamá, Ecuador y El
+ * Salvador están dolarizados, así que ahí ni siquiera hay conversión de divisa.
  */
-export const UNPAYABLE_COUNTRIES: readonly string[] = [
-  "PY", "BO", "HN", "NI", "GU", "PG", "NC", "FJ", "BR", "CL", "UY", "ME", "KR", "SA", "PF",
-  "TO", "SB", "VU", "WS", "KI", "NR", "TV", "NU", "WF", "FM", "MH", "AS", "MP", "SR", "BZ",
-  "GD", "KY", "BM", "TC", "VG", "HT", "BQ", "VC", "KN", "DM", "AI", "MS", "GL", "PM", "JE",
-  "AD", "FO", "GI", "VA", "GG", "SJ", "AZ", "NP", "MV", "NF", "CX", "CC", "TK", "PN", "GF",
-  "YT", "GP", "MQ", "RE",
+const WALLBIT_COMPLETO: readonly string[] = [
+  "AR", "BR", "BO", "CO", "GT", "PA", "EC", "SV",
 ];
 
-/** País → nivel. Se arma de las dos listas para que no se puedan desincronizar. */
+/**
+ * Wallbit SIN retiro a banco local (4 países).
+ *
+ * ⚠️ Cobra en dólares y su única salida documentada es **cripto**: abrir una wallet, entender
+ * USDC, pagar comisión de red y venderlo en un exchange local.
+ *
+ * Se incluyen por decisión de producto del 2026-08-27, porque la alternativa era no pagarles
+ * nada. Pero se marcan con `soloDolares` para que la interfaz pueda advertírselo ANTES de que
+ * acumule saldo. Prometer un retiro que en la práctica no puede usar sería peor que decirle
+ * que todavía no se le puede pagar.
+ *
+ * 🔁 Si Wallbit confirma que tiene tarjeta de débito, o abre retiro local en estos países,
+ * pasan a `WALLBIT_COMPLETO` y el aviso desaparece solo.
+ */
+const WALLBIT_SOLO_DOLARES: readonly string[] = ["CL", "UY", "PY", "HN"];
+
+/**
+ * Territorios que cobran con la cuenta bancaria de OTRO país.
+ *
+ * Stripe no los lista como destino propio, pero su sistema bancario es el de la metrópoli: un
+ * creador en Puerto Rico abre una cuenta estadounidense con su routing number, y uno en
+ * Canarias usa un IBAN español.
+ *
+ * ⚠️ `IC` y `EA` ni siquiera son ISO 3166: son códigos internos de la UE para Canarias y para
+ * Ceuta y Melilla. Vienen de la tabla fiscal, donde existen porque su IVA es distinto al
+ * peninsular. Aquí se resuelven a España, que es de donde es su banco.
+ */
+export const PAYOUT_COUNTRY_ALIAS: Readonly<Record<string, string>> = {
+  PR: "US",
+  VI: "US",
+  IC: "ES",
+  EA: "ES",
+};
+
+/**
+ * Sin ruta de pago (58 países).
+ *
+ * ⚠️ **Compran y venden, pero nadie les puede pagar.** Ni Stripe ni Wallbit llegan. Se listan a
+ * propósito en vez de dejarlos fuera sin más: la diferencia entre «no lo tengo dado de alta» y
+ * «no existe forma de pagarte» es justo lo que hay que poder decirle al creador.
+ *
+ * Los únicos con mercado real son **Nicaragua, Corea del Sur, Arabia Saudita, Nepal, Haití,
+ * Papúa Nueva Guinea y Azerbaiyán**. El resto son islas y territorios de menos de cien mil
+ * habitantes.
+ */
+export const UNPAYABLE_COUNTRIES: readonly string[] = [
+  "NI", "GU", "PG", "NC", "FJ", "ME", "KR", "SA", "PF", "TO", "SB", "VU", "WS", "KI", "NR",
+  "TV", "NU", "WF", "FM", "MH", "AS", "MP", "SR", "BZ", "GD", "KY", "BM", "TC", "VG", "HT",
+  "BQ", "VC", "KN", "DM", "AI", "MS", "GL", "PM", "JE", "AD", "FO", "GI", "VA", "GG", "SJ",
+  "AZ", "NP", "MV", "NF", "CX", "CC", "TK", "PN", "GF", "YT", "GP", "MQ", "RE",
+];
+
+/** País → condiciones. Se arma de las listas para que no se puedan desincronizar. */
+export const PAYOUT_TERMS_BY_COUNTRY: Readonly<Record<string, Readonly<PayoutTerms>>> =
+  Object.freeze(
+    Object.fromEntries([
+      ...STRIPE_LOCAL.map((c) => [c, PAYOUT_TERMS.standard]),
+      ...STRIPE_WIRE.map((c) => [c, PAYOUT_TERMS.expensive]),
+      ...WALLBIT_COMPLETO.map((c) => [c, PAYOUT_TERMS.wallbit]),
+      ...WALLBIT_SOLO_DOLARES.map((c) => [c, PAYOUT_TERMS.wallbitSoloDolares]),
+    ])
+  );
+
+/**
+ * País → nivel de comisión.
+ *
+ * Se conserva por compatibilidad con lo que ya lo usaba. Para saber además la RUTA, usa
+ * `payoutTermsOf`.
+ */
 export const PAYOUT_TIER_BY_COUNTRY: Readonly<Record<string, PayoutTier>> = Object.freeze(
-  Object.fromEntries([
-    ...STANDARD.map((c) => [c, "standard" as PayoutTier]),
-    ...EXPENSIVE.map((c) => [c, "expensive" as PayoutTier]),
-  ])
+  Object.fromEntries(
+    Object.entries(PAYOUT_TERMS_BY_COUNTRY).map(([c, t]) => [c, t.tier])
+  )
 );
 
 /** Resuelve un territorio a la matriz cuyo banco usa. Lo demás pasa tal cual. */
@@ -159,7 +222,7 @@ export function resolvePayoutCountry(country: string | null | undefined): string
 }
 
 /**
- * Qué comisión y qué mínimo le tocan a una cuenta de cobro de ese país.
+ * Qué comisión, qué mínimo y por qué ruta cobra una cuenta de ese país.
  *
  * Devuelve `null` cuando no hay ruta de pago o el país es desconocido. **`null` no es cero ni
  * es el estándar**: quien llame tiene que decidir qué hacer, y lo correcto casi siempre es no
@@ -168,13 +231,17 @@ export function resolvePayoutCountry(country: string | null | undefined): string
 export function payoutTermsOf(country: string | null | undefined): Readonly<PayoutTerms> | null {
   const key = resolvePayoutCountry(country);
   if (!key) return null;
-  const tier = PAYOUT_TIER_BY_COUNTRY[key];
-  return tier ? PAYOUT_TERMS[tier] : null;
+  return PAYOUT_TERMS_BY_COUNTRY[key] ?? null;
 }
 
-/** ¿Global Payouts llega a ese país? */
+/** ¿Se le puede pagar a ese país, por la ruta que sea? */
 export function isPayableCountry(country: string | null | undefined): boolean {
   return payoutTermsOf(country) != null;
+}
+
+/** Por dónde cobra ese país. `null` si no se le puede pagar. */
+export function payoutRouteOf(country: string | null | undefined): PayoutRoute | null {
+  return payoutTermsOf(country)?.route ?? null;
 }
 
 /**

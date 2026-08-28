@@ -80,6 +80,8 @@ export default function CreatorPayoutSetupPanel({
      */
     payoutTerms,
     payoutCountryUnpayable,
+    /** Por dónde cobra. Decide si el paso 2 es el alta de Stripe o los datos de Wallbit. */
+    payoutRoute,
     loading,
   } = useCreatorTaxProfile(user?.uid);
 
@@ -154,6 +156,15 @@ export default function CreatorPayoutSetupPanel({
   }
 
   if (!rendered || typeof document === "undefined") return null;
+
+  /**
+   * ¿Cobra por Wallbit?
+   *
+   * Sus 12 países no tienen ruta de Stripe, o solo tienen wire a 25 USD por envío. A ese
+   * creador NO se le pide alta de Stripe: no le serviría de nada y sería mandarlo a un
+   * formulario que va a rechazar su país.
+   */
+  const porWallbit = payoutRoute === "wallbit";
 
   const pasoIdentidad: EstadoPaso = identityReady ? "listo" : "pendiente";
   const pasoCobro: EstadoPaso = payoutAccountReady ? "listo" : "pendiente";
@@ -280,36 +291,62 @@ export default function CreatorPayoutSetupPanel({
                 }
               />
 
-              {/* 2. CUENTA DE COBRO — Stripe Global Payouts.
+              {/* 2. CUENTA DE COBRO — dos caminos según su país.
 
-                  El creador sale de Vibra a un formulario alojado por Stripe y vuelve a
-                  Finanzas con `?alta=ok`. Los datos bancarios NUNCA pasan por aquí.
+                  **Stripe Global Payouts** para los 77 países donde llega. El creador sale a
+                  un formulario alojado por Stripe y vuelve a Finanzas con `?alta=ok`. Los
+                  datos bancarios NUNCA pasan por aquí, y de ahí sale el PAÍS DE LA CUENTA,
+                  que es dato fiscal por partida doble: a un creador mexicano, cobrar fuera de
+                  México le sube la retención de IVA del 50% al 100%
+                  (`fiscal-iva-isr-plataforma.md` §0.6), y además decide su comisión y su
+                  mínimo (`docs/payout-tiers.md`).
 
-                  De aquí sale el PAÍS DE LA CUENTA, que es dato fiscal por partida doble: a
-                  un creador mexicano, cobrar fuera de México le sube la retención de IVA del
-                  50% al 100% (`fiscal-iva-isr-plataforma.md` §0.6), y además decide su
-                  comisión y su mínimo de retiro (`docs/payout-tiers.md`). */}
-              <Paso
-                numero={2}
-                estado={pasoCobro}
-                titulo={t("payoutSetupStepPayout")}
-                descripcion={
-                  cobroEnRevision
-                    ? t("payoutSetupStepPayoutReviewing")
-                    : t("payoutSetupStepPayoutHint")
-                }
-                accion={
-                  guardando || refrescando
-                    ? t("payoutSetupStepPayoutOpening")
-                    : cobroEnRevision || cobroRestringido
-                      ? t("payoutSetupStepPayoutResume")
-                      : t("payoutSetupStepPayoutCta")
-                }
-                onAccion={guardando || refrescando ? undefined : abrirAltaDeCobro}
-              />
+                  **Wallbit** para los 12 donde Stripe no llega o solo llega por wire. Ahí no
+                  hay alta de Stripe que hacer: mandarlo a ese formulario sería mandarlo a que
+                  le rechacen el país. 🚧 El cuestionario donde dará sus datos de Wallbit
+                  todavía no existe, así que el paso se enseña sin acción — a propósito: el
+                  creador tiene que saber que le falta algo antes de ver su dinero. */}
+              {porWallbit ? (
+                <Paso
+                  numero={2}
+                  estado="pendiente"
+                  titulo={t("payoutSetupStepWallbit")}
+                  descripcion={t("payoutSetupStepWallbitHint")}
+                  accion={t("payoutSetupStepWallbitSoon")}
+                  onAccion={undefined}
+                />
+              ) : (
+                <Paso
+                  numero={2}
+                  estado={pasoCobro}
+                  titulo={t("payoutSetupStepPayout")}
+                  descripcion={
+                    cobroEnRevision
+                      ? t("payoutSetupStepPayoutReviewing")
+                      : t("payoutSetupStepPayoutHint")
+                  }
+                  accion={
+                    guardando || refrescando
+                      ? t("payoutSetupStepPayoutOpening")
+                      : cobroEnRevision || cobroRestringido
+                        ? t("payoutSetupStepPayoutResume")
+                        : t("payoutSetupStepPayoutCta")
+                  }
+                  onAccion={guardando || refrescando ? undefined : abrirAltaDeCobro}
+                />
+              )}
 
-              {cobroRestringido && (
+              {!porWallbit && cobroRestringido && (
                 <Aviso tono="alerta" texto={t("payoutSetupPayoutRestricted")} />
+              )}
+
+              {/* ⚠️ Cobra en dólares pero no puede pasarlos a su banco.
+
+                  Chile, Uruguay, Paraguay y Honduras. Su única salida documentada es cripto,
+                  y eso hay que decírselo AQUÍ, antes de que acumule, no el día que quiera
+                  sacar el dinero. Se entra igual porque la alternativa era no pagarles. */}
+              {payoutTerms?.soloDolares && (
+                <Aviso tono="aviso" texto={t("payoutSetupWallbitUsdOnly")} />
               )}
 
               {/* 🔴 Su país vende pero no cobra.

@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "ផ្ទុកត្រាឌីជីថលរបស់អ្នក",
     "payoutSetupStepSealHint": "វិញ្ញាបនបត្រត្រាឌីជីថលពី SAT។ ជាមួយវា យើងចេញវិក្កយបត្រសម្រាប់ការលក់នីមួយៗជំនួសអ្នក។ វាត្រូវរក្សាទុកនៅអ្នកផ្តល់សេវាវិក្កយបត្រ មិនមែននៅលើវេទិកាទេ។",
     "payoutSetupStepSealCta": "ផ្ទុកត្រារបស់ខ្ញុំ",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "រូបភាពគុណភាពទាប ឬមិនអាចអានបាន",
     "kycApproved": "អត្តសញ្ញាណត្រូវបានផ្ទៀងផ្ទាត់",
     "kycRetry": "ការផ្ទៀងផ្ទាត់ត្រូវបានបដិសេធ។ ចុចដើម្បីព្យាយាមម្តងទៀត",
-    "fiscalSetupCta": "បំពេញព័ត៌មានពន្ធដើម្បីចេញវិក្កយបត្រ"
+    "fiscalSetupCta": "បំពេញព័ត៌មានពន្ធដើម្បីចេញវិក្កយបត្រ",
+    "payoutAccountSetupCta": "ភ្ជាប់គណនីទទួលប្រាក់របស់អ្នកដើម្បីអាចដកប្រាក់"
   },
   "services": {
     "confirmLabel": "បញ្ជាក់",

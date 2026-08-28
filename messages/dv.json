@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "ޑިޖިޓަލް ސީލް އަޕްލޯޑްކުރޭ",
     "payoutSetupStepSealHint": "SAT އިން ދޫކުރި ޑިޖިޓަލް ސީލް ސެޓްފިކެޓް. އެއިން ކޮންމެ ވިއްކުމަކަށް ބިލް ތިޔަ ނަމުގައި ދޫކުރަން. ރައްކާކުރެވެނީ ބިލިން ޕްރޮވައިޑަރުގައި، ޕްލެޓްފޯމުގައެއް ނޫން.",
     "payoutSetupStepSealCta": "ސީލް އަޕްލޯޑްކުރޭ",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "ފެންވަރު ދަށް ނުވަތަ ނުކިޔޭ ފޮޓޯތައް",
     "kycApproved": "ވަނަވަރު ކަށަވަރުވެއްޖެ",
     "kycRetry": "ކަށަވަރުކުރުން ދޫކޮށްލެވިއްޖެ. އަލުން މަސައްކަތްކުރެއްވުމަށް ފިއްތަވާ",
-    "fiscalSetupCta": "އިންވޮއިސް ހެދުމަށް ޓެކްސް މައުލޫމާތު ފުރިހަމަކުރޭ"
+    "fiscalSetupCta": "އިންވޮއިސް ހެދުމަށް ޓެކްސް މައުލޫމާތު ފުރިހަމަކުރޭ",
+    "payoutAccountSetupCta": "ފައިސާ ނެގުމަށް ފައިސާ ލިބޭ އެކައުންޓް ގުޅުވާ"
   },
   "services": {
     "confirmLabel": "ކަށަވަރުކުރައްވާ",

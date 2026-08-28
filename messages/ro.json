@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "Încarcă-ți sigiliul digital",
     "payoutSetupStepSealHint": "Certificatul tău de Sigiliu Digital de la SAT. Cu el emitem în numele tău factura fiecărei vânzări. Se păstrează la furnizorul nostru de facturare, niciodată pe platformă.",
     "payoutSetupStepSealCta": "Încarcă sigiliul",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "unor imagini de calitate slabă sau ilizibile",
     "kycApproved": "Identitate verificată",
     "kycRetry": "Verificare respinsă. Dă clic ca să încerci din nou",
-    "fiscalSetupCta": "Completează-ți datele fiscale ca să poți factura"
+    "fiscalSetupCta": "Completează-ți datele fiscale ca să poți factura",
+    "payoutAccountSetupCta": "Conectează-ți contul de plată ca să poți retrage"
   },
   "services": {
     "confirmLabel": "Confirmă",

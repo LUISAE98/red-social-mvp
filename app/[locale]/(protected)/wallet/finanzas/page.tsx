@@ -241,6 +241,10 @@ export default function WalletFinanzasPage() {
     payoutCountryUnpayable: paisSinRutaDePago,
     /** Sus condiciones reales; `null` mientras no tenga cuenta de cobro. */
     payoutTerms: condicionesRetiro,
+    /** ¿Tiene a dónde cobrar? Es un paso APARTE del KYC, y también obligatorio. */
+    payoutAccountReady: cuentaDeCobroLista,
+    /** Por dónde cobra. Decide qué alta le toca, si Stripe o Wallbit. */
+    payoutRoute: rutaDeCobro,
   } = useCreatorTaxProfile(user?.uid);
   /**
    * El retiro se habilita al alcanzar el MÍNIMO, no en una fecha.
@@ -317,6 +321,32 @@ export default function WalletFinanzasPage() {
    * la cuenta de cobro. Ver `esMexicano` en `useCreatorTaxProfile`.
    */
   const mostrarAltaFiscal = kyc.approved && esMexicano && !selloListo;
+
+  /**
+   * ¿Le queda algo del alta de cobro?
+   *
+   * 🔴 EL KYC NO ES EL TRÁMITE ENTERO. Este botón se escondía con `kyc.approved` a secas, así
+   * que en cuanto Didit aprobaba la identidad desaparecía la única puerta de entrada al panel
+   * — con la cuenta de cobro todavía sin dar de alta. El creador se quedaba sin poder retirar
+   * y sin nada que pulsar para arreglarlo.
+   *
+   * Los pasos que le tocan son uno, dos o tres según su caso: identidad y cuenta de cobro son
+   * de todos, el sello solo del mexicano. El botón vive mientras falte alguno de los dos
+   * primeros; el sello tiene el suyo propio, aquí abajo.
+   */
+  const faltaAltaDeCobro = !kyc.approved || !cuentaDeCobroLista;
+
+  /**
+   * El botón nombra el paso que le toca AHORA, no el trámite completo.
+   *
+   * Decirle «haz tu registro KYC» a quien ya lo tiene aprobado lo manda a rehacer algo que ya
+   * hizo, y le esconde lo que de verdad le falta.
+   */
+  const altaCtaLabel = !kyc.approved
+    ? kycCtaLabel
+    : rutaDeCobro === "wallbit"
+      ? tWallet("payoutSetupStepWallbit")
+      : tWallet("payoutAccountSetupCta");
 
   /**
    * Qué le llega al retirar.
@@ -640,19 +670,21 @@ export default function WalletFinanzasPage() {
             )}
           </div>
 
-          {/* DOS registros, dos botones, cada uno con su estado.
+          {/* TRES trámites posibles, repartidos en dos botones según quién los arregla.
 
-              1. IDENTIDAD (KYC de Didit) — se le pide a todo el mundo.
-              2. DATOS FISCALES (RFC y sello) — solo al creador mexicano, y solo
-                 después de tener la identidad resuelta.
+              1. IDENTIDAD (KYC de Didit)      — de todos.
+              2. CUENTA DE COBRO (Stripe)      — de todos.
+              3. DATOS FISCALES (RFC y sello)  — solo del creador mexicano, y solo
+                                                 con la identidad ya resuelta.
 
-              Van separados porque fallan por motivos distintos y se arreglan en
-              sitios distintos: juntarlos en un botón obligaba a adivinar cuál de
-              los dos era el que faltaba. */}
+              Los dos primeros comparten botón porque son el mismo trámite en dos
+              tramos: saber quién eres y a dónde te pagamos. El fiscal va aparte
+              porque falla por otro motivo y se arregla en otro sitio; juntarlo
+              obligaba a adivinar cuál de los dos era el que faltaba. */}
 
-          {/* 1. Identidad. Mientras Didit revisa a mano no hay nada que pulsar, y si
-                 rechazó, el propio botón dice por qué. */}
-          {kyc.loading ? null : !kyc.approved ? (
+          {/* 1 y 2. Identidad y cuenta de cobro. Mientras Didit revisa a mano no hay
+                 nada que pulsar, y si rechazó, el propio botón dice por qué. */}
+          {kyc.loading ? null : faltaAltaDeCobro ? (
             <TextButton
               tone="brand"
               size="sm"
@@ -674,11 +706,11 @@ export default function WalletFinanzasPage() {
                 opacity: kyc.starting ? 0.6 : 1,
               }}
             >
-              {kycCtaLabel}
+              {altaCtaLabel}
             </TextButton>
           ) : null}
 
-          {/* 2. Datos fiscales. Aparece cuando la identidad ya está y todavía falta
+          {/* 3. Datos fiscales. Aparece cuando la identidad ya está y todavía falta
                  el sello. Al extranjero no se le enseña nunca: no emite CFDI. */}
           {mostrarAltaFiscal && (
             <TextButton

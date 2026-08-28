@@ -237,7 +237,19 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
    * ⚠️ Esto solo SIRVE PARA MOSTRAR. La comisión que cuenta es la que el backend congeló en
    * cada asiento el día de la venta, y una venta vieja conserva la suya.
    */
-  const payoutTerms: Readonly<PayoutTerms> | null = payoutTermsOf(payoutAccountCountry);
+  /**
+   * 🌎 El país que decide su ruta y su comisión.
+   *
+   * Normalmente es el de su cuenta de cobro, que es a donde viaja el dinero. Pero un creador
+   * de ruta WALLBIT no da de alta cuenta en Stripe, así que ese campo se queda vacío para
+   * siempre y hay que caer al país de su DOCUMENTO del KYC.
+   *
+   * El orden importa: si llegara a existir un país de cuenta, ese manda — es el dato duro
+   * sobre a dónde va el dinero, mientras que el documento solo dice de dónde es la persona.
+   */
+  const paisDeCobro = payoutAccountCountry ?? kycCountry;
+
+  const payoutTerms: Readonly<PayoutTerms> | null = payoutTermsOf(paisDeCobro);
 
   /**
    * 🔴 Vende pero no cobra.
@@ -245,7 +257,7 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
    * 73 países donde Global Payouts no llega. Su creador puede acumular saldo que hoy nadie
    * le puede sacar, así que hay que decírselo, no dejarlo descubrirlo al pedir el retiro.
    */
-  const payoutCountryUnpayable = isKnownUnpayableCountry(payoutAccountCountry);
+  const payoutCountryUnpayable = isKnownUnpayableCountry(paisDeCobro);
 
   // Lo que se enseña mientras no hay cuenta: el caso estándar, que es el de 45 de los 74
   // países pagables. En cuanto da de alta su cuenta, manda su país de verdad.
@@ -268,7 +280,21 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
    * 🔴 Faltaba en el gate. Sin esto un creador con solo el KYC aprobado pasaba, pedía su
    * retiro y no había cuenta a la que mandárselo — se descubría en el peor momento.
    */
-  const payoutAccountReady = profile?.stripeAccountStatus === "verified";
+  /**
+   * ¿Tiene a dónde cobrar?
+   *
+   * Depende de su RUTA, porque no se le pide lo mismo:
+   *
+   * - **Stripe** — hace falta que su cuenta esté verificada en Global Payouts.
+   * - **Wallbit** — no hay alta de Stripe que hacer. Hoy devuelve `false` a propósito: el
+   *   cuestionario donde dará sus datos de Wallbit todavía no existe, y abrir el gate sin
+   *   saber a dónde mandarle el dinero sería el mismo fallo que ya arreglamos con Stripe.
+   *   🔁 Cuando exista, aquí se lee si lo completó.
+   */
+  const payoutAccountReady =
+    payoutTerms?.route === "wallbit"
+      ? false
+      : profile?.stripeAccountStatus === "verified";
 
   /**
    * ¿Puede retirar?
@@ -302,8 +328,12 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
     /** Estado del alta de cobro en Stripe. */
     stripeAccountStatus: profile?.stripeAccountStatus ?? "none",
     payoutAccountReady,
-    /** Sus condiciones reales, o `null` si aún no hay cuenta o el país no es pagable. */
+    /** Sus condiciones reales, o `null` si aún no se sabe su país o no es pagable. */
     payoutTerms,
+    /** Por dónde cobra. `null` mientras no se sepa su país. */
+    payoutRoute: payoutTerms?.route ?? null,
+    /** El país que decidió su ruta: el de su cuenta, o el de su documento. */
+    paisDeCobro,
     /** El país de su cuenta vende pero no cobra. Hay que decírselo. */
     payoutCountryUnpayable,
     /** Su comisión, con el estándar como respaldo mientras no hay cuenta. Solo para MOSTRAR. */

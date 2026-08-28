@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "デジタル印章をアップロード",
     "payoutSetupStepSealHint": "SAT が発行したデジタル印章証明書です。これを使って、売上ごとの請求書をあなたに代わって発行します。請求書サービス提供者が保管し、プラットフォームには保存しません。",
     "payoutSetupStepSealCta": "印章をアップロード",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "画質が低い、または判読できない画像",
     "kycApproved": "本人確認が完了しました",
     "kycRetry": "確認が却下されました。クリックしてもう一度お試しください",
-    "fiscalSetupCta": "請求書発行のために税務情報を入力してください"
+    "fiscalSetupCta": "請求書発行のために税務情報を入力してください",
+    "payoutAccountSetupCta": "出金できるように送金先口座を登録してください"
   },
   "services": {
     "confirmLabel": "確定",

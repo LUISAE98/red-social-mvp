@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "आफ्नो डिजिटल छाप अपलोड गर्नुहोस्",
     "payoutSetupStepSealHint": "SAT बाट प्राप्त तपाईंको डिजिटल छाप प्रमाणपत्र। त्यसैले हामी तपाईंको तर्फबाट हरेक बिक्रीको बिल जारी गर्छौं। यो हाम्रो बिलिङ सेवामा रहन्छ, प्लेटफर्ममा कहिल्यै होइन।",
     "payoutSetupStepSealCta": "मेरो छाप अपलोड गर्नुहोस्",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "कम गुणस्तर वा पढ्न नसकिने छविहरू",
     "kycApproved": "पहिचान प्रमाणित भयो",
     "kycRetry": "प्रमाणीकरण अस्वीकृत भयो। पुनः प्रयास गर्न क्लिक गर्नुहोस्",
-    "fiscalSetupCta": "बिल जारी गर्न आफ्नो कर विवरण पूरा गर्नुहोस्"
+    "fiscalSetupCta": "बिल जारी गर्न आफ्नो कर विवरण पूरा गर्नुहोस्",
+    "payoutAccountSetupCta": "रकम निकाल्न सक्न आफ्नो भुक्तानी खाता जोड्नुहोस्"
   },
   "services": {
     "confirmLabel": "पुष्टि गर्नुहोस्",

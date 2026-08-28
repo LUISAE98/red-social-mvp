@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "ඔබේ ඩිජිටල් මුද්‍රාව උඩුගත කරන්න",
     "payoutSetupStepSealHint": "SAT වෙතින් ලැබුණු ඔබේ ඩිජිටල් මුද්‍රා සහතිකය. එමගින් අපි ඔබ වෙනුවෙන් සෑම විකුණුමකටම ඉන්වොයිසය නිකුත් කරමු. එය අපගේ ඉන්වොයිස් සැපයුම්කරු සතුව තැන්පත් වේ, කිසිවිටෙක වේදිකාවේ නොවේ.",
     "payoutSetupStepSealCta": "මගේ මුද්‍රාව උඩුගත කරන්න",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "අඩු තත්ත්වයේ හෝ කියවිය නොහැකි රූප",
     "kycApproved": "අනන්‍යතාවය සත්‍යාපනය විය",
     "kycRetry": "සත්‍යාපනය ප්‍රතික්ෂේප විය. නැවත උත්සාහ කිරීමට ක්ලික් කරන්න",
-    "fiscalSetupCta": "ඉන්වොයිස් නිකුත් කිරීමට ඔබේ බදු තොරතුරු සම්පූර්ණ කරන්න"
+    "fiscalSetupCta": "ඉන්වොයිස් නිකුත් කිරීමට ඔබේ බදු තොරතුරු සම්පූර්ණ කරන්න",
+    "payoutAccountSetupCta": "මුදල් ලබා ගැනීමට ඔබේ ගෙවීම් ගිණුම සම්බන්ධ කරන්න"
   },
   "services": {
     "confirmLabel": "තහවුරු කරන්න",

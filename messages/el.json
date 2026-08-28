@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "Ανέβασε την ψηφιακή σου σφραγίδα",
     "payoutSetupStepSealHint": "Το πιστοποιητικό ψηφιακής σφραγίδας από την SAT. Με αυτό εκδίδουμε για λογαριασμό σου το τιμολόγιο κάθε πώλησης. Φυλάσσεται στον πάροχο τιμολόγησης, ποτέ στην πλατφόρμα.",
     "payoutSetupStepSealCta": "Ανέβασμα σφραγίδας",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "εικόνων χαμηλής ποιότητας ή δυσανάγνωστων",
     "kycApproved": "Η ταυτότητα επαληθεύτηκε",
     "kycRetry": "Η επαλήθευση απορρίφθηκε. Κάνε κλικ για να δοκιμάσεις ξανά",
-    "fiscalSetupCta": "Συμπλήρωσε τα φορολογικά σου στοιχεία για να τιμολογείς"
+    "fiscalSetupCta": "Συμπλήρωσε τα φορολογικά σου στοιχεία για να τιμολογείς",
+    "payoutAccountSetupCta": "Σύνδεσε τον λογαριασμό πληρωμών σου για να κάνεις αναλήψεις"
   },
   "services": {
     "confirmLabel": "Επιβεβαίωση",

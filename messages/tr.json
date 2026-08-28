@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "Dijital mührünü yükle",
     "payoutSetupStepSealHint": "SAT'tan aldığın Dijital Mühür Sertifikan. Onunla her satışın faturasını senin adına düzenliyoruz. Faturalama sağlayıcımızda saklanır, asla platformda değil.",
     "payoutSetupStepSealCta": "Mührümü yükle",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "düşük kaliteli veya okunamayan görseller",
     "kycApproved": "Kimlik doğrulandı",
     "kycRetry": "Doğrulama reddedildi. Tekrar denemek için tıkla",
-    "fiscalSetupCta": "Fatura kesebilmek için vergi bilgilerini tamamla"
+    "fiscalSetupCta": "Fatura kesebilmek için vergi bilgilerini tamamla",
+    "payoutAccountSetupCta": "Para çekebilmek için ödeme hesabını bağla"
   },
   "services": {
     "confirmLabel": "Onayla",

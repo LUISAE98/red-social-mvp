@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "上傳你的數位印章",
     "payoutSetupStepSealHint": "你在 SAT 取得的數位印章憑證。我們用它代你為每一筆銷售開立發票。它保存在我們的發票服務商，絕不存放於平台。",
     "payoutSetupStepSealCta": "上傳我的印章",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "影像品質太差或無法辨識",
     "kycApproved": "身分已驗證",
     "kycRetry": "驗證未通過。點一下再試一次",
-    "fiscalSetupCta": "填寫稅務資料即可開立發票"
+    "fiscalSetupCta": "填寫稅務資料即可開立發票",
+    "payoutAccountSetupCta": "連結你的收款帳戶才能提領"
   },
   "services": {
     "confirmLabel": "確認",

@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "디지털 인장 올리기",
     "payoutSetupStepSealHint": "SAT에서 받은 디지털 인장 인증서예요. 이걸로 판매마다 청구서를 대신 발행해요. 청구 서비스 제공업체에 보관되고 플랫폼에는 절대 저장하지 않아요.",
     "payoutSetupStepSealCta": "내 인장 올리기",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "화질이 낮거나 판독 불가한 이미지",
     "kycApproved": "신원 확인 완료",
     "kycRetry": "인증이 거절되었습니다. 다시 시도하려면 클릭하세요",
-    "fiscalSetupCta": "인보이스 발행을 위해 세금 정보를 입력하세요"
+    "fiscalSetupCta": "인보이스 발행을 위해 세금 정보를 입력하세요",
+    "payoutAccountSetupCta": "출금할 수 있도록 정산 계좌를 연결하세요"
   },
   "services": {
     "confirmLabel": "확인",

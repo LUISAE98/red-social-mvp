@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "Тоон тамгаа байршуулна уу",
     "payoutSetupStepSealHint": "SAT-аас авсан Тоон Тамганы Гэрчилгээ. Түүгээр таны нэрийн өмнөөс борлуулалт бүрийн нэхэмжлэхийг гаргана. Нэхэмжлэхийн үйлчилгээ үзүүлэгчид хадгалагдана, платформ дээр хэзээ ч биш.",
     "payoutSetupStepSealCta": "Тамгаа байршуулах",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "чанар муутай эсвэл уншигдахгүй зураг",
     "kycApproved": "Биеийн байцаалт баталгаажлаа",
     "kycRetry": "Баталгаажуулалт татгалзагдлаа. Дахин оролдохын тулд дарна уу",
-    "fiscalSetupCta": "Нэхэмжлэх гаргахын тулд татварын мэдээллээ бөглөнө үү"
+    "fiscalSetupCta": "Нэхэмжлэх гаргахын тулд татварын мэдээллээ бөглөнө үү",
+    "payoutAccountSetupCta": "Мөнгө татахын тулд төлбөр хүлээн авах дансаа холбоно уу"
   },
   "services": {
     "confirmLabel": "Баталгаажуулах",

@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "Puja el teu segell digital",
     "payoutSetupStepSealHint": "El teu Certificat de Segell Digital del SAT. Amb ell emetem per tu la factura de cada venda. Es guarda al nostre proveïdor de facturació, mai a la plataforma.",
     "payoutSetupStepSealCta": "Pujar el meu segell",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "imatges de baixa qualitat o il·legibles",
     "kycApproved": "Identitat verificada",
     "kycRetry": "Verificació rebutjada. Fes clic per tornar-ho a provar",
-    "fiscalSetupCta": "Completa les teves dades fiscals per facturar"
+    "fiscalSetupCta": "Completa les teves dades fiscals per facturar",
+    "payoutAccountSetupCta": "Connecta el teu compte de cobrament per poder retirar"
   },
   "services": {
     "confirmLabel": "Confirma",

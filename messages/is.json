@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "Hladdu upp stafræna innsiglinu þínu",
     "payoutSetupStepSealHint": "Vottorð stafræna innsiglisins frá SAT. Með því gefum við út reikning fyrir hverja sölu fyrir þína hönd. Það er geymt hjá reikningaþjónustunni okkar, aldrei á vettvanginum.",
     "payoutSetupStepSealCta": "Hlaða upp innsigli",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "mynda í lágum gæðum eða ólæsilegra mynda",
     "kycApproved": "Auðkenni staðfest",
     "kycRetry": "Staðfestingu hafnað. Smelltu til að reyna aftur",
-    "fiscalSetupCta": "Fylltu út skattaupplýsingarnar til að gefa út reikninga"
+    "fiscalSetupCta": "Fylltu út skattaupplýsingarnar til að gefa út reikninga",
+    "payoutAccountSetupCta": "Tengdu útgreiðslureikninginn þinn til að geta tekið út"
   },
   "services": {
     "confirmLabel": "Staðfesta",

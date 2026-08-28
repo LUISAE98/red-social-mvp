@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "Uaslódáil do shéala digiteach",
     "payoutSetupStepSealHint": "Do theastas séala digiteach ón SAT. Leis sin eisímid an sonrasc do gach díolachán thar do cheann. Coinnítear é lenár soláthraí sonrasctha, riamh ar an ardán.",
     "payoutSetupStepSealCta": "Uaslódáil mo shéala",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "íomhánna ar dhroch-chaighdeán nó doléite",
     "kycApproved": "Aitheantas fíoraithe",
     "kycRetry": "Diúltaíodh don fhíorú. Cliceáil chun triail eile a bhaint as",
-    "fiscalSetupCta": "Comhlánaigh do shonraí cánach chun sonraisc a eisiúint"
+    "fiscalSetupCta": "Comhlánaigh do shonraí cánach chun sonraisc a eisiúint",
+    "payoutAccountSetupCta": "Ceangail do chuntas íocaíochta chun airgead a tharraingt"
   },
   "services": {
     "confirmLabel": "Deimhnigh",

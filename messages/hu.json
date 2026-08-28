@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "Töltsd fel a digitális bélyegződ",
     "payoutSetupStepSealHint": "A SAT által kiadott digitális bélyegző tanúsítványod. Ezzel állítjuk ki a nevedben minden értékesítés számláját. A számlázási szolgáltatónknál tároljuk, soha nem a platformon.",
     "payoutSetupStepSealCta": "Bélyegző feltöltése",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "rossz minőségű vagy olvashatatlan képek",
     "kycApproved": "Személyazonosság ellenőrizve",
     "kycRetry": "Az ellenőrzés elutasítva. Kattints az újrapróbálkozáshoz",
-    "fiscalSetupCta": "Töltsd ki az adóadataidat a számlázáshoz"
+    "fiscalSetupCta": "Töltsd ki az adóadataidat a számlázáshoz",
+    "payoutAccountSetupCta": "Kösd össze a kifizetési számládat, hogy pénzt vehess fel"
   },
   "services": {
     "confirmLabel": "Megerősítés",

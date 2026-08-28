@@ -65,11 +65,19 @@ describe("niveles de retiro — cobertura", () => {
     expect(duplicados).toEqual([]);
   });
 
-  it("los tamaños de los grupos son los de la tabla oficial de Stripe", () => {
-    const porNivel = Object.values(back.PAYOUT_TIER_BY_COUNTRY);
-    expect(porNivel.filter((t) => t === "standard").length).toBe(46);
-    expect(porNivel.filter((t) => t === "expensive").length).toBe(33);
-    expect(back.UNPAYABLE_COUNTRIES.length).toBe(64);
+  it("los tamaños de los grupos son los acordados", () => {
+    // Se cuenta por RUTA y no solo por nivel: los 12 de Wallbit también son `standard`, así
+    // que un recuento por nivel los mezclaría con los 46 de transferencia local de Stripe.
+    const t = Object.values(back.PAYOUT_TERMS_BY_COUNTRY);
+    const cuenta = (ruta: string, nivel: string) =>
+      t.filter((x) => x.route === ruta && x.tier === nivel).length;
+
+    expect(cuenta("stripe", "standard")).toBe(46); // transferencia local, 1.50 USD
+    expect(cuenta("stripe", "expensive")).toBe(27); // solo wire, 25 USD
+    expect(cuenta("wallbit", "standard")).toBe(12);
+    expect(cuenta("wallbit", "expensive")).toBe(0); // Wallbit nunca sale caro
+
+    expect(back.UNPAYABLE_COUNTRIES.length).toBe(58);
     expect(Object.keys(back.PAYOUT_COUNTRY_ALIAS).length).toBe(4);
   });
 
@@ -108,13 +116,44 @@ describe("niveles de retiro — territorios que cobran por otro país", () => {
   });
 });
 
+describe("niveles de retiro — rutas de pago", () => {
+  it("los 12 de Wallbit cobran al 25% y desde 300, como los de transferencia local", () => {
+    // Es el motivo de meterlos en Wallbit: sacarlos del wire de 25 USD por envío.
+    for (const c of ["AR", "BR", "BO", "CO", "GT", "PA", "EC", "SV", "CL", "UY", "PY", "HN"]) {
+      const t = back.payoutTermsOf(c);
+      expect(t).toMatchObject({ route: "wallbit", commissionRate: 0.25, minWithdrawalUsd: 300 });
+    }
+  });
+
+  it("solo Chile, Uruguay, Paraguay y Honduras quedan marcados como solo dólares", () => {
+    const soloUsd = Object.entries(back.PAYOUT_TERMS_BY_COUNTRY)
+      .filter(([, t]) => t.soloDolares)
+      .map(([c]) => c)
+      .sort();
+    expect(soloUsd).toEqual(["CL", "HN", "PY", "UY"]);
+  });
+
+  it("todo país pagable tiene una ruta, y ninguna otra", () => {
+    for (const t of Object.values(back.PAYOUT_TERMS_BY_COUNTRY)) {
+      expect(["stripe", "wallbit"]).toContain(t.route);
+    }
+    expect(back.payoutRouteOf("MX")).toBe("stripe");
+    expect(back.payoutRouteOf("BR")).toBe("wallbit");
+    expect(back.payoutRouteOf("NI")).toBeNull();
+  });
+
+  it("el espejo resuelve las rutas igual que el backend", () => {
+    expect(front.PAYOUT_TERMS_BY_COUNTRY).toEqual(back.PAYOUT_TERMS_BY_COUNTRY);
+  });
+});
+
 describe("niveles de retiro — resolución", () => {
   it("un país sin ruta de pago devuelve null, NO el estándar", () => {
     // Es la regla que evita prometerle a un creador brasileño un retiro que no existe.
     // ⚠️ Brasil sí y Argentina no: se preguntó a la API una por una. Brasil tiene las dos
     // capacidades en `unsupported`; Argentina y Colombia salen `restricted`, que significa
     // «se puede, faltan datos», así que están en el grupo de wire.
-    for (const c of ["BR", "CL", "UY", "PY", "KR"]) {
+    for (const c of ["NI", "KR", "SA", "NP", "HT"]) {
       expect(back.payoutTermsOf(c)).toBeNull();
       expect(back.isPayableCountry(c)).toBe(false);
       expect(back.isKnownUnpayableCountry(c)).toBe(true);

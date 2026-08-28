@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "Tella' s-siġill diġitali tiegħek",
     "payoutSetupStepSealHint": "Iċ-ċertifikat tas-siġill diġitali tiegħek mis-SAT. Bih noħorġu f'ismek il-fattura ta' kull bejgħ. Jinżamm mal-fornitur tal-fatturar tagħna, qatt fuq il-pjattaforma.",
     "payoutSetupStepSealCta": "Tella' s-siġill tiegħi",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "immaġni ta' kwalità baxxa jew illeġġibbli",
     "kycApproved": "Identità vverifikata",
     "kycRetry": "Il-verifika ġiet rifjutata. Ikklikkja biex terġa' tipprova",
-    "fiscalSetupCta": "Lesti d-dettalji tat-taxxa biex toħroġ fatturi"
+    "fiscalSetupCta": "Lesti d-dettalji tat-taxxa biex toħroġ fatturi",
+    "payoutAccountSetupCta": "Qabbad il-kont tal-ħlasijiet tiegħek biex tkun tista' tiġbed flus"
   },
   "services": {
     "confirmLabel": "Ikkonferma",

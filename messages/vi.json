@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "Tải lên con dấu số của bạn",
     "payoutSetupStepSealHint": "Chứng thư Con dấu Số của bạn từ SAT. Nhờ đó chúng tôi xuất hóa đơn cho từng giao dịch thay mặt bạn. Nó được lưu tại nhà cung cấp hóa đơn của chúng tôi, không bao giờ trên nền tảng.",
     "payoutSetupStepSealCta": "Tải lên con dấu",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "hình ảnh chất lượng thấp hoặc không đọc được",
     "kycApproved": "Đã xác minh danh tính",
     "kycRetry": "Xác minh bị từ chối. Nhấn để thử lại",
-    "fiscalSetupCta": "Hoàn tất thông tin thuế để xuất hoá đơn"
+    "fiscalSetupCta": "Hoàn tất thông tin thuế để xuất hoá đơn",
+    "payoutAccountSetupCta": "Kết nối tài khoản nhận tiền để có thể rút tiền"
   },
   "services": {
     "confirmLabel": "Xác nhận",

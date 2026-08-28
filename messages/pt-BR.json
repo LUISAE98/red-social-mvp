@@ -1509,6 +1509,10 @@
     "payoutSetupStepPayoutOpening": "Opening…",
     "payoutSetupStepPayoutReviewing": "Stripe is reviewing your details. It usually takes a few minutes and we will let you know as soon as it is done.",
     "payoutSetupPayoutRestricted": "Stripe needs something else before it can pay you. Open the form again to see what is missing.",
+    "payoutSetupStepWallbit": "Set up your Wallbit account",
+    "payoutSetupStepWallbitHint": "Stripe cannot send money to your country, so we pay you through Wallbit in US dollars. You will open a free Wallbit account and give us its details here.",
+    "payoutSetupStepWallbitSoon": "Available shortly",
+    "payoutSetupWallbitUsdOnly": "Heads up, in your country Wallbit cannot transfer to a local bank. You receive US dollars and, for now, the only documented way out is crypto. Make sure that works for you before you start building a balance.",
     "payoutSetupStepSeal": "Envie seu selo digital",
     "payoutSetupStepSealHint": "Seu Certificado de Selo Digital do SAT. Com ele emitimos por você a nota de cada venda. Fica guardado com nosso provedor de faturamento, nunca na plataforma.",
     "payoutSetupStepSealCta": "Enviar meu selo",
@@ -1641,7 +1645,8 @@
     "kycReasonQuality": "imagens de baixa qualidade ou ilegíveis",
     "kycApproved": "Identidade verificada",
     "kycRetry": "Verificação recusada. Clique para tentar de novo",
-    "fiscalSetupCta": "Complete seus dados fiscais para emitir notas"
+    "fiscalSetupCta": "Complete seus dados fiscais para emitir notas",
+    "payoutAccountSetupCta": "Conecte sua conta de recebimento para poder sacar"
   },
   "services": {
     "confirmLabel": "Confirmar",
