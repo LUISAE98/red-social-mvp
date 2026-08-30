@@ -4566,7 +4566,7 @@ padding: "0 0 2px 0",
     }}
   >
     <VibraNavigationIcon type="premiumCrown" size={17} />
-    {/* Monto ya con todo incluido: (base + $3) + IVA. La pasarela desglosa solo el IVA. */}
+    {/* Monto ya con todo incluido: (base + cargo fijo) + impuesto del país. La pasarela desglosa solo el IVA. */}
     {tFeed("unlockPremiumFor", { price: priceFmt.formatWithTax((post.oneTimePrice ?? 0) + FIXED_SERVICE_FEE_USD, { baseCurrency: post.currency ?? SETTLEMENT_CURRENCY }).total })}
   </button>
 )}

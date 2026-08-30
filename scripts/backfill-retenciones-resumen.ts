@@ -59,12 +59,14 @@ type Acumulado = {
   iva: number;
   comision: number;
   tax: number;
+  /** IVA mexicano de las ventas del creador. Distinto de `tax`, ver abajo. */
+  mxVat: number;
   earned: number;
 };
 
 async function acumularDe(uid: string): Promise<Acumulado> {
   const asientos = await db.collection("users").doc(uid).collection("walletLedger").get();
-  const acc: Acumulado = { isr: 0, iva: 0, comision: 0, tax: 0, earned: 0 };
+  const acc: Acumulado = { isr: 0, iva: 0, comision: 0, tax: 0, mxVat: 0, earned: 0 };
   for (const doc of asientos.docs) {
     const e = doc.data();
     if (e.status !== "earned") continue;
@@ -73,11 +75,19 @@ async function acumularDe(uid: string): Promise<Acumulado> {
     acc.iva += n(e.retenciones?.ivaRetenido);
     acc.comision += n(e.retenciones?.ivaComision);
     acc.tax += n(e.taxAmount);
+    /**
+     * ⚠️ `taxAmount` NO sirve aquí. Ése es el impuesto del TOTAL cobrado: suma el de
+     * cualquier país y además grava el cargo fijo y el 2% de conversión, que son de Vibra.
+     * El retiro necesita solo el IVA MEXICANO de la venta del creador, que el motor congeló
+     * en el asiento como `mxVatVenta`.
+     */
+    acc.mxVat += n(e.retenciones?.mxVatVenta);
   }
   acc.isr = round2(acc.isr);
   acc.iva = round2(acc.iva);
   acc.comision = round2(acc.comision);
   acc.tax = round2(acc.tax);
+  acc.mxVat = round2(acc.mxVat);
   return acc;
 }
 
@@ -107,12 +117,14 @@ async function main() {
       lifetimeRetainedIva: acc.iva,
       lifetimeCommissionVat: acc.comision,
       lifetimeTaxCollected: acc.tax,
+      lifetimeMxVatCollected: acc.mxVat,
       ...(yaRetiro
         ? {}
         : {
             pendingRetainedIsr: acc.isr,
             pendingRetainedIva: acc.iva,
             pendingCommissionVat: acc.comision,
+            pendingMxVatCollected: acc.mxVat,
           }),
     };
 
@@ -120,7 +132,7 @@ async function main() {
 
     console.log(`uid ${uid}  (${acc.earned} asientos ganados)`);
     console.log(
-      `  life  isr ${n(d.lifetimeRetainedIsr)} → ${acc.isr}   iva ${n(d.lifetimeRetainedIva)} → ${acc.iva}   com ${n(d.lifetimeCommissionVat)} → ${acc.comision}   tax ${n(d.lifetimeTaxCollected)} → ${acc.tax}`
+      `  life  isr ${n(d.lifetimeRetainedIsr)} → ${acc.isr}   iva ${n(d.lifetimeRetainedIva)} → ${acc.iva}   com ${n(d.lifetimeCommissionVat)} → ${acc.comision}   tax ${n(d.lifetimeTaxCollected)} → ${acc.tax}   mxVat ${n(d.lifetimeMxVatCollected)} → ${acc.mxVat}`
     );
     if (yaRetiro) {
       console.log(
@@ -129,7 +141,7 @@ async function main() {
       saltados++;
     } else {
       console.log(
-        `  pend  isr ${n(d.pendingRetainedIsr)} → ${acc.isr}   iva ${n(d.pendingRetainedIva)} → ${acc.iva}   com ${n(d.pendingCommissionVat)} → ${acc.comision}`
+        `  pend  isr ${n(d.pendingRetainedIsr)} → ${acc.isr}   iva ${n(d.pendingRetainedIva)} → ${acc.iva}   com ${n(d.pendingCommissionVat)} → ${acc.comision}   mxVat ${n(d.pendingMxVatCollected)} → ${acc.mxVat}`
       );
     }
 

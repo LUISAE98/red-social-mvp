@@ -431,7 +431,7 @@ export default function ComposerPremiumPanel({
               otro (ver updatePost). */}
 
           {/* Presentación IGUAL a experiencias/live: el campo es un input autónomo
-              (estilo canónico vibra_style.md); el "+ $3" y la moneda van FUERA,
+              (estilo canónico vibra_style.md); el "+ cargo fijo" y la moneda van FUERA,
               como hermanos en la fila (no dentro del placeholder). */}
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
             <input

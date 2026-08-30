@@ -744,7 +744,7 @@ const [autoConfirmPay, setAutoConfirmPay] = useState(false);
   const greetPriceLabel = useMemo(() => {
     const price = greetOffering?.memberPrice ?? greetOffering?.publicPrice ?? (greetOffering as { price?: number } | null)?.price ?? null;
     const currency = greetOffering?.currency ?? SETTLEMENT_CURRENCY;
-    // Total todo-incluido (base + cargo fijo $3 + IVA) para el botón "Continuar al pago".
+    // Total todo-incluido (base + cargo fijo + impuesto del país) para el botón "Continuar al pago".
     return typeof price === "number" ? formatMoneyWithTax(price + FIXED_SERVICE_FEE_USD, currency) : undefined;
   }, [greetOffering]);
 
@@ -902,8 +902,8 @@ function redirectToLogin() {
   // Pasarela de suscripción MENSUAL con STRIPE (Subscriptions nativas). Se monta TANTO en
   // el landing restringido (no-miembros) COMO en el render principal (ramas mutuamente
   // excluyentes). El callable crea la Subscription; el webhook (invoice.paid) concede la
-  // membresía y registra el earning por cada cobro. `amount` = base + $3 → la pasarela
-  // muestra el total mensual (base+$3)×IVA. Para comunidades ocultas el flujo es por invite.
+  // membresía y registra el earning por cada cobro. `amount` = base + cargo fijo → la pasarela
+  // muestra el total mensual (base + cargo fijo) × impuesto del país. Para comunidades ocultas el flujo es por invite.
   const subscriptionGateway = (
     <>
       <StripePaymentModal

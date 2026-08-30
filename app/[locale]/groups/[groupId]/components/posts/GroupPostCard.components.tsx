@@ -273,7 +273,7 @@ export function PremiumPostPanel({
           }}
         >
           <VibraNavigationIcon type="premiumCrown" size={17} />
-          {/* Monto ya con todo incluido: (base + $3) + IVA. La pasarela desglosa solo el IVA. */}
+          {/* Monto ya con todo incluido: (base + cargo fijo) + impuesto del país. La pasarela desglosa solo el IVA. */}
           {tPosts("premiumUnlockForPrice", { price: priceFmt.formatWithTax((oneTimePrice ?? 0) + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total })}
         </button>
       )}
@@ -307,8 +307,8 @@ export function LiveTicketPanel({
   const tGroups = useTranslations("groups");
   const { netRate } = useCreatorNetRate();
   const priceFmt = usePriceFormat();
-  // El comprador ve el precio YA con todo incluido: (base + $3) + IVA.
-  // La pasarela desglosa solo el IVA (recibe amount = base + $3).
+  // El comprador ve el precio YA con todo incluido: (base + cargo fijo) + impuesto del país.
+  // La pasarela desglosa solo el IVA (recibe amount = base + cargo fijo).
   const priceLabel = ticketPrice
     ? priceFmt.formatWithTax(ticketPrice + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total
     : tPosts("liveTicketPriceUndefined");
@@ -477,7 +477,7 @@ export function LiveTicketPanel({
             <path d="M15 17v2" />
             <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z" />
           </svg>
-          {/* Precio ya con todo incluido (base + $3 + IVA) DENTRO del botón, como premium. */}
+          {/* Precio ya con todo incluido (base + cargo fijo + impuesto del país) DENTRO del botón, como premium. */}
           {tPosts("liveTicketBuyForPrice", { price: priceLabel })}
         </button>
       )}

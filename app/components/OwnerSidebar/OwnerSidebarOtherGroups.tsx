@@ -56,7 +56,7 @@ export default function OwnerSidebarOtherGroups({
   const tNav = useTranslations("nav");
   const pf = usePriceFormat();
   const formatMoney = pf.format;
-  // Label del botón: "Suscribirme · $total" con el precio TODO-INCLUIDO (base + $3 + IVA).
+  // Label del botón: "Suscribirme · $total" con el precio TODO-INCLUIDO (base + cargo fijo + impuesto del país).
   const buildSubscribeLabel = (group: GroupDocLite): string => {
     const m = group.monetization;
     const base =

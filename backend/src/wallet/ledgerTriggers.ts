@@ -47,9 +47,9 @@ function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 /**
- * Total EXACTO que pagó el comprador de una experiencia (base + $3 + IVA), para emitir el
+ * Total EXACTO que pagó el comprador de una experiencia (base + cargo fijo + impuesto del país), para emitir el
  * saldo a favor en una devolución. Fuente autoritativa: el `chargedAmount` del
- * paymentIntent; si faltara, se reconstruye del doc de dominio (base + $3 + IVA).
+ * paymentIntent; si faltara, se reconstruye del doc de dominio (base + cargo fijo + impuesto del país).
  */
 /**
  * Lo que se le cobró al comprador, para devolvérselo como saldo.
@@ -410,7 +410,7 @@ async function handleRequestLifecycle(params: {
 
   // 3) DEVOLUCIÓN pedida por el comprador (refund_requested) → se revierte al creador
   //    contándolo como DEVOLUCIÓN (no como "perdido") y, si el dinero se cobró, se emite
-  //    el SALDO A FAVOR al comprador por el total que pagó (base + $3 + IVA).
+  //    el SALDO A FAVOR al comprador por el total que pagó (base + cargo fijo + impuesto del país).
   //    ⚠️ El RECHAZO del creador por sí solo YA NO revierte (ya no está en
   //    reversedStatuses): el dinero queda pending/capturado hasta que el comprador decida
   //    devolución o "intentar de nuevo".

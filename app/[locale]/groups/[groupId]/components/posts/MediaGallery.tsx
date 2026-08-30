@@ -555,7 +555,7 @@ export default function MediaGallery({
   }
 
   const liveBadgeLabel = tPosts("mediaLiveBadge");
-  // Precio del candado ya con todo incluido: (base + $3) + IVA (la pasarela desglosa el IVA).
+  // Precio del candado ya con todo incluido: (base + cargo fijo) + impuesto del país (la pasarela desglosa el IVA).
   const formatLockedPrice = (post: Post) =>
     formatWithTax((post.oneTimePrice ?? 0) + FIXED_SERVICE_FEE_USD, {
       baseCurrency: post.currency ?? SETTLEMENT_CURRENCY,

@@ -46,6 +46,19 @@ jobs:
       - name: Install backend dependencies
         run: npm install --prefix backend
 
+      # Revisión de tipos de los TESTS del backend, ANTES de correrlos.
+      #
+      # `backend/tsconfig.json` termina en `"include": ["src"]`, así que su compilación
+      # deja fuera `test/` y `test-emulator/`. El 2026-08-30 eso dejó pasar tres llamadas
+      # a `calcularRetiro` sin un campo nuevo obligatorio: compilaron, corrieron y
+      # calcularon un retiro `NaN`.
+      #
+      # Los tests lo cazaron —con un `expected NaN to be 129` que no dice dónde—, pero un
+      # test que NO afirme sobre el valor pasaría en verde con el `NaN` por dentro. Eso es
+      # lo que este paso evita, y por eso va antes: falla en segundos y señala la línea.
+      - name: Typecheck de los tests del backend
+        run: npm run typecheck:tests --prefix backend
+
       - name: Unit tests (frontend — dinero puro)
         run: npm test
 

@@ -231,28 +231,60 @@ describe("motor fiscal / paridad entre backend y espejo", () => {
   });
 });
 
-describe("motor fiscal / desglose del retiro", () => {
-  // Un mes típico: tres ventas mexicanas. Saldo 225, retenciones 7.50 + 24 + 12.
-  const acumulado = { saldo: 225, isrPendiente: 7.5, ivaPendiente: 24, ivaComisionPendiente: 12 };
+/** Mismo redondeo que el motor, para comparar totales sin arrastrar flotantes. */
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
 
-  it("retirar todo aplica todas las retenciones", () => {
+describe("motor fiscal / desglose del retiro", () => {
+  /**
+   * Un mes típico: TRES ventas de 100 a compradores mexicanos, creador mexicano.
+   *
+   * Por venta: participación 75, IVA cobrado 16, ISR 2.50, IVA retenido 8, IVA comisión 4.
+   * Por tres: saldo 225, IVA cobrado 48, ISR 7.50, IVA retenido 24, IVA comisión 12.
+   */
+  const acumulado = {
+    saldo: 225,
+    ivaCobradoPendiente: 48,
+    isrPendiente: 7.5,
+    ivaPendiente: 24,
+    ivaComisionPendiente: 12,
+  };
+
+  it("retirar todo suma el IVA cobrado y aplica todas las retenciones", () => {
     const r = calcularRetiro(acumulado);
     expect(r.bruto).toBe(225);
+    expect(r.ivaCobrado).toBe(48);
     expect(r.isr).toBe(7.5);
     expect(r.iva).toBe(24);
     expect(r.ivaComision).toBe(12);
-    expect(r.neto).toBe(181.5);
+    expect(r.neto).toBe(229.5); // 225 + 48 − 7.5 − 24 − 12
+    expect(r.ivaPorDeclarar).toBe(24); // los 48 cobrados menos los 24 retenidos
     expect(r.proporcion).toBe(1);
   });
 
-  it("un retiro parcial consume las retenciones EN PROPORCIÓN", () => {
-    // Un tercio del saldo se lleva un tercio de las retenciones.
+  it("🚨 el retiro CUADRA con la liquidación de las ventas que lo formaron", () => {
+    // La invariante que faltaba y que costó 15.25 USD por cada 71.49 de saldo: el retiro
+    // restaba el IVA retenido de un saldo que nunca contuvo el IVA cobrado. Aquí se compara
+    // el desglose del pago contra lo que el motor dijo, venta por venta, que se depositaría.
+    const porVenta = settleBack({
+      base: 100,
+      mxVatAmount: 16,
+      creador: mxConRfc,
+    });
+    const r = calcularRetiro(acumulado);
+    expect(r.neto).toBe(round2(porVenta.neto * 3));
+  });
+
+  it("un retiro parcial consume el IVA y las retenciones EN PROPORCIÓN", () => {
+    // Un tercio del saldo se lleva un tercio de todo.
     const r = calcularRetiro({ ...acumulado, solicitado: 75 });
     expect(r.bruto).toBe(75);
+    expect(r.ivaCobrado).toBe(16);
     expect(r.isr).toBe(2.5);
     expect(r.iva).toBe(8);
     expect(r.ivaComision).toBe(4);
-    expect(r.neto).toBe(60.5);
+    expect(r.neto).toBe(76.5);
   });
 
   it("sacar poco de un saldo grande NO paga el impuesto de todo el saldo", () => {
@@ -260,6 +292,7 @@ describe("motor fiscal / desglose del retiro", () => {
     const r = calcularRetiro({
       saldo: 1000,
       solicitado: 10,
+      ivaCobradoPendiente: 0,
       isrPendiente: 100,
       ivaPendiente: 200,
       ivaComisionPendiente: 50,
@@ -279,6 +312,7 @@ describe("motor fiscal / desglose del retiro", () => {
     // Caso extremo: retenciones mayores que el retiro. Se deposita cero, no en rojo.
     const r = calcularRetiro({
       saldo: 10,
+      ivaCobradoPendiente: 0,
       isrPendiente: 20,
       ivaPendiente: 20,
       ivaComisionPendiente: 0,
@@ -287,17 +321,175 @@ describe("motor fiscal / desglose del retiro", () => {
   });
 
   it("sin saldo no hay retiro", () => {
-    const r = calcularRetiro({ saldo: 0, isrPendiente: 0, ivaPendiente: 0, ivaComisionPendiente: 0 });
+    const r = calcularRetiro({
+      saldo: 0,
+      ivaCobradoPendiente: 0,
+      isrPendiente: 0,
+      ivaPendiente: 0,
+      ivaComisionPendiente: 0,
+    });
     expect(r.bruto).toBe(0);
     expect(r.neto).toBe(0);
   });
 
+  it("creador extranjero con comprador MEXICANO recibe su 75% ÍNTEGRO", () => {
+    // 🚨 El caso más feo del bug: a un creador alemán se le restaba una retención mexicana
+    //    de 16 sobre un IVA que jamás fue suyo, y acababa cobrando 59 en vez de 75.
+    //    El IVA entra y sale por el mismo importe —se le retiene el 100%— y no le toca nada.
+    const r = calcularRetiro({
+      saldo: 75,
+      ivaCobradoPendiente: 16,
+      isrPendiente: 0,
+      ivaPendiente: 16,
+      ivaComisionPendiente: 0,
+    });
+    expect(r.neto).toBe(75);
+    expect(r.ivaPorDeclarar).toBe(0);
+  });
+
   it("creador extranjero sin retenciones recibe íntegro", () => {
-    const r = calcularRetiro({ saldo: 300, isrPendiente: 0, ivaPendiente: 0, ivaComisionPendiente: 0 });
+    const r = calcularRetiro({
+      saldo: 300,
+      ivaCobradoPendiente: 0,
+      isrPendiente: 0,
+      ivaPendiente: 0,
+      ivaComisionPendiente: 0,
+    });
     expect(r.neto).toBe(300);
   });
 
   it("backend y espejo dan el mismo desglose", () => {
     expect(calcularRetiroFront(acumulado)).toEqual(calcularRetiro(acumulado));
+  });
+});
+
+describe("motor fiscal / MEZCLAS de ventas en un mismo saldo", () => {
+  /**
+   * Un creador real no tiene una venta: tiene un saldo hecho de muchas, de compradores de
+   * países distintos y algunas devueltas. El retiro no las recorre —lee contadores agregados
+   * del resumen—, así que sumar y luego repartir TIENE que dar lo mismo que repartir venta
+   * por venta. Si no, el creador cobra mal y nadie lo nota.
+   *
+   * Azar determinista: misma semilla, misma corrida. Un fallo tiene que poder repetirse.
+   */
+  function rng(semilla: number) {
+    let a = semilla;
+    return () => {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  const PAISES = ["MX", "DE", "US", "MX", "BR", "MX"]; // MX pesa más: es el caso con IVA
+
+  /** Genera una mezcla y devuelve los contadores del resumen y lo que debería pagarse. */
+  function mezcla(r: () => number, perfil: PerfilFiscalCreador) {
+    const c = { saldo: 0, mxVat: 0, isr: 0, iva: 0, ivaComision: 0 };
+    let esperado = 0;
+    const cuantas = 1 + Math.floor(r() * 12);
+    for (let k = 0; k < cuantas; k++) {
+      const base = round2(3 + r() * 500);
+      const pais = PAISES[Math.floor(r() * PAISES.length)];
+      const venta = saleBack({ base, buyerCountry: pais });
+      const liq = settleBack({ base, mxVatAmount: venta.mxVatAmount, creador: perfil });
+      const devuelta = r() < 0.15;
+
+      // Suma como el ledger al ganar…
+      c.saldo = round2(c.saldo + liq.participacion);
+      c.mxVat = round2(c.mxVat + venta.mxVatAmount);
+      c.isr = round2(c.isr + liq.isrRetenido);
+      c.iva = round2(c.iva + liq.ivaRetenido);
+      c.ivaComision = round2(c.ivaComision + liq.ivaComision);
+
+      // …y resta como el ledger al devolver, nunca por debajo de cero.
+      if (devuelta) {
+        c.saldo = round2(c.saldo - liq.participacion);
+        c.mxVat = round2(Math.max(0, c.mxVat - venta.mxVatAmount));
+        c.isr = round2(Math.max(0, c.isr - liq.isrRetenido));
+        c.iva = round2(Math.max(0, c.iva - liq.ivaRetenido));
+        c.ivaComision = round2(Math.max(0, c.ivaComision - liq.ivaComision));
+      } else {
+        esperado = round2(esperado + liq.neto);
+      }
+    }
+    return { c, esperado, ventas: cuantas };
+  }
+
+  const PERFILES: Array<[string, (r: () => number) => PerfilFiscalCreador]> = [
+    [
+      "mexicano cobrando en México",
+      () => ({ residency: "MX", hasTaxId: true, payoutAccountCountry: "MX" }),
+    ],
+    [
+      "mexicano que CAMBIA de cuenta a mitad (unas ventas al 50% de IVA, otras al 100%)",
+      (r) => ({
+        residency: "MX",
+        hasTaxId: true,
+        payoutAccountCountry: r() < 0.5 ? "MX" : "US",
+      }),
+    ],
+    [
+      "extranjero",
+      () => ({ residency: "FOREIGN", hasTaxId: true, payoutAccountCountry: "DE" }),
+    ],
+  ];
+
+  for (const [nombre, perfilDe] of PERFILES) {
+    it(`el retiro agregado CUADRA con las ventas una por una · ${nombre}`, () => {
+      const r = rng(nombre.length * 7 + 1);
+      for (let i = 0; i < 200; i++) {
+        const { c, esperado, ventas } = mezcla(r, perfilDe(r));
+        const pagado = calcularRetiro({
+          saldo: c.saldo,
+          ivaCobradoPendiente: c.mxVat,
+          isrPendiente: c.isr,
+          ivaPendiente: c.iva,
+          ivaComisionPendiente: c.ivaComision,
+        }).neto;
+        // Un centavo por venta: cada asiento redondea el suyo y el agregado redondea otra vez.
+        expect(Math.abs(pagado - esperado), `mezcla ${i} de ${ventas} ventas`).toBeLessThanOrEqual(
+          Math.max(0.02, ventas * 0.01)
+        );
+      }
+    });
+  }
+
+  it("una venta devuelta no deja residuo en ningún contador", () => {
+    const r = rng(99);
+    for (let i = 0; i < 200; i++) {
+      const { c, esperado } = mezcla(r, {
+        residency: "MX",
+        hasTaxId: true,
+        payoutAccountCountry: "MX",
+      });
+      if (esperado !== 0) continue; // solo interesan las mezclas devueltas por completo
+      expect(c).toEqual({ saldo: 0, mxVat: 0, isr: 0, iva: 0, ivaComision: 0 });
+    }
+  });
+
+  it("🚨 partir el retiro NUNCA saca de más (a partir de 1 USD por trozo)", () => {
+    // El redondeo de cada trozo podría, en teoría, dejar la retención en cero y regalarle
+    // el impuesto al creador. Solo pasa con trozos de céntimos, y el mínimo de retiro lo
+    // hace inalcanzable — pero si alguien baja ese mínimo, este test se lo dice.
+    const c = { saldo: 100000, mxVat: 0, isr: 2500, iva: 0, ivaComision: 4000 };
+    const retiro = (solicitado?: number) =>
+      calcularRetiro({
+        saldo: c.saldo,
+        solicitado,
+        ivaCobradoPendiente: c.mxVat,
+        isrPendiente: c.isr,
+        ivaPendiente: c.iva,
+        ivaComisionPendiente: c.ivaComision,
+      });
+    const entero = retiro().neto;
+    for (const cacho of [50000, 5000, 500, 100, 10, 1]) {
+      const trozos = Math.floor(c.saldo / cacho);
+      let suma = 0;
+      for (let i = 0; i < trozos; i++) suma += retiro(cacho).neto;
+      expect(round2(suma), `trozos de ${cacho}`).toBeLessThanOrEqual(entero + 0.05);
+    }
   });
 });

@@ -1,0 +1,24 @@
+// Revisión de tipos de los TESTS del backend.
+//
+// 🚨 POR QUÉ EXISTE. El `tsconfig.json` de al lado solo incluye `src`, porque su trabajo es
+//    compilar lo que se despliega. Eso deja los tests fuera del compilador, y el 2026-08-30
+//    costó caro: al añadirle un campo obligatorio a `calcularRetiro`, `tsc` avisó de las nueve
+//    llamadas del frontend y de ninguna de las tres del backend. Los tres tests siguieron
+//    compilando y se rompieron en tiempo de ejecución, calculando un retiro `NaN`.
+//
+//    Un test de dinero que no se revisa es peor que no tenerlo: da la seguridad sin darla.
+//
+// Solo revisa tipos, no emite nada. Se corre con `npm run typecheck:tests`.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // El base los usa para compilar a `lib/`; aquí no se emite y estorbarían, porque los
+    // tests viven fuera de `src`.
+    "rootDir": null,
+    "outDir": null,
+    // Los tests declaran ayudantes que no siempre usan todos los casos. No es deuda.
+    "noUnusedLocals": false
+  },
+  "include": ["src", "test", "test-emulator"]
+}

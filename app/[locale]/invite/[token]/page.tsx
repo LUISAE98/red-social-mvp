@@ -623,7 +623,8 @@ const { user } = useAuth();
 
       {/* Suscripción por invitación — pasarela STRIPE (Subscriptions nativas). El callable
           valida la invitación (invite-only) + crea la Subscription; el webhook (invoice.paid)
-          concede la membresía. `amount` = base + $3 → total mensual (base+$3)×IVA. */}
+          concede la membresía. `amount` = base + cargo fijo; el total mensual le suma el
+          impuesto del país. */}
       <StripePaymentModal
         open={payOpen}
         amount={group.subscriptionPrice != null ? group.subscriptionPrice + FIXED_SERVICE_FEE_USD : null}

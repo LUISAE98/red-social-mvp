@@ -254,6 +254,23 @@ type SummaryData = {
   pendingRetainedIsr: number;
   pendingRetainedIva: number;
   pendingCommissionVat: number;
+
+  /**
+   * 🧾 IVA MEXICANO cobrado en las ventas del creador. De por vida y pendiente de retirar.
+   *
+   * ⚠️ NO CONFUNDIR CON `lifetimeTaxCollected`, que está unas líneas arriba y es otra cosa:
+   *    aquél suma el impuesto de TODOS los países —el IVA alemán, el sales tax— y además
+   *    incluye la parte que grava el cargo fijo y el 2% de conversión, que son ingreso de
+   *    Vibra. Éste es solo el IVA mexicano de la venta del creador, que es el único del que
+   *    se retiene y el único que puede acabar en su pago.
+   *
+   * 🚨 `pendingMxVatCollected` ENTRA AL RETIRO. El saldo guarda solo el 75%; el IVA se cobró
+   *    por encima del precio y va aparte. Al pagar hay que sumarlo, porque de él sale la
+   *    retención: restar lo retenido sin sumar el IVA le quita al creador un dinero que
+   *    nunca se le sumó. Ver `calcularRetiro`.
+   */
+  lifetimeMxVatCollected: number;
+  pendingMxVatCollected: number;
 };
 
 function emptySummary(): SummaryData {
@@ -276,6 +293,8 @@ function emptySummary(): SummaryData {
     pendingRetainedIsr: 0,
     pendingRetainedIva: 0,
     pendingCommissionVat: 0,
+    lifetimeMxVatCollected: 0,
+    pendingMxVatCollected: 0,
   };
 }
 
@@ -417,9 +436,10 @@ export async function recordEarning(
    * de un mismo cobro conviven dos ventas —la del creador y la de Vibra— y solo la primera es
    * suya.
    *
-   * Con un precio de 100 y cargo de 3, el comprador paga 16.48 de IVA. Del creador son 16.00;
-   * los 0.48 restantes son de Vibra. Retenerle los 16.48 sería retenerle impuesto de una venta
-   * que no hizo.
+   * Con un precio de 100, el comprador mexicano paga 118.80 en total: los 100 del creador, el
+   * cargo fijo de 0.40, el 2% de conversión (2.01) y 16.39 de IVA sobre todo eso. De ese IVA
+   * **solo 16.00 son de la venta del creador**; los 0.39 restantes gravan lo que cobró Vibra.
+   * Retenerle los 16.39 sería retenerle impuesto de una venta que no hizo.
    *
    * Y `taxAmount` tampoco sirve con comprador extranjero: ahí es el IVA de SU país, no el
    * mexicano. Retener sobre él sería una retención mexicana sobre un impuesto alemán.
@@ -492,6 +512,14 @@ export async function recordEarning(
         isrRetenido: liquidacion.isrRetenido,
         ivaRate: liquidacion.ivaRate,
         ivaRetenido: liquidacion.ivaRetenido,
+        /**
+         * 🧾 El IVA mexicano de ESTA venta, congelado como todo lo demás.
+         *
+         * Se guarda aunque se pueda deducir de `ivaRetenido / ivaRate`, porque esa división
+         * se rompe justo cuando más se necesita: con `ivaRate` en cero —exportación— no hay
+         * nada que dividir, y con el redondeo de por medio no devuelve el mismo centavo.
+         */
+        mxVatVenta: ventaFiscal.mxVatAmount,
         neto: liquidacion.neto,
         ejercicio: liquidacion.ejercicio,
         motorVersion: liquidacion.motorVersion,
@@ -527,6 +555,9 @@ export async function recordEarning(
       s.pendingRetainedIsr = round2((s.pendingRetainedIsr ?? 0) + liquidacion.isrRetenido);
       s.pendingRetainedIva = round2((s.pendingRetainedIva ?? 0) + liquidacion.ivaRetenido);
       s.pendingCommissionVat = round2((s.pendingCommissionVat ?? 0) + liquidacion.ivaComision);
+      // Y el IVA de la venta, que viaja junto a su retención y sin el cual el retiro sale corto.
+      s.lifetimeMxVatCollected = round2((s.lifetimeMxVatCollected ?? 0) + ventaFiscal.mxVatAmount);
+      s.pendingMxVatCollected = round2((s.pendingMxVatCollected ?? 0) + ventaFiscal.mxVatAmount);
     } else {
       s.pendingGross = round2(s.pendingGross + gross);
       s.pendingNet = round2(s.pendingNet + net);
@@ -620,7 +651,12 @@ export async function settleEarning(
       grossAmount: number;
       netAmount: number;
       taxAmount?: number;
-      retenciones?: { isrRetenido?: number; ivaRetenido?: number; ivaComision?: number };
+      retenciones?: {
+        isrRetenido?: number;
+        ivaRetenido?: number;
+        ivaComision?: number;
+        mxVatVenta?: number;
+      };
     };
     if (e.status !== "pending") return; // solo pending -> earned
 
@@ -647,6 +683,9 @@ export async function settleEarning(
     s.pendingRetainedIsr = round2((s.pendingRetainedIsr ?? 0) + (e.retenciones?.isrRetenido ?? 0));
     s.pendingRetainedIva = round2((s.pendingRetainedIva ?? 0) + (e.retenciones?.ivaRetenido ?? 0));
     s.pendingCommissionVat = round2((s.pendingCommissionVat ?? 0) + (e.retenciones?.ivaComision ?? 0));
+    const mxVat = e.retenciones?.mxVatVenta ?? 0;
+    s.lifetimeMxVatCollected = round2((s.lifetimeMxVatCollected ?? 0) + mxVat);
+    s.pendingMxVatCollected = round2((s.pendingMxVatCollected ?? 0) + mxVat);
 
     tx.set(sRef, { ...s, currency: SETTLEMENT_CURRENCY, updatedAt: now }, { merge: true });
   });
@@ -680,7 +719,12 @@ export async function reverseEarning(
       grossAmount: number;
       netAmount: number;
       taxAmount?: number;
-      retenciones?: { isrRetenido?: number; ivaRetenido?: number; ivaComision?: number };
+      retenciones?: {
+        isrRetenido?: number;
+        ivaRetenido?: number;
+        ivaComision?: number;
+        mxVatVenta?: number;
+      };
     };
     if (e.status !== "earned" && e.status !== "pending") return; // ya revertido
 
@@ -713,6 +757,10 @@ export async function reverseEarning(
       s.pendingCommissionVat = round2(
         Math.max(0, (s.pendingCommissionVat ?? 0) - (e.retenciones?.ivaComision ?? 0))
       );
+      // Y el IVA de esa venta, que al deshacerse deja de cobrarse y de deberse.
+      const mxVatRev = e.retenciones?.mxVatVenta ?? 0;
+      s.lifetimeMxVatCollected = round2(Math.max(0, (s.lifetimeMxVatCollected ?? 0) - mxVatRev));
+      s.pendingMxVatCollected = round2(Math.max(0, (s.pendingMxVatCollected ?? 0) - mxVatRev));
       s.refundedGross = round2(s.refundedGross + e.grossAmount);
       s.refundedNet = round2(s.refundedNet + e.netAmount);
     } else if (opts?.asRefund) {

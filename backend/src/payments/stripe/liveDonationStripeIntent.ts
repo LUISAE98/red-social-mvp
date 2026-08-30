@@ -3,7 +3,8 @@
 // Pagar-luego-crear (monto DINÁMICO): la donación se materializa como un super-comentario
 // SIN texto en posts/{postId}/superComments/{donationId} al aprobar el pago (webhook →
 // reconcile), lo que dispara onSuperCommentLedger (earning `live_donation`) Y la muestra
-// destacada en el chat del live. Modelo SOLO MÉXICO: el donante paga (base + $3) + IVA;
+// destacada en el chat del live. Modelo de intermediación, 147 países: el donante paga
+// base + cargo fijo + el impuesto de SU país;
 // el creador recibe 75% de la base. Cada llamada = una donación nueva.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -125,7 +126,7 @@ export const createLiveDonationStripeIntent = onCall(
     const savedPaymentMethodId = data.savedPaymentMethodId ? String(data.savedPaymentMethodId).trim() : null;
     const applyCredit = data.applyCredit === true; // aplicar saldo a favor (monto lo decide el server)
 
-    // Precio publicado = base + $3; IVA 16% encima (todo lo absorbe el donante).
+    // Precio publicado = base + cargo fijo; el impuesto del país encima (todo lo absorbe el donante).
     // País fiscal: lo decide el SERVIDOR. Dos señales que el cliente no controla:
     //   · la IP del request
     //   · el país EMISOR de la tarjeta, leído de Stripe con el `pm_...` que manda el
@@ -151,7 +152,7 @@ export const createLiveDonationStripeIntent = onCall(
     if (!isChargeableCountry(country)) {
       throw new HttpsError("failed-precondition", "El cobro no está disponible en tu país por ahora.");
     }
-    // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
+    // Composición completa (base + cargo fijo → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
     // 💵 Si el comprador TECLEÓ un total, ese es el que paga: no se redondea al escalón.

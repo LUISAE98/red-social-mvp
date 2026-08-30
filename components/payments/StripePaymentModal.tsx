@@ -64,11 +64,12 @@ type Props = {
   amountEditable?: boolean;
   /** Montos sugeridos de DONACIÓN (base MXN). Si no se pasan, usa los defaults. */
   donationPresets?: number[];
-  /** Si true, el monto CUSTOM que teclea el donante ya es el TOTAL (incluye $3 + IVA);
-   *  se despeja la base = total/(1+iva) − $3. Los presets siguen siendo base. Para live donation. */
+  /** Si true, el monto CUSTOM que teclea el donante ya es el TOTAL (incluye el cargo fijo y el
+   *  impuesto); se despeja la base = total/(1+impuesto) − cargo fijo. Los presets siguen siendo
+   *  base. Para live donation. */
   donationCustomInclusive?: boolean;
   /** Mínimo de la BASE (monto del creador) en donación editable. El modal comunica el
-   *  total mínimo (base + $3 + IVA) y deshabilita pagar por debajo. 0 = sin mínimo. */
+   *  total mínimo (base + cargo fijo + impuesto del país) y deshabilita pagar por debajo. 0 = sin mínimo. */
   minBaseAmount?: number;
   priceLabel?: string;
   pricePeriodLabel?: string;
@@ -247,7 +248,7 @@ export default function StripePaymentModal({
   const savedCardId = selectedMethod?.startsWith("saved:") ? selectedMethod.slice(6) : null;
   const mxnAmount = amountEditable ? chosenAmount : (amount ?? null);
 
-  // Total estimado en MXN (base + $3 en donación + IVA) para calcular cuánto crédito se
+  // Total estimado en MXN (base + cargo fijo en donación + impuesto del país) para calcular cuánto crédito se
   // aplica y si cubre el 100%. El monto EXACTO lo decide el backend; esto es para la UI.
   const creditChargedBaseMxn =
     mxnAmount != null ? mxnAmount + (amountEditable ? FIXED_SERVICE_FEE_USD : 0) : null;
@@ -994,8 +995,8 @@ export default function StripePaymentModal({
 
   const effectiveAmount = amountEditable ? chosenAmount : amount;
   const isNonAnchor = pf.currency !== "USD";
-  // En donación (amountEditable) el monto elegido es la BASE; el $3 fijo se suma en el
-  // DISPLAY (el backend lo suma al cobrar). Los servicios ya reciben base+$3 en `amount`.
+  // En donación (amountEditable) el monto elegido es la BASE; el cargo fijo se suma en el
+  // DISPLAY (el backend lo suma al cobrar). Los servicios ya reciben base + cargo fijo en `amount`.
   const chargedBase = effectiveAmount != null ? effectiveAmount + (amountEditable ? FIXED_SERVICE_FEE_USD : 0) : null;
   const totalLabel = chargedBase != null ? pf.format(chargedBase, { baseCurrency: amountCurrency, code: true }) : priceLabel ?? "";
   // El desglose se calcula con el país EFECTIVO: la IP al abrir, y el de la tarjeta en cuanto
@@ -1099,7 +1100,7 @@ export default function StripePaymentModal({
                     setCustomAmount(String(totalLocalDesdeBaseUsd(base)));
                   }}
                   style={{ padding: "9px 2px", borderRadius: 10, border: "none", background: selected ? "#eaf6fd" : "transparent", color: selected ? BLUE : "#3a3f4a", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}>
-                  {/* Todo-incluido desde el inicio: (base + $3) + IVA. */}
+                  {/* Todo-incluido desde el inicio: (base + cargo fijo) + impuesto del país. */}
                   {pf.formatWithTax(base + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total}
                 </button>
               );

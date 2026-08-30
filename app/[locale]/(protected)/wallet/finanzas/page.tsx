@@ -377,19 +377,32 @@ export default function WalletFinanzasPage() {
   const desgloseRetiro = useMemo(() => {
     const r = calcularRetiro({
       saldo: disponibleNeto,
+      ivaCobradoPendiente: summary.mxVatCollected,
       isrPendiente: summary.retainedIsr,
       ivaPendiente: summary.retainedIva,
       ivaComisionPendiente: summary.commissionVat,
     });
     return {
       bruto: formatSettlement(r.bruto, { code: true }),
+      ivaCobrado: formatSettlement(r.ivaCobrado, { code: true }),
       isr: formatSettlement(r.isr, { code: true }),
       iva: formatSettlement(r.iva, { code: true }),
       ivaComision: formatSettlement(r.ivaComision, { code: true }),
       neto: formatSettlement(r.neto, { code: true }),
+      /** Del IVA cobrado, lo que no se le retuvo y declarará él. Nulo si no hay. */
+      ivaPorDeclarar:
+        r.ivaPorDeclarar > 0 ? formatSettlement(r.ivaPorDeclarar, { code: true }) : null,
+      hayIvaCobrado: r.ivaCobrado > 0,
       hayRetenciones: r.isr > 0 || r.iva > 0 || r.ivaComision > 0,
     };
-  }, [disponibleNeto, summary.retainedIsr, summary.retainedIva, summary.commissionVat, formatSettlement]);
+  }, [
+    disponibleNeto,
+    summary.mxVatCollected,
+    summary.retainedIsr,
+    summary.retainedIva,
+    summary.commissionVat,
+    formatSettlement,
+  ]);
 
   // El saldo sube desde cero al entrar. La barra y el resto de cifras usan el valor real:
   // animar todo a la vez sería ruido.

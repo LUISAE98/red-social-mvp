@@ -9,7 +9,7 @@
 //
 // Ejemplo: IP extranjera + tarjeta mexicana. En fase 1 se cotizó con el impuesto de ese país y
 // con 2% de conversión. Al leer la tarjeta resulta mexicana → el servicio se aprovecha en México
-// → hay que cobrar (base+$3)×1.16 y QUITAR el 2%, porque ya no hay conversión de moneda.
+// → hay que cobrar (base + cargo fijo) × 1.16 y QUITAR el 2%, porque ya no hay conversión de moneda.
 //
 // El monto se actualiza en el PaymentIntent de Stripe ANTES de confirmar. Stripe permite
 // cambiar `amount` mientras el intent siga en `requires_payment_method` / `requires_confirmation`.

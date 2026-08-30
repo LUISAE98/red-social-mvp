@@ -4,8 +4,9 @@
 // posts/{postId}/superComments/{scId} al aprobar el pago (webhook → reconcile), lo que
 // dispara onSuperCommentLedger (earning `supercomment`) Y lo muestra destacado en el chat.
 // El monto es FIJO = precio del tier, resuelto SERVER-SIDE contra la config del live
-// (nunca se confía en el precio del cliente). Modelo SOLO MÉXICO: el fan paga
-// (base + $3) + IVA; el creador recibe 75% de la base. Cada llamada = un súper comentario.
+// (nunca se confía en el precio del cliente). Modelo de intermediación, 147 países: el fan paga
+// (base + cargo fijo) + el impuesto del país; el creador recibe 75% de la base.
+// Cada llamada = un súper comentario.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { SETTLEMENT_CURRENCY, SUPER_COMMENT_MIN_PRICE_USD } from "../../wallet/ledger";
@@ -185,7 +186,7 @@ export const createSuperCommentStripeIntent = onCall(
     const savedPaymentMethodId = data.savedPaymentMethodId ? String(data.savedPaymentMethodId).trim() : null;
     const applyCredit = data.applyCredit === true; // aplicar saldo a favor (monto lo decide el server)
 
-    // Precio publicado = base + $3; IVA 16% encima (todo lo absorbe el fan).
+    // Precio publicado = base + cargo fijo; el impuesto del país encima (todo lo absorbe el fan).
     // País fiscal: lo decide el SERVIDOR. Dos señales que el cliente no controla:
     //   · la IP del request
     //   · el país EMISOR de la tarjeta, leído de Stripe con el `pm_...` que manda el
@@ -211,7 +212,7 @@ export const createSuperCommentStripeIntent = onCall(
     if (!isChargeableCountry(country)) {
       throw new HttpsError("failed-precondition", "El cobro no está disponible en tu país por ahora.");
     }
-    // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
+    // Composición completa (base + cargo fijo → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
     const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(

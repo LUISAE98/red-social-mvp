@@ -371,6 +371,23 @@ export type EntradaRetiro = {
   saldo: number;
   /** Cuánto quiere retirar. Si se omite, se retira todo. */
   solicitado?: number;
+  /**
+   * 🧾 IVA MEXICANO que el creador cobró en las ventas cuyo dinero sigue en el saldo.
+   *
+   * 🚨 SIN ESTO EL RETIRO SALE CORTO, y siempre por la misma cantidad. El saldo guarda solo
+   *    la participación del 75%; el IVA que el comprador pagó ENCIMA del precio se lleva
+   *    aparte. Pero `ivaPendiente` —lo retenido— es una porción de ese IVA, así que restarlo
+   *    de un saldo que nunca lo contuvo descuenta un dinero que jamás se sumó.
+   *
+   *    El 2026-08-30 esto le quitaba 15.25 USD de más a un retiro de 71.49 en cuanto el
+   *    comprador era mexicano — y se lo quitaba también al creador EXTRANJERO, a quien ese
+   *    IVA mexicano nunca le perteneció.
+   *
+   * ⚠️ NO es `taxCollected` de la wallet. Aquél suma el impuesto de TODOS los países y además
+   *    incluye la parte que grava el cargo fijo y el 2% de conversión, que son de Vibra.
+   *    Éste es solo el IVA mexicano de la venta del creador. Ver `mxVatCollected`.
+   */
+  ivaCobradoPendiente: number;
   /** Retenciones acumuladas y todavía no aplicadas a ningún retiro. */
   isrPendiente: number;
   ivaPendiente: number;
@@ -381,9 +398,18 @@ export type EntradaRetiro = {
 export type ResultadoRetiro = {
   /** Lo que se retira del saldo. */
   bruto: number;
+  /** IVA cobrado que entra al pago, de donde sale la retención. */
+  ivaCobrado: number;
   isr: number;
   iva: number;
   ivaComision: number;
+  /**
+   * IVA cobrado que NO se le retuvo y por tanto viaja dentro de `neto`.
+   *
+   * No es ganancia: es dinero del SAT que el creador declara por su cuenta. Se devuelve
+   * aparte para poder decírselo en la pantalla en vez de dejar que lo confunda con su pago.
+   */
+  ivaPorDeclarar: number;
   /** Lo que de verdad le llega. */
   neto: number;
   /** Qué proporción del saldo se está retirando. 1 = todo. */
@@ -398,6 +424,10 @@ export type ResultadoRetiro = {
  * dice la ley al pie de la letra —la retención ocurre cuando se paga, no cuando se vende— y
  * evita que el saldo baje sin explicación.
  *
+ * El pago NO es solo el saldo menos retenciones: al saldo se le SUMA el IVA que el creador
+ * cobró en esas ventas, porque ese dinero entró con el cobro y de él sale la retención.
+ * Restar la retención sin sumar el IVA descuenta algo que nunca se sumó. Ver `ivaCobradoPendiente`.
+ *
  * **Los retiros parciales consumen las retenciones EN PROPORCIÓN.** Aplicarlas todas al primer
  * retiro dejaría a quien saca 10 de un saldo de 1,000 pagando el impuesto de los mil; dejarlas
  * todas para el final le regalaría el primer retiro y le cobraría el último de golpe.
@@ -406,19 +436,35 @@ export function calcularRetiro(entrada: EntradaRetiro): ResultadoRetiro {
   const saldo = round2(entrada.saldo);
   const bruto = round2(Math.min(entrada.solicitado ?? saldo, saldo));
   if (!(saldo > 0) || !(bruto > 0)) {
-    return { bruto: 0, isr: 0, iva: 0, ivaComision: 0, neto: 0, proporcion: 0 };
+    return {
+      bruto: 0,
+      ivaCobrado: 0,
+      isr: 0,
+      iva: 0,
+      ivaComision: 0,
+      ivaPorDeclarar: 0,
+      neto: 0,
+      proporcion: 0,
+    };
   }
 
   const proporcion = bruto / saldo;
+  // El IVA cobrado se consume en la misma proporción que todo lo demás: viene de las
+  // mismas ventas y no tendría sentido entregarlo entero en un retiro parcial.
+  const ivaCobrado = round2(entrada.ivaCobradoPendiente * proporcion);
   const isr = round2(entrada.isrPendiente * proporcion);
   const iva = round2(entrada.ivaPendiente * proporcion);
   const ivaComision = round2(entrada.ivaComisionPendiente * proporcion);
 
   // El neto nunca puede ser negativo: si las retenciones se comieran el retiro, lo que
   // corresponde es no dejar retirar, no depositar en rojo.
-  const neto = round2(Math.max(0, bruto - isr - iva - ivaComision));
+  const neto = round2(Math.max(0, bruto + ivaCobrado - isr - iva - ivaComision));
 
-  return { bruto, isr, iva, ivaComision, neto, proporcion };
+  // Lo que del IVA cobrado no se retuvo y se va con él. Nunca negativo: si le retuvieron
+  // más de lo que cobró —imposible hoy, pero el redondeo existe— no hay nada que declarar.
+  const ivaPorDeclarar = round2(Math.max(0, ivaCobrado - iva));
+
+  return { bruto, ivaCobrado, isr, iva, ivaComision, ivaPorDeclarar, neto, proporcion };
 }
 
 /** ¿Corresponde emitir constancia de retenciones? Solo si hubo alguna retención mexicana. */

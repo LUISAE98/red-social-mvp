@@ -156,7 +156,7 @@ export default function CreatorExperiencesSection({
       return { hasPrice: false, numberPart: tServices("cardPriceToConfirm") };
     return {
       hasPrice: true,
-      // Precio PUBLICADO = (base del creador + cargo fijo $3) con IVA INCLUIDO (lo que
+      // Precio PUBLICADO = (base del creador + cargo fijo) con IVA INCLUIDO (lo que
       // ve/paga el comprador, todo-incluido). `.total` = base+impuesto según su país;
       // si no aplica impuesto, total == base (mismo formato que antes).
       numberPart: priceFmt.formatWithTax(price + FIXED_SERVICE_FEE_USD, { baseCurrency: currency, code: true }).total,

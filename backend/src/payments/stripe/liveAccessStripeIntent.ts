@@ -4,7 +4,8 @@
 // esta función crea el paymentIntents/{externalReference} con el payload pendingLiveAccess
 // y el PaymentIntent de Stripe. Al aprobar el pago, el webhook → reconcile materializa
 // liveAccess/{liveId}/users/{userId} con status "paid" → dispara onLiveAccessLedger.
-// Modelo SOLO MÉXICO: el comprador paga (base + $3) + IVA; el creador recibe 75% de la base.
+// Modelo de intermediación, 147 países: el comprador paga base + cargo fijo + el impuesto
+// de SU país; el creador recibe el 75% de la base.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { SETTLEMENT_CURRENCY, LIVE_TICKET_MIN_PRICE_USD } from "../../wallet/ledger";
@@ -105,7 +106,7 @@ export const createLiveAccessStripeIntent = onCall(
     const savedPaymentMethodId = data.savedPaymentMethodId ? String(data.savedPaymentMethodId).trim() : null;
     const applyCredit = data.applyCredit === true; // aplicar saldo a favor (monto lo decide el server)
 
-    // Precio publicado = base + $3 cargo fijo; IVA 16% encima (todo lo absorbe el comprador).
+    // Precio publicado = base + cargo fijo; el impuesto del país encima (todo lo absorbe el comprador).
     // País fiscal: lo decide el SERVIDOR. Dos señales que el cliente no controla:
     //   · la IP del request
     //   · el país EMISOR de la tarjeta, leído de Stripe con el `pm_...` que manda el
@@ -131,7 +132,7 @@ export const createLiveAccessStripeIntent = onCall(
     if (!isChargeableCountry(country)) {
       throw new HttpsError("failed-precondition", "El cobro no está disponible en tu país por ahora.");
     }
-    // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
+    // Composición completa (base + cargo fijo → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
     const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(

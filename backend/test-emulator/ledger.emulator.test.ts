@@ -7,6 +7,7 @@ import {
   reverseEarning,
   netFromGross,
 } from "../src/wallet/ledger";
+import { calcularRetiro } from "../src/tax/fiscalEngine";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Contabilidad del ledger contra el emulador de Firestore.
@@ -183,6 +184,152 @@ describe("settleEarning (pending -> earned)", () => {
   });
 });
 
+describe("IVA de la venta (lo que el comprador paga ENCIMA del precio)", () => {
+  it("una venta a comprador MEXICANO congela su IVA y lo acumula al resumen", async () => {
+    // 🚨 Regresión del 2026-08-30. El IVA que el comprador paga encima del precio no entra
+    //    al saldo —que guarda solo el 75%— pero SÍ es de donde sale la retención. Sin este
+    //    contador, el retiro restaba lo retenido de un saldo que nunca lo contuvo y salía
+    //    corto por el importe entero del IVA: 15.25 USD por cada 71.49 de saldo.
+    const creatorId = newCreator();
+    await recordEarning(creatorId, {
+      type: "live_ticket",
+      grossAmount: 100,
+      taxCountry: "MX",
+      sourceType: "liveAccess",
+      sourceId: "ivaMx",
+      earnedImmediately: true,
+    });
+
+    const entry = await readEntry(creatorId, "liveAccess", "ivaMx");
+    const ret = entry?.retenciones as Record<string, number> | undefined;
+    expect(ret?.mxVatVenta).toBe(16); // 16% de 100
+
+    const s = await readSummary(creatorId);
+    expect(s?.pendingMxVatCollected).toBe(16);
+    expect(s?.lifetimeMxVatCollected).toBe(16);
+
+    // Y el desglose del retiro tiene que dar EXACTAMENTE lo que el motor liquidó para
+    // esa venta. Es la invariante que faltaba: agregados del resumen contra asiento.
+    const r = calcularRetiro({
+      saldo: s!.lifetimeEarnedNet,
+      ivaCobradoPendiente: s!.pendingMxVatCollected,
+      isrPendiente: s!.pendingRetainedIsr,
+      ivaPendiente: s!.pendingRetainedIva,
+      ivaComisionPendiente: s!.pendingCommissionVat,
+    });
+    expect(r.neto).toBe(ret?.neto);
+  });
+
+  it("una venta a comprador EXTRANJERO no acumula IVA mexicano", async () => {
+    // Exportación a 0%: no hay IVA que cobrar ni que retener, y el desglose se queda en
+    // saldo menos retenciones, sin la línea de la suma.
+    const creatorId = newCreator();
+    await recordEarning(creatorId, {
+      type: "live_ticket",
+      grossAmount: 100,
+      taxCountry: "DE",
+      sourceType: "liveAccess",
+      sourceId: "ivaDe",
+      earnedImmediately: true,
+    });
+
+    const entry = await readEntry(creatorId, "liveAccess", "ivaDe");
+    const ret = entry?.retenciones as Record<string, number> | undefined;
+    expect(ret?.mxVatVenta).toBe(0);
+    expect(ret?.ivaRetenido).toBe(0);
+
+    const s = await readSummary(creatorId);
+    expect(s?.pendingMxVatCollected).toBe(0);
+  });
+
+  it("al reembolsar, el IVA de esa venta deja de contarse", async () => {
+    const creatorId = newCreator();
+    await recordEarning(creatorId, {
+      type: "live_ticket",
+      grossAmount: 100,
+      taxCountry: "MX",
+      sourceType: "liveAccess",
+      sourceId: "ivaRev",
+      earnedImmediately: true,
+    });
+    await reverseEarning(creatorId, "liveAccess", "ivaRev");
+
+    const s = await readSummary(creatorId);
+    expect(s?.pendingMxVatCollected).toBe(0);
+    expect(s?.lifetimeMxVatCollected).toBe(0);
+  });
+});
+describe("creador EXTRANJERO (la residencia sale de su perfil fiscal)", () => {
+  /**
+   * Da de alta un perfil fiscal antes de vender. Sin él, `perfilFiscalDe` asume mexicano y
+   * la mitad de los flujos de la plataforma quedaría sin probar de extremo a extremo — que
+   * es justo lo que pasaba hasta el 2026-08-30.
+   */
+  async function creadorExtranjero(pais = "DE"): Promise<string> {
+    const creatorId = newCreator();
+    await db.doc(`creatorTaxProfiles/${creatorId}`).set({
+      creatorId,
+      residency: "FOREIGN",
+      payoutAccountCountry: pais,
+    });
+    return creatorId;
+  }
+
+  it("vendiendo a un MEXICANO recibe su 75% ÍNTEGRO", async () => {
+    // 🚨 El caso que más feo se veía: el IVA mexicano lo pagó el comprador por encima del
+    //    precio y se retiene al 100%, así que entra y sale por el mismo importe. Al creador
+    //    alemán no le toca nada de él — ni a favor ni en contra.
+    const creatorId = await creadorExtranjero();
+    await recordEarning(creatorId, {
+      type: "live_ticket",
+      grossAmount: 100,
+      taxCountry: "MX",
+      sourceType: "liveAccess",
+      sourceId: "extMx",
+      earnedImmediately: true,
+    });
+
+    const entry = await readEntry(creatorId, "liveAccess", "extMx");
+    const ret = entry?.retenciones as Record<string, number | string> | undefined;
+    expect(ret?.residency).toBe("FOREIGN");
+    expect(ret?.isrRetenido).toBe(0); // servicio prestado fuera, sin fuente en México
+    expect(ret?.ivaComision).toBe(0); // exportación de mediación al 0%
+    expect(ret?.mxVatVenta).toBe(16);
+    expect(ret?.ivaRetenido).toBe(16); // se le retiene el 100%
+    expect(ret?.neto).toBe(75);
+
+    const s = await readSummary(creatorId);
+    const r = calcularRetiro({
+      saldo: s!.lifetimeEarnedNet,
+      ivaCobradoPendiente: s!.pendingMxVatCollected,
+      isrPendiente: s!.pendingRetainedIsr,
+      ivaPendiente: s!.pendingRetainedIva,
+      ivaComisionPendiente: s!.pendingCommissionVat,
+    });
+    expect(r.neto).toBe(75);
+    expect(r.ivaPorDeclarar).toBe(0); // nada que declare él: se retuvo todo
+  });
+
+  it("vendiendo a otro EXTRANJERO no se le toca nada", async () => {
+    const creatorId = await creadorExtranjero();
+    await recordEarning(creatorId, {
+      type: "live_ticket",
+      grossAmount: 100,
+      taxCountry: "DE",
+      sourceType: "liveAccess",
+      sourceId: "extDe",
+      earnedImmediately: true,
+    });
+
+    const entry = await readEntry(creatorId, "liveAccess", "extDe");
+    const ret = entry?.retenciones as Record<string, number> | undefined;
+    expect(ret?.isrRetenido).toBe(0);
+    expect(ret?.ivaRetenido).toBe(0);
+    expect(ret?.ivaComision).toBe(0);
+    expect(ret?.mxVatVenta).toBe(0);
+    expect(ret?.neto).toBe(75);
+  });
+});
 describe("reverseEarning (reembolsos / rechazos)", () => {
   it("earned -> refunded: resta del lifetime y suma a refunded", async () => {
     const creatorId = newCreator();

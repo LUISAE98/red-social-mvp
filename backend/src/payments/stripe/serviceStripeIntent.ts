@@ -83,7 +83,7 @@ export const createServiceStripeIntent = onCall(
         `El precio mínimo de esta experiencia es ${minServicio} ${SETTLEMENT_CURRENCY}.`
       );
     }
-    // Precio publicado = base del creador + cargo fijo $3 (lo absorbe el comprador).
+    // Precio publicado = base del creador + cargo fijo (lo absorbe el comprador).
     // País fiscal: lo decide el SERVIDOR. Dos señales que el cliente no controla:
     //   · la IP del request
     //   · el país EMISOR de la tarjeta, leído de Stripe con el `pm_...` que manda el
@@ -109,7 +109,7 @@ export const createServiceStripeIntent = onCall(
     if (!isChargeableCountry(country)) {
       throw new HttpsError("failed-precondition", "El cobro no está disponible en tu país por ahora.");
     }
-    // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
+    // Composición completa (base + cargo fijo → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
     const { charge, quote: fxQuote, displayAmount } = await applyCharmRounding(

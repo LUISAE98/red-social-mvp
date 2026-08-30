@@ -167,6 +167,9 @@ function fechaDe(x: FirebaseFirestore.DocumentData): Date | null {
             isrRetenido: liq.isrRetenido,
             ivaRate: liq.ivaRate,
             ivaRetenido: liq.ivaRetenido,
+            // El IVA mexicano de la venta. Sin él, el retiro no puede sumar de vuelta lo
+            // que el comprador pagó encima del precio y sale corto. Ver `calcularRetiro`.
+            mxVatVenta: ventaFiscal.mxVatAmount,
             neto: liq.neto,
             ejercicio: liq.ejercicio,
             motorVersion: liq.motorVersion,

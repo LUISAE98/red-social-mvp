@@ -13,8 +13,14 @@
 // creador. El creador recibe siempre sobre la base, sin importar el país del comprador.
 // Fundamento y matriz completa: docs/legal/fiscal-iva-isr-plataforma.md
 //
-// ⚠️ LANZAMIENTO — SOLO MÉXICO: únicamente MX está configurado (IVA 16%, MXN). Un país SIN
-//    fila aquí = SIN impuesto y NO cobrable todavía.
+// ✅ ESTADO REAL (act. 2026-08-26): los **147 países de la tabla son cobrables**, no solo
+//    México. Un país SIN fila aquí = SIN impuesto y NO cobrable.
+//
+//    ⚠️ El comentario anterior decía «SOLO MÉXICO» y llevaba engañando desde las altas del
+//    13 de agosto. Ojo al leer código que asuma un solo país o una sola moneda: esa
+//    suposición ya no vale. El espejo del backend lo corrigió antes; éste se quedó atrás,
+//    que es exactamente lo que pasa cuando un comentario repite un dato en vez de
+//    apuntar a su fuente.
 //
 // Regla de aplicación (Art. 18-C LIVA): el impuesto lo determina DÓNDE ESTÁ EL COMPRADOR al
 // comprar, no su nacionalidad. Ver lib/tax/useBuyerCountry.ts para la señal (por IP).

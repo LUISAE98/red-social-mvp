@@ -253,6 +253,8 @@ export default function GroupPostComposer({
     groupVisibility,
     viewerIsOwner: isOwner,
     initialPremium: editPost?.premium,
+    // Respaldo del precio: hay posts que lo tienen solo aquí y no en `premium.price`.
+    initialOneTimePrice: editPost?.oneTimePrice ?? null,
   });
 
   function handleOpenComposerOverlay() {

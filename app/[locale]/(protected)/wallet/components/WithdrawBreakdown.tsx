@@ -15,11 +15,27 @@ import { useTranslations } from "next-intl";
 export type DesgloseRetiro = {
   /** Saldo del que se parte, el 75% íntegro del creador. */
   bruto: string;
+  /**
+   * 🧾 IVA mexicano que sus compradores pagaron ENCIMA del precio, y que entra al pago.
+   *
+   * Suma, no resta. Ese dinero llegó con el cobro y de él sale la retención de la línea de
+   * abajo, así que enseñar la resta sin la suma descuenta algo que nunca se sumó.
+   */
+  ivaCobrado: string;
   isr: string;
   iva: string;
   ivaComision: string;
   /** Lo que efectivamente recibe. */
   neto: string;
+  /**
+   * Del IVA cobrado, la parte que NO se le retuvo y viaja dentro de `neto`. Nulo si no hay.
+   *
+   * Se dice aparte porque no es suyo: lo declara él. Callarlo haría que creyera que ganó de
+   * más y que se gastara un dinero que le debe al SAT.
+   */
+  ivaPorDeclarar: string | null;
+  /** Si hubo IVA mexicano en sus ventas. Falso ⇒ la línea de la suma ni aparece. */
+  hayIvaCobrado: boolean;
   /**
    * Si hay algo que retener. Falso para los creadores de los otros 88 países, cuyo ISR
    * mexicano es cero: para ellos el desglose es una sola línea y las tres restas sobrarían.
@@ -74,6 +90,12 @@ export default function WithdrawBreakdown({
     >
       <Row k={t("withdrawRowBalance")} v={desglose.bruto} />
 
+      {/* 🧾 La suma del IVA cobrado. Va ANTES de las restas porque es lo que entra, y su
+          ausencia era el bug: se restaba la retención de un saldo que nunca lo contuvo. */}
+      {desglose.hayIvaCobrado ? (
+        <Row k={t("withdrawRowVatCollected")} v={`+ ${desglose.ivaCobrado}`} />
+      ) : null}
+
       {desglose.hayRetenciones ? (
         <>
           <Row k={t("withdrawRowIsr")} v={`− ${desglose.isr}`} />
@@ -96,6 +118,21 @@ export default function WithdrawBreakdown({
         <span style={{ color: "rgba(255,255,255,0.85)" }}>{t("withdrawRowNet")}</span>
         <span style={{ color: "#4ade80" }}>{desglose.neto}</span>
       </div>
+
+      {/* Del pago, lo que no es suyo. Va pegado al total y no en la nota de abajo, porque
+          es la advertencia que evita que se gaste un dinero que le debe al SAT. */}
+      {desglose.ivaPorDeclarar && (
+        <p
+          style={{
+            fontSize: 11.5,
+            color: "rgba(255,255,255,0.5)",
+            lineHeight: 1.5,
+            margin: 0,
+          }}
+        >
+          {t("withdrawVatToDeclare", { amount: desglose.ivaPorDeclarar })}
+        </p>
+      )}
 
       {desglose.hayRetenciones && (
         <p

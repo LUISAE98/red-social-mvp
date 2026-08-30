@@ -12,6 +12,12 @@ import {
 } from "../../backend/src/facturacion/creatorMonthlyDocs";
 import { agruparGlobal } from "../../backend/src/facturacion/globalInvoice";
 import { armarComprobante } from "../../backend/src/facturacion/comprobanteLiquidacion";
+import { resolveSettlement, calcularRetiro } from "../../backend/src/tax/fiscalEngine";
+
+/** Mismo redondeo que el motor, para comparar totales sin arrastrar flotantes. */
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
 
 /** Asiento de venta mexicana: base 100, IVA 16, con retenciones ya congeladas. */
 const ventaMx = {
@@ -22,6 +28,7 @@ const ventaMx = {
     ivaComision: 4,
     isrRetenido: 2.5,
     ivaRetenido: 8,
+    mxVatVenta: 16,
     residency: "MX" as const,
   },
 };
@@ -35,6 +42,7 @@ const ventaExtranjero = {
     ivaComision: 0,
     isrRetenido: 0,
     ivaRetenido: 16,
+    mxVatVenta: 16,
     residency: "FOREIGN" as const,
   },
 };
@@ -186,17 +194,36 @@ describe("comprobante de liquidación", () => {
     expect(c.currency).toBe("USD");
   });
 
-  it("descuenta retenciones cuando las hay", () => {
-    const conRetencion = acumularMes("c1", "2026-08", [
-      {
-        status: "earned",
-        grossAmount: 100,
-        retenciones: { comision: 25, ivaComision: 4, isrRetenido: 2.5, ivaRetenido: 8, residency: "MX" as const },
-      },
-    ]);
+  it("suma el IVA cobrado y descuenta las retenciones", () => {
+    const conRetencion = acumularMes("c1", "2026-08", [ventaMx]);
     const c = armarComprobante(conRetencion, "USD", "2026-09-05T09:00:00Z");
     expect(c.participacion).toBe(75);
-    expect(c.neto).toBe(60.5);
+    expect(c.mxVatVenta).toBe(16);
+    expect(c.neto).toBe(76.5); // 75 + 16 − 4 − 2.5 − 8
+  });
+
+  it("🚨 el comprobante del mes CUADRA con la liquidación de cada venta", () => {
+    // El comprobante y el retiro tienen que decir lo MISMO, porque son el mismo dinero.
+    // Hasta el 2026-08-30 los dos omitían el IVA cobrado y daban 16 de menos por venta;
+    // se arreglaron a la vez y este test impide que uno se quede atrás del otro.
+    const porVenta = resolveSettlement({
+      base: 100,
+      mxVatAmount: 16,
+      creador: { residency: "MX", hasTaxId: true, payoutAccountCountry: "MX" },
+    });
+    const mes = acumularMes("c1", "2026-08", [ventaMx, ventaMx, ventaMx]);
+    const c = armarComprobante(mes, "USD", "2026-09-05T09:00:00Z");
+    expect(c.neto).toBe(round2(porVenta.neto * 3));
+
+    // Y el retiro de ese mismo mes, por la vía de los contadores del resumen.
+    const retiro = calcularRetiro({
+      saldo: mes.base - mes.comision,
+      ivaCobradoPendiente: mes.mxVatVenta,
+      isrPendiente: mes.isrRetenido,
+      ivaPendiente: mes.ivaRetenido,
+      ivaComisionPendiente: mes.ivaComision,
+    });
+    expect(retiro.neto).toBe(c.neto);
   });
 
   it("el neto nunca es negativo", () => {
@@ -204,7 +231,7 @@ describe("comprobante de liquidación", () => {
       {
         status: "earned",
         grossAmount: 10,
-        retenciones: { comision: 2.5, ivaComision: 0, isrRetenido: 50, ivaRetenido: 0, residency: "MX" as const },
+        retenciones: { comision: 2.5, ivaComision: 0, isrRetenido: 50, ivaRetenido: 0, mxVatVenta: 0, residency: "MX" as const },
       },
     ]);
     expect(armarComprobante(imposible, "USD", "x").neto).toBe(0);

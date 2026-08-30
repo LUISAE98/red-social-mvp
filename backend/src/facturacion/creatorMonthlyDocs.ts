@@ -49,6 +49,14 @@ export type AcumuladoMensual = {
   ivaComision: number;
   isrRetenido: number;
   ivaRetenido: number;
+  /**
+   * 🧾 IVA mexicano que el creador cobró a sus compradores en el mes.
+   *
+   * 🚨 ENTRA AL NETO DEL COMPROBANTE. Ese dinero llegó con el cobro, por encima del precio,
+   *    y de él sale `ivaRetenido`. Restar la retención sin sumar el IVA daría un neto menor
+   *    que el depositado — el mismo descuadre que tenía el retiro hasta el 2026-08-30.
+   */
+  mxVatVenta: number;
   /** Residencia con la que se calcularon. Decide qué documentos tocan. */
   residency: "MX" | "FOREIGN";
 };
@@ -63,6 +71,7 @@ type AsientoConRetenciones = {
     ivaComision?: number;
     isrRetenido?: number;
     ivaRetenido?: number;
+    mxVatVenta?: number;
     residency?: "MX" | "FOREIGN";
   };
 };
@@ -104,6 +113,7 @@ export function acumularMes(
     ivaComision: 0,
     isrRetenido: 0,
     ivaRetenido: 0,
+    mxVatVenta: 0,
     residency: "MX",
   };
 
@@ -117,6 +127,7 @@ export function acumularMes(
     acc.ivaComision = round2(acc.ivaComision + (r.ivaComision ?? 0));
     acc.isrRetenido = round2(acc.isrRetenido + (r.isrRetenido ?? 0));
     acc.ivaRetenido = round2(acc.ivaRetenido + (r.ivaRetenido ?? 0));
+    acc.mxVatVenta = round2(acc.mxVatVenta + (r.mxVatVenta ?? 0));
     // La residencia viene congelada en el asiento. Si un creador cambió de residencia a mitad
     // de mes, manda la de la última venta: el mes se documenta con una sola.
     if (r.residency) acc.residency = r.residency;

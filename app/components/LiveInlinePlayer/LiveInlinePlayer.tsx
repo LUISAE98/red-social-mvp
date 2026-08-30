@@ -137,7 +137,7 @@ export default function LiveInlinePlayer({
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
   const pf = usePriceFormat();
-  // Monto mostrado de una donación = total que pagó el fan (base + $3 + IVA) en MXN.
+  // Monto mostrado de una donación = total que pagó el fan (base + cargo fijo + impuesto del país) en MXN.
   // `baseCurrency:"MXN"` evita el bug ×FX (tratar el MXN como USD → 1095).
   const fanPaidTotal = (baseMxn: number) =>
     pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total;

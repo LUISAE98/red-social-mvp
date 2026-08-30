@@ -3,7 +3,8 @@
 // webhook). Convive temporalmente con el motor legacy de MP (groupSubscription.ts) hasta
 // su teardown; cuando se borre MP, este núcleo permanece.
 //
-// Regla de dinero (unificada 2026-08-05): el suscriptor paga (base + $3) × IVA cada mes;
+// Regla de dinero (unificada 2026-08-05): el suscriptor paga base + cargo fijo, más el
+// impuesto de su país, cada mes;
 // el creador recibe 75% de la base. `base` = precio mensual que fija el creador.
 
 import { HttpsError } from "firebase-functions/v2/https";
@@ -324,15 +325,15 @@ export async function reserveInviteSlot(
 
 export type MonthlyCharge = {
   base: number; // base mensual del creador (ganancia = 75% de esto)
-  fixedFee: number; // $3 fijo que absorbe el comprador
-  published: number; // base + $3
+  fixedFee: number; // cargo fijo que absorbe el comprador (FIXED_SERVICE_FEE_USD)
+  published: number; // base + cargo fijo
   taxCountry: string | null;
   taxRate: number;
-  taxMonthly: number; // IVA sobre (base + $3)
+  taxMonthly: number; // IVA sobre (base + cargo fijo)
   chargedMonthly: number; // total que paga el comprador cada mes
 };
 
-/** Cobro mensual = (base + $3) × IVA. Igual que los otros servicios. */
+/** Cobro mensual = (base + cargo fijo) × impuesto del país. Igual que los otros servicios. */
 export function computeMonthlyCharge(base: number, country: string): MonthlyCharge {
   const published = round2(base + FIXED_SERVICE_FEE_USD);
   const tax = applyConsumptionTax(published, country);

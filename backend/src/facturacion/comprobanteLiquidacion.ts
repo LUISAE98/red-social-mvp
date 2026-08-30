@@ -39,6 +39,13 @@ export type ComprobanteLiquidacion = {
   ivaComision: number;
   isrRetenido: number;
   ivaRetenido: number;
+  /**
+   * 🧾 IVA mexicano cobrado a sus compradores. SUMA al neto, no resta.
+   *
+   * Es dinero que entró por encima del precio y del que sale `ivaRetenido`. Sin esta línea
+   * el comprobante diría un neto menor que el depósito y su contador no podría cuadrarlo.
+   */
+  mxVatVenta: number;
   /** Lo que le corresponde recibir. */
   neto: number;
   /** Texto listo para mostrar, en el idioma del creador lo traduce la interfaz. */
@@ -57,8 +64,16 @@ export function armarComprobante(
   emitidoEn: string
 ): ComprobanteLiquidacion {
   const participacion = round2(acc.base - acc.comision);
+  /**
+   * 🚨 EL IVA COBRADO SUMA. Es la misma fórmula que `resolveSettlement` y `calcularRetiro`,
+   *    y tiene que serlo: si el comprobante dijera otra cosa que el depósito, el creador
+   *    tendría dos cifras distintas del mismo dinero y ninguna le serviría para declarar.
+   */
   const neto = round2(
-    Math.max(0, participacion - acc.ivaComision - acc.isrRetenido - acc.ivaRetenido)
+    Math.max(
+      0,
+      participacion + acc.mxVatVenta - acc.ivaComision - acc.isrRetenido - acc.ivaRetenido
+    )
   );
   return {
     creatorId: acc.creatorId,
@@ -71,6 +86,7 @@ export function armarComprobante(
     ivaComision: acc.ivaComision,
     isrRetenido: acc.isrRetenido,
     ivaRetenido: acc.ivaRetenido,
+    mxVatVenta: acc.mxVatVenta,
     neto,
     emitidoEn,
   };

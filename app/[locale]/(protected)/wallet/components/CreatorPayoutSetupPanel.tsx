@@ -17,21 +17,22 @@
 //
 // El tercer paso son dos cosas por dentro —datos fiscales primero, sello después— porque el
 // proveedor valida el sello contra el RFC declarado y lo rechaza si no está antes.
+//
+// Presentación: primitivo canónico `Modal` (= VibraResponsivePanel, vibra_style.md). En
+// celular es la PESTAÑA deslizable desde abajo, con arrastre para cerrar; en laptop el panel
+// centrado. Antes esto era un portal a mano con sus propios keyframes y su desmontado
+// diferido, y en celular salía como panel centrado igual que en escritorio.
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
-import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useCreatorTaxProfile } from "@/lib/facturacion/creatorFiscal";
 import {
   createPayoutAccountLink,
   refreshPayoutAccountStatus,
   createPayoutAccountQuestionnaire,
 } from "@/lib/wallet/payoutAccount";
-import { IconButton, TextButton } from "@/components/ui";
-
-const DIVIDER = "1px solid rgba(255,255,255,0.08)";
+import { Modal, TextButton } from "@/components/ui";
 
 type Props = {
   open: boolean;
@@ -90,29 +91,11 @@ export default function CreatorPayoutSetupPanel({
     loading,
   } = useCreatorTaxProfile(user?.uid);
 
-  // Desmontado diferido para animar la salida (vibra_style.md).
-  const [rendered, setRendered] = useState(open);
-  const [closing, setClosing] = useState(false);
-  useBodyScrollLock(rendered);
-
+  // El ciclo de vida de la animación, el backdrop, el bloqueo de scroll y el gesto de
+  // arrastre los resuelve el primitivo `Modal`.
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refrescando, setRefrescando] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setRendered(true);
-      setClosing(false);
-      return;
-    }
-    if (!rendered) return;
-    setClosing(true);
-    const t = setTimeout(() => {
-      setRendered(false);
-      setClosing(false);
-    }, 180);
-    return () => clearTimeout(t);
-  }, [open, rendered]);
 
   // Al volver del formulario, releer la cuenta una vez.
   useEffect(() => {
@@ -178,7 +161,6 @@ export default function CreatorPayoutSetupPanel({
     }
   }
 
-  if (!rendered || typeof document === "undefined") return null;
 
   /**
    * ¿Cobra por Wallbit?
@@ -197,309 +179,228 @@ export default function CreatorPayoutSetupPanel({
   const cobroEnRevision = stripeAccountStatus === "pending";
   const cobroRestringido = stripeAccountStatus === "restricted";
 
-  return createPortal(
-    <div
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !guardando) onClose();
+  return (
+    <Modal
+      open={open}
+      /* Mientras guarda no se cierra: hay una llamada en vuelo —abrir el formulario de
+         Stripe, o el cuestionario— y cerrar dejaría al creador sin saber si ocurrió. */
+      onClose={() => {
+        if (!guardando) onClose();
       }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 999999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-        background: "rgba(0,0,0,0.88)",
-        animation: closing
-          ? "vbPayoutSetupBackdropOut 180ms ease-in forwards"
-          : "vbPayoutSetupBackdropIn 180ms ease-out",
-      }}
+      title={t("payoutSetupTitle")}
+      closeAriaLabel={t("payoutSetupClose")}
+      contentPadding="20px 20px calc(20px + var(--vb-safe-bottom, 0px))"
     >
-      <style>{`
-        @keyframes vbPayoutSetupIn{from{opacity:0;transform:scale(0.94) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
-        @keyframes vbPayoutSetupOut{from{opacity:1;transform:scale(1) translateY(0)}to{opacity:0;transform:scale(0.94) translateY(10px)}}
-        @keyframes vbPayoutSetupBackdropIn{from{background:rgba(0,0,0,0)}to{background:rgba(0,0,0,0.88)}}
-        @keyframes vbPayoutSetupBackdropOut{from{background:rgba(0,0,0,0.88)}to{background:rgba(0,0,0,0)}}
-      `}</style>
-
-      <section
-        style={{
-          width: "min(100%, 520px)",
-          maxHeight: "min(88vh, 660px)",
-          display: "flex",
-          flexDirection: "column",
-          borderRadius: 18,
-          background: "#0a0a0a",
-          boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
-          color: "#fff",
-          overflow: "hidden",
-          animation: closing
-            ? "vbPayoutSetupOut 180ms ease-in forwards"
-            : "vbPayoutSetupIn 180ms ease-out",
-        }}
-      >
-        <div
-          style={{
-            height: 56,
-            display: "grid",
-            gridTemplateColumns: "48px 1fr 48px",
-            alignItems: "center",
-            padding: "0 12px",
-            borderBottom: DIVIDER,
-            flexShrink: 0,
-          }}
-        >
-          <div aria-hidden="true" />
-          <span
-            style={{
-              fontSize: 17,
-              fontWeight: 500,
-              textAlign: "center",
-              letterSpacing: "-0.02em",
-            }}
-          >
-            {t("payoutSetupTitle")}
-          </span>
-          <IconButton
-            label={t("payoutSetupClose")}
-            size="sm"
-            tone="bare"
-            shape="square"
-            style={{ placeItems: "center", justifySelf: "end" }}
-            onClick={() => {
-              if (!guardando) onClose();
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </IconButton>
+      {loading ? (
+        <div style={{ display: "grid", gap: 10 }}>
+          <Esqueleto alto={64} />
+          <Esqueleto alto={64} />
+          <Esqueleto alto={64} />
         </div>
+      ) : (
+        /* 18 y no 14: sin caja que los delimite, el hueco es lo único que separa un
+           paso del siguiente. */
+        <div style={{ display: "grid", gap: 18 }}>
+          {/* 1. IDENTIDAD — el KYC de Didit. Es de todos, mexicanos y extranjeros, y va
+              primero: sin saber quién es alguien no tiene sentido pedirle datos fiscales
+              ni de cobro.
 
-        <div style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "20px" }}>
-          {loading ? (
-            <div style={{ display: "grid", gap: 10 }}>
-              <Esqueleto alto={64} />
-              <Esqueleto alto={64} />
-              <Esqueleto alto={64} />
-            </div>
-          ) : (
-            <div style={{ display: "grid", gap: 14 }}>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.55, margin: 0 }}>
-                {esMexicano ? t("payoutSetupIntroMx") : t("payoutSetupIntroForeign")}
-              </p>
-
-              {/* 1. IDENTIDAD — el KYC de Didit. Es de todos, mexicanos y extranjeros, y va
-                  primero: sin saber quién es alguien no tiene sentido pedirle datos fiscales
-                  ni de cobro.
-
-                  Además es una de las dos señales que deciden si aparece el tercer paso, el
-                  país del DOCUMENTO con el que se verificó. Ver `esMexicano` en
-                  `useCreatorTaxProfile`. */}
-              <Paso
-                numero={1}
-                estado={pasoIdentidad}
-                titulo={t("payoutSetupStepIdentity")}
-                descripcion={t("payoutSetupStepIdentityHint")}
-                accion={t("payoutSetupStepIdentityCta")}
-                onAccion={
-                  pasoIdentidad === "listo" || kycBloqueado
-                    ? undefined
-                    : () => {
-                        onClose();
-                        onIniciarKyc();
-                      }
-                }
-              />
-
-              {/* 2. CUENTA DE COBRO — dos caminos según su país.
-
-                  **Stripe Global Payouts** para los 77 países donde llega. El creador sale a
-                  un formulario alojado por Stripe y vuelve a Finanzas con `?alta=ok`. Los
-                  datos bancarios NUNCA pasan por aquí, y de ahí sale el PAÍS DE LA CUENTA,
-                  que es dato fiscal por partida doble: a un creador mexicano, cobrar fuera de
-                  México le sube la retención de IVA del 50% al 100%
-                  (`fiscal-iva-isr-plataforma.md` §0.6), y además decide su comisión y su
-                  mínimo (`docs/payout-tiers.md`).
-
-                  **Wallbit** para los 12 donde Stripe no llega o solo llega por wire. Ahí no
-                  hay alta de Stripe que hacer —mandarlo a ese formulario sería mandarlo a que
-                  le rechacen el país—, así que su cuestionario ES su registro de cobro. */}
-              <Paso
-                numero={2}
-                estado={cuentaDeclarada ? "listo" : "pendiente"}
-                titulo={t(porWallbit ? "payoutSetupStepWallbit" : "payoutSetupStepDeclare")}
-                descripcion={t(
-                  porWallbit ? "payoutSetupStepWallbitHint" : "payoutSetupStepDeclareHint"
-                )}
-                accion={
-                  guardando
-                    ? t("payoutSetupStepPayoutOpening")
-                    : t(porWallbit ? "payoutSetupStepWallbitCta" : "payoutSetupStepDeclareCta")
-                }
-                onAccion={guardando ? undefined : abrirCuestionarioDeCuenta}
-              />
-
-              {/* 3. REGISTRAR LA CUENTA EN STRIPE — solo la ruta de Stripe.
-
-                  Va DESPUÉS de declararla, y el orden importa: si declarase al final se
-                  limitaría a copiar lo que acaba de escribir y la declaración no probaría
-                  nada. Declarando antes se compromete sin saber todavía si va a cuadrar, y
-                  ahí la comparación empieza a significar algo.
-
-                  Se enseña bloqueado hasta que declare, para que el orden se entienda solo. */}
-              {!porWallbit && (
-                <Paso
-                  numero={3}
-                  estado={pasoCobro}
-                  titulo={t("payoutSetupStepPayout")}
-                  descripcion={
-                    cobroEnRevision
-                      ? t("payoutSetupStepPayoutReviewing")
-                      : t("payoutSetupStepPayoutHint")
-                  }
-                  accion={
-                    guardando || refrescando
-                      ? t("payoutSetupStepPayoutOpening")
-                      : cobroEnRevision || cobroRestringido
-                        ? t("payoutSetupStepPayoutResume")
-                        : t("payoutSetupStepPayoutCta")
-                  }
-                  onAccion={
-                    // Sin declarar antes, no se abre: es lo que impone el orden.
-                    !cuentaDeclarada || guardando || refrescando ? undefined : abrirAltaDeCobro
-                  }
-                />
-              )}
-
-              {!porWallbit && cobroRestringido && (
-                <Aviso tono="alerta" texto={t("payoutSetupPayoutRestricted")} />
-              )}
-
-              {/* 🔴 Declaró una cuenta y en Stripe metió otra.
-
-                  Puede ser un error de tecleo o algo peor. En cualquier caso el creador tiene
-                  que resolverlo antes de cobrar, y alguien de Vibra ya lo tiene en los logs. */}
-              {cuentaNoCoincide && (
-                <Aviso tono="alerta" texto={t("payoutSetupAccountMismatch")} />
-              )}
-
-              {/* ⚠️ Cobra en dólares pero no puede pasarlos a su banco.
-
-                  Chile, Uruguay, Paraguay y Honduras. Su única salida documentada es cripto,
-                  y eso hay que decírselo AQUÍ, antes de que acumule, no el día que quiera
-                  sacar el dinero. Se entra igual porque la alternativa era no pagarles. */}
-              {payoutTerms?.soloDolares && (
-                <Aviso tono="aviso" texto={t("payoutSetupWallbitUsdOnly")} />
-              )}
-
-              {/* 🔴 Su país vende pero no cobra.
-
-                  Se le dice aquí, en el alta, y no el día que pulse retirar: tiene derecho a
-                  decidir si le compensa seguir acumulando, y esa decisión no se toma cuando
-                  ya lo hizo. */}
-              {payoutCountryUnpayable && (
-                <Aviso tono="alerta" texto={t("payoutNoRouteWarning")} />
-              )}
-
-              {/* 💰 Su comisión y su mínimo, con el MOTIVO.
-
-                  Al del grupo caro hay que explicarle por qué le toca 30% y 500, o lo lee
-                  como un castigo arbitrario. No lo es: la transferencia a su país cuesta 25
-                  USD por envío frente a 1.50 en los demás, y a 300 se le comería el 8%.
-
-                  Solo aparece cuando ya tiene cuenta: antes no se sabe su país. */}
-              {payoutTerms && (
-                <div
-                  style={{
-                    padding: "11px 14px",
-                    borderRadius: 12,
-                    background: "rgba(168,85,247,0.09)",
-                    border: "1px solid rgba(168,85,247,0.28)",
-                    color: "#d8b4fe",
-                    fontSize: 12.5,
-                    lineHeight: 1.55,
-                  }}
-                >
-                  {t(
-                    payoutTerms.tier === "expensive"
-                      ? "payoutTermsExpensive"
-                      : "payoutTermsStandard",
-                    {
-                      pct: Math.round(payoutTerms.commissionRate * 100),
-                      min: payoutTerms.minWithdrawalUsd,
-                    }
-                  )}
-                </div>
-              )}
-
-              {/* 3. DATOS FISCALES Y SELLO — solo si alguna de las dos señales dice México.
-
-                  No se pregunta, se deduce: el país del documento del KYC o el de la cuenta
-                  bancaria. Un creador extranjero no emite CFDI, así que no hay sello que
-                  pedirle y este paso ni se le enseña. */}
-              {esMexicano && (
-                <Paso
-                  numero={4}
-                  estado={pasoSello}
-                  titulo={t("payoutSetupStepSeal")}
-                  descripcion={t("payoutSetupStepSealHint")}
-                  accion={csdReady ? t("payoutSetupStepSealReplace") : t("payoutSetupStepSealCta")}
-                  onAccion={() => {
+              Además es una de las dos señales que deciden si aparece el tercer paso, el
+              país del DOCUMENTO con el que se verificó. Ver `esMexicano` en
+              `useCreatorTaxProfile`. */}
+          <Paso
+            numero={1}
+            estado={pasoIdentidad}
+            titulo={t("payoutSetupStepIdentity")}
+            descripcion={t("payoutSetupStepIdentityHint")}
+            hecho={t("payoutSetupStepIdentityDone")}
+            accion={t("payoutSetupStepIdentityCta")}
+            onAccion={
+              pasoIdentidad === "listo" || kycBloqueado
+                ? undefined
+                : () => {
                     onClose();
-                    onOpenSello();
-                  }}
-                />
-              )}
+                    onIniciarKyc();
+                  }
+            }
+          />
 
-              {csdVencido && (
-                <Aviso tono="alerta" texto={t("payoutSetupSealExpired")} />
-              )}
+          {/* 2. CUENTA DE COBRO — dos caminos según su país.
 
-              {cobraFueraDeMexico && (
-                <Aviso tono="aviso" texto={t("payoutSetupForeignAccountWarning")} />
-              )}
+              **Stripe Global Payouts** para los 77 países donde llega. El creador sale a
+              un formulario alojado por Stripe y vuelve a Finanzas con `?alta=ok`. Los
+              datos bancarios NUNCA pasan por aquí, y de ahí sale el PAÍS DE LA CUENTA,
+              que es dato fiscal por partida doble: a un creador mexicano, cobrar fuera de
+              México le sube la retención de IVA del 50% al 100%
+              (`fiscal-iva-isr-plataforma.md` §0.6), y además decide su comisión y su
+              mínimo (`docs/payout-tiers.md`).
 
-              <div
-                style={{
-                  marginTop: 4,
-                  padding: "12px 14px",
-                  borderRadius: 12,
-                  background: "rgba(255,255,255,0.05)",
-                  border: DIVIDER,
-                  fontSize: 12.5,
-                  color: "rgba(255,255,255,0.7)",
-                  lineHeight: 1.55,
-                }}
-              >
-                {esMexicano ? t("payoutSetupGateMx") : t("payoutSetupGateForeign")}
-              </div>
+              **Wallbit** para los 12 donde Stripe no llega o solo llega por wire. Ahí no
+              hay alta de Stripe que hacer —mandarlo a ese formulario sería mandarlo a que
+              le rechacen el país—, así que su cuestionario ES su registro de cobro. */}
+          <Paso
+            numero={2}
+            estado={cuentaDeclarada ? "listo" : "pendiente"}
+            titulo={t(porWallbit ? "payoutSetupStepWallbit" : "payoutSetupStepDeclare")}
+            descripcion={t(
+              porWallbit ? "payoutSetupStepWallbitHint" : "payoutSetupStepDeclareHint"
+            )}
+            hecho={t(
+              porWallbit ? "payoutSetupStepWallbitDone" : "payoutSetupStepDeclareDone"
+            )}
+            accion={
+              guardando
+                ? t("payoutSetupStepPayoutOpening")
+                : t(porWallbit ? "payoutSetupStepWallbitCta" : "payoutSetupStepDeclareCta")
+            }
+            onAccion={guardando ? undefined : abrirCuestionarioDeCuenta}
+          />
+
+          {/* 3. REGISTRAR LA CUENTA EN STRIPE — solo la ruta de Stripe.
+
+              Va DESPUÉS de declararla, y el orden importa: si declarase al final se
+              limitaría a copiar lo que acaba de escribir y la declaración no probaría
+              nada. Declarando antes se compromete sin saber todavía si va a cuadrar, y
+              ahí la comparación empieza a significar algo.
+
+              Se enseña bloqueado hasta que declare, para que el orden se entienda solo. */}
+          {!porWallbit && (
+            <Paso
+              numero={3}
+              estado={pasoCobro}
+              titulo={t("payoutSetupStepPayout")}
+              descripcion={
+                cobroEnRevision
+                  ? t("payoutSetupStepPayoutReviewing")
+                  : t("payoutSetupStepPayoutHint")
+              }
+              hecho={t("payoutSetupStepPayoutDone")}
+              accion={
+                guardando || refrescando
+                  ? t("payoutSetupStepPayoutOpening")
+                  : cobroEnRevision || cobroRestringido
+                    ? t("payoutSetupStepPayoutResume")
+                    : t("payoutSetupStepPayoutCta")
+              }
+              onAccion={
+                // Sin declarar antes, no se abre: es lo que impone el orden.
+                !cuentaDeclarada || guardando || refrescando ? undefined : abrirAltaDeCobro
+              }
+            />
+          )}
+
+          {!porWallbit && cobroRestringido && (
+            <Aviso tono="alerta" texto={t("payoutSetupPayoutRestricted")} />
+          )}
+
+          {/* 🔴 Declaró una cuenta y en Stripe metió otra.
+
+              Puede ser un error de tecleo o algo peor. En cualquier caso el creador tiene
+              que resolverlo antes de cobrar, y alguien de Vibra ya lo tiene en los logs. */}
+          {cuentaNoCoincide && (
+            <Aviso tono="alerta" texto={t("payoutSetupAccountMismatch")} />
+          )}
+
+          {/* ⚠️ Cobra en dólares pero no puede pasarlos a su banco.
+
+              Chile, Uruguay, Paraguay y Honduras. Su única salida documentada es cripto,
+              y eso hay que decírselo AQUÍ, antes de que acumule, no el día que quiera
+              sacar el dinero. Se entra igual porque la alternativa era no pagarles. */}
+          {payoutTerms?.soloDolares && (
+            <Aviso tono="aviso" texto={t("payoutSetupWallbitUsdOnly")} />
+          )}
+
+          {/* 🔴 Su país vende pero no cobra.
+
+              Se le dice aquí, en el alta, y no el día que pulse retirar: tiene derecho a
+              decidir si le compensa seguir acumulando, y esa decisión no se toma cuando
+              ya lo hizo. */}
+          {payoutCountryUnpayable && (
+            <Aviso tono="alerta" texto={t("payoutNoRouteWarning")} />
+          )}
+
+          {/* 💰 Su comisión y su mínimo, con el MOTIVO.
+
+              Al del grupo caro hay que explicarle por qué le toca 30% y 500, o lo lee
+              como un castigo arbitrario. No lo es: la transferencia a su país cuesta 25
+              USD por envío frente a 1.50 en los demás, y a 300 se le comería el 8%.
+
+              Solo aparece cuando ya tiene cuenta: antes no se sabe su país. */}
+          {payoutTerms?.tier === "expensive" && (
+            <div
+              style={{
+                padding: "11px 14px",
+                borderRadius: 12,
+                /* Sin contorno y sin morado: el panel entero va en gris. */
+                background: "rgba(255,255,255,0.05)",
+                color: "rgba(255,255,255,0.7)",
+                fontSize: 12.5,
+                lineHeight: 1.55,
+              }}
+            >
+              {t("payoutTermsExpensive", {
+                pct: Math.round(payoutTerms.commissionRate * 100),
+                min: payoutTerms.minWithdrawalUsd,
+              })}
             </div>
           )}
 
-          {error && (
-            <p style={{ fontSize: 12.5, color: "#f87171", marginTop: 14, marginBottom: 0 }}>{error}</p>
+          {/* 3. DATOS FISCALES Y SELLO — solo si alguna de las dos señales dice México.
+
+              No se pregunta, se deduce: el país del documento del KYC o el de la cuenta
+              bancaria. Un creador extranjero no emite CFDI, así que no hay sello que
+              pedirle y este paso ni se le enseña. */}
+          {esMexicano && (
+            <Paso
+              numero={4}
+              estado={pasoSello}
+              titulo={t("payoutSetupStepSeal")}
+              descripcion={t("payoutSetupStepSealHint")}
+              hecho={t("payoutSetupStepSealDone")}
+              accion={csdReady ? t("payoutSetupStepSealReplace") : t("payoutSetupStepSealCta")}
+              onAccion={() => {
+                onClose();
+                onOpenSello();
+              }}
+            />
+          )}
+
+          {csdVencido && (
+            <Aviso tono="alerta" texto={t("payoutSetupSealExpired")} />
+          )}
+
+          {cobraFueraDeMexico && (
+            <Aviso tono="aviso" texto={t("payoutSetupForeignAccountWarning")} />
           )}
         </div>
-      </section>
-    </div>,
-    document.body
+      )}
+
+      {error && (
+        <p style={{ fontSize: 12.5, color: "#f87171", marginTop: 14, marginBottom: 0 }}>{error}</p>
+      )}
+    </Modal>
   );
 }
 
 /** Aviso corto dentro del panel. `alerta` bloquea algo; `aviso` solo advierte. */
 function Aviso({ tono, texto }: { tono: "alerta" | "aviso"; texto: string }) {
+  /**
+   * ⚠️ Sin contorno y sin color, por decisión de Luis (2026-08-30): el panel entero va en
+   *    gris. El tono sigue existiendo en el tipo y solo mueve el brillo del texto, para que
+   *    una alerta se lea algo más fuerte que un aviso sin volver a pintar el panel.
+   *
+   *    El precio de esto está aceptado y conviene tenerlo presente: un KYC rechazado ya no
+   *    salta a la vista, se lee como una nota más. Si algún día un creador se queda
+   *    atascado sin enterarse de por qué, empieza por aquí.
+   */
   const rojo = tono === "alerta";
   return (
     <div
       style={{
         padding: "11px 14px",
         borderRadius: 12,
-        background: rojo ? "rgba(248,113,113,0.09)" : "rgba(234,179,8,0.09)",
-        border: rojo ? "1px solid rgba(248,113,113,0.28)" : "1px solid rgba(234,179,8,0.28)",
-        color: rojo ? "#fca5a5" : "#eab308",
+        background: "rgba(255,255,255,0.05)",
+        color: rojo ? "rgba(255,255,255,0.82)" : "rgba(255,255,255,0.7)",
         fontSize: 12.5,
         lineHeight: 1.55,
       }}
@@ -526,6 +427,7 @@ function Paso({
   estado,
   titulo,
   descripcion,
+  hecho,
   accion,
   onAccion,
 }: {
@@ -533,6 +435,13 @@ function Paso({
   estado: EstadoPaso;
   titulo: string;
   descripcion: string;
+  /**
+   * Qué quedó resuelto, en verde, cuando el paso está listo.
+   *
+   * Es lo único que distingue un paso hecho de uno pendiente desde que la caja y la
+   * palomita se fueron, así que un paso sin esto se ve idéntico a uno sin empezar.
+   */
+  hecho?: string;
   accion: string;
   onAccion?: () => void;
 }) {
@@ -540,38 +449,34 @@ function Paso({
   return (
     <div
       style={{
-        border: listo ? "1px solid rgba(34,197,94,0.35)" : DIVIDER,
-        background: listo ? "rgba(34,197,94,0.07)" : "rgba(255,255,255,0.04)",
-        borderRadius: 14,
-        padding: "14px 16px",
+        /* Sin caja: ni fondo, ni contorno, ni relleno (decisión de Luis, 2026-08-30).
+           El texto flota y lo único que separa un paso del siguiente es el hueco de la
+           rejilla de arriba. Lo que dice que un paso está hecho es la línea verde de
+           abajo, que sustituyó al fondo y a la palomita. */
         display: "grid",
-        gridTemplateColumns: "26px minmax(0, 1fr)",
+        gridTemplateColumns: "30px minmax(0, 1fr)",
         gap: "0 12px",
-        alignItems: "start",
+        /* El número va centrado contra el alto del paso, no pegado arriba. Manda el
+           bloque de texto, que es el alto; el número se alinea a su centro. */
+        alignItems: "center",
       }}
     >
+      {/* El número, suelto: ni círculo, ni fondo, ni palomita al completarse.
+
+          Siempre en blanco y siempre el número, hecho o no. Quien dice si está hecho es la
+          línea verde de abajo. */}
       <div
         aria-hidden="true"
         style={{
-          width: 26,
-          height: 26,
-          borderRadius: "50%",
           display: "grid",
           placeItems: "center",
-          background: listo ? "#16a34a" : "rgba(255,255,255,0.1)",
-          color: listo ? "#fff" : "rgba(255,255,255,0.65)",
-          fontSize: 12.5,
+          color: "#fff",
+          fontSize: 26,
           fontWeight: 700,
-          marginTop: 1,
+          lineHeight: 1,
         }}
       >
-        {listo ? (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        ) : (
-          numero
-        )}
+        {numero}
       </div>
 
       <div style={{ display: "grid", gap: 5, minWidth: 0 }}>
@@ -579,6 +484,25 @@ function Paso({
         <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.62)", lineHeight: 1.5 }}>
           {descripcion}
         </span>
+        {/* Hecho: la confirmación en verde, en el hueco que deja el botón.
+
+            Sustituye a la palomita y al fondo verde que llevaba la caja. Cada paso trae la
+            suya —«Identidad verificada», «Cuenta confirmada»— porque un «Listo» genérico
+            repetido tres veces no le dice al creador QUÉ quedó resuelto. */}
+        {listo && hecho && (
+          <span
+            style={{
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: "#22c55e",
+              lineHeight: 1.5,
+              marginTop: 1,
+            }}
+          >
+            {hecho}
+          </span>
+        )}
+
         {!listo && (
           <TextButton
             tone="brand"

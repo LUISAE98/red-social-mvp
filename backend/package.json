@@ -5,6 +5,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:emulator:run": "vitest run --config vitest.emulator.config.ts",
+    "typecheck:tests": "tsc -p tsconfig.test.json",
     "build": "node ../scripts/sync-shared.js && tsc",
     "build:watch": "node ../scripts/sync-shared.js && tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",

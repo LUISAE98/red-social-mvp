@@ -6,7 +6,8 @@
 // confirmarla. La MEMBRESÍA y el doc `groupSubscriptions` los crea el webhook al aprobarse
 // el primer cobro (`invoice.paid`) — así, si el usuario abandona el pago, no queda ningún
 // comprobante que la regla permisiva pudiera aprovechar. El earning se registra por CADA
-// factura pagada (webhook), no aquí. Precio server-authoritative: (base + $3) × IVA/mes.
+// factura pagada (webhook), no aquí. Precio server-authoritative: base + cargo fijo, más el
+// impuesto del país, al mes.
 //
 // Solo México por ahora (MXN). Modelo agregador: todo cae en la cuenta Stripe de Vibra;
 // el reparto por creador vive en el ledger interno.

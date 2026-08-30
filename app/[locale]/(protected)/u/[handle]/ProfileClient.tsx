@@ -898,7 +898,7 @@ function getServicePriceLabel(type: CreatorServiceType) {
   const currency = service?.currency ?? SETTLEMENT_CURRENCY;
 
   if (typeof price !== "number") return tServices("priceToConfirm");
-  // Total todo-incluido (base del creador + cargo fijo $3 + IVA): es lo que el botón
+  // Total todo-incluido (base del creador + cargo fijo + impuesto del país): es lo que el botón
   // "Continuar al pago" del panel de solicitud debe mostrar.
   return formatMoneyWithTax(price + FIXED_SERVICE_FEE_USD, currency);
 }
@@ -3013,7 +3013,7 @@ const res = (await createExclusiveSessionRequest({
     const s = getProfileService(greetType);
     const price = s?.publicPrice ?? s?.memberPrice ?? null;
     const currency = s?.currency ?? SETTLEMENT_CURRENCY;
-    // Total todo-incluido (base + cargo fijo $3 + IVA) para el botón "Continuar al pago".
+    // Total todo-incluido (base + cargo fijo + impuesto del país) para el botón "Continuar al pago".
     return typeof price === "number" ? formatMoneyWithTax(price + FIXED_SERVICE_FEE_USD, currency) : undefined;
   })()}
   meetGreetOpen={meetGreetOpen}

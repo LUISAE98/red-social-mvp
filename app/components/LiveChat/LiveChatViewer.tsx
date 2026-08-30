@@ -84,7 +84,7 @@ export default function LiveChatViewer({
   const locale = useLocale();
   const pf = usePriceFormat();
   // El monto guardado (`amount`) es la BASE del creador en MXN. Lo que se MUESTRA es el
-  // total que pagó el fan (base + $3 + IVA), que es lo que donó/pagó — igual que ve el
+  // total que pagó el fan (base + cargo fijo + impuesto del país), que es lo que donó/pagó — igual que ve el
   // comprador. `baseCurrency:"MXN"` evita que se trate el MXN como USD (bug ×FX → 1095).
   const paidTotal = (baseMxn: number) =>
     pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY, code: true }).total;

@@ -806,7 +806,7 @@ export function JoinButton({
   onClick: () => void;
   loading: boolean;
   isPaidSubscriptionPrivate: boolean;
-  /** Precio mensual TODO-INCLUIDO (base + $3 + IVA) ya formateado; null si no se conoce. */
+  /** Precio mensual TODO-INCLUIDO (base + cargo fijo + impuesto del país) ya formateado; null si no se conoce. */
   subscribePriceLabel?: string | null;
 }) {
   const tGroups = useTranslations("groups");

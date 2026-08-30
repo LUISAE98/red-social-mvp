@@ -492,17 +492,17 @@ export { stripeWebhook } from "./payments/stripe/stripeWebhook";
 export { createGreetingStripeIntent } from "./payments/stripe/greetingStripeIntent";
 // Callable genérico Stripe (sesión exclusiva, tiempo contigo, …).
 export { createServiceStripeIntent } from "./payments/stripe/serviceStripeIntent";
-// Donación a perfil con Stripe (monto dinámico + $3 + IVA).
+// Donación a perfil con Stripe (monto dinámico + cargo fijo + impuesto del país).
 export { createDonationStripeIntent } from "./payments/stripe/donationStripeIntent";
-// Ticket de en vivo con Stripe (acceso pagado a la transmisión; base + $3 + IVA).
+// Ticket de en vivo con Stripe (acceso pagado a la transmisión; base + cargo fijo + impuesto del país).
 export { createLiveAccessStripeIntent } from "./payments/stripe/liveAccessStripeIntent";
-// Desbloqueo de post premium / VOD premium con Stripe (mismo camino postAccess; base + $3 + IVA).
+// Desbloqueo de post premium / VOD premium con Stripe (mismo camino postAccess; base + cargo fijo + impuesto).
 export { createPremiumPostStripeIntent } from "./payments/stripe/premiumPostStripeIntent";
-// Donación en un en vivo con Stripe (monto dinámico + $3 + IVA; materializa super-comentario).
+// Donación en un en vivo con Stripe (monto dinámico + cargo fijo + impuesto; materializa super-comentario).
 export { createLiveDonationStripeIntent } from "./payments/stripe/liveDonationStripeIntent";
-// Súper comentario en un en vivo con Stripe (precio fijo del tier + $3 + IVA; con texto).
+// Súper comentario en un en vivo con Stripe (precio fijo del tier + cargo fijo + impuesto del país; con texto).
 export { createSuperCommentStripeIntent } from "./payments/stripe/superCommentStripeIntent";
-// Suscripción MENSUAL a comunidad con Stripe (Subscriptions nativas; (base + $3) × IVA/mes).
+// Suscripción MENSUAL a comunidad con Stripe (Subscriptions nativas; base + cargo fijo + impuesto, al mes).
 export { createGroupSubscription, cancelGroupSubscriptionStripe } from "./payments/stripe/groupSubscriptionStripe";
 
 // Alta de cobro del creador (Stripe Global Payouts). El creador es DESTINATARIO, no una

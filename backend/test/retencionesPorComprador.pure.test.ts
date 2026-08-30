@@ -121,8 +121,9 @@ describe("el desglose del retiro suma casos distintos", () => {
     const aMexicano = venta("MX");
     const aAleman = venta("DE");
 
-    // El creador ve 150 de saldo (75 + 75) pero sus retenciones NO son proporcionales:
-    // el IVA salió solo de la primera venta.
+    // El creador ve 150 de saldo (75 + 75) pero ni el IVA cobrado ni sus retenciones son
+    // proporcionales: los dos salieron solo de la primera venta.
+    const ivaCobradoPendiente = 16; // el IVA de la venta mexicana; la alemana va a 0%
     const isrPendiente = aMexicano.isrRetenido + aAleman.isrRetenido; // 5
     const ivaPendiente = aMexicano.ivaRetenido + aAleman.ivaRetenido; // 8, no 16
     const ivaComisionPendiente = aMexicano.ivaComision + aAleman.ivaComision; // 8
@@ -131,31 +132,39 @@ describe("el desglose del retiro suma casos distintos", () => {
 
     const retiro = calcularRetiro({
       saldo: 150,
+      ivaCobradoPendiente,
       isrPendiente,
       ivaPendiente,
       ivaComisionPendiente,
     });
 
     expect(retiro.bruto).toBe(150);
-    expect(retiro.neto).toBe(round2(150 - 5 - 8 - 8)); // 129
+    // 🚨 Contra la suma de las DOS liquidaciones, no contra una resta escrita a mano. Es la
+    //    invariante que faltaba: el retiro tiene que dar lo mismo que las ventas que lo
+    //    formaron. Escrita como resta, este test daba 129 por bueno — que era el bug.
+    expect(retiro.neto).toBe(round2(aMexicano.neto + aAleman.neto)); // 76.50 + 68.50
+    expect(retiro.neto).toBe(145);
   });
 
   it("un retiro parcial descuenta la parte proporcional", () => {
     const r = calcularRetiro({
       saldo: 150,
       solicitado: 75,
+      ivaCobradoPendiente: 16,
       isrPendiente: 5,
       ivaPendiente: 8,
       ivaComisionPendiente: 8,
     });
     expect(r.proporcion).toBe(0.5);
     expect(r.isr).toBe(2.5);
+    expect(r.ivaCobrado).toBe(8); // el IVA también se consume en proporción
   });
 
   it("el neto nunca queda en negativo", () => {
     // Si las retenciones se comieran el retiro, lo que corresponde es no depositar en rojo.
     const r = calcularRetiro({
       saldo: 10,
+      ivaCobradoPendiente: 0,
       isrPendiente: 50,
       ivaPendiente: 50,
       ivaComisionPendiente: 50,

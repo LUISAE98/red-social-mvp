@@ -4,7 +4,8 @@
 // paymentIntents/{externalReference} con el payload pendingPostAccess y el PaymentIntent de
 // Stripe. Al aprobar el pago, el webhook → reconcile materializa postAccess/{buyerId}_{postId}
 // en estado "active" → dispara onPostAccessLedger (clasifica premium_post vs vod_ticket por
-// post.liveData) y onPremiumUnlockCount. Modelo SOLO MÉXICO: el comprador paga (base + $3) + IVA;
+// post.liveData) y onPremiumUnlockCount. Modelo de intermediación, 147 países: el
+// comprador paga base + cargo fijo + el impuesto de SU país;
 // el creador recibe 75% de la base. Cubre POST premium y VOD premium (mismo camino postAccess).
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -141,7 +142,7 @@ export const createPremiumPostStripeIntent = onCall(
     if (!isChargeableCountry(country)) {
       throw new HttpsError("failed-precondition", "El cobro no está disponible en tu país por ahora.");
     }
-    // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
+    // Composición completa (base + cargo fijo → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
     // El VOD y el post premium se cobran igual pero son servicios distintos ante el SAT:

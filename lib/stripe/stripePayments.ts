@@ -57,7 +57,7 @@ export async function createServiceStripeIntent(input: {
   return res.data;
 }
 
-/** Crea el PaymentIntent de una DONACIÓN a perfil (monto dinámico + $3 + IVA, MXN). */
+/** Crea el PaymentIntent de una DONACIÓN a perfil (monto dinámico + cargo fijo + impuesto del país). */
 export async function createDonationStripeIntent(input: {
   creatorId: string;
   amount: number;
@@ -80,7 +80,7 @@ export async function createDonationStripeIntent(input: {
   return res.data;
 }
 
-/** Crea el PaymentIntent del TICKET de un en vivo (acceso pagado; base + $3 + IVA, MXN). */
+/** Crea el PaymentIntent del TICKET de un en vivo (acceso pagado; base + cargo fijo + impuesto del país). */
 export async function createLiveAccessStripeIntent(input: {
   postId: string;
   saveCard: boolean;
@@ -93,7 +93,7 @@ export async function createLiveAccessStripeIntent(input: {
   return res.data;
 }
 
-/** Crea el PaymentIntent del desbloqueo de un POST premium / VOD (base + $3 + IVA, MXN). */
+/** Crea el PaymentIntent del desbloqueo de un POST premium / VOD (base + cargo fijo + impuesto del país). */
 export async function createPremiumPostStripeIntent(input: {
   postId: string;
   saveCard: boolean;
@@ -106,7 +106,7 @@ export async function createPremiumPostStripeIntent(input: {
   return res.data;
 }
 
-/** Crea el PaymentIntent de una DONACIÓN en un en vivo (monto dinámico base + $3 + IVA, MXN). */
+/** Crea el PaymentIntent de una DONACIÓN en un en vivo (monto dinámico base + cargo fijo + impuesto del país). */
 export async function createLiveDonationStripeIntent(input: {
   postId: string;
   amount: number;
@@ -128,7 +128,7 @@ export async function createLiveDonationStripeIntent(input: {
 }
 
 /**
- * Crea el PaymentIntent de un SÚPER COMENTARIO (precio fijo del tier + $3 + IVA, MXN; con texto).
+ * Crea el PaymentIntent de un SÚPER COMENTARIO (precio fijo del tier + cargo fijo + impuesto del país; con texto).
  * Si se pasa `savedPaymentMethodId`, el cobro es "un clic" off-session (sin CVV): se confirma
  * server-side y `status` indica el resultado ("succeeded" = cobrado). Sin él, devuelve
  * `clientSecret` para confirmar la tarjeta nueva con Elements.
@@ -150,7 +150,8 @@ export async function createSuperCommentStripeIntent(input: {
 }
 
 /**
- * Crea la SUSCRIPCIÓN MENSUAL a una comunidad (Stripe Subscriptions nativas; (base+$3)×IVA/mes).
+ * Crea la SUSCRIPCIÓN MENSUAL a una comunidad (Stripe Subscriptions nativas;
+ * base + cargo fijo + impuesto, al mes).
  * Devuelve el `clientSecret` de la 1ª factura para confirmar (tarjeta nueva), o `status`
  * ("succeeded"/"requires_action") si se cobró una tarjeta guardada off-session. La membresía
  * la concede el webhook al aprobarse el cobro. `inviteToken` es obligatorio en comunidades ocultas.

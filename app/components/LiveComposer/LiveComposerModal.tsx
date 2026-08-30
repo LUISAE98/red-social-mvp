@@ -538,7 +538,7 @@ export default function LiveComposerModal({
   };
 
   // Precio del ticket (MXN base). Mismo sistema que experiencias/premium:
-  // mínimo en rojo, cuánto ganas (75%), leyenda del $3 — todos con colapso suave.
+  // mínimo en rojo, cuánto ganas (75%), leyenda del cargo fijo — todos con colapso suave.
   const ticketPriceNum = parseFloat(ticketPrice.replace(",", "."));
   const ticketHasValidPrice =
     ticketPrice.trim() !== "" && Number.isFinite(ticketPriceNum) && ticketPriceNum > 0;

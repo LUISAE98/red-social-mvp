@@ -9,7 +9,12 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
-import { SUBSCRIPTION_MIN_PRICE_USD, FIXED_SERVICE_FEE_LABEL, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import {
+  SUBSCRIPTION_MIN_PRICE_USD,
+  FIXED_SERVICE_FEE_LABEL,
+  FIXED_SERVICE_FEE_NOTE,
+  SETTLEMENT_CURRENCY,
+} from "@/lib/currency/catalog";
 
 // Color de acento del servicio de suscripción: azul celeste. Tiñe todos sus iconos
 // (info de la descripción, aviso de comunidad pública e items informativos).
@@ -834,9 +839,14 @@ function handleModify() {
               liquidación; esto solo lo ayuda a ubicarse. */}
           <LocalPriceHint value={Number(overlayDraft.subscription.price)} showEarnings />
           </div>
-          {/* Leyenda fija del cargo de Stripe (mismo patrón que las demás experiencias). */}
+          {/* Leyenda del cargo fijo, DERIVADA de la constante como en las otras ocho
+              experiencias.
+
+              ⚠️ Este panel se quedó fuera cuando se creó `FIXED_SERVICE_FEE_NOTE`, y siguió
+              con el texto a mano: decía «$3 MXN» mientras el sistema sumaba 0.40 USD. El
+              creador fijaba su precio de suscripción creyendo una cosa y publicaba otra. */}
           <div style={{ ...subtleStyle, opacity: 0.7, fontSize: 11, marginTop: 3 }}>
-            A la suscripción se le suman $3 MXN por el cargo de procesamiento de Stripe.
+            {FIXED_SERVICE_FEE_NOTE}
           </div>
         </div>
         </>

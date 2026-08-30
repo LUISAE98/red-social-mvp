@@ -3,7 +3,8 @@
 // Pagar-luego-crear con monto DINÁMICO (lo elige el donador). Cada llamada crea un
 // paymentIntent nuevo (se puede donar varias veces). Al aprobar el pago, el webhook →
 // reconcile materializa profileDonations/{donationId} → onProfileDonationLedger registra
-// la ganancia (75% del monto base). Modelo SOLO MÉXICO: el donador paga (base + $3) + IVA;
+// la ganancia (75% del monto base). Modelo de intermediación, 147 países: el donador
+// paga base + cargo fijo + el impuesto de SU país;
 // el creador recibe 75% de la base.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -94,7 +95,7 @@ export const createDonationStripeIntent = onCall(
     if (!isChargeableCountry(country)) {
       throw new HttpsError("failed-precondition", "El cobro no está disponible en tu país por ahora.");
     }
-    // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
+    // Composición completa (base + cargo fijo → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     // El total se deja en un precio comercial (.99/.00) en la moneda del comprador y el
     // desglose se despeja hacia atrás desde ahí. Ver tax/presentment.applyCharmRounding.
     // 💵 Si el comprador TECLEÓ un total, ese es el que paga: no se redondea al escalón.

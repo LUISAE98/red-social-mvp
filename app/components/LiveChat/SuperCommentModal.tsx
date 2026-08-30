@@ -68,7 +68,7 @@ export default function SuperCommentModal({
   const tLive = useTranslations("live");
   const tCommon = useTranslations("common");
   const pf = usePriceFormat();
-  // Precio TODO-INCLUIDO que ve el fan (base del creador + $3 + IVA), en MXN.
+  // Precio TODO-INCLUIDO que ve el fan (base del creador + cargo fijo + impuesto del país), en MXN.
   const tierTotal = (base: number) => pf.formatWithTax(base + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total;
 
   const [mounted, setMounted] = useState(false);

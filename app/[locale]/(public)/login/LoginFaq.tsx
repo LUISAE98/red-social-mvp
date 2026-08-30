@@ -4,6 +4,11 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientText";
 import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
+import {
+  BUYABLE_COUNTRIES,
+  PAYABLE_COUNTRIES,
+  useCountryNameList,
+} from "@/lib/i18n/countryNames";
 import { useInView } from "./useInView";
 
 /**
@@ -21,8 +26,16 @@ import { useInView } from "./useInView";
 
 
 
-/** Las nueve preguntas viven en `messages` como faq1Q…faq9A. */
-const NUMEROS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
+/**
+ * Las preguntas viven en `messages` como faq1Q…faq10A, y este array manda el ORDEN.
+ *
+ * ⚠️ El 10 va en medio a propósito. Es la pregunta de dónde se cobra, y su sitio natural es
+ * justo detrás de la 4, que es la de dónde se compra. Renumerar para dejarlo secuencial
+ * habría obligado a renombrar faq5→faq6 … faq9→faq10 en los 47 archivos de idioma, moviendo
+ * de paso el placeholder de la comisión de faq7A a faq8A. Desacoplar el orden de pantalla
+ * del número de la clave cuesta este comentario y no cuesta 47 archivos reescritos.
+ */
+const NUMEROS = [1, 2, 3, 4, 10, 5, 6, 7, 8, 9] as const;
 
 export default function LoginFaq() {
   // La comisión que le toca a quien está leyendo, según su país. Ver `LoginCreatorPanel`.
@@ -32,11 +45,29 @@ export default function LoginFaq() {
   const [abierta, setAbierta] = useState<number | null>(null);
   const [seccionRef, dentro] = useInView<HTMLElement>(0.12);
 
-  // Pregunta y respuesta de cada número. La única que lleva dato es la de la
-  // comisión, que lo toma de la constante del ledger.
+  // Las dos listas de países, en el idioma de quien lee. Llegan como `null` hasta
+  // que hidrata; ver `useCountryNameList`.
+  const paisesCompra = useCountryNameList(BUYABLE_COUNTRIES);
+  const paisesCobro = useCountryNameList(PAYABLE_COUNTRIES);
+
+  /**
+   * Pregunta, respuesta y —en dos de ellas— su lista de países.
+   *
+   * ⚠️ El CONTEO también va como placeholder, no escrito en la traducción. Antes la 4 decía
+   * "más de 150 países" y eran 147; un número a mano en 47 archivos es falso desde la
+   * siguiente alta. Sale de la misma constante que la lista, así que no pueden discrepar.
+   */
   const preguntas = NUMEROS.map((n) => ({
     p: t(`faq${n}Q`),
-    r: n === 7 ? t("faq7A", { commission: COMISION_PCT }) : t(`faq${n}A`),
+    r:
+      n === 7
+        ? t("faq7A", { commission: COMISION_PCT })
+        : n === 4
+          ? t("faq4A", { count: BUYABLE_COUNTRIES.length })
+          : n === 10
+            ? t("faq10A", { count: PAYABLE_COUNTRIES.length })
+            : t(`faq${n}A`),
+    lista: n === 4 ? paisesCompra : n === 10 ? paisesCobro : null,
   }));
 
   return (
@@ -193,6 +224,41 @@ export default function LoginFaq() {
           line-height: 1.7;
           color: rgba(255, 255, 255, 0.68);
         }
+        /* Cuando debajo va una lista, la respuesta se pega a ella en vez de
+           dejar el hueco que separa de la siguiente pregunta. */
+        .aConLista {
+          padding-bottom: 10px;
+        }
+
+        /* Las dos listas de países.
+
+           Son casi dos mil caracteres, unos quince renglones, y este acordeón
+           existe justo para que la respuesta abierta no empuje la siguiente
+           pregunta fuera de la pantalla. Por eso van acotadas en una caja con su
+           propio scroll, en vez de sueltas dentro de la respuesta.
+
+           Sin columnas a propósito, aunque se leerían mejor: multi-columna y una
+           altura tope no conviven. Al llenarse la altura el texto no desborda
+           hacia abajo, sigue creando columnas hacia los lados, y lo que acabas
+           teniendo es scroll horizontal.
+
+           Y sin difuminar el borde de abajo, que es el recurso habitual para
+           insinuar que hay más: aquí taparía a medias el último nombre, y ese
+           nombre es un país que alguien está buscando. El fondo y la barra ya lo
+           cuentan sin esconder nada. */
+        .lista {
+          margin: 0 4px 20px;
+          padding: 10px 12px;
+          max-height: 190px;
+          overflow-y: auto;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.035);
+          font-size: 12px;
+          line-height: 1.75;
+          color: rgba(255, 255, 255, 0.5);
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+        }
 
         @media (max-width: 900px) {
           /* De lado a lado con un margen mínimo. El margen negativo recupera el
@@ -267,7 +333,8 @@ export default function LoginFaq() {
 
             <div className={`panel${open ? " panelOpen" : ""}`}>
               <div className="panelInner">
-                <p className="a">{item.r}</p>
+                <p className={`a${item.lista ? " aConLista" : ""}`}>{item.r}</p>
+                {item.lista && <p className="lista">{item.lista}</p>}
               </div>
             </div>
           </div>

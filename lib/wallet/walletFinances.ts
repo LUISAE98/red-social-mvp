@@ -46,6 +46,17 @@ export type WalletSummary = {
    * Solo transparencia; no forma parte de las ganancias ni del saldo retirable.
    */
   taxCollected: number;
+  /**
+   * 🧾 IVA MEXICANO de las ventas cuyo dinero sigue en el saldo.
+   *
+   * ⚠️ Distinto de `taxCollected`, que está justo arriba. Aquél es de por vida, suma el
+   * impuesto de todos los países e incluye la parte que grava el cargo fijo y el 2% de
+   * conversión, que son de Vibra. Éste es solo el IVA mexicano de la venta del creador.
+   *
+   * 🚨 Y a diferencia de aquél, **éste SÍ entra al retiro**: es el dinero del que sale la
+   * retención. Ver `calcularRetiro`.
+   */
+  mxVatCollected: number;
 };
 
 export const EMPTY_WALLET_SUMMARY: WalletSummary = {
@@ -61,6 +72,7 @@ export const EMPTY_WALLET_SUMMARY: WalletSummary = {
   rejectedGross: 0,
   rejectedNet: 0,
   taxCollected: 0,
+  mxVatCollected: 0,
   retainedIsr: 0,
   retainedIva: 0,
   commissionVat: 0,
@@ -93,6 +105,9 @@ function normalizeSummary(data: Record<string, unknown>): WalletSummary {
     //
     // Con respaldo a las de por vida para los resúmenes anteriores al 2026-08-29, que aún no
     // tienen los campos nuevos. Para un creador que nunca ha retirado, las dos coinciden.
+    // 🚨 La PENDIENTE, igual que las retenciones: la de por vida incluiría el IVA de ventas
+    // ya retiradas y se le pagaría dos veces.
+    mxVatCollected: toNumber(data.pendingMxVatCollected),
     retainedIsr: toNumber(data.pendingRetainedIsr ?? data.lifetimeRetainedIsr),
     retainedIva: toNumber(data.pendingRetainedIva ?? data.lifetimeRetainedIva),
     commissionVat: toNumber(data.pendingCommissionVat ?? data.lifetimeCommissionVat),

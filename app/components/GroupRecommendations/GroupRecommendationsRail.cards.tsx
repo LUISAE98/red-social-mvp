@@ -293,7 +293,7 @@ export function GroupCard({
   const subscriptionPrice = isPaidSubscriptionPrivate
     ? resolveSubscriptionPrice(group)
     : null;
-  // Precio TODO-INCLUIDO para el botón: (base + $3) + IVA.
+  // Precio TODO-INCLUIDO para el botón: (base + cargo fijo) + impuesto del país.
   const subscribeButtonPrice =
     subscriptionPrice != null
       ? pf.formatWithTax(subscriptionPrice + FIXED_SERVICE_FEE_USD, { baseCurrency: SETTLEMENT_CURRENCY }).total

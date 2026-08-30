@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   getPremiumCapabilities,
@@ -9,7 +8,6 @@ import {
   type PremiumCapabilities,
   type PremiumValidationResult,
 } from "@/lib/posts/premium";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type {
   GroupVisibility,
   PostContextType,
@@ -22,6 +20,13 @@ type UseComposerPremiumParams = {
   groupVisibility?: GroupVisibility | null;
   viewerIsOwner?: boolean;
   initialPremium?: PostPremium | null;
+  /**
+   * Respaldo del precio cuando el post lo tiene solo en `oneTimePrice`.
+   *
+   * Es el campo que de verdad cobra Stripe (`oneTimePrice ?? premium.price`), así que es el
+   * más fiable de los dos para enseñárselo al creador.
+   */
+  initialOneTimePrice?: number | null;
 };
 
 type SetPremiumEnabledOptions = {
@@ -62,31 +67,43 @@ export function useComposerPremium({
   groupVisibility = null,
   viewerIsOwner = false,
   initialPremium,
+  initialOneTimePrice,
 }: UseComposerPremiumParams) {
-  const { toDisplayForInput, currency: displayCurrency } = usePriceFormat();
-
   const [premiumEnabled, setPremiumEnabledState] = useState(() => initialPremium?.enabled === true);
   const [accessMode, setAccessModeState] =
     useState<PostPremium["accessMode"]>(() => initialPremium?.accessMode ?? "public");
   const [freeFor, setFreeForState] = useState<PostPremium["freeFor"]>(() => initialPremium?.freeFor ?? "none");
-  const [priceInput, setPriceInput] = useState(() =>
-    initialPremium?.price != null ? String(initialPremium.price) : "",
-  );
+  /**
+   * El precio guardado, ya en la moneda de liquidación. Sin conversión, ver abajo.
+   *
+   * ⚠️ Con respaldo en `initialOneTimePrice`: el precio vive por partida doble y hay posts
+   * —2 de los 5 de producción— con `oneTimePrice` puesto y `premium.price` vacío. Sin el
+   * respaldo, al editarlos el campo salía en blanco como si no tuvieran precio.
+   */
+  const [priceInput, setPriceInput] = useState(() => {
+    const guardado = initialPremium?.price ?? initialOneTimePrice;
+    return guardado != null ? String(guardado) : "";
+  });
 
-  // Al editar un post premium existente, el precio está guardado en MXN (ancla).
-  // Lo mostramos en la moneda del creador para que pueda editarlo en su moneda.
-  // Solo una vez, cuando cargan las tasas / cambia la moneda de visualización.
-  const didHydratePremiumPrice = useRef(false);
-  useEffect(() => {
-    if (didHydratePremiumPrice.current) return;
-    if (initialPremium?.price == null) return;
-    const n = Number(initialPremium.price);
-    if (!Number.isFinite(n) || n <= 0) return;
-    didHydratePremiumPrice.current = true;
-    if (displayCurrency === "MXN") return;
-    const shown = toDisplayForInput(n, initialPremium.currency ?? SETTLEMENT_CURRENCY);
-    setPriceInput(String(Math.round(shown * 100) / 100));
-  }, [initialPremium?.price, initialPremium?.currency, displayCurrency, toDisplayForInput]);
+  /**
+   * 🚫 AQUÍ NO SE CONVIERTE NADA. El precio se muestra tal como está guardado.
+   *
+   * Vivía aquí un efecto que lo pasaba a la moneda de visualización del creador. Tenía
+   * sentido cuando el precio se guardaba en pesos y el campo se rotulaba en la moneda de
+   * quien miraba. Hoy las dos cosas cambiaron: `lib/posts/premium.ts` normaliza el precio a
+   * `SETTLEMENT_CURRENCY` al guardar, y el panel rotula el campo con `SETTLEMENT_CURRENCY`
+   * fijo. Convertirlo dejaba el número en euros con la etiqueta «USD» al lado.
+   *
+   * 🚩 El efecto llevaba dentro un `if (displayCurrency === "MXN") return;` que lo saltaba,
+   *    así que el fallo NO se veía con la moneda en dólares ni en pesos —las dos que usa
+   *    cualquiera que pruebe desde México— y sí en las otras ~74. Un creador con euros veía
+   *    92 donde su post costaba 100.
+   *
+   * No llegó a cobrar de menos: el campo es de solo lectura al editar y el callable
+   * `updatePost` solo acepta `postId`, `text` y `media`, así que el precio no podía viajar.
+   * Era una mentira en pantalla, no un cobro malo. Verificado el 2026-08-30 contra los
+   * 5 posts premium de producción, todos con el precio en USD.
+   */
 
   const premiumContext = useMemo(
     () => ({
@@ -127,9 +144,17 @@ export function useComposerPremium({
     return { canEnablePremium: true, allowedAccessModes, allowedFreeForOptions, disabledReason: null };
   }, [capabilities, initialPremium, isEditModePremium]);
 
-  // Mexico-only: el creador teclea en MXN y el precio se GUARDA TAL CUAL en MXN
-  // (sin conversión a USD). Es la base del creador — el backend cobra base + $3 + IVA
+  // El creador teclea en su moneda y el precio se GUARDA en la de liquidación. Es la base
+  // del creador — el backend cobra base + cargo fijo + el impuesto del país del comprador,
   // y el ledger le da el 75% de esta base. Igual que las experiencias.
+  //
+  // 🚩 SIN VERIFICAR (2026-08-30). El comentario anterior decía «Mexico-only… se guarda TAL
+  //    CUAL en MXN», que contradice al código de arriba: la hidratación usa
+  //    `SETTLEMENT_CURRENCY` como respaldo, y ésa es USD desde el corte. Peor, la línea
+  //    `if (displayCurrency === "MXN") return;` del efecto de hidratación se salta la
+  //    conversión, así que un creador con la moneda puesta en pesos podría estar viendo el
+  //    número en dólares y leyéndolo como pesos. Se corrigió el comentario, NO el código:
+  //    hace falta comprobarlo contra un post premium real antes de tocar nada.
   const typedPrice = useMemo(() => parsePriceInput(priceInput), [priceInput]);
   const price = typedPrice;
 
