@@ -239,12 +239,14 @@ export default function WalletFinanzasPage() {
      */
     minWithdrawalUsd: minimoRetiro,
     payoutCountryUnpayable: paisSinRutaDePago,
-    /** Sus condiciones reales; `null` mientras no tenga cuenta de cobro. */
-    payoutTerms: condicionesRetiro,
+    /** El nivel visible, estimado o real. */
+    terminosVisibles,
     /** ¿Tiene a dónde cobrar? Es un paso APARTE del KYC, y también obligatorio. */
     payoutAccountReady: cuentaDeCobroLista,
     /** Por dónde cobra. Decide qué alta le toca, si Stripe o Wallbit. */
     payoutRoute: rutaDeCobro,
+    /** ¿Ya declaró su cuenta en el cuestionario de Didit? Es el paso 2 del alta. */
+    payoutAccountDeclared: cuentaDeclarada,
   } = useCreatorTaxProfile(user?.uid);
   /**
    * El retiro se habilita al alcanzar el MÍNIMO, no en una fecha.
@@ -336,17 +338,35 @@ export default function WalletFinanzasPage() {
    */
   const faltaAltaDeCobro = !kyc.approved || !cuentaDeCobroLista;
 
+  // Su comisión, que ya no es 25 para todos: en 27 países es 30.
+  const comisionPct = Math.round(terminosVisibles.commissionRate * 100);
+
   /**
    * El botón nombra el paso que le toca AHORA, no el trámite completo.
    *
    * Decirle «haz tu registro KYC» a quien ya lo tiene aprobado lo manda a rehacer algo que ya
    * hizo, y le esconde lo que de verdad le falta.
    */
+  /**
+   * La frase morada. UNA sola, siempre.
+   *
+   * ⚠️ Antes eran dos —una para la cuenta de cobro y otra para los datos fiscales— y las dos
+   * abrían EL MISMO panel. Parecían dos acciones distintas y no lo eran: el creador tenía que
+   * adivinar cuál pulsar, cuando daba igual.
+   *
+   * Ahora nombra lo PRIMERO que le falta, en el orden del alta. Lo demás lo ve al abrir el
+   * panel, que es donde están los cuatro pasos con su estado.
+   *
+   * Todas empiezan por «Da clic aquí para…» a propósito: un texto morado no se lee como botón
+   * si no lo dice, y el creador no tiene por qué deducirlo del color.
+   */
   const altaCtaLabel = !kyc.approved
     ? kycCtaLabel
-    : rutaDeCobro === "wallbit"
-      ? tWallet("payoutSetupStepWallbit")
-      : tWallet("payoutAccountSetupCta");
+    : !cuentaDeclarada
+      ? tWallet(rutaDeCobro === "wallbit" ? "ctaWallbitAccount" : "ctaDeclareAccount")
+      : !cuentaDeCobroLista && rutaDeCobro !== "wallbit"
+        ? tWallet("ctaStripeAccount")
+        : tWallet("ctaFiscalData");
 
   /**
    * Qué le llega al retirar.
@@ -625,12 +645,16 @@ export default function WalletFinanzasPage() {
                 </div>
 
                 {/* Por qué su mínimo es más alto que el de otros. Va pegado a la barra,
-                    que es donde se le hace larga la espera y donde nace la pregunta. */}
-                {condicionesRetiro?.tier === "expensive" && (
+                    que es donde se le hace larga la espera y donde nace la pregunta.
+
+                    Si el nivel viene de su IP y no de su cuenta, se dice que es aproximado:
+                    prometerle un mínimo que luego cambie es peor que avisar. */}
+                {terminosVisibles.tier === "expensive" && (
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", marginTop: 4, lineHeight: 1.45 }}>
                     {tWallet("payoutMinimumWhy")}
                   </div>
                 )}
+
               </div>
             )}
 
@@ -684,7 +708,7 @@ export default function WalletFinanzasPage() {
 
           {/* 1 y 2. Identidad y cuenta de cobro. Mientras Didit revisa a mano no hay
                  nada que pulsar, y si rechazó, el propio botón dice por qué. */}
-          {kyc.loading ? null : faltaAltaDeCobro ? (
+          {kyc.loading ? null : faltaAltaDeCobro || mostrarAltaFiscal ? (
             <TextButton
               tone="brand"
               size="sm"
@@ -710,24 +734,6 @@ export default function WalletFinanzasPage() {
             </TextButton>
           ) : null}
 
-          {/* 3. Datos fiscales. Aparece cuando la identidad ya está y todavía falta
-                 el sello. Al extranjero no se le enseña nunca: no emite CFDI. */}
-          {mostrarAltaFiscal && (
-            <TextButton
-              tone="brand"
-              size="sm"
-              onClick={() => setSetupPanelOpen(true)}
-              style={{
-                width: "100%",
-                marginTop: -14,
-                lineHeight: 1.35,
-                textAlign: "center",
-                justifyContent: "center",
-              }}
-            >
-              {tWallet("fiscalSetupCta")}
-            </TextButton>
-          )}
 
           <VibraToast toast={walletToast} />
 
@@ -867,6 +873,7 @@ export default function WalletFinanzasPage() {
             </div>
           </div>
 
+
           {/* Aviso de comisión según el modo (neto ya descontado / bruto sin descontar). */}
           <div
             style={{
@@ -877,9 +884,19 @@ export default function WalletFinanzasPage() {
               marginTop: -12,
             }}
           >
+            {/* Al creador de los 88 países no se le retiene nada: su ISR es cero —el
+                servicio se presta fuera de México— y no hay IVA mexicano del que retener.
+                Para él el neto ES lo que recibe, y decirle que «se descontarán impuestos»
+                sería sembrarle una duda que no le aplica.
+
+                Al mexicano sí, y además no siempre a la baja: vendiendo a otro mexicano
+                recibe MÁS de su 75%, porque cobra 16 de IVA y solo se le retienen 8. Por eso
+                la frase dice «verás tus retenciones» y no «se te descontará». */}
             {mode === "net"
-              ? tWallet("financesCommissionNet")
-              : tWallet("financesCommissionGross")}
+              ? tWallet(esMexicano ? "financesCommissionNetMx" : "financesCommissionNet", {
+                  pct: comisionPct,
+                })
+              : tWallet("financesCommissionGross", { pct: comisionPct })}
           </div>
 
           {/* Al leer en su moneda, las cifras dejan de ser exactas: lo que se liquida está
@@ -899,26 +916,6 @@ export default function WalletFinanzasPage() {
             </div>
           ) : null}
 
-          {/* 🧾 Lo recaudado en impuestos. NO es del creador: Vibra lo entera a la autoridad
-              del país de cada comprador. Va justo bajo la nota de comisión porque las dos
-              explican lo mismo — qué parte de lo cobrado NO es suya— y juntas se leen de
-              corrido. Solo aparece si hubo ventas con impuesto. */}
-          {summary.taxCollected > 0 ? (
-            <div
-              title={tWallet("financesTaxCollectedHint")}
-              style={{
-                fontSize: 12,
-                color: "rgba(255,255,255,0.52)",
-                textAlign: "center",
-                marginTop: -12,
-              }}
-            >
-              {tWallet("financesTaxCollected")}:{" "}
-              <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                {formatMoney(summary.taxCollected, { code: true })}
-              </strong>
-            </div>
-          ) : null}
 
           {/* Devuelto (solo si hay) */}
           {view.refunded > 0 ? (
@@ -944,7 +941,27 @@ export default function WalletFinanzasPage() {
         </div>
       </WalletCard>
 
-      <WalletTransactions uid={user?.uid} mode={mode} />
+      <WalletTransactions
+        uid={user?.uid}
+        mode={mode}
+        /**
+         * 🧾 Lo que sus compradores pagaron de impuesto, para la pestaña de Retiros.
+         *
+         * NO es dinero suyo: va al fisco de cada país. Se enseña porque su precio fue 100 y
+         * su comprador pagó 116, y sin esta línea la diferencia parece una comisión oculta.
+         */
+        impuestosRecaudados={
+          summary.taxCollected > 0 ? formatSettlement(summary.taxCollected, { code: true }) : null
+        }
+        /**
+         * 💸 Qué le llega si retira hoy.
+         *
+         * Se pasa siempre, aunque todavía no llegue al mínimo: saber cuánto le quedaría es
+         * justamente lo que va a buscar a esa pestaña. El botón de retirar sí exige el
+         * mínimo, pero eso lo decide Finanzas, no la vista.
+         */
+        desgloseRetiro={loadingAmounts ? null : desgloseRetiro}
+      />
 
       {/* Panel fiscal del retiro (creador mexicano). 🔁 El creador EXTRANJERO pasará
           directo a pago sin este panel cuando se determine su país fiscal. */}
@@ -971,7 +988,14 @@ export default function WalletFinanzasPage() {
         // el modelo fiscal con la API de pagos elegida.
         ivaLabel={formatSettlement(disponibleNeto * 0.16, { code: true })}
         totalLabel={formatSettlement(disponibleNeto * 1.16, { code: true })}
-        desglose={desgloseRetiro}
+        /**
+         * El desglose solo cuando viene del botón de RETIRAR.
+         *
+         * Si llega desde el alta de cobro está completando su registro, no sacando dinero,
+         * y un «recibes $X» encima del formulario del sello sobra. Antes vivía en una
+         * pantalla intermedia que se eliminó por ser un clic que no decidía nada.
+         */
+        desglose={canWithdrawNow ? desgloseRetiro : null}
       />
     </WalletSectionShell>
   );

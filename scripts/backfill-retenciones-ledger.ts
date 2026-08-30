@@ -60,6 +60,16 @@ function fechaDe(x: FirebaseFirestore.DocumentData): Date | null {
 
 (async () => {
   const aplicar = process.argv.includes("--apply");
+  /**
+   * Rehacer también los asientos que YA tienen retenciones.
+   *
+   * Hace falta cuando cambian las TASAS, no solo cuando faltan datos. Al eliminar el motor
+   * "sin RFC" el 2026-08-30, los asientos existentes quedaron congelados con un ISR del 20%
+   * que ya no corresponde a nadie, y sin esto seguirían descontándoselo al creador.
+   *
+   * ⚠️ Reescribe un cálculo ya hecho. Fuera de un cambio de tasas, NO lo uses.
+   */
+  const recalcular = process.argv.includes("--recalcular");
   const db = admin.firestore();
 
   // Perfiles fiscales, leídos una vez: son pocos y se reutilizan en cada asiento.
@@ -88,7 +98,7 @@ function fechaDe(x: FirebaseFirestore.DocumentData): Date | null {
 
   for (const d of asientos.docs) {
     const x = d.data();
-    if (x.retenciones && typeof x.retenciones === "object") {
+    if (x.retenciones && typeof x.retenciones === "object" && !recalcular) {
       yaTenian++;
       continue;
     }
@@ -110,7 +120,8 @@ function fechaDe(x: FirebaseFirestore.DocumentData): Date | null {
 
     const perfil = perfiles.get(creatorId);
     if (!perfil) sinPerfil++;
-    // Sin perfil se asume el caso conservador, igual que en el ledger.
+    // Sin perfil se asume mexicano, igual que en el ledger. `hasTaxId` ya no mueve ninguna
+    // tasa desde el 2026-08-30; se sigue mandando por el rastro que estampa el asiento.
     const usado: PerfilFiscalCreador = perfil ?? {
       residency: "MX",
       hasTaxId: false,
@@ -173,10 +184,11 @@ function fechaDe(x: FirebaseFirestore.DocumentData): Date | null {
   }
 
   console.log("\n─────────────────────────────────────────");
+  console.log(`Modo                  : ${recalcular ? "RECALCULAR (rehace las existentes)" : "solo faltantes"}`);
   console.log(`Ya tenían retenciones : ${yaTenian}`);
   console.log(`Sin fecha usable      : ${sinFecha}`);
   console.log(`Ejercicio sin tasas   : ${fueraDeRango}`);
-  console.log(`Sin perfil fiscal     : ${sinPerfil}  (se asumió mexicano sin RFC)`);
+  console.log(`Sin perfil fiscal     : ${sinPerfil}  (se asumió mexicano; ya no hay tasa "sin RFC")`);
   console.log(`A reconstruir         : ${tocados}`);
   console.log(`  ISR total           : ${totales.isr.toFixed(2)}`);
   console.log(`  IVA retenido total  : ${totales.iva.toFixed(2)}`);

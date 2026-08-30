@@ -42,14 +42,25 @@ function round2(n: number): number {
 export type Ejercicio = number;
 
 export type TasasEjercicio = {
-  /** ISR retenido a creador mexicano CON identificación fiscal. */
-  isrMxConRfc: number;
-  /** ISR retenido a creador mexicano SIN identificación fiscal. */
-  isrMxSinRfc: number;
-  /** Proporción del IVA cobrado que se retiene a creador mexicano CON RFC. */
-  ivaMxConRfc: number;
-  /** Proporción que se retiene sin RFC, o cobrando en cuenta fuera de México. */
-  ivaMxSinRfc: number;
+  /**
+   * ISR retenido a creador mexicano.
+   *
+   * 🚫 NO hay tasa "sin RFC". El artículo 113-A prevé un 20% para quien no da su RFC,
+   *    pero esa tasa es INALCANZABLE aquí: la retención ocurre al PAGAR y en Vibra no se
+   *    puede cobrar sin RFC dado de alta. Tenerla solo servía para asustar en pantalla a
+   *    creadores que, para el momento en que cobren, siempre tendrán RFC.
+   *    Eliminada el 2026-08-30 por decisión de producto.
+   */
+  isrMx: number;
+  /** Proporción del IVA cobrado que se retiene a creador mexicano. */
+  ivaMx: number;
+  /**
+   * Proporción retenida al mexicano que COBRA FUERA de México.
+   *
+   * Sobrevive a la limpieza del "sin RFC" porque es otra cosa: no depende de si dio su
+   * RFC sino de dónde tiene la cuenta. Cobrando fuera se retiene el IVA completo.
+   */
+  ivaMxCobraFuera: number;
   /** Proporción retenida al creador extranjero que vende a comprador mexicano. */
   ivaExtranjero: number;
   /** ISR a creador extranjero cuando el pago se caracteriza como regalía. */
@@ -60,10 +71,9 @@ export type TasasEjercicio = {
 
 export const TASAS_POR_EJERCICIO: Readonly<Record<Ejercicio, TasasEjercicio>> = {
   2026: {
-    isrMxConRfc: 0.025,
-    isrMxSinRfc: 0.2,
-    ivaMxConRfc: 0.5,
-    ivaMxSinRfc: 1,
+    isrMx: 0.025,
+    ivaMx: 0.5,
+    ivaMxCobraFuera: 1,
     ivaExtranjero: 1,
     isrRegalia: 0.25,
     ivaComisionMx: 0.16,
@@ -109,11 +119,14 @@ export function tasasDe(ejercicio: Ejercicio): TasasEjercicio {
 /**
  * ¿La comisión de Vibra al creador EXTRANJERO califica como exportación de mediación a 0%?
  *
- * 🔴 PENDIENTE DE CONFIRMAR CON EL CONTADOR. Es una operación DISTINTA de la venta: que los 11
- * servicios sean exportación **no arrastra** a la intermediación de Vibra.
+ * ✅ **CONFIRMADO POR EL FISCALISTA (2026-08-29).** Sí califica.
  *
- * Si resultara que no califica, esa comisión lleva 16% que **absorbe Vibra**, porque el
- * creador extranjero no lo acredita. Cambiar a `false` y el motor lo refleja solo.
+ * Es una operación DISTINTA de la venta: que los 11 servicios del creador salgan a 0% por
+ * exportación no arrastra automáticamente a la comisión que Vibra le cobra a él. Son dos
+ * hechos imponibles separados y había que confirmarlo por su cuenta.
+ *
+ * En `true` la comisión al extranjero NO lleva IVA. En `false` llevaría el 16%, que Vibra
+ * tendría que absorber de su margen porque el creador extranjero no lo puede acreditar.
  */
 export const COMISION_A_EXTRANJERO_ES_EXPORTACION = true;
 
@@ -204,7 +217,15 @@ export type ResidenciaCreador = "MX" | "FOREIGN";
 
 export type PerfilFiscalCreador = {
   residency: ResidenciaCreador;
-  /** ¿Entregó su identificación fiscal? Sin ella, las retenciones se disparan. */
+  /**
+   * ¿Entregó su identificación fiscal?
+   *
+   * ⚠️ **YA NO CAMBIA NINGUNA TASA.** Desde el 2026-08-30 el mexicano se liquida siempre
+   * con las mismas, porque sin RFC no puede cobrar y la tasa agravada nunca llegaba a
+   * aplicarse. El campo se conserva porque el asiento lo estampa como rastro de auditoría
+   * y porque la factura sí lo necesita — pero si vuelves a ramificar una tasa con esto,
+   * lee antes el comentario de `isrMx`.
+   */
   hasTaxId: boolean;
   /**
    * País de la cuenta donde cobra (ISO-2).
@@ -301,7 +322,9 @@ export function resolveSettlement(entrada: EntradaLiquidacion): ResultadoLiquida
   // ── ISR ───────────────────────────────────────────────────────────────────
   let isrRate: number;
   if (esMx) {
-    isrRate = c.hasTaxId ? t.isrMxConRfc : t.isrMxSinRfc;
+    // Siempre la misma tasa. Ver `isrMx`: sin RFC no se puede cobrar, así que la tasa
+    // agravada nunca llegaría a aplicarse y solo servía para asustar en pantalla.
+    isrRate = t.isrMx;
   } else if (c.esRegalia) {
     // Con tratado Y constancia de residencia en el expediente baja; sin constancia, no.
     isrRate = typeof c.tasaTratado === "number" ? c.tasaTratado : t.isrRegalia;
@@ -316,7 +339,7 @@ export function resolveSettlement(entrada: EntradaLiquidacion): ResultadoLiquida
   if (esMx) {
     const cobraFuera =
       !!c.payoutAccountCountry && c.payoutAccountCountry.toUpperCase() !== "MX";
-    ivaRate = !c.hasTaxId || cobraFuera ? t.ivaMxSinRfc : t.ivaMxConRfc;
+    ivaRate = cobraFuera ? t.ivaMxCobraFuera : t.ivaMx;
   } else {
     ivaRate = t.ivaExtranjero;
   }

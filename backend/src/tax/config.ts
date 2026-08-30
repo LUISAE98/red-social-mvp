@@ -122,9 +122,10 @@ export type CountryTaxConfig = {
  * regreso a intermediación Vibra recupera además el inciso d) —comisiones y mediaciones—
  * para su propia comisión, que bajo vendedor directo había que forzar hacia g) o i).
  *
- * 🔴 Lo que sigue abierto es distinto: si la COMISIÓN de Vibra al creador EXTRANJERO califica
- * por separado como exportación de mediación. Ver `COMISION_A_EXTRANJERO_ES_EXPORTACION`
- * en `fiscalEngine.ts`.
+ * ✅ Y la COMISIÓN de Vibra al creador EXTRANJERO también califica como exportación de
+ * mediación al 0%, confirmado por el fiscalista el 2026-08-29. Era una pregunta distinta
+ * —son dos hechos imponibles separados— y por eso vivía aparte, en
+ * `COMISION_A_EXTRANJERO_ES_EXPORTACION` de `fiscalEngine.ts`.
  *
  * 👉 PARA CAMBIAR UNO: pon `"export_taxable"` en su línea de abajo. Nada más.
  *    Ese 16% NO se le traslada al comprador extranjero (ya pagó el impuesto de su país):

@@ -2,28 +2,47 @@
 
 // La comisión del creador que está mirando la pantalla, en vivo.
 //
-// Reemplaza a `WALLET_NET_RATE` en todo lo que le PROMETE algo al creador —«ganarás X si lo
-// pones a Y»—, porque esa promesa dejó de ser la misma para todos: 25% en los 45 países de
-// transferencia local y 30% en los 29 donde solo llega el wire. Ver `docs/payout-tiers.md`.
+// Reemplaza a `WALLET_NET_RATE` en todo lo que le PROMETE algo —«ganarás X si lo pones a Y»—,
+// porque esa promesa dejó de ser la misma para todos: 25% y 300 USD de mínimo en 62 países,
+// 30% y 500 en los 27 donde solo llega el wire. Ver `docs/payout-tiers.md`.
 //
-// ⚠️ **Esto es para PROYECCIONES, no para ventas ya hechas.** Una venta registrada lleva su
-// comisión CONGELADA en el asiento, y hay que leer esa, no esta. Para eso está `netRateOfEntry`
-// más abajo: si un creador se muda de país, sus ventas viejas no pueden cambiar de importe
-// retroactivamente en la pantalla.
+// ── De dónde sale su país, en orden ─────────────────────────────────────────────────────
 //
-// ── Por qué una suscripción compartida ──────────────────────────────────────────────────
+//   1. **La cuenta de cobro** — el dato duro. Es a donde viaja el dinero.
+//   2. **El documento del KYC** — respaldo. Un creador de ruta Wallbit nunca da de alta cuenta
+//      en Stripe, así que el campo anterior se queda vacío para siempre.
+//   3. **La IP** — estimación, mientras no se ha registrado. Sale de la cookie `vibra_country`
+//      que fija el middleware, la misma que ya decide su moneda y su idioma.
 //
-// Unos veinte componentes necesitan este dato —el compositor, los cinco paneles de configurar
-// servicios, el panel del live, el resumen de fin de live, la bandeja de solicitudes…— y
-// varios están montados a la vez. Un `onSnapshot` por componente serían veinte escuchas al
-// MISMO documento. Aquí hay una sola por uid, y los componentes se enganchan a ella.
+// ⚠️ **La IP solo sirve para MOSTRAR.** Nunca decide el gate del retiro ni la comisión que se
+// congela en el asiento: para eso están `useCreatorTaxProfile` y el ledger, que usan únicamente
+// los datos duros. Un creador podría estar de viaje, o usar una VPN, y ninguna de esas dos
+// cosas puede cambiar lo que se le paga.
+//
+// Cuando el país viene de la IP, `esEstimacion` va en `true` para que la interfaz pueda decir
+// que es aproximado. Enseñar 25% a alguien que va a cobrar al 30% sin avisarle es la forma más
+// rápida de que se sienta engañado el día del primer retiro.
+//
+// ── Esto es para PROYECCIONES, no para ventas hechas ────────────────────────────────────
+//
+// Una venta registrada lleva su comisión CONGELADA en el asiento, y hay que leer esa. Para eso
+// está `netRateOfEntry`: si un creador se muda de país, sus ventas viejas no pueden cambiar de
+// importe retroactivamente en la pantalla.
+//
+// ── Por qué suscripciones compartidas ───────────────────────────────────────────────────
+//
+// Unos veinte componentes necesitan este dato y varios están montados a la vez. Un `onSnapshot`
+// por componente serían veinte escuchas al mismo documento. Aquí hay una por uid y documento, y
+// los componentes se enganchan a ellas.
 
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
+import { usePaisPorIp } from "@/lib/wallet/usePaisPorIp";
 import {
   payoutTermsOf,
+  paisDeCobroDe,
   PAYOUT_TERMS_PROVISIONAL,
   type PayoutTerms,
 } from "@/lib/wallet/payoutTiers";
@@ -35,45 +54,63 @@ export type CreatorRates = {
   netRate: number;
   /** Su mínimo de retiro, en USD. */
   minWithdrawalUsd: number;
-  /** Todavía no se sabe su país; lo que se devuelve es el estándar como provisional. */
+  /**
+   * El país salió de su IP, no de un dato suyo.
+   *
+   * La interfaz debería decir que la cifra es aproximada. En cuanto se registre pasa a `false`
+   * y lo que vea será definitivo.
+   */
+  esEstimacion: boolean;
+  /** Todavía no llegó ninguna señal; lo que se devuelve es el caso estándar. */
   loading: boolean;
 };
 
+function ratesDe(terms: Readonly<PayoutTerms>, esEstimacion: boolean, loading: boolean): CreatorRates {
+  return {
+    commissionRate: terms.commissionRate,
+    netRate: 1 - terms.commissionRate,
+    minWithdrawalUsd: terms.minWithdrawalUsd,
+    esEstimacion,
+    loading,
+  };
+}
+
 /** Lo que se devuelve mientras no se sabe nada, y a quien no ha iniciado sesión. */
-const PROVISIONAL: CreatorRates = {
-  commissionRate: PAYOUT_TERMS_PROVISIONAL.commissionRate,
-  minWithdrawalUsd: PAYOUT_TERMS_PROVISIONAL.minWithdrawalUsd,
-  netRate: 1 - PAYOUT_TERMS_PROVISIONAL.commissionRate,
-  loading: true,
-};
+const PROVISIONAL = ratesDe(PAYOUT_TERMS_PROVISIONAL, true, true);
+
 
 type Entrada = {
-  /** `undefined` = aún no llegó el primer snapshot. `null` = llegó y no hay país. */
-  pais: string | null | undefined;
-  oyentes: Set<(pais: string | null) => void>;
+  /** `undefined` = aún no llegó el primer snapshot. `null` = llegó y no hay valor. */
+  valor: string | null | undefined;
+  oyentes: Set<(valor: string | null) => void>;
   cortar: () => void;
 };
 
-/** Una escucha por uid, compartida por todos los componentes montados. */
+/** Una escucha por documento, compartida por todos los componentes montados. */
 const escuchas = new Map<string, Entrada>();
 
-function suscribir(uid: string, oyente: (pais: string | null) => void): () => void {
-  let entrada = escuchas.get(uid);
+function suscribir(
+  clave: string,
+  ruta: [string, string],
+  campo: string,
+  oyente: (valor: string | null) => void
+): () => void {
+  let entrada = escuchas.get(clave);
 
   if (!entrada) {
-    const nueva: Entrada = { pais: undefined, oyentes: new Set(), cortar: () => {} };
-    escuchas.set(uid, nueva);
+    const nueva: Entrada = { valor: undefined, oyentes: new Set(), cortar: () => {} };
+    escuchas.set(clave, nueva);
     nueva.cortar = onSnapshot(
-      doc(db, "creatorTaxProfiles", uid),
+      doc(db, ruta[0], ruta[1]),
       (snap) => {
-        const p = snap.data()?.payoutAccountCountry;
-        nueva.pais = typeof p === "string" && p ? p.toUpperCase() : null;
-        for (const o of nueva.oyentes) o(nueva.pais);
+        const v = snap.data()?.[campo];
+        nueva.valor = typeof v === "string" && v ? v.toUpperCase() : null;
+        for (const o of nueva.oyentes) o(nueva.valor);
       },
-      // Si falla la lectura se queda el estándar. Es lo benigno: enseñarle de menos lo que va
-      // a ganar por un fallo de red sería peor que enseñarle el caso más común.
+      // Si falla la lectura se cae al siguiente escalón de la cadena. Enseñarle de menos por un
+      // fallo de red sería peor que enseñarle una estimación.
       () => {
-        nueva.pais = null;
+        nueva.valor = null;
         for (const o of nueva.oyentes) o(null);
       }
     );
@@ -82,17 +119,17 @@ function suscribir(uid: string, oyente: (pais: string | null) => void): () => vo
 
   entrada.oyentes.add(oyente);
   // Al que llega tarde se le entrega lo que ya se sabe, sin esperar otro snapshot.
-  if (entrada.pais !== undefined) oyente(entrada.pais);
+  if (entrada.valor !== undefined) oyente(entrada.valor);
 
   return () => {
-    const e = escuchas.get(uid);
+    const e = escuchas.get(clave);
     if (!e) return;
     e.oyentes.delete(oyente);
-    // Sin nadie escuchando, se corta: dejarla viva filtraría una escucha por cada creador
-    // que se haya mirado en la sesión.
+    // Sin nadie escuchando, se corta: dejarla viva filtraría una escucha por cada creador que
+    // se haya mirado en la sesión.
     if (e.oyentes.size === 0) {
       e.cortar();
-      escuchas.delete(uid);
+      escuchas.delete(clave);
     }
   };
 }
@@ -100,40 +137,75 @@ function suscribir(uid: string, oyente: (pais: string | null) => void): () => vo
 /**
  * La comisión y el mínimo del creador con la sesión iniciada.
  *
- * Mientras no se sabe su país devuelve el ESTÁNDAR con `loading: true`. Es a propósito: la
- * alternativa es no enseñar nada, y una cifra en blanco donde antes había un «ganarás X» se
- * lee como un fallo. El estándar es el caso de 45 de los 74 países pagables.
+ * Mientras no llega ninguna señal devuelve el estándar con `loading: true`. Es a propósito: la
+ * alternativa es no enseñar nada, y una cifra en blanco donde había un «ganarás X» se lee como
+ * un fallo.
  */
 export function useCreatorNetRate(): CreatorRates {
   const { user } = useAuth();
   const uid = user?.uid;
 
-  // El uid viaja DENTRO del estado, no en un `setPais(undefined)` al cambiar de usuario:
-  // eso sería un setState en el cuerpo del efecto, que encadena renders. Guardando de quién
-  // es el dato, un resultado que sobra de la sesión anterior se descarta solo al compararlo.
-  const [visto, setVisto] = useState<{ uid: string; pais: string | null } | null>(null);
+  // El uid viaja DENTRO del estado, no en un reseteo al cambiar de usuario: eso sería un
+  // setState en el cuerpo del efecto. Guardando de quién es el dato, un resultado que sobra de
+  // la sesión anterior se descarta solo al compararlo.
+  const [cuenta, setCuenta] = useState<{ uid: string; pais: string | null } | null>(null);
+  const [documento, setDocumento] = useState<{ uid: string; pais: string | null } | null>(null);
+
+  const ip = usePaisPorIp();
 
   useEffect(() => {
     if (!uid) return;
-    return suscribir(uid, (pais) => setVisto({ uid, pais }));
+    return suscribir(
+      `perfil:${uid}`,
+      ["creatorTaxProfiles", uid],
+      "payoutAccountCountry",
+      (pais) => setCuenta({ uid, pais })
+    );
   }, [uid]);
 
-  if (!uid || visto?.uid !== uid) return PROVISIONAL;
+  useEffect(() => {
+    if (!uid) return;
+    return suscribir(`kyc:${uid}`, ["kyc", uid], "documentCountry", (pais) =>
+      setDocumento({ uid, pais })
+    );
+  }, [uid]);
 
-  const terms: Readonly<PayoutTerms> = payoutTermsOf(visto.pais) ?? PAYOUT_TERMS_PROVISIONAL;
-  return {
-    commissionRate: terms.commissionRate,
-    netRate: 1 - terms.commissionRate,
-    minWithdrawalUsd: terms.minWithdrawalUsd,
-    loading: false,
-  };
+  // Sin sesión no hay nada suyo que leer, pero su IP sí sirve para estimar.
+  if (!uid) {
+    return ip
+      ? ratesDe(payoutTermsOf(ip) ?? PAYOUT_TERMS_PROVISIONAL, true, false)
+      : PROVISIONAL;
+  }
+
+  // Hasta que las dos escuchas respondan, lo que hay es la estimación por IP.
+  const listo = cuenta?.uid === uid && documento?.uid === uid;
+  if (!listo) {
+    return ip
+      ? ratesDe(payoutTermsOf(ip) ?? PAYOUT_TERMS_PROVISIONAL, true, true)
+      : PROVISIONAL;
+  }
+
+  /**
+   * La cadena completa.
+   *
+   * `paisDeCobroDe` resuelve los dos datos duros —la misma función que usa el ledger, para que
+   * no puedan separarse—. La IP entra solo si esos dos están vacíos.
+   */
+  const duro = paisDeCobroDe({
+    payoutAccountCountry: cuenta.pais,
+    documentCountry: documento.pais,
+  });
+  const esEstimacion = !duro;
+  const terms = payoutTermsOf(duro ?? ip) ?? PAYOUT_TERMS_PROVISIONAL;
+
+  return ratesDe(terms, esEstimacion, false);
 }
 
 /**
  * La tasa neta de una venta YA REGISTRADA.
  *
- * 🚨 **Usa la comisión congelada del asiento, nunca la actual.** Es la mitad que hace cumplible
- * la promesa de no recalcular hacia atrás: si el creador cambia de banco y sube de nivel, sus
+ * 🚨 **Usa la comisión congelada del asiento, nunca la actual.** Es lo que hace cumplible la
+ * promesa de no recalcular hacia atrás: si el creador cambia de banco y sube de nivel, sus
  * ventas anteriores tienen que seguir mostrando lo mismo que mostraban ayer.
  *
  * Los asientos anteriores al 2026-08-27 no traen el campo. Se les aplica 25%, que es la

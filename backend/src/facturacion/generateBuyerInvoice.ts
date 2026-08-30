@@ -29,6 +29,7 @@ import {
 } from "./facturapiClient";
 import { getOrganizationTestKey } from "./facturapiOrganizations";
 import { productForType } from "./satProductCatalog";
+import { FORMA_PAGO } from "./formaDePago";
 import { consumeQuota } from "../quotas";
 
 if (admin.apps.length === 0) {
@@ -150,6 +151,15 @@ export const generateBuyerInvoice = onCall(
 
     // 3) Leer y validar las compras, y AGRUPARLAS POR CREADOR.
     const porCreador = new Map<string, CompraNormalizada[]>();
+
+    /**
+     * 🧾 Cómo se pagó, para el CFDI.
+     *
+     * Se toma de la PRIMERA compra que la traiga. El CFDI solo admite una forma de pago, y
+     * facturar juntas dos compras pagadas de formas distintas es un caso raro que no
+     * merece partir la factura en dos.
+     */
+    let formaPago: string | null = null;
     for (const pid of purchaseIds) {
       const pSnap = await db.doc(`users/${uid}/purchases/${pid}`).get();
       if (!pSnap.exists) throw new HttpsError("not-found", `Compra ${pid} no encontrada.`);
@@ -165,6 +175,14 @@ export const generateBuyerInvoice = onCall(
       // MXN real cobrado (del intent). Para experiencias, id de compra == intent id.
       const intentSnap = await db.doc(`paymentIntents/${pid}`).get();
       const intent = intentSnap.exists ? intentSnap.data() ?? {} : null;
+
+      // La forma de pago de ESTA compra. Si son varias en una factura, la de la primera
+      // manda: el CFDI solo admite una, y agrupar compras pagadas de formas distintas es
+      // un caso raro que no merece partir la factura.
+      if (!formaPago) {
+        const guardada = typeof intent?.satFormaPago === "string" ? intent.satFormaPago : null;
+        formaPago = guardada || FORMA_PAGO.POR_DEFINIR;
+      }
       let totalMxn: number;
       if (intent && intent.settlementCurrency === "MXN" && Number.isFinite(Number(intent.settlementAmount))) {
         totalMxn = Number(intent.settlementAmount);
@@ -254,7 +272,15 @@ export const generateBuyerInvoice = onCall(
             customer: customerId,
             items,
             use: usoCfdi,
-            payment_form: "04", // Tarjeta de crédito 🔁 FISCALISTA
+            /**
+             * 🧾 Cómo pagó de verdad, no una suposición.
+             *
+             * Lo guardó el webhook al confirmarse el pago, que es el único momento en que
+             * se sabe. Si falta —una compra anterior al 2026-08-29, o un cargo que llegó
+             * sin expandir— va `99`, «por definir»: decir que no consta es cierto, decir
+             * «tarjeta de crédito» sin saberlo no.
+             */
+            payment_form: formaPago,
             payment_method: "PUE", // Pago en una sola exhibición
             currency: "MXN",
           },

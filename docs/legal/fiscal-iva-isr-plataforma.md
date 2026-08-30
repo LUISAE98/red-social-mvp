@@ -262,14 +262,14 @@ completar su alta de cobro. Se custodia en el proveedor de facturación, nunca e
 
 ### 0.4 Tasas de retención (ejercicio 2026)
 
-| Situación del creador | ISR | IVA |
-|---|---|---|
-| Mexicano, persona física, con RFC | 2.5% | 50% del IVA cobrado |
-| Mexicano, persona moral, con RFC | 2.5% | 50% del IVA cobrado |
-| Mexicano **sin RFC** | **20%** | **100%** |
-| Mexicano que **cobra en cuenta bancaria fuera de México** | 2.5% | **100%** |
-| Extranjero, servicio prestado fuera | 0% | **100%** |
-| Extranjero, pago tratado como **regalía** | **25%** (≈10% con tratado y constancia) | **100%** |
+| Situación del creador | ISR | IVA | Nota |
+|---|---|---|---|
+| Mexicano, persona física, con RFC | 2.5% | 50% del IVA cobrado | |
+| Mexicano, persona moral, con RFC | 2.5% | 50% del IVA cobrado | |
+| Mexicano **sin RFC** | **20%** | **100%** | ⬅ existe en la ley, pero **el motor NO la aplica**, ver abajo |
+| Mexicano que **cobra en cuenta bancaria fuera de México** | 2.5% | **100%** | |
+| Extranjero, servicio prestado fuera | 0% | **100%** | |
+| Extranjero, pago tratado como **regalía** | **25%** (≈10% con tratado y constancia) | **100%** | |
 
 > 🚨 **El 2.5% NO está en el artículo 113-A**, cuyo texto base sigue diciendo 1%. Viene de la **Ley de
 > Ingresos, de vigencia ANUAL**. Debe ser un parámetro configurable por ejercicio, nunca una constante en
@@ -278,6 +278,19 @@ completar su alta de cobro. Se custodia en el proveedor de facturación, nunca e
 > 🚨 **El país de la cuenta de destino es un dato fiscal.** Dispara por sí solo la retención del 100%.
 > Depende de dónde cobra **el creador**, no de dónde tiene Vibra sus cuentas. Debe reevaluarse cada vez
 > que el creador cambie de cuenta.
+
+> 🚫 **DECISIÓN DE PRODUCTO (Luis, 2026-08-30) — el motor no implementa la fila «sin RFC».**
+> La tasa agravada existe en la ley, pero es **inalcanzable en Vibra**: la retención ocurre al PAGAR y
+> aquí **no se puede cobrar sin RFC dado de alta**. Calcularla solo servía para enseñarle en pantalla
+> un descuento del 20% —y una retención de IVA del 100%— a un creador que, para cuando cobre, siempre
+> tendrá RFC. Asustaba sin cambiar un peso de lo que acabaría recibiendo.
+>
+> El mexicano se liquida **siempre** con 2.5% de ISR y 50% de IVA. La fila de «cobra fuera» **sí**
+> sobrevive, porque no depende del RFC sino de dónde tiene la cuenta.
+>
+> ⚠️ **Si algún día se puede cobrar sin RFC, esta decisión se cae** y hay que reponer la rama.
+> Los asientos anteriores al cambio se recalcularon con
+> `scripts/backfill-retenciones-ledger.ts --recalcular`.
 
 ### 0.5 Los once servicios
 
@@ -305,8 +318,18 @@ grupos necesitan una condición especial:
 | Contabilidad: ingreso = comisión, no el 100% | ⬜ Confirmar asiento con contador |
 | ✅ **Cuándo se aplica la retención al saldo** | **DECIDIDO (Luis, 2026-08-26): al RETIRAR, no al vender.** En la wallet el creador sigue viendo su 75% íntegro; los descuentos aparecen desglosados al pulsar «Retirar». Es lo que dice la ley al pie de la letra —la retención ocurre cuando se paga, no cuando se vende— y evita que el saldo baje sin explicación. |
 | ✅ **Quién emite la factura global** | **DECIDIDO (Luis, 2026-08-26): la emite VIBRA por cuenta del creador**, con el sello digital que él sube. La alternativa —que cada creador emitiera la suya cada mes— no escala y deja expuesto a quien se olvide. **Corolario: el sello se necesita desde la primera venta**, no antes del primer retiro. |
-| 🔴 **Claves del SAT (tres)** | ⬜ **Pendiente de contador.** (1) clave de producto de la COMISIÓN de Vibra, hoy `80141600`; (2) clave de RETENCIÓN del régimen de plataformas, hoy `14`; (3) clave de producto de la VENTA al comprador, hoy `81112100`, marcada como «defendible para arrancar» desde julio y nunca confirmada. Las tres están en el código con marcador 🔁 FISCALISTA. |
+| 🟡 **Claves del SAT** | **Dos de tres decididas (2026-08-29).** ✅ La clave de PRODUCTO de la venta pasó de `81112100` («Servicios de internet», que describía mal lo que se vende) a tres según lo que recibe el comprador: `90131602` entretenimiento grabado, `90131500` actuaciones en vivo, `43233419` plataformas de multimedia. ✅ La de la COMISIÓN se queda en `80141600`. 🔴 La de RETENCIÓN sigue abierta, ver la fila de abajo. |
+| 🔴 **Clave de retención** | ⬜ **Pendiente de contador.** El código manda `14`, que en `c_ClaveRetenc` es **«dividendos o utilidades distribuidas»** — Vibra no reparte dividendos. La del complemento *Servicios Plataformas Tecnológicas* es la **`26`**, pero con ella el SAT espera el complemento entero (`Periodicidad`, `NumServ`, `TipoDeServ`, `MontToServSIva`) que hoy no se manda. Y antes hay una pregunta de fondo: ese complemento está redactado para transporte, comida, hospedaje y comercio de bienes, no para servicios de creadores. **Sin urgencia mientras `TIMBRAR` esté en falso.** |
 | 🚧 **Dónde elige el creador el país de su cuenta de cobro** | ⬜ El backend ya lo guarda (`setCreatorPayoutAccountCountry`) y el motor ya lo aplica —fuera de México sube la retención al 100%—, pero **no hay sitio en la interfaz donde elegirlo**. Va con el alta de Stripe, que es donde el creador da sus datos de depósito. Mientras no exista, el campo queda vacío y el motor asume México. |
+
+> 🚨 **Cambiar la clave de producto NO cambia el impuesto.** Las cuatro claves implicadas
+> están marcadas «IVA trasladado: Opcional» en el catálogo y ninguna arrastra complemento,
+> así que el 16%, el 0% de exportación y las retenciones siguen saliendo del motor fiscal.
+> La `ClaveProdServ` describe QUÉ se vendió; el tratamiento lo decide la ley.
+>
+> ⚠️ La única con matiz es `90131500`: está en la familia de espectáculos públicos, que en
+> México tienen impuestos ESTATALES. Una transmisión por internet no es un espectáculo
+> presencial, pero conviene que el contador lo confirme.
 
 ---
 

@@ -103,11 +103,16 @@ describe("motor fiscal / los cuatro escenarios", () => {
 });
 
 describe("motor fiscal / variantes que mueven el resultado", () => {
-  it("sin identificación fiscal el mexicano recibe 51 en vez de 76.50", () => {
-    const { liq } = corrida("MX", mxSinRfc);
-    expect(liq.isrRetenido).toBe(20);
-    expect(liq.ivaRetenido).toBe(16);
-    expect(liq.neto).toBe(51);
+  it("el RFC ya NO cambia ninguna tasa, se liquida igual con él y sin él", () => {
+    // 🚫 Hubo un motor "sin RFC" con ISR al 20% y IVA al 100%. Se eliminó el 2026-08-30:
+    //    la retención ocurre al PAGAR y en Vibra no se puede cobrar sin RFC, así que esa
+    //    tasa nunca llegaba a aplicarse — solo aparecía en pantalla asustando al creador.
+    //    Si alguien la reintroduce, este test se lo dice.
+    const conRfc = corrida("MX", mxConRfc).liq;
+    const sinRfc = corrida("MX", mxSinRfc).liq;
+    expect(sinRfc.isrRetenido).toBe(conRfc.isrRetenido);
+    expect(sinRfc.ivaRetenido).toBe(conRfc.ivaRetenido);
+    expect(sinRfc.neto).toBe(conRfc.neto);
   });
 
   it("cobrar en cuenta fuera de México sube la retención de IVA al 100%", () => {
@@ -173,7 +178,7 @@ describe("motor fiscal / reglas estructurales", () => {
 
   it("se puede recalcular una venta vieja con las tasas de su año", () => {
     const liq = settleBack({ base: BASE, mxVatAmount: 16, creador: mxConRfc, ejercicio: 2026 });
-    expect(liq.isrRate).toBe(TASAS_POR_EJERCICIO[2026].isrMxConRfc);
+    expect(liq.isrRate).toBe(TASAS_POR_EJERCICIO[2026].isrMx);
   });
 
   it("un ejercicio sin tasas falla en vez de inventarlas", () => {

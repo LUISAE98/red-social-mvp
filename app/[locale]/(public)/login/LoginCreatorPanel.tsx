@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useInView } from "./useInView";
 import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientText";
-import { WALLET_COMMISSION_RATE, WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import LoginWalletPhone from "./LoginWalletPhone";
 import LoginFaq from "./LoginFaq";
 
@@ -13,17 +13,24 @@ import LoginFaq from "./LoginFaq";
  * y baja con tres bloques: el reparto del dinero, la wallet (simulada, pero
  * usable) y el alcance internacional.
  *
- * Los porcentajes NO están escritos a mano: salen de la misma constante que usa
- * el ledger, así que si la comisión cambia, este texto cambia con ella.
+ * Los porcentajes NO están escritos a mano y tampoco son los mismos para todos: salen del
+ * país de quien está mirando. Alguien que entra desde Turquía ve el 30% que le va a tocar,
+ * no el 25% de México.
+ *
+ * Antes de registrarse el país sale de su IP, así que es una ESTIMACIÓN. Se dice en el
+ * propio texto: prometerle un 25% que luego resulte 30% es la forma más rápida de que se
+ * sienta engañado el día del primer retiro.
  */
-
-const COMISION_PCT = Math.round(WALLET_COMMISSION_RATE * 100);
-const NETO_PCT = Math.round(WALLET_NET_RATE * 100);
 
 /** Duración del llenado de la barra. Los números corren con ella. */
 const LLENADO_MS = 1100;
 
 export default function LoginCreatorPanel() {
+  // Su comisión según su país. Sin sesión iniciada sale de la IP, que aquí es siempre el
+  // caso: esta pantalla es justo la de antes de entrar.
+  const { commissionRate, netRate, minWithdrawalUsd, esEstimacion } = useCreatorNetRate();
+  const COMISION_PCT = Math.round(commissionRate * 100);
+  const NETO_PCT = Math.round(netRate * 100);
   const t = useTranslations("loginLanding");
   // Un observador por sección: cada una entra y sale por su cuenta al pasar
   // por delante, en vez de encenderse las tres cuando asoma la primera.
@@ -112,6 +119,12 @@ export default function LoginCreatorPanel() {
           font-size: clamp(12.5px, 0.95vw, 14.5px);
           line-height: 1.65;
           color: rgba(255, 255, 255, 0.78);
+        }
+        .creNota {
+          margin: 6px 0 0;
+          font-size: 12.5px;
+          line-height: 1.5;
+          color: rgba(255, 255, 255, 0.45);
         }
 
         /* Barra del reparto: la parte del creador ocupa lo que le toca de
@@ -317,6 +330,15 @@ export default function LoginCreatorPanel() {
           })}
         </h2>
         <p className="creText">{t("earnText", { commission: COMISION_PCT })}</p>
+
+        {/* Su mínimo de retiro y, si el país salió de la IP, que es aproximado.
+
+            Antes esta pantalla decía 25% a todo el mundo. Un creador turco leía el número
+            que no era y se enteraba el día del primer retiro. */}
+        <p className="creNota">
+          {t("earnMinimum", { min: minWithdrawalUsd })}
+          {esEstimacion ? ` ${t("earnEstimated")}` : ""}
+        </p>
 
         <div className="barra" aria-hidden="true">
           <span className="barraFill" style={{ width: `${NETO_PCT * avance}%` }} />

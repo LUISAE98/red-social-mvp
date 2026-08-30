@@ -230,7 +230,26 @@ export async function emitirCfdiRetenciones(
     method: "POST",
     body: {
       customer: customerId,
-      // 🔁 FISCALISTA: clave de retención del régimen de plataformas tecnológicas.
+      /**
+       * 🔴 CLAVE DE RETENCIÓN — MUY PROBABLEMENTE EQUIVOCADA.
+       *
+       * La `14` del catálogo `c_ClaveRetenc` es **«dividendos o utilidades distribuidas»**.
+       * Vibra no reparte dividendos a sus creadores: le retiene ISR e IVA por venderle a
+       * través de la plataforma. No es lo mismo ni de lejos.
+       *
+       * La que usan los ejemplos del complemento **Servicios Plataformas Tecnológicas** es
+       * la **`26`**, que es el que corresponde a este régimen.
+       *
+       * ⚠️ **NO se cambia sola.** Con `26` el SAT espera además el complemento entero
+       * —`Periodicidad`, `NumServ`, `TipoDeServ`, `MontToServSIva`— que hoy no se manda.
+       * Cambiar solo la clave produciría un CFDI que no timbra, o peor, uno que timbra mal.
+       *
+       * Y hay una pregunta de fondo antes: el complemento está redactado para transporte,
+       * comida a domicilio, hospedaje y comercio de bienes. Que aplique a servicios de
+       * creadores es justo lo que tiene que decidir el contador.
+       *
+       * Hoy no molesta porque `TIMBRAR` está en falso. El día que se active, sí.
+       */
       key: "14",
       period: {
         month_from: desde.getUTCMonth() + 1,

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientText";
-import { WALLET_COMMISSION_RATE } from "@/lib/wallet/walletFinances";
+import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 import { useInView } from "./useInView";
 
 /**
@@ -19,12 +19,15 @@ import { useInView } from "./useInView";
  * página conviene revisarlas con quien lleve lo fiscal y lo legal.
  */
 
-const COMISION_PCT = Math.round(WALLET_COMMISSION_RATE * 100);
+
 
 /** Las nueve preguntas viven en `messages` como faq1Q…faq9A. */
 const NUMEROS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 
 export default function LoginFaq() {
+  // La comisión que le toca a quien está leyendo, según su país. Ver `LoginCreatorPanel`.
+  const { commissionRate } = useCreatorNetRate();
+  const COMISION_PCT = Math.round(commissionRate * 100);
   const t = useTranslations("loginLanding");
   const [abierta, setAbierta] = useState<number | null>(null);
   const [seccionRef, dentro] = useInView<HTMLElement>(0.12);

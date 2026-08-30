@@ -18,6 +18,7 @@ import { intlLocale } from "@/i18n/locales";
 import { Modal, TextButton } from "@/components/ui";
 import { CardsSkeleton } from "@/components/ui/ListSkeleton";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
+import WithdrawBreakdown, { type DesgloseRetiro } from "./WithdrawBreakdown";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import {
   useCreatorTaxProfile,
@@ -65,17 +66,18 @@ type Props = {
    * Vive aquí y no en la wallet por decisión de producto: el creador ve su 75% íntegro en
    * Finanzas y los descuentos aparecen al pulsar «Retirar». Ver `calcularRetiro`.
    */
-  desglose?: {
-    bruto: string;
-    isr: string;
-    iva: string;
-    ivaComision: string;
-    neto: string;
-    hayRetenciones: boolean;
-  } | null;
+  desglose?: DesgloseRetiro | null;
 };
 
-type View = "method" | "auto" | "done";
+/**
+ * Las dos pantallas del panel.
+ *
+ * ⚠️ Hubo una tercera, `method`, que era una elección entre dos formas de facturar. Con el
+ * modelo de intermediación una de las dos dejó de existir —el creador no le factura a Vibra,
+ * es al revés— y quedó una pantalla con UNA sola tarjeta: un clic que no decidía nada. Se
+ * eliminó el 2026-08-28; el desglose que vivía ahí se movió arriba del formulario.
+ */
+type View = "auto" | "done";
 
 // ── Estilos del sistema (vibra_style.md) ─────────────────────────────────────
 const LABEL = { fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.6)", marginBottom: 6 } as const;
@@ -85,14 +87,22 @@ const FIELD: React.CSSProperties = {
   fontSize: 14, fontFamily: "inherit", lineHeight: 1.5, outline: "none",
 };
 
-export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel, ivaLabel, totalLabel, desglose }: Props) {
+export default function WithdrawFiscalPanel({
+  open,
+  onClose,
+  uid,
+  availableLabel,
+  ivaLabel,
+  totalLabel,
+  desglose,
+}: Props) {
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
   const { profile, loading, hasData, csdReady } = useCreatorTaxProfile(uid);
   // El ciclo de vida de la animación, el backdrop, el bloqueo de scroll y el
   // gesto de arrastre los resuelve el primitivo `Modal` (VibraResponsivePanel).
 
-  const [view, setView] = useState<View>("method");
+  const [view, setView] = useState<View>("auto");
   const [error, setError] = useState<string | null>(null);
   const { toast, showToast } = useVibraToast();
   useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -157,7 +167,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
       setConsent(profile.selfBillingConsent?.accepted ?? false);
     }
     setRegimenOpen(false);
-    setView(csdReady ? "done" : "method");
+    setView(csdReady ? "done" : "auto");
   }, [open, loading, csdReady, profile]);
 
   // "Copiado" vuelve a su estado normal a los 2s.
@@ -269,76 +279,28 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
   );
 
   const body = useMemo(() => {
-    // Lo primero que se pinta es la elección de método: dos cards grandes. El
-    // hueco reserva esas dos y no un renglón de texto.
-    if (loading) return <CardsSkeleton count={2} height={112} gap={8} />;
-
-    if (view === "method") {
-      return (
-        <div style={{ display: "grid", gap: 8 }}>
-          {/* Lo primero que ve al pedir el retiro: cuánto le llega y por qué. Ponerlo
-              después de elegir método le escondería el número que vino a buscar. */}
-          {desglose && (
-            <div
-              style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.09)",
-                borderRadius: 14,
-                padding: "14px 16px",
-                display: "grid",
-                gap: 9,
-                marginBottom: 6,
-              }}
-            >
-              <Row k="Tu saldo" v={desglose.bruto} />
-              {desglose.hayRetenciones ? (
-                <>
-                  <Row k="ISR retenido" v={`− ${desglose.isr}`} />
-                  <Row k="IVA retenido" v={`− ${desglose.iva}`} />
-                  <Row k="IVA de la comisión" v={`− ${desglose.ivaComision}`} />
-                </>
-              ) : null}
-              <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 14, fontWeight: 700 }}>
-                <span style={{ color: "rgba(255,255,255,0.85)" }}>Recibes</span>
-                <span style={{ color: "#4ade80" }}>{desglose.neto}</span>
-              </div>
-              {desglose.hayRetenciones && (
-                <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, margin: 0 }}>
-                  Lo retenido no se pierde, lo pagamos al SAT por ti y va a cuenta de tu
-                  impuesto anual. El IVA de nuestra comisión lo puedes acreditar.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* ⚠️ Antes esto era UNA DE DOS OPCIONES: o Vibra facturaba por el creador, o él
-              le emitía su factura a Vibra y la subía. Con el modelo de intermediación esa
-              segunda ya no existe —el creador no le factura nada a Vibra, es al revés— así
-              que se eliminó la pantalla entera. Lo que queda no es una elección: es el paso
-              que hay que completar. */}
-          <button type="button" onClick={() => setView("auto")} style={methodCard}>
-            <span style={ICON_WRAP}>{AUTO_ICON}</span>
-            <span style={{ display: "grid", gap: 3 }}>
-              <span style={{ fontSize: 14, fontWeight: 500, color: "#fff" }}>Sube tu Sello Digital</span>
-              <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
-                Con él emitimos por ti la factura de cada venta y tu factura global del mes,
-                sin que tengas que hacer nada. Se sube una sola vez.
-              </span>
-            </span>
-          </button>
-          {hasData && (
-            <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.4)", margin: "4px 0 0", lineHeight: 1.5 }}>
-              Ya guardamos tus datos fiscales, así que solo falta tu sello.
-            </p>
-          )}
-        </div>
-      );
-    }
+    // Lo que se pinta es el formulario fiscal, así que el hueco reserva su alto y no el
+    // de las dos tarjetas de elegir método, que ya no existen.
+    if (loading) return <CardsSkeleton count={1} height={220} gap={8} />;
 
     if (view === "auto") {
       return (
-        <div style={{ display: "grid", gap: 14 }}>
+        <div style={{ display: "grid", gap: 8 }}>
+          {/* Cuánto le llega y por qué, cuando viene del botón de retirar.
+
+              No se enseña si llega desde el alta de cobro: ahí está completando su registro,
+              no retirando, y un «recibes $X» sobra. Finanzas lo manda solo cuando toca. */}
+          {desglose && (
+            <div style={{ marginBottom: 6 }}>
+              <WithdrawBreakdown desglose={desglose} />
+            </div>
+          )}
+
+          {hasData && (
+            <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.4)", margin: "0 0 6px", lineHeight: 1.5 }}>
+              Ya guardamos tus datos fiscales, así que solo falta tu sello.
+            </p>
+          )}
           {fiscalFields}
           <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
           <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: 0 }}>
@@ -436,7 +398,6 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, loading, busy, hasData, taxId, legalName, taxSystem, regimenQuery, regimenOpen, zip, taxIdError, legalNameError, taxSystemError, zipError, cer, keyFile, cerError, keyError, csdPass, showPass, consent, copied, availableLabel, ivaLabel, totalLabel, profile]);
 
-  const isSecondLevel = view === "auto";
 
   return (
     <Modal
@@ -448,25 +409,6 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     >
       <style>{`@keyframes vibraCheckPop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}`}</style>
 
-      {/* Nivel 2 (auto/manual): fila para volver a la elección de método. El
-          header del primitivo solo trae la X, así que el "Regresar" vive aquí. */}
-      {isSecondLevel && (
-        <button
-          type="button" onClick={() => setView("method")} disabled={busy}
-          style={{
-            display: "flex", alignItems: "center", gap: 8, marginBottom: 14,
-            border: "none", background: "none", padding: 0, fontFamily: "inherit",
-            fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.6)",
-            cursor: busy ? "default" : "pointer",
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Regresar
-        </button>
-      )}
 
       {body}
 
@@ -511,14 +453,6 @@ function FileChosen({ name }: { name: string }) {
   );
 }
 
-function Row({ k, v }: { k: string; v: string }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-      <span style={{ color: "rgba(255,255,255,0.55)" }}>{k}</span>
-      <span style={{ color: "#fff", fontWeight: 600, textAlign: "end" }}>{v}</span>
-    </div>
-  );
-}
 
 function errMsg(e: unknown): string {
   const m = e instanceof Error ? e.message : String(e);
@@ -536,14 +470,6 @@ function primaryBtn(busy: boolean): React.CSSProperties {
   };
 }
 
-// Card de método: fila [ícono morado | texto]. Contorno gris MUY ligero para que
-// se note que son botones; el ícono va centrado a la altura total (alignItems: center).
-const methodCard: React.CSSProperties = {
-  display: "flex", gap: 12, alignItems: "center", textAlign: "start", width: "100%",
-  border: "1px solid rgba(255,255,255,0.09)", borderRadius: 12,
-  background: "transparent", cursor: "pointer", fontFamily: "inherit",
-  padding: "12px 14px",
-};
 
 // Desplegable del buscador de régimen (aparece bajo el campo al escribir).
 const SUGGEST_BOX: React.CSSProperties = {
@@ -567,12 +493,5 @@ const redNote: React.CSSProperties = {
   marginTop: 4, fontSize: 11.5, color: "#fca5a5", lineHeight: 1.4,
 };
 
-const ICON_WRAP: React.CSSProperties = { flexShrink: 0, lineHeight: 0 };
 
-// Íconos diseñados en morado (sin emojis). Trazo #a855f7.
-const AUTO_ICON = (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
-    <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />
-  </svg>
-);
 

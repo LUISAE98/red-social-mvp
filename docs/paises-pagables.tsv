@@ -1,0 +1,90 @@
+﻿Código	País	Moneda	Idioma	Tasa de impuesto	Nombre del impuesto	Comisión de Vibra	Mínimo de retiro (USD)	Método de retiro
+AL	Albania	ALL	sq	20%	TVSH	30%	500	Stripe, transferencia internacional
+DE	Alemania	EUR	de	19%	IVA	25%	300	Stripe, transferencia local
+AG	Antigua y Barbuda	XCD	en	17%	ABST	30%	500	Stripe, transferencia internacional
+AR	Argentina	ARS	es	21%	IVA	25%	300	Wallbit, con retiro a banco local
+AU	Australia	AUD	en	10%	GST	25%	300	Stripe, transferencia local
+AT	Austria	EUR	de	20%	IVA	25%	300	Stripe, transferencia local
+BE	Bélgica	EUR	nl	21%	IVA	25%	300	Stripe, transferencia local
+BO	Bolivia	BOB	es	13%	IVA	25%	300	Wallbit, con retiro a banco local
+BA	Bosnia y Herzegovina	BAM	bs	17%	PDV	30%	500	Stripe, transferencia internacional
+BW	Botsuana	BWP	en	14,0%	VAT	30%	500	Stripe, transferencia internacional
+BR	Brasil	BRL	pt-BR	1%	CBS+IBS	25%	300	Wallbit, con retiro a banco local
+BN	Brunéi	BND	ms	0%	Sin impuesto	30%	500	Stripe, transferencia internacional
+BG	Bulgaria	EUR	bg	20%	IVA	25%	300	Stripe, transferencia local
+BT	Bután	BTN	en	5%	GST	30%	500	Stripe, transferencia internacional
+KH	Camboya	KHR	km	10%	VAT	30%	500	Stripe, transferencia internacional
+CA	Canadá	CAD	según el navegador	5%	GST	25%	300	Stripe, transferencia local
+QA	Catar	QAR	ar	0%	Sin impuesto	30%	500	Stripe, transferencia internacional
+EA	Ceuta y Melilla	EUR	es	0%	Sin impuesto	25%	300	Cuenta de España
+CZ	Chequia	CZK	cs	21%	IVA	25%	300	Stripe, transferencia local
+CL	Chile	CLP	es	19%	IVA	25%	300	Wallbit, solo dólares (sin retiro a banco local)
+CY	Chipre	EUR	el	19%	IVA	25%	300	Stripe, transferencia local
+CO	Colombia	COP	es	19%	IVA	25%	300	Wallbit, con retiro a banco local
+CI	Costa de Marfil	XOF	fr	18%	TVA	25%	300	Stripe, transferencia local
+CR	Costa Rica	CRC	es	13%	IVA	25%	300	Stripe, transferencia local
+HR	Croacia	EUR	hr	25%	IVA	25%	300	Stripe, transferencia local
+DK	Dinamarca	DKK	da	25%	IVA	25%	300	Stripe, transferencia local
+EC	Ecuador	USD	es	15%	IVA	25%	300	Wallbit, con retiro a banco local
+EG	Egipto	EGP	ar	14,0%	VAT	30%	500	Stripe, transferencia internacional
+SV	El Salvador	USD	es	13%	IVA	25%	300	Wallbit, con retiro a banco local
+AE	Emiratos Árabes Unidos	AED	ar	5%	VAT	30%	500	Stripe, transferencia internacional
+SK	Eslovaquia	EUR	sk	23%	IVA	25%	300	Stripe, transferencia local
+SI	Eslovenia	EUR	sl	22%	IVA	25%	300	Stripe, transferencia local
+ES	España	EUR	es	21%	IVA	25%	300	Stripe, transferencia local
+US	Estados Unidos	USD	en	0%	Sin impuesto	25%	300	Stripe, transferencia local
+EE	Estonia	EUR	et	24%	IVA	25%	300	Stripe, transferencia local
+PH	Filipinas	PHP	fil	12%	VAT	30%	500	Stripe, transferencia internacional
+FI	Finlandia	EUR	fi	25,5%	IVA	25%	300	Stripe, transferencia local
+FR	Francia	EUR	fr	20%	IVA	25%	300	Stripe, transferencia local
+GR	Grecia	EUR	el	24%	IVA	25%	300	Stripe, transferencia local
+GT	Guatemala	GTQ	es	12%	IVA	25%	300	Wallbit, con retiro a banco local
+HN	Honduras	HNL	es	15%	ISV	25%	300	Wallbit, solo dólares (sin retiro a banco local)
+HK	Hong Kong	HKD	zh-TW	0%	Sin impuesto	30%	500	Stripe, transferencia internacional
+HU	Hungría	HUF	hu	27%	IVA	25%	300	Stripe, transferencia local
+ID	Indonesia	IDR	id	11%	PPN	25%	300	Stripe, transferencia local
+IE	Irlanda	EUR	en	23%	IVA	25%	300	Stripe, transferencia local
+IS	Islandia	ISK	is	24%	VSK	25%	300	Stripe, transferencia local
+IC	Islas Canarias	EUR	es	7,0%	IGIC	25%	300	Cuenta de España
+VI	Islas Vírgenes de EE. UU.	USD	en	5%	Gross Receipts	25%	300	Cuenta de Estados Unidos
+IT	Italia	EUR	it	22%	IVA	25%	300	Stripe, transferencia local
+JM	Jamaica	JMD	en	15%	GCT	25%	300	Stripe, transferencia local
+JP	Japón	JPY	ja	10%	JCT	30%	500	Stripe, transferencia internacional
+JO	Jordania	JOD	ar	16%	GST	30%	500	Stripe, transferencia internacional
+KW	Kuwait	KWD	ar	0%	Sin impuesto	30%	500	Stripe, transferencia internacional
+LV	Letonia	EUR	lv	21%	IVA	25%	300	Stripe, transferencia local
+LT	Lituania	EUR	lt	21%	IVA	25%	300	Stripe, transferencia local
+LU	Luxemburgo	EUR	fr	17%	IVA	25%	300	Stripe, transferencia local
+MY	Malasia	MYR	ms	8%	SST	30%	500	Stripe, transferencia internacional
+MT	Malta	EUR	mt	18%	IVA	25%	300	Stripe, transferencia local
+MA	Marruecos	MAD	ar	20%	TVA	25%	300	Stripe, transferencia local
+MX	México	MXN	es	16%	IVA	25%	300	Stripe, transferencia local
+MD	Moldavia	MDL	ro	20%	TVA	30%	500	Stripe, transferencia internacional
+MC	Mónaco	EUR	fr	20%	IVA	25%	300	Stripe, transferencia local
+MN	Mongolia	MNT	mn	10%	VAT	30%	500	Stripe, transferencia internacional
+NG	Nigeria	NGN	en	7,5%	VAT	30%	500	Stripe, transferencia internacional
+NO	Noruega	NOK	nb	25%	MVA	25%	300	Stripe, transferencia local
+NZ	Nueva Zelanda	NZD	en	15%	GST	25%	300	Stripe, transferencia local
+NL	Países Bajos	EUR	nl	21%	IVA	25%	300	Stripe, transferencia local
+PA	Panamá	USD	es	7,0%	ITBMS	25%	300	Wallbit, con retiro a banco local
+PY	Paraguay	PYG	es	10%	IVA	25%	300	Wallbit, solo dólares (sin retiro a banco local)
+PE	Perú	PEN	es	18%	IGV	25%	300	Stripe, transferencia local
+PL	Polonia	PLN	pl	23%	IVA	25%	300	Stripe, transferencia local
+PT	Portugal	EUR	pt-PT	23%	IVA	25%	300	Stripe, transferencia local
+PR	Puerto Rico	USD	es	11,5%	IVU	25%	300	Cuenta de Estados Unidos
+GB	Reino Unido	GBP	en	20%	VAT	25%	300	Stripe, transferencia local
+DO	República Dominicana	DOP	es	18%	ITBIS	25%	300	Stripe, transferencia local
+RO	Rumanía	RON	ro	21%	IVA	25%	300	Stripe, transferencia local
+SM	San Marino	EUR	it	17%	Imposta monofase	25%	300	Stripe, transferencia local
+LC	Santa Lucía	XCD	en	12,5%	VAT	30%	500	Stripe, transferencia internacional
+RS	Serbia	RSD	sr	20%	PDV	30%	500	Stripe, transferencia internacional
+SG	Singapur	SGD	en	9%	GST	25%	300	Stripe, transferencia local
+LK	Sri Lanka	LKR	si	18%	VAT	30%	500	Stripe, transferencia internacional
+ZA	Sudáfrica	ZAR	en	15%	VAT	30%	500	Stripe, transferencia internacional
+SE	Suecia	SEK	sv	25%	IVA	25%	300	Stripe, transferencia local
+TH	Tailandia	THB	th	7,0%	VAT	30%	500	Stripe, transferencia internacional
+TW	Taiwán	TWD	zh-TW	5%	VAT	30%	500	Stripe, transferencia internacional
+TT	Trinidad y Tobago	TTD	en	12,5%	VAT	25%	300	Stripe, transferencia local
+TR	Turquía	TRY	tr	20%	KDV	30%	500	Stripe, transferencia internacional
+UY	Uruguay	UYU	es	22%	IVA	25%	300	Wallbit, solo dólares (sin retiro a banco local)
+VN	Vietnam	VND	vi	10%	VAT	30%	500	Stripe, transferencia internacional

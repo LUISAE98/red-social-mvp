@@ -16,6 +16,7 @@ import {
   type PayoutTerms,
 } from "@/lib/wallet/payoutTiers";
 import { db } from "@/lib/firebase";
+import { usePaisPorIp } from "@/lib/wallet/usePaisPorIp";
 
 // ── Datos fiscales (Bloque 1a) ───────────────────────────────────────────────
 export type SaveCreatorTaxProfileInput = {
@@ -147,6 +148,7 @@ export type CreatorTaxProfile = {
   selfBillingConsent?: { accepted?: boolean };
 };
 
+
 export function useCreatorTaxProfile(uid: string | null | undefined) {
   const [profile, setProfile] = useState<CreatorTaxProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -161,6 +163,9 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
   const [kycAprobado, setKycAprobado] = useState(false);
   /** País del documento con el que se verificó. Lo escribe el webhook al aprobar. */
   const [kycCountry, setKycCountry] = useState<string | null>(null);
+
+  // Su país por IP, solo para estimar lo que se le enseña antes de que se registre.
+  const ipPais = usePaisPorIp();
 
   useEffect(() => {
     if (!uid) {
@@ -279,9 +284,20 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
    */
   const payoutCountryUnpayable = isKnownUnpayableCountry(paisDeCobro);
 
-  // Lo que se enseña mientras no hay cuenta: el caso estándar, que es el de 45 de los 74
-  // países pagables. En cuanto da de alta su cuenta, manda su país de verdad.
-  const terminosVisibles = payoutTerms ?? PAYOUT_TERMS_PROVISIONAL;
+  /**
+   * 👁️ Lo que se le ENSEÑA mientras no se sabe su país de verdad.
+   *
+   * Sale de su IP, la misma señal que ya decide su moneda y su idioma, para que no vea un
+   * 25% que luego resulte 30%. Si su IP tampoco dice nada, el caso estándar.
+   *
+   * 🚨 **Esto NO entra en `payoutReady` ni en nada que decida dinero.** Una IP puede ser de
+   * un viaje o de una VPN, y ninguna de las dos cosas puede cambiar lo que se le paga. El
+   * gate de abajo usa `payoutTerms`, que solo sale de datos duros.
+   */
+  const terminosVisibles = payoutTerms ?? payoutTermsOf(ipPais) ?? PAYOUT_TERMS_PROVISIONAL;
+
+  /** Lo que ve es una estimación por IP, no su trato real. La interfaz debería decirlo. */
+  const terminosSonEstimados = payoutTerms == null;
   /**
    * ¿Sabemos quién es?
    *
@@ -373,8 +389,12 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
     payoutCountryUnpayable,
     /** Su comisión, con el estándar como respaldo mientras no hay cuenta. Solo para MOSTRAR. */
     commissionRate: terminosVisibles.commissionRate,
-    /** Su mínimo de retiro en USD, con el estándar como respaldo. Solo para MOSTRAR. */
+    /** Su mínimo de retiro en USD. Solo para MOSTRAR. */
     minWithdrawalUsd: terminosVisibles.minWithdrawalUsd,
+    /** El nivel que se le enseña sale de su IP, no de un dato suyo. */
+    terminosSonEstimados,
+    /** El nivel visible, estimado o real. Para el texto que se lo explica. */
+    terminosVisibles,
     /** ¿Cobra fuera de México? Le sube la retención de IVA al 100%. */
     cobraFueraDeMexico:
       esMexicano &&

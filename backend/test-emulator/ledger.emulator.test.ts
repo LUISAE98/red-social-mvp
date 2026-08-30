@@ -132,6 +132,39 @@ describe("settleEarning (pending -> earned)", () => {
     expect(s?.lifetimeEarnedNet).toBe(netFromGross(300));
   });
 
+  it("liberar una venta suma sus retenciones a las PENDIENTES, no solo a las de por vida", async () => {
+    // 🚨 Regresión del 2026-08-30. `settleEarning` acumulaba en `lifetimeRetained*` pero se
+    //    saltaba `pendingRetained*`, que son las que el retiro descuenta de verdad. O sea:
+    //    todo lo del grupo B —lo que se libera al entregar— se habría podido retirar SIN
+    //    retenerle un peso, y Vibra habría tenido que enterar al SAT dinero ya pagado.
+    const creatorId = newCreator();
+    await recordEarning(creatorId, {
+      type: "greeting",
+      grossAmount: 300,
+      sourceType: "greetingRequest",
+      sourceId: "gRet",
+      earnedImmediately: false,
+    });
+
+    // Antes de liberar no se debe nada: el dinero todavía no está en su saldo.
+    const antes = await readSummary(creatorId);
+    expect(antes?.pendingRetainedIsr ?? 0).toBe(0);
+
+    await settleEarning(creatorId, "greetingRequest", "gRet");
+
+    const entry = await readEntry(creatorId, "greetingRequest", "gRet");
+    const ret = entry?.retenciones as Record<string, number> | undefined;
+    // El creador de prueba no tiene perfil fiscal, así que cae en el caso base
+    // (mexicano sin RFC) y SÍ se le retiene. Si esto fuera cero el test no probaría nada.
+    expect(ret?.isrRetenido).toBeGreaterThan(0);
+
+    const s = await readSummary(creatorId);
+    expect(s?.pendingRetainedIsr).toBe(ret?.isrRetenido);
+    expect(s?.pendingRetainedIva).toBe(ret?.ivaRetenido);
+    expect(s?.pendingCommissionVat).toBe(ret?.ivaComision);
+    // Y las de por vida siguen cuadrando con ellas: nadie ha retirado todavía.
+    expect(s?.lifetimeRetainedIsr).toBe(s?.pendingRetainedIsr);
+  });
   it("settle sobre una entrada ya 'earned' es no-op (no doble conteo)", async () => {
     const creatorId = newCreator();
     await recordEarning(creatorId, {

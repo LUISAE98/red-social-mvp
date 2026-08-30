@@ -9,6 +9,7 @@
 
 import { onRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
+import { formaDePagoSat, FORMA_PAGO } from "../../facturacion/formaDePago";
 import { defineSecret } from "firebase-functions/params";
 import * as crypto from "crypto";
 import * as admin from "firebase-admin";
@@ -80,6 +81,38 @@ type StripeEvent = {
   data: { object: Record<string, unknown> };
 };
 
+/**
+ * Consulta el cargo para saber con qué se pagó.
+ *
+ * Es una llamada de más por cada pago, y es inevitable: el evento solo trae el id. Sale
+ * barata —una lectura— y el dato acaba en un documento fiscal, así que vale la pena.
+ *
+ * 🚨 Si la consulta falla NO se tira el webhook: el pago ya ocurrió y materializar la compra
+ * importa mucho más que la forma de pago. Se devuelve «por definir», que es la verdad.
+ */
+async function formaDePagoDelCobro(latestCharge: unknown): Promise<string> {
+  const id = typeof latestCharge === "string" ? latestCharge.trim() : "";
+  if (!id) return FORMA_PAGO.POR_DEFINIR;
+
+  try {
+    const res = await stripeFetch<{
+      payment_method_details?: { type?: string; card?: { funding?: string } };
+    }>(`/charges/${id}`, { method: "GET" });
+    if (!res.ok || !res.data) {
+      logger.warn("forma_de_pago_no_consultada", { charge: id });
+      return FORMA_PAGO.POR_DEFINIR;
+    }
+    const d = res.data.payment_method_details;
+    return formaDePagoSat({ type: d?.type ?? null, funding: d?.card?.funding ?? null });
+  } catch (err) {
+    logger.warn("forma_de_pago_falló", {
+      charge: id,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return FORMA_PAGO.POR_DEFINIR;
+  }
+}
+
 export const stripeWebhook = onRequest(
   { region: REGION, secrets: [stripeWebhookSecret, stripeSecretKey], cors: false },
   async (req, res) => {
@@ -119,7 +152,29 @@ export const stripeWebhook = onRequest(
 
     try {
       if (event.type === "payment_intent.succeeded") {
-        const pi = event.data.object as { id?: string; amount?: number; currency?: string; status?: string; customer?: string; payment_method?: string; setup_future_usage?: string; metadata?: Record<string, unknown> };
+        const pi = event.data.object as {
+          id?: string; amount?: number; currency?: string; status?: string;
+          customer?: string; payment_method?: string; setup_future_usage?: string;
+          metadata?: Record<string, unknown>;
+          /**
+           * El id del cargo. Con él se consulta CÓMO pagó, que es lo que va en el CFDI.
+           *
+           * Llega siempre como id, nunca expandido: los webhooks no admiten `expand`.
+           */
+          latest_charge?: string;
+        };
+        /**
+         * 🧾 Cómo pagó, para el CFDI.
+         *
+         * ⚠️ **Los webhooks de Stripe NUNCA traen objetos expandidos**, así que `latest_charge`
+         * llega como un id suelto y hay que ir a buscar el cargo. No se puede pedir `expand`
+         * en un evento: lo confirma su propia documentación.
+         *
+         * Se calcula FUERA del `if`: lo necesitan las dos escrituras de abajo, y la del intent
+         * ocurre aunque el cobro no traiga id.
+         */
+        const formaPago = await formaDePagoDelCobro(pi.latest_charge);
+
         if (pi.id) {
           await db.collection("stripePayments").doc(pi.id).set(
             {
@@ -129,6 +184,7 @@ export const stripeWebhook = onRequest(
               status: pi.status ?? null,
               customer: pi.customer ?? null,
               metadata: pi.metadata ?? {},
+              satFormaPago: formaPago,
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
             },
             { merge: true }
@@ -168,6 +224,12 @@ export const stripeWebhook = onRequest(
 
           await applyApprovedPaymentToSource(externalReference, { mpOrderId: null, mpPaymentId: pi.id ?? null });
           await upsertPaymentIntentStatus(externalReference, { status: "paid" });
+          // La factura lee de aquí, no de `stripePayments`: su clave es la referencia de
+          // la compra, no el id del cobro, y de una referencia pueden colgar varios cobros.
+          await db.collection("paymentIntents").doc(externalReference).set(
+            { satFormaPago: formaPago },
+            { merge: true }
+          );
           logger.info("stripeWebhook materialized", { externalReference, id: pi.id });
         } else {
           logger.info("stripeWebhook payment sin externalReference (prueba suelta)", { id: pi.id });

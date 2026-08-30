@@ -11,6 +11,7 @@ import WalletLives from "./WalletLives";
 import WalletTickets from "./WalletTickets";
 import WalletChannelFilter from "./WalletChannelFilter";
 import WalletMovementsChart, { type ChartBucket } from "./WalletMovementsChart";
+import WithdrawBreakdown, { type DesgloseRetiro } from "./WithdrawBreakdown";
 import { useMediaSlideReservedHeight } from "@/app/[locale]/groups/[groupId]/components/posts/useMediaSlideReservedHeight";
 import { useOwnedChannels } from "@/lib/wallet/walletSubscriptionData";
 import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
@@ -97,9 +98,23 @@ function monthShort(ym: string, locale: string): string {
 export default function WalletTransactions({
   uid,
   mode,
+  impuestosRecaudados,
+  desgloseRetiro,
 }: {
   uid: string | null | undefined;
   mode: "net" | "gross";
+  /**
+   * Impuestos que pagaron sus compradores, ya formateado. `null` si no hay ninguno.
+   *
+   * Solo se enseña en la pestaña de Retiros, que es donde el creador viene a entender qué
+   * pasó con su dinero. En «Todos» sería ruido, porque ahí está mirando sus ventas.
+   */
+  impuestosRecaudados?: string | null;
+  /**
+   * Qué le llega si retira hoy. Lo calcula Finanzas con `calcularRetiro`; aquí solo se
+   * pinta, con el MISMO componente que usa el panel de retiro para no contradecirlo.
+   */
+  desgloseRetiro?: DesgloseRetiro | null;
 }) {
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
@@ -517,6 +532,23 @@ export default function WalletTransactions({
         </div>
       ) : null}
 
+      {/* 💸 Qué le llega si retira hoy, al inicio de la pestaña.
+
+          Es lo único que esta pestaña puede enseñar con verdad mientras no exista el
+          historial: antes decía «Aún no tienes movimientos», que además de vacío era
+          falso —movimientos tiene, lo que no tiene son RETIROS—.
+
+          El desglose lo pinta el mismo componente que el panel de «Retirar», para que las
+          dos pantallas no puedan decirle dos cifras distintas del mismo dinero. */}
+      {filter === "withdrawal" && desgloseRetiro ? (
+        <div style={{ marginTop: 20 }}>
+          <WithdrawBreakdown
+            desglose={desgloseRetiro}
+            impuestosRecaudados={impuestosRecaudados}
+          />
+        </div>
+      ) : null}
+
       {/* Gráfica: 1 mes → semanas; varios meses → comparación por mes. */}
       {filter === "all" && chartBuckets.length >= 1 ? (
         <WalletMovementsChart entries={scopedEntries} mode={mode} buckets={chartBuckets} />
@@ -612,8 +644,17 @@ export default function WalletTransactions({
           {tWallet("txLoading")}
         </div>
       ) : visible.length === 0 ? (
-        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, padding: "8px 0" }}>
-          {tWallet("txEmpty")}
+        <div
+          style={{
+            color: "rgba(255,255,255,0.5)",
+            fontSize: 13,
+            // En Retiros la frase va debajo del desglose y necesita despegarse de él.
+            padding: filter === "withdrawal" ? "20px 0 8px" : "8px 0",
+          }}
+        >
+          {/* En Retiros el vacío significa otra cosa. «Aún no tienes movimientos» era
+              falso ahí —movimientos tiene, y muchos—: lo que no ha hecho es un retiro. */}
+          {tWallet(filter === "withdrawal" ? "withdrawHistoryEmpty" : "txEmpty")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column" }}>

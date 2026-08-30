@@ -227,10 +227,33 @@ type SummaryData = {
    *
    * Se suman al ganar y se restan al revertir, en paralelo a `lifetimeEarnedNet`.
    */
+  /**
+   * 🧾 Retenciones ACUMULADAS DE POR VIDA. Solo suben.
+   *
+   * Sirven para el informe anual y para explicarle al creador cuánto se ha pagado al SAT por
+   * él. **No sirven para calcular un retiro**: si ya retiró una vez, estas cifras siguen
+   * incluyendo lo retenido de aquellas ventas y descontarlas otra vez sería cobrárselas dos
+   * veces. Para eso están los campos `pending*` de abajo.
+   */
   lifetimeRetainedIsr: number;
   lifetimeRetainedIva: number;
   /** Impuesto de la comisión de Vibra. Lo paga el creador y, si tiene RFC, lo acredita. */
   lifetimeCommissionVat: number;
+
+  /**
+   * 🧾 Retenciones de lo que TODAVÍA NO SE HA RETIRADO.
+   *
+   * Es lo que hay que descontar cuando el creador pide su dinero. Suben al ganar y bajan al
+   * retirar o al revertir, así que en todo momento reflejan solo las ventas cuyo importe
+   * sigue en su saldo disponible.
+   *
+   * 🚨 Cada una viene de la venta que la generó, con el país de SU comprador: una venta a un
+   * mexicano lleva IVA retenido y una a un alemán no, porque su IVA mexicano es cero por
+   * exportación. No es un porcentaje sobre el total, es la suma de casos distintos.
+   */
+  pendingRetainedIsr: number;
+  pendingRetainedIva: number;
+  pendingCommissionVat: number;
 };
 
 function emptySummary(): SummaryData {
@@ -250,6 +273,9 @@ function emptySummary(): SummaryData {
     lifetimeRetainedIsr: 0,
     lifetimeRetainedIva: 0,
     lifetimeCommissionVat: 0,
+    pendingRetainedIsr: 0,
+    pendingRetainedIva: 0,
+    pendingCommissionVat: 0,
   };
 }
 
@@ -497,6 +523,10 @@ export async function recordEarning(
       s.lifetimeRetainedIsr = round2((s.lifetimeRetainedIsr ?? 0) + liquidacion.isrRetenido);
       s.lifetimeRetainedIva = round2((s.lifetimeRetainedIva ?? 0) + liquidacion.ivaRetenido);
       s.lifetimeCommissionVat = round2((s.lifetimeCommissionVat ?? 0) + liquidacion.ivaComision);
+      // Y las pendientes, que son las que se descontarán cuando pida su dinero.
+      s.pendingRetainedIsr = round2((s.pendingRetainedIsr ?? 0) + liquidacion.isrRetenido);
+      s.pendingRetainedIva = round2((s.pendingRetainedIva ?? 0) + liquidacion.ivaRetenido);
+      s.pendingCommissionVat = round2((s.pendingCommissionVat ?? 0) + liquidacion.ivaComision);
     } else {
       s.pendingGross = round2(s.pendingGross + gross);
       s.pendingNet = round2(s.pendingNet + net);
@@ -609,6 +639,14 @@ export async function settleEarning(
     s.lifetimeRetainedIsr = round2((s.lifetimeRetainedIsr ?? 0) + (e.retenciones?.isrRetenido ?? 0));
     s.lifetimeRetainedIva = round2((s.lifetimeRetainedIva ?? 0) + (e.retenciones?.ivaRetenido ?? 0));
     s.lifetimeCommissionVat = round2((s.lifetimeCommissionVat ?? 0) + (e.retenciones?.ivaComision ?? 0));
+    // Y a las pendientes, que son las que se descuentan cuando pida su dinero.
+    //
+    // 🚨 Esta venta ACABA de entrar al saldo disponible, así que su retención acaba de
+    //    entrar a la deuda con el SAT. Omitirlas aquí — como se omitían — dejaba que todo
+    //    lo del grupo B (lo que se libera al entregar) se retirara SIN retener nada.
+    s.pendingRetainedIsr = round2((s.pendingRetainedIsr ?? 0) + (e.retenciones?.isrRetenido ?? 0));
+    s.pendingRetainedIva = round2((s.pendingRetainedIva ?? 0) + (e.retenciones?.ivaRetenido ?? 0));
+    s.pendingCommissionVat = round2((s.pendingCommissionVat ?? 0) + (e.retenciones?.ivaComision ?? 0));
 
     tx.set(sRef, { ...s, currency: SETTLEMENT_CURRENCY, updatedAt: now }, { merge: true });
   });
@@ -660,6 +698,21 @@ export async function reverseEarning(
       s.lifetimeRetainedIsr = round2((s.lifetimeRetainedIsr ?? 0) - (e.retenciones?.isrRetenido ?? 0));
       s.lifetimeRetainedIva = round2((s.lifetimeRetainedIva ?? 0) - (e.retenciones?.ivaRetenido ?? 0));
       s.lifetimeCommissionVat = round2((s.lifetimeCommissionVat ?? 0) - (e.retenciones?.ivaComision ?? 0));
+      // Y de las pendientes también: ese importe ya no está en su saldo, así que tampoco
+      // puede seguir descontándose de su próximo retiro.
+      //
+      // ⚠️ Nunca por debajo de cero. Si la venta es anterior a que existieran estos campos,
+      // su retención nunca llegó a sumarse y restarla dejaría el acumulado en negativo, que
+      // luego se convertiría en un retiro INFLADO.
+      s.pendingRetainedIsr = round2(
+        Math.max(0, (s.pendingRetainedIsr ?? 0) - (e.retenciones?.isrRetenido ?? 0))
+      );
+      s.pendingRetainedIva = round2(
+        Math.max(0, (s.pendingRetainedIva ?? 0) - (e.retenciones?.ivaRetenido ?? 0))
+      );
+      s.pendingCommissionVat = round2(
+        Math.max(0, (s.pendingCommissionVat ?? 0) - (e.retenciones?.ivaComision ?? 0))
+      );
       s.refundedGross = round2(s.refundedGross + e.grossAmount);
       s.refundedNet = round2(s.refundedNet + e.netAmount);
     } else if (opts?.asRefund) {

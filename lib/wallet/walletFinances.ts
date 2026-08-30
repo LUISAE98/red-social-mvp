@@ -85,9 +85,17 @@ function normalizeSummary(data: Record<string, unknown>): WalletSummary {
     rejectedNet: toNumber(data.rejectedNet),
     // El backend lo guarda como lifetimeTaxCollected; aquí lo exponemos como taxCollected.
     taxCollected: toNumber(data.lifetimeTaxCollected),
-    retainedIsr: toNumber(data.lifetimeRetainedIsr),
-    retainedIva: toNumber(data.lifetimeRetainedIva),
-    commissionVat: toNumber(data.lifetimeCommissionVat),
+    // 🚨 Las PENDIENTES, no las de por vida.
+    //
+    // Las de por vida solo suben y sirven para el informe anual. Descontarlas de un retiro
+    // se las cobraría dos veces al creador que ya retiró antes: seguirían incluyendo lo
+    // retenido de ventas cuyo dinero ya cobró.
+    //
+    // Con respaldo a las de por vida para los resúmenes anteriores al 2026-08-29, que aún no
+    // tienen los campos nuevos. Para un creador que nunca ha retirado, las dos coinciden.
+    retainedIsr: toNumber(data.pendingRetainedIsr ?? data.lifetimeRetainedIsr),
+    retainedIva: toNumber(data.pendingRetainedIva ?? data.lifetimeRetainedIva),
+    commissionVat: toNumber(data.pendingCommissionVat ?? data.lifetimeCommissionVat),
   };
 }
 
