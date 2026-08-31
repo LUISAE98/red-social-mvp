@@ -53,7 +53,11 @@ const isPublicRoute =
   pathname.startsWith("/p/") ||
   pathname.startsWith("/live-overlay/") ||
   pathname.startsWith("/egress/") ||
-  pathname.startsWith("/dev/"); // páginas de diseño/preview (dev), accesibles sin login
+  pathname.startsWith("/dev/") || // páginas de diseño/preview (dev), accesibles sin login
+  // Vibra Express: el feed sin cuenta. Su razon de ser es que se pueda ver sin
+  // login, asi que mandarlo a login lo vacia de sentido.
+  pathname === "/express" ||
+  pathname.startsWith("/express/");
 
 // Rutas que se renderizan SIN chrome (overlays a pantalla completa y la
 // plantilla de grabación de sesiones, que carga el grabador headless).
