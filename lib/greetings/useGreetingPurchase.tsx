@@ -12,7 +12,7 @@
 // deja seguir, porque sacar a alguien a una pantalla de login en mitad del
 // impulso de compra es perderlo.
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
@@ -21,7 +21,11 @@ import { usePurchaseIdentityMode } from "./purchaseIdentity";
 import type { StoryType } from "@/lib/stories/types";
 import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
 import { createGreetingStripeIntent } from "@/lib/stripe/stripePayments";
-import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { getServiceByType } from "@/lib/services/normalizeServices";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
@@ -54,6 +58,7 @@ export function useGreetingPurchase({
   const router = useRouter();
   const pathname = usePathname();
   const identityMode = usePurchaseIdentityMode();
+  const pf = usePriceFormat();
 
   const [formOpen, setFormOpen] = useState(false);
   const [toName, setToName] = useState("");
@@ -64,6 +69,15 @@ export function useGreetingPurchase({
   const [success, setSuccess] = useState<string | null>(null);
 
   // El alta expres, entre el encargo y el cobro.
+  // Precio de este servicio, todo incluido y en la moneda de quien mira.
+  //
+  // El boton sabe pintarlo desde siempre, pero este flujo nunca se lo pasaba:
+  // el perfil del creador si, el reel no. Sin precio, la persona pulsa
+  // "Continuar al pago" sin saber cuanto va a pagar.
+  //
+  // Se lee del documento del creador, que es de lectura publica, asi que
+  // funciona igual sin sesion.
+  const [priceLabel, setPriceLabel] = useState<string | undefined>(undefined);
   const [accountOpen, setAccountOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [payRequestId, setPayRequestId] = useState<string | null>(null);
@@ -100,6 +114,31 @@ export function useGreetingPurchase({
     setSuccess(null);
     setFormOpen(true);
   }, [resolveBuyer]);
+
+  useEffect(() => {
+    if (!creatorId) return;
+    let cancelled = false;
+    getDoc(doc(db, "users", creatorId))
+      .then((snap) => {
+        if (cancelled) return;
+        const offerings = snap.data()?.offerings ?? null;
+        const service = getServiceByType(offerings, type, source);
+        const price = service?.publicPrice ?? service?.memberPrice ?? null;
+        if (typeof price !== "number") return;
+        // Total todo incluido: base del creador, cargo fijo e impuesto del
+        // pais de quien mira. Es lo que se le va a cobrar.
+        setPriceLabel(
+          pf.formatWithTax(price + FIXED_SERVICE_FEE_USD, {
+            baseCurrency: SETTLEMENT_CURRENCY,
+            code: true,
+          }).total,
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [creatorId, type, source, pf]);
 
   const close = useCallback(() => {
     setFormOpen(false);
@@ -176,6 +215,7 @@ export function useGreetingPurchase({
           creatorName={creatorName ?? undefined}
           toName={toName}
           instructions={instructions}
+          greetPriceLabel={priceLabel}
           greetError={error}
           greetSuccess={success}
           onCloseGreeting={close}
@@ -275,6 +315,7 @@ export function useGreetingPurchase({
       close,
       submit,
       allowStory,
+      priceLabel,
       accountOpen,
       createOrder,
       payOpen,

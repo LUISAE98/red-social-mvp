@@ -11,7 +11,8 @@
 // es un adorno, es lo que decide si se enlaza sobre la sesión de invitado o se
 // entra a una cuenta que ya estaba.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { attachGuestAccount, emailHasAccount, MIN_PASSWORD_LENGTH } from "@/lib/guest/guestAccount";
 
@@ -37,8 +38,13 @@ export default function GuestAccountStep({ open, onClose, onReady }: Props) {
   const [checking, setChecking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const emailOk = EMAIL_RE.test(email.trim());
 
@@ -99,7 +105,14 @@ export default function GuestAccountStep({ open, onClose, onReady }: Props) {
     outline: "none",
   };
 
-  return (
+  // ⚠️ Se monta en un PORTAL sobre `document.body`, y no es opcional.
+  //
+  // `position: fixed` deja de referirse a la pantalla en cuanto un ancestro
+  // tiene `transform`. El carrusel de escritorio mueve sus paneles con uno, y
+  // este paso vive dentro del slide de una historia: sin portal se pintaba
+  // DENTRO del panel, recortado, y parecia que el boton no hacia nada. La
+  // pasarela de pago ya se monta asi, por lo mismo.
+  return createPortal(
     <div
       onClick={onClose}
       style={{
@@ -204,6 +217,7 @@ export default function GuestAccountStep({ open, onClose, onReady }: Props) {
           {busy ? tReg("submitting") : tExpress("continue")}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
