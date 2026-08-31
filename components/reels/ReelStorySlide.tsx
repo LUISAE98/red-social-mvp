@@ -20,6 +20,7 @@ import { IconButton } from "@/components/ui";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { ReadAlongText } from "@/components/tts/ReadAlongText";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
@@ -986,17 +987,12 @@ export default function ReelStorySlide({
                   textShadow: "0 1px 3px rgba(0,0,0,0.7)",
                 }}
               >
-                {reader.state === "idle" || !reader.highlight ? (
-                  readerText
-                ) : (
-                  <>
-                    <strong style={{ color: "#fff", fontWeight: 700 }}>
-                      {readerText.slice(0, reader.highlight.start + reader.highlight.length)}
-                    </strong>
-                    <span ref={readerCursorRef} />
-                    {readerText.slice(reader.highlight.start + reader.highlight.length)}
-                  </>
-                )}
+                <ReadAlongText
+                  text={readerText}
+                  active={reader.state !== "idle" && !!reader.highlight}
+                  readChars={(reader.highlight?.start ?? 0) + (reader.highlight?.length ?? 0)}
+                  cursorRef={readerCursorRef}
+                />
               </p>
             </div>
           </div>

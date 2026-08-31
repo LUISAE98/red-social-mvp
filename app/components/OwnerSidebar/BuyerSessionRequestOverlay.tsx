@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
+import { ReadAlongText } from "@/components/tts/ReadAlongText";
 import type { MeetGreetRequestDoc, ExclusiveSessionRequestDoc } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import { vozParaLocale } from "@/lib/tts/voices";
@@ -442,12 +443,11 @@ export default function BuyerSessionRequestOverlay({
                       </div>
                     )}
                     <span style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.82)", flex: 1, display: "block", paddingTop: 4 }}>
-                      {isActive && chatTtsHighlight ? (
-                        <>
-                          <strong style={{ color: "#fff", fontWeight: 700 }}>{entry.text.slice(0, chatTtsHighlight.start + chatTtsHighlight.length)}</strong>
-                          {entry.text.slice(chatTtsHighlight.start + chatTtsHighlight.length)}
-                        </>
-                      ) : entry.text}
+                      <ReadAlongText
+                          text={entry.text}
+                          active={isActive && !!chatTtsHighlight}
+                          readChars={(chatTtsHighlight?.start ?? 0) + (chatTtsHighlight?.length ?? 0)}
+                        />
                     </span>
                   </div>
                 </div>

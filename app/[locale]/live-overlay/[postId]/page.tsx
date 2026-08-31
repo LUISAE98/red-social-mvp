@@ -121,11 +121,18 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
     setActiveSC(sc);
 
     if (durationSecs >= TTS_MIN_DURATION_SECS) {
-      const ttsText = `${sc.username} dijo: ${sc.text}`;
-      ttsHandleRef.current = playEdgeTTS(ttsText, {
-        volume: 1,
-        voice: vozParaLocale(creatorLocaleRef.current),
-      });
+      // El overlay no traduce nada: la frase llega ya pronunciable desde el
+      // creador. Es el único que no puede componerla —no tiene sesión ni
+      // mensajes cargados—, así que sin ella no lee.
+      // Sin frase no se lee, pero NO se sale de la función: detrás queda el
+      // temporizador que oculta el overlay, y saltárselo dejaría el
+      // supercomentario pegado en pantalla para siempre.
+      if (sc.spokenText) {
+        ttsHandleRef.current = playEdgeTTS(sc.spokenText, {
+          volume: 1,
+          voice: vozParaLocale(creatorLocaleRef.current),
+        });
+      }
     }
 
     // Fallback: ocultar cuando termina el tiempo display aunque Firestore sea lento

@@ -216,7 +216,8 @@ export default function LiveInlinePlayer({
 
     if (!isViewerOpenRef.current && durationSecs >= TTS_MIN_DURATION_SECS) {
       if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
-      const fullText = frasePorVoz(sc, locale);
+      // Ver la nota en LiveViewerModal: la frase llega ya pronunciable.
+      const fullText = sc.spokenText ?? frasePorVoz(sc, locale, tLive);
       const elapsed = sc.displaySeconds - durationSecs;
       const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
       const startChar = Math.floor(progressRatio * fullText.length);

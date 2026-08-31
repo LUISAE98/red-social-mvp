@@ -4,6 +4,7 @@ import { IconButton } from "@/components/ui";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
+import { ReadAlongText } from "@/components/tts/ReadAlongText";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import { vozParaLocale } from "@/lib/tts/voices";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
@@ -418,12 +419,11 @@ export default function SessionRequestOverlay({
                       </div>
                     )}
                     <p style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.4, color: "rgba(255,255,255,0.9)", margin: 0, padding: "4px 0 2px", flex: 1 }}>
-                      {isActive && chatTtsHighlight ? (
-                        <>
-                          <strong style={{ color: "#fff", fontWeight: 700 }}>{entry.text.slice(0, chatTtsHighlight.start + chatTtsHighlight.length)}</strong>
-                          {entry.text.slice(chatTtsHighlight.start + chatTtsHighlight.length)}
-                        </>
-                      ) : entry.text}
+                      <ReadAlongText
+                          text={entry.text}
+                          active={isActive && !!chatTtsHighlight}
+                          readChars={(chatTtsHighlight?.start ?? 0) + (chatTtsHighlight?.length ?? 0)}
+                        />
                     </p>
                   </div>
                 </div>

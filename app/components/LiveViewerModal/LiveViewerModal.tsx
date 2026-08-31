@@ -1211,7 +1211,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
       const elapsed = sc.displaySeconds - durationSeconds;
       const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
-      const fullText = frasePorVoz(sc, locale);
+      // La frase viene hecha desde el creador, en su idioma y con el importe
+      // que el fan pagó. Sin ella —supercomentarios de antes de este cambio— se
+      // compone al vuelo, que es lo que sonaba hasta ahora.
+      const fullText = sc.spokenText ?? frasePorVoz(sc, locale, tLive);
       const startChar = Math.floor(progressRatio * fullText.length);
       const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
       // Reutilizar el elemento pre-calentado en el gesto de apertura del modal.

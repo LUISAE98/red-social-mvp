@@ -69,6 +69,7 @@ import {
 
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import { useTranslations, useLocale } from "next-intl";
+import { ReadAlongText } from "@/components/tts/ReadAlongText";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -172,12 +173,11 @@ export function BuyerMessagePlayer({ message }: { message: string }) {
         </IconButton>
       </div>
       <p style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.4, color: "rgba(255,255,255,0.9)", margin: 0, padding: "2px 0", userSelect: "none" }}>
-        {speechState === "idle" || !speechHighlight ? message : (
-          <>
-            <strong style={{ color: "#fff", fontWeight: 700 }}>{message.slice(0, speechHighlight.start + speechHighlight.length)}</strong>
-            {message.slice(speechHighlight.start + speechHighlight.length)}
-          </>
-        )}
+        <ReadAlongText
+          text={message}
+          active={speechState !== "idle" && !!speechHighlight}
+          readChars={(speechHighlight?.start ?? 0) + (speechHighlight?.length ?? 0)}
+        />
       </p>
     </div>
   );

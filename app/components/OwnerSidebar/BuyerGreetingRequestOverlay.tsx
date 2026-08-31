@@ -7,6 +7,7 @@ import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
+import { ReadAlongText } from "@/components/tts/ReadAlongText";
 import { createPortal } from "react-dom";
 import type { GreetingRequestDoc } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
@@ -315,10 +316,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
               if (speechState === "idle" || !speechHighlight) return text;
               const { start, length } = speechHighlight;
               return (
-                <>
-                  <strong style={{ color: "#fff", fontWeight: 700 }}>{text.slice(0, start + length)}</strong>
-                  {text.slice(start + length)}
-                </>
+                <ReadAlongText text={text} active readChars={start + length} />
               );
             })()}
           </span>

@@ -26,6 +26,7 @@ import {
   subscribeToLiveChatTimestamps,
 } from "@/lib/liveChat/live-chat-service";
 import {
+  frasePorVoz,
   subscribeSuperComments,
   playSuperComment,
   pushActiveSuperToViewers,
@@ -1398,7 +1399,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const scheduledAtMs = Date.now() + LEAD_MS;
     if (!isEnded) {
       playSuperComment(post.id, sc).catch(() => {});
-      pushActiveSuperToViewers(post.id, sc, scheduledAtMs, locale).catch(() => {});
+      pushActiveSuperToViewers(post.id, sc, scheduledAtMs, locale, frasePorVoz(sc, locale, tLive)).catch(() => {});
     }
 
     // Lógica de mostrar overlay — llamada desde handshake OBS o desde timeout
@@ -1417,10 +1418,16 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         const withoutHeadphones = !headphonesDetected;
         if (withoutHeadphones) setMicMutedForTTS(true);
         const isDonation = !sc.text;
-        const ttsText = isDonation
-          ? tLive("donatedTts", { user: sc.username, amount: String(sc.amount) })
-          : `${sc.username} dijo: ${sc.text}`;
-        const prefixLen = isDonation ? 0 : `${sc.username} dijo: `.length;
+        // Una sola forma de armar la frase, la del servicio: es la única que
+        // lee el importe que el fan PAGÓ y nombra la moneda en vez de
+        // deletrear el código. El panel tenía su propia versión y se quedaba
+        // con la base del creador.
+        const ttsText = frasePorVoz(sc, locale, tLive);
+        // Cuánto ocupa el "Fulano dijo:" que va delante del mensaje, para que
+        // el resaltado no se adelante al texto del fan.
+        const prefixLen = isDonation
+          ? 0
+          : Math.max(0, ttsText.length - (sc.text?.length ?? 0));
         const totalLen = ttsText.length;
         ttsAudioRef.current = playEdgeTTS(ttsText, {
           voice: vozParaLocale(locale),

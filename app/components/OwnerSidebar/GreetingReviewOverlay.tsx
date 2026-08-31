@@ -36,6 +36,7 @@ import {
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useTranslations, useLocale } from "next-intl";
+import { ReadAlongText } from "@/components/tts/ReadAlongText";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
@@ -1685,11 +1686,12 @@ export default function GreetingReviewOverlay({
               if (speechState === "idle" || !speechHighlight) return text;
               const { start, length } = speechHighlight;
               return (
-                <>
-                  <strong style={{ color: "#fff", fontWeight: 700 }}>{text.slice(0, start + length)}</strong>
-                  <span ref={speechCursorRef} />
-                  {text.slice(start + length)}
-                </>
+                <ReadAlongText
+                  text={text}
+                  active
+                  readChars={start + length}
+                  cursorRef={speechCursorRef}
+                />
               );
             })()}
           </p>

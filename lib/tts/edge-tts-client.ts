@@ -52,10 +52,30 @@ export function playEdgeTTS(
     // esa. Va en segundos de MEDIO, no de reloj, así que no se divide por la
     // velocidad: `currentTime` ya avanza en la escala del propio audio.
     const estimatedDuration = Math.max(1, text.length * 0.066);
-    audio.addEventListener("timeupdate", () => {
+
+    // ⚠️ NO se usa `timeupdate`: el navegador lo dispara unas cuatro veces por
+    // segundo, así que el resaltado avanzaba a saltos y siempre por detrás de
+    // la voz. `requestAnimationFrame` lee el MISMO dato —`currentTime`— pero
+    // en cada fotograma, así que va pegado a lo que se oye.
+    let rafId = 0;
+    const tick = () => {
       const real = audio.duration;
       const total = real > 0 && isFinite(real) ? real : estimatedDuration;
       onProgress(Math.min(1, audio.currentTime / total));
+      // Mientras suene, otro fotograma. Al pausar o acabar, el bucle muere
+      // solo: no hay que acordarse de cancelarlo desde fuera.
+      if (!audio.paused && !audio.ended) rafId = requestAnimationFrame(tick);
+      else rafId = 0;
+    };
+    audio.addEventListener("play", () => {
+      if (!rafId) rafId = requestAnimationFrame(tick);
+    });
+    // Un último tick al terminar, para que el resaltado llegue al final del
+    // texto en vez de quedarse a un fotograma del borde.
+    audio.addEventListener("ended", () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
+      onProgress(1);
     });
   }
   if (onEnded) audio.addEventListener("ended", onEnded);
