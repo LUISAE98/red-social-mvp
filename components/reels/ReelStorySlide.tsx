@@ -356,13 +356,26 @@ export default function ReelStorySlide({
       .then((snap) => {
         if (cancelled) return;
         const d = snap.data();
+        const photo = typeof d?.photoURL === "string" && d.photoURL ? d.photoURL : null;
+        if (!snap.exists()) {
+          console.warn("[ReelStorySlide] el creador no existe:", greetingAuthorUid);
+        } else if (!photo) {
+          // Sin esto, "no tiene foto" y "no pude leerla" se ven igual: un hueco.
+          console.warn(
+            "[ReelStorySlide] el creador no trae photoURL:",
+            greetingAuthorUid,
+            { campos: Object.keys(d ?? {}) },
+          );
+        }
         setCreator({
           name: typeof d?.displayName === "string" ? d.displayName : null,
-          photo: typeof d?.photoURL === "string" ? d.photoURL : null,
+          photo,
           handle: typeof d?.handle === "string" ? d.handle : null,
         });
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[ReelStorySlide] no se pudo leer al creador:", greetingAuthorUid, err);
+      });
     return () => {
       cancelled = true;
     };
