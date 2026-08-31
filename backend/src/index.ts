@@ -435,6 +435,9 @@ export {
   onMeetGreetLedger,
 } from "./wallet/ledgerTriggers";
 
+// Wallet — RETIROS. El creador solicita, administración acepta o rechaza.
+export { requestWithdrawal, reviewWithdrawal, markWithdrawalPaid } from "./wallet/withdrawals";
+
 // Wallet — espejo de compras del comprador (users/{buyerId}/purchases)
 export { mirrorLedgerToBuyerPurchase } from "./wallet/buyerPurchases";
 
@@ -573,6 +576,9 @@ export { cleanupDeletedMuxVideos } from "./muxOrphanCleanup";
 
 // Me gusta de las historias: global y uno por persona, se de desde donde se de.
 export { toggleStoryLike } from "./storyLikes";
+
+// Vibra Express: saber si un correo ya tiene cuenta ANTES de cobrar.
+export { emailHasAccount } from "./guestAccount";
 
 // Contadores de comentarios y respuestas: los lleva el SERVIDOR, no el cliente
 export {

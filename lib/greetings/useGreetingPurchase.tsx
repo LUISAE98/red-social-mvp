@@ -25,6 +25,7 @@ import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
+import GuestAccountStep from "@/components/payments/GuestAccountStep";
 
 const FONT = "inherit";
 
@@ -62,6 +63,8 @@ export function useGreetingPurchase({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // El alta expres, entre el encargo y el cobro.
+  const [accountOpen, setAccountOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [payRequestId, setPayRequestId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState<number | null>(null);
@@ -105,8 +108,8 @@ export function useGreetingPurchase({
     setSuccess(null);
   }, []);
 
-  const submit = useCallback(async () => {
-    if (submitting || !toName.trim() || !instructions.trim()) return;
+  /** Crea el encargo y abre el cobro. Ya con identidad resuelta. */
+  const createOrder = useCallback(async () => {
     setSubmitting(true);
     setError(null);
     try {
@@ -130,7 +133,6 @@ export function useGreetingPurchase({
       setSubmitting(false);
     }
   }, [
-    submitting,
     toName,
     instructions,
     creatorId,
@@ -141,8 +143,26 @@ export function useGreetingPurchase({
     tWallet,
   ]);
 
+  /**
+   * Lo que hace el botón del formulario.
+   *
+   * ⚠️ En Express, si todavía no hay cuenta real, el alta va ANTES de crear el
+   * encargo. Si el correo que escriba resulta tener cuenta, iniciar sesión con
+   * ella CAMBIA el uid — y un encargo creado antes habría quedado colgado del
+   * uid anónimo, pagado y sin dueño que pueda abrirlo.
+   */
+  const submit = useCallback(async () => {
+    if (submitting || !toName.trim() || !instructions.trim()) return;
+    const necesitaCuenta = identityMode === "guest" && (!user || user.isAnonymous);
+    if (necesitaCuenta) {
+      setAccountOpen(true);
+      return;
+    }
+    await createOrder();
+  }, [submitting, toName, instructions, identityMode, user, createOrder]);
+
   /** ¿Hay algún modal abierto? El slide lo usa para pausar el video. */
-  const isOpen = formOpen || payOpen;
+  const isOpen = formOpen || accountOpen || payOpen;
 
   const totalAmount = payAmount != null ? payAmount + FIXED_SERVICE_FEE_USD : null;
 
@@ -196,6 +216,16 @@ export function useGreetingPurchase({
           serviceModalCardStyle={{ width: "min(720px, calc(100vw - 28px))", maxHeight: "calc(100dvh - 28px)", overflowY: "auto", background: "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 18, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.72)", color: "#fff" }}
           serviceToastStyle={{ position: "fixed", left: "50%", bottom: "calc(24px + var(--vb-safe-bottom, 0px))", transform: "translateX(-50%)", zIndex: 100002, maxWidth: "min(520px, calc(100vw - 28px))", padding: "10px 12px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(12,12,12,0.94)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT }}
         />
+        {/* El alta exprés. Al resolverse, sigue el encargo y el cobro. */}
+        <GuestAccountStep
+          open={accountOpen}
+          onClose={() => setAccountOpen(false)}
+          onReady={() => {
+            setAccountOpen(false);
+            void createOrder();
+          }}
+        />
+
         <StripePaymentModal
           open={payOpen}
           amount={totalAmount}
@@ -245,6 +275,8 @@ export function useGreetingPurchase({
       close,
       submit,
       allowStory,
+      accountOpen,
+      createOrder,
       payOpen,
       totalAmount,
       payRequestId,
