@@ -35,6 +35,8 @@ const LiveViewerModal = dynamic(
 /** Alto del nav inferior. El reel NO se recorta con esto: solo aparta sus
  *  controles para que no queden debajo del nav. */
 const NAV_CLEARANCE = "calc(70px + var(--vb-safe-bottom, 0px))";
+/** Sin barra inferior no hay nada que esquivar. */
+const NO_NAV_CLEARANCE = "0px";
 
 const fullScreenCenter: React.CSSProperties = {
   position: "fixed",
@@ -65,7 +67,8 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 type Props = {
-  uid: string;
+  /** Quien mira. Vacio o nulo en Vibra Express, donde se entra sin cuenta. */
+  uid: string | null;
   isAnonymous: boolean;
   /**
    * Historias y lives ya ordenados y mezclados. Si viene una destacada, va
@@ -77,6 +80,14 @@ type Props = {
   recordEngagement: ReturnType<typeof useReelFeed>["recordEngagement"];
   /** A dónde volver al cerrar el carrusel de escritorio. */
   closeHref?: string;
+  /**
+   * Hay barra inferior debajo del feed.
+   *
+   * En la app la hay y los controles del reel tienen que quedar por encima.
+   * En Vibra Express no, asi que reservar ese hueco dejaria los botones
+   * flotando a setenta pixeles del borde sin nada debajo.
+   */
+  hasBottomNav?: boolean;
 };
 
 export default function ReelsSurface({
@@ -87,6 +98,7 @@ export default function ReelsSurface({
   loadMore,
   recordEngagement,
   closeHref = "/",
+  hasBottomNav = true,
 }: Props) {
   const tCommon = useTranslations("common");
   const router = useRouter();
@@ -263,7 +275,7 @@ export default function ReelsSurface({
         onLoadMore={loadMore}
         onStoryViewed={handleStoryViewed}
         onEngagement={recordEngagement}
-        navClearance={NAV_CLEARANCE}
+        navClearance={hasBottomNav ? NAV_CLEARANCE : NO_NAV_CLEARANCE}
       />
       {openLive && (
         <LiveViewerModal
