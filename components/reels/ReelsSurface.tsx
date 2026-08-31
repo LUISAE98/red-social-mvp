@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { collection, documentId, getDocs, query, where } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc } from "@/lib/stories/types";
 import { recordStoryView } from "@/lib/stories/storyService";
@@ -38,6 +38,8 @@ const LiveViewerModal = dynamic(
 const NAV_CLEARANCE = "calc(70px + var(--vb-safe-bottom, 0px))";
 /** Sin barra inferior no hay nada que esquivar. */
 const NO_NAV_CLEARANCE = "0px";
+/** Tope de autores cuyas fotos se piden. En un feed real son un punado. */
+const MAX_AUTHOR_PHOTOS = 40;
 
 const fullScreenCenter: React.CSSProperties = {
   position: "fixed",
@@ -61,11 +63,6 @@ function authorOf(story: StoryDoc): string | null {
   return story.greetingCreatorId ?? story.creatorId ?? null;
 }
 
-function chunk<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-}
 
 type Props = {
   /** Quien mira. Vacio o nulo en Vibra Express, donde se entra sin cuenta. */
@@ -145,21 +142,30 @@ export default function ReelsSurface({
     if (!isDesktop || authorIds.length === 0) return;
     let cancelled = false;
     (async () => {
+      // ⚠️ De UNO EN UNO, no con `documentId() in`.
+      //
+      // Aquella consulta devolvia vacio y dejaba a las vistas previas sin foto,
+      // con el fallo tragado en silencio. Es el mismo patron que ya ha dado
+      // guerra antes en este repositorio. Leer el documento suelto es el camino
+      // que el slide del centro usa y que demostradamente funciona.
+      //
+      // No es caro: los autores ya vienen sin repetir, y en un feed real son
+      // unos pocos aunque haya decenas de historias.
       const found = new Map<string, string | null>();
-      for (const batch of chunk(authorIds, 30)) {
-        try {
-          const snap = await getDocs(
-            query(collection(db, "users"), where(documentId(), "in", batch)),
-          );
-          for (const d of snap.docs) {
-            const url = d.data().photoURL;
-            found.set(d.id, typeof url === "string" ? url : null);
+      const results = await Promise.all(
+        authorIds.slice(0, MAX_AUTHOR_PHOTOS).map(async (id) => {
+          try {
+            const snap = await getDoc(doc(db, "users", id));
+            const url = snap.data()?.photoURL;
+            return [id, typeof url === "string" ? url : null] as const;
+          } catch (err) {
+            console.error("[ReelsSurface] no se pudo leer la foto de", id, err);
+            return [id, null] as const;
           }
-        } catch {
-          // Sin foto se ve el marcador gris, que es peor pero no rompe nada.
-        }
-      }
-      if (!cancelled && found.size > 0) setPhotos(found);
+        }),
+      );
+      for (const [id, url] of results) found.set(id, url);
+      if (!cancelled) setPhotos(found);
     })();
     return () => {
       cancelled = true;
