@@ -231,6 +231,8 @@ export default function ReelStorySlide({
   // cruzaria el 35% cada vuelta, sumando una vista cada treinta segundos por el
   // mero hecho de dejar la pantalla abierta.
   const playCountedRef = useRef(false);
+  /** Cuando se repinto la barra por ultima vez. */
+  const lastProgressPaintRef = useRef(0);
   // Flamitas. Es UNA por persona y global: darla aqui o desde el perfil del
   // creador es lo mismo, y el numero es el mismo en los dos sitios.
   const [liked, setLiked] = useState(false);
@@ -469,9 +471,23 @@ export default function ReelStorySlide({
           setPlays((n) => n + 1);
           void recordStoryPlay(story.id);
         }
-        // Devolver el MISMO valor evita el render. La barra no distingue
-        // milesimas, y sin esto esto repintaba el slide entero cada fotograma.
-        setOwnProgress((prev) => (Math.abs(prev - ratio) < 0.001 ? prev : ratio));
+        // ⚠️ La barra se repinta como MUCHO diez veces por segundo, no sesenta.
+        //
+        // Este componente es grande. Repintarlo en cada fotograma hace que un
+        // render tarde mas de los 16 ms que dura el fotograma, asi que el
+        // siguiente llega antes de que React haya terminado: las
+        // actualizaciones se apilan, nunca se alcanzan, y React corta con
+        // "Maximum update depth exceeded". Es intermitente porque depende de
+        // lo cargada que vaya la maquina, y por eso costo tanto de ver.
+        //
+        // Una barra de progreso a diez por segundo se ve igual de fluida: es
+        // una linea fina que avanza despacio. Lo que NO se limita es el aviso
+        // al anfitrion, que solo escribe en una referencia y no repinta nada.
+        const ahora = performance.now();
+        if (ahora - lastProgressPaintRef.current >= 100) {
+          lastProgressPaintRef.current = ahora;
+          setOwnProgress((prev) => (Math.abs(prev - ratio) < 0.001 ? prev : ratio));
+        }
       }
       progressRafRef.current = requestAnimationFrame(tick);
     };
