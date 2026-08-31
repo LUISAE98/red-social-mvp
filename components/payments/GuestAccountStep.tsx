@@ -118,7 +118,10 @@ export default function GuestAccountStep({ open, onClose, onReady }: Props) {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 10050,
+        // ⚠️ Por encima del formulario que abre este paso, que se pinta casi
+        // en el techo (2147483646). Con un numero menor el alta se abria
+        // DETRAS y parecia que el boton no hacia nada.
+        zIndex: 2147483647,
         background: "rgba(0,0,0,0.72)",
         display: "flex",
         alignItems: "center",

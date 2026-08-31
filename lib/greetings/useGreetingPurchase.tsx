@@ -24,7 +24,7 @@ import { createGreetingStripeIntent } from "@/lib/stripe/stripePayments";
 import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { getServiceByType } from "@/lib/services/normalizeServices";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
@@ -121,17 +121,25 @@ export function useGreetingPurchase({
     setFormOpen(true);
   }, [resolveBuyer]);
 
+  // ⚠️ EN VIVO, no una lectura suelta.
+  //
+  // Si el creador cambia el precio o apaga el servicio mientras alguien tiene
+  // el feed abierto, lo que se ensena tiene que cambiar con el. Un precio leido
+  // una vez es un precio viejo esperando a equivocarse, y en algo que se cobra
+  // eso no vale.
   useEffect(() => {
     if (!creatorId) return;
-    let cancelled = false;
-    getDoc(doc(db, "users", creatorId))
-      .then((snap) => {
-        if (cancelled) return;
+    return onSnapshot(
+      doc(db, "users", creatorId),
+      (snap) => {
         const offerings = snap.data()?.offerings ?? null;
         const service = getServiceByType(offerings, type, source);
         setAvailable(!!service);
         const price = service?.publicPrice ?? service?.memberPrice ?? null;
-        if (typeof price !== "number") return;
+        if (typeof price !== "number") {
+          setPriceLabel(undefined);
+          return;
+        }
         // Total todo incluido: base del creador, cargo fijo e impuesto del
         // pais de quien mira. Es lo que se le va a cobrar.
         setPriceLabel(
@@ -140,11 +148,12 @@ export function useGreetingPurchase({
             code: true,
           }).total,
         );
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+      },
+      (err) => {
+        // Sin saberlo no se puede prometer un precio ni ofrecer la compra.
+        console.error("[useGreetingPurchase] no se pudo leer al creador:", err);
+      },
+    );
   }, [creatorId, type, source, pf]);
 
   const close = useCallback(() => {
