@@ -38,6 +38,7 @@ import {
 import { dedupeItems, storiesOf, storyItem, type ReelItem } from "./reelItems";
 import { fetchReelLivesOnce, subscribeReelLives } from "./reelLives";
 import { fetchReelSamples } from "./reelSamples";
+import { loadLocalSeen } from "./reelSeenLocal";
 import {
   getReelFeedGeneration,
   getReelFeedGenerationServer,
@@ -244,7 +245,14 @@ export function useReelFeed(uid: string | null | undefined) {
       if (cancelled) return;
 
       tasteRef.current = taste;
-      viewedRef.current = viewed;
+      // Lo que recuerda el NAVEGADOR se suma a lo que recuerda la cuenta.
+      //
+      // Sin cuenta es la unica memoria que hay. Con cuenta tampoco estorba:
+      // si esta persona vio cosas antes de entrar, no tiene por que volver a
+      // encontrarselas ahora que entro.
+      const local = loadLocalSeen();
+      for (const [id, at] of viewed) local.set(id, at);
+      viewedRef.current = local;
       interestRef.current = interest;
       cursorRef.current = pool.cursor;
       exhaustedRef.current = pool.exhausted;

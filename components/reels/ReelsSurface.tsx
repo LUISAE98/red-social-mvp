@@ -18,6 +18,7 @@ import { collection, documentId, getDocs, query, where } from "firebase/firestor
 import { db } from "@/lib/firebase";
 import type { StoryDoc } from "@/lib/stories/types";
 import { recordStoryView } from "@/lib/stories/storyService";
+import { markSeenLocally } from "@/lib/reels/reelSeenLocal";
 import { useReelFeed } from "@/lib/reels/useReelFeed";
 import HomeStoryCarouselDesktop, {
   type CarouselGroup,
@@ -167,8 +168,13 @@ export default function ReelsSurface({
 
   const handleStoryViewed = useCallback(
     (storyId: string) => {
-      // Las reglas de `userStoryViews` exigen cuenta real.
-      if (!uid || isAnonymous) return;
+      // Las reglas de `userStoryViews` exigen cuenta real. Quien no la tiene
+      // lo recuerda en su navegador: no viaja entre aparatos, pero evita que
+      // Vibra Express repita el mismo contenido en cada visita.
+      if (!uid || isAnonymous) {
+        markSeenLocally(storyId);
+        return;
+      }
       void recordStoryView(uid, storyId).catch(() => {});
     },
     [uid, isAnonymous],
