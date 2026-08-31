@@ -10,7 +10,15 @@ import type { WalletChannel } from "@/lib/wallet/walletSubscriptionData";
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const AVATAR = 60; // diámetro del avatar (+30%)
 const RING_PAD = 2.4; // grosor del aro de Vibra (+20% sobre 2)
-const RING_GAP = 2.5; // hueco invisible (color del fondo) entre el aro y la foto
+const RING_GAP = 2.5; // hueco entre el aro y la foto
+/**
+ * Cuánto sobresale el aro por fuera de la foto.
+ *
+ * El aro va FUERA y no comiendo la foto, que es lo que antes obligaba a
+ * cambiarle el tamaño a la imagen. Al estar posicionado en absoluto no ocupa
+ * sitio en la fila, así que no descoloca a los avatares de al lado.
+ */
+const RING_OUT = RING_PAD + RING_GAP;
 const STACK_OVERLAP = 44; // encimado de los avatares de "Todos" (más angosto)
 const STACK_MAX = 4; // avatares visibles en el grupo "Todos"
 const LAPTOP_MIN_WIDTH = 820;
@@ -28,30 +36,31 @@ function Avatar({
 }) {
   const [error, setError] = useState(false);
   const showImg = Boolean(src) && !error;
-  // Con aro: se descuenta el grosor del aro + el hueco invisible.
-  const inner = ring ? size - Math.round(RING_PAD * 2 + RING_GAP * 2) : size;
 
+  // ⚠️ El tamaño de la foto NO depende del aro. Antes sí, y como `next/image`
+  // lleva las medidas en los atributos, encenderlo la hacía pedir otra imagen
+  // y durante el cambio se veía el fondo negro de debajo.
   const media = showImg ? (
     <Image
       src={src as string}
       alt=""
-      width={inner}
-      height={inner}
+      width={size}
+      height={size}
       onError={() => setError(true)}
       style={{ borderRadius: "50%", objectFit: "cover", display: "block" }}
     />
   ) : (
     <div
       style={{
-        width: inner,
-        height: inner,
+        width: size,
+        height: size,
         borderRadius: "50%",
         background: "rgba(255,255,255,0.09)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         fontWeight: 700,
-        fontSize: Math.round(inner * 0.4),
+        fontSize: Math.round(size * 0.4),
         color: "#fff",
       }}
     >
@@ -59,71 +68,93 @@ function Avatar({
     </div>
   );
 
-  if (!ring) {
-    return (
-      <div
-        style={{
-          width: size,
-          height: size,
-          flexShrink: 0,
-          borderRadius: "50%",
-          overflow: "hidden",
-          boxSizing: "border-box",
-        }}
-      >
-        {media}
-      </div>
-    );
-  }
-
   return (
     <div
-      style={{
-        width: size,
-        height: size,
-        flexShrink: 0,
-        borderRadius: "50%",
-        background: VIBRA_RING,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: RING_PAD,
-        boxSizing: "border-box",
-      }}
+      className={ring ? "chf-avatar chf-on" : "chf-avatar"}
+      style={{ width: size, height: size, position: "relative", flexShrink: 0 }}
     >
-      {/* Hueco invisible (color del fondo de la página) entre el aro y la foto,
-          hecho con padding — NO con un borde dibujado sobre la foto. */}
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          borderRadius: "50%",
-          background: "#000",
-          padding: RING_GAP,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          boxSizing: "border-box",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            borderRadius: "50%",
-            overflow: "hidden",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {media}
-        </div>
-      </div>
+      {/* El aro vive siempre en el árbol; lo que cambia es cuánto se ha
+          dibujado. Montarlo y desmontarlo dejaría la salida sin animación. */}
+      <span className="chf-ring" aria-hidden="true">
+        <span className="chf-ring-fill" />
+      </span>
+      <div className="chf-photo">{media}</div>
+
+      {/* ⚠️ El bloque va AQUI, no en el componente de arriba. styled-jsx
+          firma con un hash los elementos del componente que contiene la
+          etiqueta <style>, y solo a esos les aplica las reglas. Puesto fuera,
+          el aro no recibia ni una linea de este CSS. */}
+      <style jsx>{`
+        /* El aro se dibuja FUERA de la foto, en su propia capa. Al ir en
+           posicion absoluta no ocupa sitio: encenderlo no mueve ni un avatar
+           de la fila.
+
+           Aparece BARRIENDO, como una barra de carga circular, y al quitarlo
+           hace el mismo recorrido al reves. Por eso nunca se desmonta: un
+           elemento que sale del arbol no puede animar su salida. */
+        .chf-ring {
+          position: absolute;
+          inset: -${RING_OUT}px;
+          border-radius: 50%;
+          pointer-events: none;
+
+          /* UNA mascara por elemento. Componer dos en el mismo elemento
+             —mask-composite— fue lo que dejo el aro invisible. */
+          -webkit-mask: conic-gradient(from -90deg, #000 var(--chf-sweep, 0%), transparent 0);
+          mask: conic-gradient(from -90deg, #000 var(--chf-sweep, 0%), transparent 0);
+
+          opacity: 0;
+          transform: scale(0.82);
+          transition:
+            --chf-sweep 460ms cubic-bezier(0.22, 1, 0.36, 1),
+            opacity 160ms ease,
+            transform 460ms cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* El hijo pone el color y el agujero del centro: eso es lo que lo
+           convierte en aro y no en disco. */
+        .chf-ring-fill {
+          display: block;
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          background: ${VIBRA_RING};
+          -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - ${RING_PAD}px), #000 0);
+          mask: radial-gradient(farthest-side, transparent calc(100% - ${RING_PAD}px), #000 0);
+        }
+
+        .chf-on .chf-ring {
+          --chf-sweep: 100%;
+          opacity: 1;
+          transform: scale(1);
+        }
+
+        /* La foto se aparta un poco para dejarle sitio al aro. Es un
+           transform, no un cambio de medidas: la imagen sigue siendo la misma
+           y next/image no vuelve a pedirla. Ese cambio de tamano era lo que
+           ponia el avatar en negro al seleccionarlo. */
+        .chf-photo {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          overflow: hidden;
+          transform: scale(1);
+          transition: transform 460ms cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .chf-on .chf-photo {
+          transform: scale(0.9);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .chf-ring,
+          .chf-photo {
+            transition: none;
+          }
+        }
+      `}</style>
     </div>
   );
 }
-
 // Flecha del carrusel (mismo chevron que en los servicios del perfil, en blanco).
 function Chevron({ dir }: { dir: "left" | "right" }) {
   return (
@@ -322,7 +353,10 @@ export default function WalletChannelFilter({
           scroll-snap-type: x proximity;
           -webkit-overflow-scrolling: touch;
           scrollbar-width: none;
-          padding: 2px 2px 0;
+          /* ⚠️ overflow-x: auto hace que el navegador calcule tambien
+             overflow-y: auto, asi que esto recorta arriba y abajo. El aro
+             sobresale de la foto, y sin este aire se lo come. */
+          padding: ${RING_OUT + 2}px 2px;
           /* Solo scroll horizontal: el navegador no dispara scroll/refresh vertical
              al arrastrar aquí (axis-lock también en usePullToRefresh). */
           touch-action: pan-x;
