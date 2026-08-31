@@ -15,6 +15,7 @@ import { useAuth } from "@/app/providers";
 import { useScreenReady } from "@/lib/useScreenReady";
 import { useReelFeed } from "@/lib/reels/useReelFeed";
 import ReelsSurface from "@/components/reels/ReelsSurface";
+import { PurchaseIdentityProvider } from "@/lib/greetings/purchaseIdentity";
 
 export default function ExpressPage() {
   // Puede no haber nadie, o haber una sesión de invitado abierta por una compra
@@ -26,17 +27,21 @@ export default function ExpressPage() {
   useScreenReady(ready);
 
   return (
-    <ReelsSurface
-      uid={user?.uid ?? null}
-      isAnonymous={!user || !!user.isAnonymous}
-      items={items}
-      ready={ready}
-      loadMore={loadMore}
-      recordEngagement={recordEngagement}
-      // Sin barra inferior: los controles del reel llegan hasta el borde.
-      hasBottomNav={false}
-      // Cerrar el carrusel de escritorio devuelve a Express, no a la app.
-      closeHref="/express"
-    />
+    // Aqui NO se manda a login al comprar: se firma como invitado y el encargo
+    // sigue. El correo se pide despues, en la pasarela.
+    <PurchaseIdentityProvider mode="guest">
+      <ReelsSurface
+        uid={user?.uid ?? null}
+        isAnonymous={!user || !!user.isAnonymous}
+        items={items}
+        ready={ready}
+        loadMore={loadMore}
+        recordEngagement={recordEngagement}
+        // Sin barra inferior: los controles del reel llegan hasta el borde.
+        hasBottomNav={false}
+        // Cerrar el carrusel de escritorio devuelve a Express, no a la app.
+        closeHref="/express"
+      />
+    </PurchaseIdentityProvider>
   );
 }

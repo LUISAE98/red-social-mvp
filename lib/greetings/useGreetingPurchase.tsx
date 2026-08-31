@@ -6,14 +6,18 @@
 // reels compartan el mismo flujo, que son dos modales encadenados (recoger el
 // encargo, luego cobrar) más el registro geográfico de la compra.
 //
-// La puerta de identidad vive en `resolveBuyer`: hoy, sin sesión, manda a login.
-// Vibra Express necesitará abrir ahí un alta exprés en vez de navegar fuera, y
-// ese es el único punto que habrá que tocar.
+// La puerta de identidad vive en `resolveBuyer`, y NO decide por su cuenta: la
+// estrategia la pone la superficie que monta el feed (ver `purchaseIdentity`).
+// En la app, sin sesión, manda a login. En Vibra Express firma como invitado y
+// deja seguir, porque sacar a alguien a una pantalla de login en mitad del
+// impulso de compra es perderlo.
 
 import { useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
+import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
+import { usePurchaseIdentityMode } from "./purchaseIdentity";
 import type { StoryType } from "@/lib/stories/types";
 import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
 import { createGreetingStripeIntent } from "@/lib/stripe/stripePayments";
@@ -48,6 +52,7 @@ export function useGreetingPurchase({
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const identityMode = usePurchaseIdentityMode();
 
   const [formOpen, setFormOpen] = useState(false);
   const [toName, setToName] = useState("");
@@ -61,15 +66,30 @@ export function useGreetingPurchase({
   const [payRequestId, setPayRequestId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState<number | null>(null);
 
-  /** ¿Hay identidad para comprar? Si no, se resuelve y se corta el flujo. */
-  const resolveBuyer = useCallback((): boolean => {
+  /**
+   * ¿Hay identidad para comprar? Si no, se resuelve según la estrategia.
+   *
+   * Como invitado NO se pide correo aquí: se firma anónimamente y el encargo
+   * queda ligado a ese uid. El correo y la contraseña se piden en la pasarela
+   * y se ENLAZAN sobre ese mismo uid, así la compra que ya se hizo no queda
+   * colgada de una identidad que se abandona.
+   */
+  const resolveBuyer = useCallback(async (): Promise<boolean> => {
     if (user) return true;
+    if (identityMode === "guest") {
+      try {
+        await ensureGuestAuth();
+        return true;
+      } catch {
+        return false;
+      }
+    }
     router.push(`/login?next=${encodeURIComponent(pathname)}`);
     return false;
-  }, [user, router, pathname]);
+  }, [user, identityMode, router, pathname]);
 
-  const open = useCallback(() => {
-    if (!resolveBuyer()) return;
+  const open = useCallback(async () => {
+    if (!(await resolveBuyer())) return;
     setToName("");
     setInstructions("");
     setAllowStory(false);

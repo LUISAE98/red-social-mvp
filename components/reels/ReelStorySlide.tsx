@@ -1044,7 +1044,7 @@ export default function ReelStorySlide({
               onTouchStart={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                purchase.open();
+                void purchase.open();
               }}
               style={{ flex: 1, padding: compact ? "8px 10px" : "11px 10px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #f472b6, #a855f7)", color: "#fff", fontSize: compact ? 12 : 14, fontWeight: 600, fontFamily: FONT, cursor: "pointer", letterSpacing: "-0.01em", transition: "opacity 150ms ease", WebkitTapHighlightColor: "transparent" }}
             >
