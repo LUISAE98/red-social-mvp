@@ -100,6 +100,12 @@ async function fetchViewedMap(uid: string): Promise<Map<string, number>> {
 }
 
 export function useReelFeed(uid: string | null | undefined) {
+  // Quien mira, o NADIE.
+  //
+  // ⚠️ Se normaliza a null porque el estado se compara con esto para saber si
+  // es de esta sesion: sin normalizar, `undefined` (nadie) nunca casaria con
+  // el `null` del estado vacio y el feed se quedaria eternamente sin listo.
+  const viewerUid = uid ?? null;
   const [state, setState] = useState<State>(EMPTY);
 
   // Cambia cuando alguien pide refrescar (tirar hacia abajo, publicar, quitar).
@@ -182,8 +188,14 @@ export function useReelFeed(uid: string | null | undefined) {
     return mixed;
   }, []);
 
+  // ⚠️ Este efecto NO exige sesion, y es a proposito.
+  //
+  // Vibra Express enseña este mismo feed sin login. Lo que necesita cuenta
+  // —lo ya visto, el gusto aprendido, lo de quien sigues— simplemente no
+  // aplica a un invitado y se salta; el descubrimiento, los lives y las
+  // muestras no preguntan quien eres. Un feed sin personalizar sigue siendo un
+  // feed; uno que no carga, no.
   useEffect(() => {
-    if (!uid) return;
     let cancelled = false;
 
     // Reinicio total: cambiar de usuario no puede heredar ni el gusto ni las
@@ -199,25 +211,31 @@ export function useReelFeed(uid: string | null | undefined) {
     // El vector de intereses se ata al USUARIO, no a la recarga. Un refresco no
     // puede tirar lo aprendido en esta sesión, que aún no está guardado: se
     // escribe una sola vez al salir del feed.
-    const sameUser = interestUidRef.current === uid;
+    const sameUser = !!viewerUid && interestUidRef.current === viewerUid;
     if (!sameUser) {
       interestRef.current = new Map();
       interestDirtyRef.current = false;
-      interestUidRef.current = uid;
+      interestUidRef.current = viewerUid;
     }
 
     (async () => {
       try {
       const [taste, viewed, interest, followed, pool, lives, samples] = await Promise.all([
-        getUserTasteVector(uid).catch(() => new Map<CanonicalGroupCategory, number>()),
-        fetchViewedMap(uid),
-        sameUser ? Promise.resolve(interestRef.current) : loadTermVector(uid),
-        fetchFollowedReelStories(uid),
+        // Sin cuenta no hay gusto, ni historial, ni a quien sigas: son cosas
+        // que viven bajo el usuario. Se resuelven vacias en vez de consultarse.
+        viewerUid
+          ? getUserTasteVector(viewerUid).catch(() => new Map<CanonicalGroupCategory, number>())
+          : Promise.resolve(new Map<CanonicalGroupCategory, number>()),
+        viewerUid ? fetchViewedMap(viewerUid) : Promise.resolve(new Map<string, number>()),
+        viewerUid && !sameUser ? loadTermVector(viewerUid) : Promise.resolve(interestRef.current),
+        viewerUid
+          ? fetchFollowedReelStories(viewerUid)
+          : Promise.resolve({ stories: [], followingIds: new Set<string>() }),
         fetchDiscoveryReelPage(null, POOL_SIZE),
         // Los lives entran en la PRIMERA tanda o no entran hasta que el
         // usuario scrolle una pagina entera. Por eso se piden aqui y no se
         // deja al primer aviso de la suscripcion, que llegaba cuando queria.
-        fetchReelLivesOnce({ uid }),
+        fetchReelLivesOnce({ uid: viewerUid }),
         // Las muestras del escaparate. Se piden una vez y se mezclan con la
         // primera tanda: son pocas —tres por servicio— y su valor esta justo al
         // principio, cuando el creador aun no tiene encargos que ensenar.
@@ -254,7 +272,7 @@ export function useReelFeed(uid: string | null | undefined) {
       // salieron.
       const tail = arrange([...pool.stories, ...samples]);
 
-      setState({ uid, items: dedupeItems([...head, ...tail]), ready: true });
+      setState({ uid: viewerUid, items: dedupeItems([...head, ...tail]), ready: true });
       } catch (err) {
         // ⚠️ Sin esto, cualquier fallo de aqui dentro dejaba el feed en el
         // spinner PARA SIEMPRE: `setState` no llegaba a ejecutarse y `ready` se
@@ -265,14 +283,14 @@ export function useReelFeed(uid: string | null | undefined) {
         // Un feed vacio es un mal resultado; un feed que carga eternamente es
         // peor, porque no se distingue de la aplicacion rota.
         console.error("[useReelFeed] no se pudo armar el feed:", err);
-        if (!cancelled) setState({ uid, items: [], ready: true });
+        if (!cancelled) setState({ uid: viewerUid, items: [], ready: true });
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [uid, arrange, generation]);
+  }, [viewerUid, arrange, generation]);
 
   // Los lives entran y salen solos mientras el feed está abierto.
   //
@@ -281,19 +299,18 @@ export function useReelFeed(uid: string | null | undefined) {
   // peor se sienten en un feed. Los nuevos esperan a la siguiente tanda, que es
   // cuando la lista crece por abajo de todas formas.
   useEffect(() => {
-    if (!uid) return;
-    return subscribeReelLives({ uid }, (lives) => {
+    return subscribeReelLives({ uid: viewerUid }, (lives) => {
       livesRef.current = lives;
       const enCurso = new Set(lives.map((l) => l.key));
       setState((prev) => {
-        if (prev.uid !== uid) return prev;
+        if (prev.uid !== viewerUid) return prev;
         const next = prev.items.filter((i) => i.kind !== "live" || enCurso.has(i.key));
         // Sin cambios se devuelve el mismo objeto: si no, cada aviso repintaría
         // el feed entero para nada.
         return next.length === prev.items.length ? prev : { ...prev, items: next };
       });
     });
-  }, [uid]);
+  }, [viewerUid]);
 
   /**
    * Pide más hasta CONSEGUIR algo nuevo, no hasta pedir una vez.
@@ -351,21 +368,24 @@ export function useReelFeed(uid: string | null | undefined) {
   // Una sola escritura al salir del feed. `pagehide` cubre cerrar la pestaña y
   // el cambio de app en móvil, donde `beforeunload` no llega en iOS.
   useEffect(() => {
-    if (!uid) return;
+    // Sin cuenta no hay donde guardar lo aprendido: las reglas de
+    // `reelSignals` exigen cuenta real. El invitado aprende dentro de su
+    // sesion y lo pierde al salir, que es lo que significa no tener cuenta.
+    if (!viewerUid) return;
     const flush = () => {
       if (!interestDirtyRef.current) return;
       interestDirtyRef.current = false;
-      void saveTermVector(uid, interestRef.current);
+      void saveTermVector(viewerUid, interestRef.current);
     };
     window.addEventListener("pagehide", flush);
     return () => {
       window.removeEventListener("pagehide", flush);
       flush();
     };
-  }, [uid]);
+  }, [viewerUid]);
 
   // Si el estado es de otra sesión, se ignora hasta que llegue el de esta.
-  const current = state.uid === uid ? state : EMPTY;
+  const current = state.uid === viewerUid ? state : EMPTY;
   // `stories` se mantiene para quien solo entiende de historias, como el rail
   // del home: ahí un live no pinta nada.
   const stories = useMemo(() => storiesOf(current.items), [current.items]);
