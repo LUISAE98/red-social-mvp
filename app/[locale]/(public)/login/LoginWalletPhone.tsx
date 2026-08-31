@@ -365,10 +365,40 @@ function Viewport({
           color: #fff;
           background: linear-gradient(135deg, #4f46ff, #a855f7);
         }
-        .moneda {
-          font-size: 16px;
+        /* Un switch a cada extremo, igual que en la wallet real: a la izquierda
+           cómo se lee el dinero (neto o bruto), a la derecha en qué moneda. */
+        .controlsStart {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          justify-content: flex-start;
+        }
+        .controlsEnd {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        /* La moneda comparte la pastilla del switch de neto/bruto, que es como
+           se ve en la wallet real, pero aquí es DECORATIVA — de ahí que sean
+           spans y no botones, sin cursor ni foco.
+
+           Cambiarla de verdad obligaría a convertir cada cifra de la pantalla, y
+           detrás de este mockup no hay tipo de cambio ninguno. Un botón que no
+           hace nada miente más que un rótulo que no invita a pulsarlo. */
+        .monedaBtn {
+          border-radius: 8px;
+          padding: 6px 14px;
+          font-size: 12.5px;
           font-weight: 600;
+          letter-spacing: -0.01em;
+          color: rgba(255, 255, 255, 0.6);
+          font-variant-numeric: tabular-nums;
+        }
+        .monedaOn {
           color: #fff;
+          background: linear-gradient(135deg, #4f46ff, #a855f7);
         }
 
         .availWrap {
@@ -405,7 +435,7 @@ function Viewport({
 
         /* El color, el tamaño y el peso salen de TextButton; aquí solo lo que
            el primitivo no sabe: cómo se coloca en su sitio. */
-        .stripeCta {
+        .altaCta {
           width: 100%;
           margin-top: -14px;
           line-height: 1.35;
@@ -606,22 +636,31 @@ function Viewport({
           <>
             <div className="card">
               <div className="controls">
-                <div className="toggle" role="tablist">
-                  {(["net", "gross"] as const).map((k) => (
-                    <button
-                      key={k}
-                      type="button"
-                      role="tab"
-                      aria-selected={modo === k}
-                      className={`toggleBtn${modo === k ? " toggleOn" : ""}`}
-                      onClick={() => setModo(k)}
-                    >
-                      {k === "net" ? "Neto" : "Bruto"}
-                    </button>
-                  ))}
+                <div className="controlsStart">
+                  <div className="toggle" role="tablist">
+                    {(["net", "gross"] as const).map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        role="tab"
+                        aria-selected={modo === k}
+                        className={`toggleBtn${modo === k ? " toggleOn" : ""}`}
+                        onClick={() => setModo(k)}
+                      >
+                        {k === "net" ? "Neto" : "Bruto"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <span className="moneda">MXN</span>
-                <span style={{ flex: 1 }} />
+
+                <div className="controlsEnd">
+                  {/* Decorativo; ver .monedaBtn. Va oculto a los lectores de
+                      pantalla porque no es un control, es un dibujo de uno. */}
+                  <div className="toggle" aria-hidden="true">
+                    <span className="monedaBtn">USD</span>
+                    <span className="monedaBtn monedaOn">MXN</span>
+                  </div>
+                </div>
               </div>
 
               <div className="availWrap">
@@ -645,15 +684,17 @@ function Viewport({
                 </div>
               </div>
 
-              <TextButton tone="brand" size="sm" className="stripeCta">
-                Realiza tu registro de cuenta Stripe para comenzar a hacer retiros
+              {/* El mismo texto que la wallet real (clave `kycWithdrawCta`). Decía
+                  "registro de cuenta Stripe", que se quedó viejo — la identidad ya no
+                  se verifica en el alta de Stripe. */}
+              <TextButton tone="brand" size="sm" className="altaCta">
+                Realiza tu registro KYC para poder hacer retiros y facturas
               </TextButton>
 
+              {/* Sin "monto por liberar": en la wallet real esa columna solo aparece
+                  cuando hay algo que liberar, y un creador que llega al login no tiene
+                  nada. Las dos que quedan son `flex: 1` y se reparten el ancho solas. */}
               <div className="tres">
-                <div className="col">
-                  <div className="colLabel">Monto por liberar</div>
-                  <div className="colValue">{cifra("$2,330.00")}</div>
-                </div>
                 <div className="col">
                   <div className="colLabel">Mejor mes</div>
                   <div className="colValue">{cifra("$18,940.00")}</div>

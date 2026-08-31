@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Διακοπή κοινής χρήσης οθόνης",
     "screenShare": "Κοινή χρήση οθόνης",
     "watchLiveOf": "Δες τη ζωντανή μετάδοση του/της {name}",
-    "chartStart": "Έναρξη"
+    "chartStart": "Έναρξη",
+    "spokenSaid": "Ο/Η {user} είπε: {text}"
   },
   "completeProfile": {
     "title": "Συμπλήρωσε το προφίλ σου",

@@ -361,6 +361,15 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
     hasData,
     csdReady,
     csdVencido,
+    /**
+     * El proveedor de facturación RECHAZÓ el sello que subió.
+     *
+     * ⚠️ No es lo mismo que no tenerlo. `csdStatus` distinguía «none» de «invalid» desde
+     * siempre, pero nadie leía la diferencia: al creador con un sello rechazado se le
+     * enseñaba el mismo «sube tu sello» que a quien no había subido nada, sin decirle
+     * que ya lo intentó y falló. El motivo está en `csdLastError`.
+     */
+    csdRechazado: profile?.csdStatus === "invalid",
     residency,
     /** Derivado de las señales duras; `profile.residency` lo anula si está puesto. */
     esMexicano,

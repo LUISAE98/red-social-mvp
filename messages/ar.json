@@ -2545,7 +2545,8 @@
     "stopScreenShare": "إيقاف مشاركة الشاشة",
     "screenShare": "مشاركة الشاشة",
     "watchLiveOf": "مشاهدة بث {name}",
-    "chartStart": "البداية"
+    "chartStart": "البداية",
+    "spokenSaid": "{user} قال: {text}"
   },
   "completeProfile": {
     "title": "أكمل ملفك الشخصي",

@@ -2545,7 +2545,8 @@
     "stopScreenShare": "화면 공유 중지",
     "screenShare": "화면 공유",
     "watchLiveOf": "{name}님의 라이브 보기",
-    "chartStart": "시작"
+    "chartStart": "시작",
+    "spokenSaid": "{user}님의 메시지: {text}"
   },
   "completeProfile": {
     "title": "프로필 완성하기",

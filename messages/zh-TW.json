@@ -2545,7 +2545,8 @@
     "stopScreenShare": "停止分享螢幕",
     "screenShare": "分享螢幕",
     "watchLiveOf": "觀看 {name} 的直播",
-    "chartStart": "開始"
+    "chartStart": "開始",
+    "spokenSaid": "{user} 說：{text}"
   },
   "completeProfile": {
     "title": "完成你的個人檔案",

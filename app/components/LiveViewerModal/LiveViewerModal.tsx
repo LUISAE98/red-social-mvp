@@ -22,6 +22,7 @@ import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUn
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
+import { vozParaLocale } from "@/lib/tts/voices";
 import {
   VideoPlayIcon, VideoPauseIcon, VideoSkipBackIcon, VideoSkipForwardIcon,
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
@@ -1218,7 +1219,11 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       // permite reproducirlo desde callbacks async sin bloqueo.
       const audio = prewarmAudioRef.current ?? document.createElement("audio");
       audio.pause();
-      audio.src = `/api/tts?text=${encodeURIComponent(ttsSlice)}&voice=es-MX-DaliaNeural`;
+      // El supercomentario se lee en el idioma del CREADOR, no en el de quien
+      // mira: es su live y su voz. Sale de `creatorLocale`, que se guarda al
+      // crear el live; los lives antiguos no lo traen y caen en la de reserva.
+      const vozDelLive = vozParaLocale(localLiveData?.creatorLocale);
+      audio.src = `/api/tts?text=${encodeURIComponent(ttsSlice)}&voice=${encodeURIComponent(vozDelLive)}`;
       audio.volume = mutedRef.current ? 0 : 1;
       // Solo reproducir si no está muteado — en iOS no iniciamos el audio si está muted
       // para que no lo capture el sistema como audio activo aunque volume=0 sea ignorado.

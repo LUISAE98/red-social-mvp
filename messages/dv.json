@@ -2545,7 +2545,8 @@
     "stopScreenShare": "ސްކްރީން ޝެއަރކުރުން ހުއްޓާ",
     "screenShare": "ސްކްރީން ޝެއަރކުރޭ",
     "watchLiveOf": "{name} ގެ ލައިވް ބަލާ",
-    "chartStart": "ފެށުން"
+    "chartStart": "ފެށުން",
+    "spokenSaid": "{user} ބުނީ: {text}"
   },
   "completeProfile": {
     "title": "ޕްރޮފައިލް ފުރިހަމަކުރައްވާ",

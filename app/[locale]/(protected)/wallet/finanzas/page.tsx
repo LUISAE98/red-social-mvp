@@ -22,6 +22,8 @@ import WalletCurrencyToggle from "../components/WalletCurrencyToggle";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import WithdrawFiscalPanel from "../components/WithdrawFiscalPanel";
+import WithdrawConfirmPanel from "../components/WithdrawConfirmPanel";
+import { suscribirMisRetiros } from "@/lib/wallet/withdrawals";
 import CreatorPayoutSetupPanel from "../components/CreatorPayoutSetupPanel";
 import { useCreatorTaxProfile } from "@/lib/facturacion/creatorFiscal";
 import { useKyc } from "@/lib/kyc/useKyc";
@@ -195,6 +197,22 @@ export default function WalletFinanzasPage() {
   const { summary, loading: summaryLoading } = useWalletFinances(user?.uid);
   const [mode, setMode] = useState<"net" | "gross">("net");
   const [withdrawPanelOpen, setWithdrawPanelOpen] = useState(false);
+  const [confirmarRetiroOpen, setConfirmarRetiroOpen] = useState(false);
+  /**
+   * ¿Tiene una solicitud esperando revisión?
+   *
+   * El backend ya la rechaza si pide dos veces, pero enterarse por un error es peor que
+   * verlo antes de pulsar. Y su saldo ya bajó, así que sin esto el número cambiado no
+   * tendría explicación en pantalla.
+   */
+  const [retiroEnRevision, setRetiroEnRevision] = useState(false);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    return suscribirMisRetiros(user.uid, (rows) => {
+      setRetiroEnRevision(rows.some((r) => r.status === "pending"));
+    });
+  }, [user?.uid]);
   const { toast: walletToast, showToast: showWalletToast } = useVibraToast();
 
 
@@ -215,6 +233,19 @@ export default function WalletFinanzasPage() {
   // Skeleton de las cifras variables mientras cargan. Incluye `!user?.uid` para
   // cubrir también la ventana en la que el auth aún no resuelve el usuario.
   const loadingAmounts = summaryLoading || !user?.uid;
+
+  /**
+   * ¿Hay algo por liberar?
+   *
+   * Un cero aquí no informa de nada, ocupa un tercio del renglón para decir que no pasa
+   * nada. Se esconde la columna entera y las otras dos se reparten el ancho solas, que
+   * cada una es `flex: 1` dentro del renglón.
+   *
+   * ⚠️ Incluye `!loadingAmounts` a propósito. Mientras carga no se sabe si hay o no, y
+   * pintar el hueco para quitarlo medio segundo después se lee como un fallo. Aparecer
+   * cuando llega el dato se lee como lo que es, algo que terminó de cargar.
+   */
+  const hayPorLiberar = !loadingAmounts && view.pending > 0;
 
   /**
    * ¿El creador puede retirar?
@@ -247,6 +278,10 @@ export default function WalletFinanzasPage() {
     payoutRoute: rutaDeCobro,
     /** ¿Ya declaró su cuenta en el cuestionario de Didit? Es el paso 2 del alta. */
     payoutAccountDeclared: cuentaDeclarada,
+    declaredAccountMismatch: cuentaNoCoincide,
+    csdVencido,
+    csdRechazado,
+    stripeAccountStatus,
   } = useCreatorTaxProfile(user?.uid);
   /**
    * El retiro se habilita al alcanzar el MÍNIMO, no en una fecha.
@@ -336,6 +371,17 @@ export default function WalletFinanzasPage() {
    * de todos, el sello solo del mexicano. El botón vive mientras falte alguno de los dos
    * primeros; el sello tiene el suyo propio, aquí abajo.
    */
+  /**
+   * 🔴 Algo que estaba hecho dejó de estarlo.
+   *
+   * Los tres son rechazos POSTERIORES al alta: una cuenta que Stripe restringe, una
+   * declarada que no cuadra con la registrada, un sello que caduca. Van aparte porque
+   * no son «te falta un paso» sino «se te rompió uno», y el botón tiene que decir cuál.
+   */
+  const cobroRestringido = stripeAccountStatus === "restricted";
+  const hayRechazo =
+    cobroRestringido || cuentaNoCoincide || (esMexicano && (csdVencido || csdRechazado));
+
   const faltaAltaDeCobro = !kyc.approved || !cuentaDeCobroLista;
 
   // Su comisión, que ya no es 25 para todos: en 27 países es 30.
@@ -360,13 +406,29 @@ export default function WalletFinanzasPage() {
    * Todas empiezan por «Da clic aquí para…» a propósito: un texto morado no se lee como botón
    * si no lo dice, y el creador no tiene por qué deducirlo del color.
    */
-  const altaCtaLabel = !kyc.approved
-    ? kycCtaLabel
-    : !cuentaDeclarada
-      ? tWallet(rutaDeCobro === "wallbit" ? "ctaWallbitAccount" : "ctaDeclareAccount")
-      : !cuentaDeCobroLista && rutaDeCobro !== "wallbit"
-        ? tWallet("ctaStripeAccount")
-        : tWallet("ctaFiscalData");
+  /**
+   * 🚨 LOS RECHAZOS VAN PRIMERO. Antes esta cadena solo miraba lo que FALTABA, así que a
+   *    un creador con el sello caducado le decía «completa tus datos fiscales» —cuando ya
+   *    los tiene— y a uno con la cuenta restringida «registra tu cuenta de cobro», que ya
+   *    registró. Nombrar el problema es lo que hace que el clic sirva de algo.
+   */
+  const altaCtaLabel = cuentaNoCoincide
+    ? tWallet("ctaFixAccountMismatch")
+    : cobroRestringido
+      ? tWallet("ctaFixPayoutRestricted")
+      : esMexicano && csdVencido
+        ? tWallet("ctaFixSealExpired")
+        : esMexicano && csdRechazado
+          ? tWallet("ctaFixSealRejected")
+          : !kyc.approved
+            ? kycCtaLabel
+            : !cuentaDeclarada
+              ? tWallet(
+                  rutaDeCobro === "wallbit" ? "ctaWallbitAccount" : "ctaDeclareAccount"
+                )
+              : !cuentaDeCobroLista && rutaDeCobro !== "wallbit"
+                ? tWallet("ctaStripeAccount")
+                : tWallet("ctaFiscalData");
 
   /**
    * Qué le llega al retirar.
@@ -422,7 +484,9 @@ export default function WalletFinanzasPage() {
 
   function handleWithdrawClick() {
     if (!canWithdrawNow) return;
-    setWithdrawPanelOpen(true);
+    /* Abre la CONFIRMACIÓN, no el panel fiscal. Antes iba al del sello, que es donde
+       vivía el desglose cuando no había a dónde más ponerlo. */
+    setConfirmarRetiroOpen(true);
   }
 
   // La opción de registrar KYC solo aparece cuando ya hay saldo por retirar
@@ -701,7 +765,7 @@ export default function WalletFinanzasPage() {
             {!loadingAmounts && canWithdrawNow && puedeCobrar && (
               <div style={{ width: "100%", maxWidth: 260, marginTop: 12, animation: "vbPayoutIn 420ms cubic-bezier(0.2,0.8,0.2,1) both" }}>
                 <TextButton tone="brand" size="sm" onClick={handleWithdrawClick} style={{ width: "100%" }}>
-                  {tWallet("withdrawButton")}
+                  {retiroEnRevision ? tWallet("withdrawInReview") : tWallet("withdrawButton")}
                 </TextButton>
               </div>
             )}
@@ -721,7 +785,7 @@ export default function WalletFinanzasPage() {
 
           {/* 1 y 2. Identidad y cuenta de cobro. Mientras Didit revisa a mano no hay
                  nada que pulsar, y si rechazó, el propio botón dice por qué. */}
-          {kyc.loading ? null : faltaAltaDeCobro || mostrarAltaFiscal ? (
+          {kyc.loading ? null : faltaAltaDeCobro || mostrarAltaFiscal || hayRechazo ? (
             <TextButton
               tone="brand"
               size="sm"
@@ -738,8 +802,9 @@ export default function WalletFinanzasPage() {
                 textAlign: "center",
                 justifyContent: "center",
                 // El rechazo se avisa en rojo: es lo único de este bloque que pide
-                // una acción distinta a "sigue adelante".
-                ...(kyc.status === "declined" ? { color: "#f87171" } : {}),
+                // una acción distinta a "sigue adelante". Vale para el KYC declinado y
+                // para los tres rechazos posteriores al alta.
+                ...(kyc.status === "declined" || hayRechazo ? { color: "#f87171" } : {}),
                 opacity: kyc.starting ? 0.6 : 1,
               }}
             >
@@ -750,7 +815,12 @@ export default function WalletFinanzasPage() {
 
           <VibraToast toast={walletToast} />
 
-          {/* Fila de 3 columnas: por liberar · mejor mes · ganado histórico */}
+          {/* Renglón de cifras: por liberar · mejor mes · ganado histórico.
+
+              El primero solo está cuando hay algo que liberar, así que el renglón vive
+              con dos o con tres. No hace falta repartir nada a mano — las columnas son
+              `flex: 1`, y al faltar una las otras dos pasan de un tercio a la mitad y
+              quedan centradas cada una en su lado. */}
           <div
             style={{
               display: "flex",
@@ -759,44 +829,45 @@ export default function WalletFinanzasPage() {
               gap: 10,
             }}
           >
-            {/* Monto por liberar (izquierda) */}
-            <div
-              style={{
-                flex: 1,
-                minWidth: 0,
-                textAlign: "center",
-                display: "flex",
-                flexDirection: "column",
-                gap: 3,
-              }}
-            >
+            {/* Monto por liberar (izquierda). Sin skeleton: `hayPorLiberar` ya exige
+                que la cifra haya cargado, así que aquí nunca se está esperando. */}
+            {hayPorLiberar && (
               <div
                 style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "rgba(255,255,255,0.6)",
-                  letterSpacing: "-0.01em",
+                  flex: 1,
+                  minWidth: 0,
+                  textAlign: "center",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3,
                 }}
               >
-                {tWallet("financesPendingAmount")}
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: "rgba(255,255,255,0.6)",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {tWallet("financesPendingAmount")}
+                </div>
+                <div
+                  style={{
+                    fontSize: 17,
+                    fontWeight: 640,
+                    letterSpacing: "-0.02em",
+                    color: "rgba(255,255,255,0.9)",
+                  }}
+                >
+                  {balanceHidden ? (
+                    <MaskedAmount formatted={formatMoney(view.pending)} />
+                  ) : (
+                    formatMoney(view.pending)
+                  )}
+                </div>
               </div>
-              <div
-                style={{
-                  fontSize: 17,
-                  fontWeight: 640,
-                  letterSpacing: "-0.02em",
-                  color: "rgba(255,255,255,0.9)",
-                }}
-              >
-                {loadingAmounts ? (
-                  <WalletFigureSkeleton width={66} height={17} />
-                ) : balanceHidden ? (
-                  <MaskedAmount formatted={formatMoney(view.pending)} />
-                ) : (
-                  formatMoney(view.pending)
-                )}
-              </div>
-            </div>
+            )}
 
             {/* Mejor mes (centro) */}
             <div
@@ -986,8 +1057,25 @@ export default function WalletFinanzasPage() {
         onOpenSello={() => setWithdrawPanelOpen(true)}
         onIniciarKyc={handleKycClick}
         kycBloqueado={kycCtaDisabled}
+        kycEnRevision={kyc.status === "in_review"}
         volviendoDeStripe={retornoAlta === "ok"}
       />
+
+      {/* Confirmación del retiro. Solo existe cuando hay desglose que enseñar, que es
+          justo cuando el creador llega al mínimo. */}
+      {desgloseRetiro && (
+        <WithdrawConfirmPanel
+          open={confirmarRetiroOpen}
+          onClose={() => setConfirmarRetiroOpen(false)}
+          desglose={desgloseRetiro}
+          ruta={rutaDeCobro === "wallbit" ? "wallbit" : "stripe"}
+          yaSolicitado={retiroEnRevision}
+          onSolicitado={() => {
+            setRetiroEnRevision(true);
+            showWalletToast(tWallet("withdrawRequested"), "success");
+          }}
+        />
+      )}
 
       <WithdrawFiscalPanel
         open={withdrawPanelOpen}

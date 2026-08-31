@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Pārtraukt ekrāna kopīgošanu",
     "screenShare": "Kopīgot ekrānu",
     "watchLiveOf": "Skatīties {name} tiešraidi",
-    "chartStart": "Sākums"
+    "chartStart": "Sākums",
+    "spokenSaid": "{user} saka: {text}"
   },
   "completeProfile": {
     "title": "Aizpildi savu profilu",

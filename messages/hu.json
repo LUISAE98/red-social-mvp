@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Képernyőmegosztás leállítása",
     "screenShare": "Képernyő megosztása",
     "watchLiveOf": "{name} élő adásának megtekintése",
-    "chartStart": "Kezdet"
+    "chartStart": "Kezdet",
+    "spokenSaid": "{user} ezt írta: {text}"
   },
   "completeProfile": {
     "title": "Töltsd ki a profilod",

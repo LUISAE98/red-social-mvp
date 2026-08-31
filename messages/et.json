@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Lõpeta ekraani jagamine",
     "screenShare": "Jaga ekraani",
     "watchLiveOf": "Vaata kasutaja {name} otseülekannet",
-    "chartStart": "Algus"
+    "chartStart": "Algus",
+    "spokenSaid": "{user} ütles: {text}"
   },
   "completeProfile": {
     "title": "Täida oma profiil",

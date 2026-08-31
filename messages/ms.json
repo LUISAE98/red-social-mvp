@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Berhenti kongsi skrin",
     "screenShare": "Kongsi skrin",
     "watchLiveOf": "Tonton siaran {name}",
-    "chartStart": "Mula"
+    "chartStart": "Mula",
+    "spokenSaid": "{user} berkata: {text}"
   },
   "completeProfile": {
     "title": "Lengkapkan profil anda",

@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Ukončit sdílení obrazovky",
     "screenShare": "Sdílet obrazovku",
     "watchLiveOf": "Podívat se na přenos od {name}",
-    "chartStart": "Začátek"
+    "chartStart": "Začátek",
+    "spokenSaid": "{user} říká: {text}"
   },
   "completeProfile": {
     "title": "Doplň si profil",

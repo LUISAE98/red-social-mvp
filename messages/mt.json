@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Ieqaf aqsam l-iskrin",
     "screenShare": "Aqsam l-iskrin",
     "watchLiveOf": "Ara d-dirett ta' {name}",
-    "chartStart": "Bidu"
+    "chartStart": "Bidu",
+    "spokenSaid": "{user} qal: {text}"
   },
   "completeProfile": {
     "title": "Lesti l-profil tiegħek",

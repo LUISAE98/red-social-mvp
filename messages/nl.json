@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Scherm delen stoppen",
     "screenShare": "Scherm delen",
     "watchLiveOf": "Bekijk de live van {name}",
-    "chartStart": "Start"
+    "chartStart": "Start",
+    "spokenSaid": "{user} zegt: {text}"
   },
   "completeProfile": {
     "title": "Maak je profiel compleet",

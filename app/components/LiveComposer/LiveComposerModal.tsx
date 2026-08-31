@@ -414,6 +414,7 @@ export default function LiveComposerModal({
 
       if (contextType === "profile" && profileId) {
         await createLivePost({
+          creatorLocale: locale,
           contextType: "profile",
           profileId,
           title: cleanTitle,
@@ -430,6 +431,7 @@ export default function LiveComposerModal({
         });
       } else if (groupId) {
         await createLivePost({
+          creatorLocale: locale,
           groupId,
           title: cleanTitle,
           description: cleanDescription,

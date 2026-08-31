@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Ekran paylaşımını durdur",
     "screenShare": "Ekranı paylaş",
     "watchLiveOf": "{name} yayınını izle",
-    "chartStart": "Başlangıç"
+    "chartStart": "Başlangıç",
+    "spokenSaid": "{user} diyor ki: {text}"
   },
   "completeProfile": {
     "title": "Profilini tamamla",

@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Дэлгэц хуваалцахыг зогсоох",
     "screenShare": "Дэлгэц хуваалцах",
     "watchLiveOf": "{name}-ийн шууд дамжуулалтыг үзэх",
-    "chartStart": "Эхлэл"
+    "chartStart": "Эхлэл",
+    "spokenSaid": "{user} хэлэхдээ: {text}"
   },
   "completeProfile": {
     "title": "Профайлаа гүйцээнэ үү",

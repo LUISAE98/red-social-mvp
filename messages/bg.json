@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Спри споделянето на екрана",
     "screenShare": "Сподели екрана",
     "watchLiveOf": "Виж предаването на {name}",
-    "chartStart": "Начало"
+    "chartStart": "Начало",
+    "spokenSaid": "{user} каза: {text}"
   },
   "completeProfile": {
     "title": "Довърши профила си",

@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import type { MeetGreetRequestDoc, ExclusiveSessionRequestDoc } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
+import { vozParaLocale } from "@/lib/tts/voices";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
@@ -262,6 +263,7 @@ export default function BuyerSessionRequestOverlay({
     setChatTtsIdx(idx);
     setChatTtsHighlight(null);
     chatTtsAudioRef.current = playEdgeTTS(text, {
+      voice: vozParaLocale(locale),
       playbackRate: chatTtsRateRef.current,
       onProgress: (ratio) => {
         if (chatTtsGenRef.current !== gen) return;

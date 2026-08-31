@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Stop comhroinnt an scáileáin",
     "screenShare": "Comhroinn an scáileán",
     "watchLiveOf": "Féach ar bheo {name}",
-    "chartStart": "Tús"
+    "chartStart": "Tús",
+    "spokenSaid": "Dúirt {user}: {text}"
   },
   "completeProfile": {
     "title": "Comhlánaigh do phróifíl",

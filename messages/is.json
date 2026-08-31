@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Hætta að deila skjá",
     "screenShare": "Deila skjá",
     "watchLiveOf": "Horfa á útsendingu {name}",
-    "chartStart": "Upphaf"
+    "chartStart": "Upphaf",
+    "spokenSaid": "{user} sagði: {text}"
   },
   "completeProfile": {
     "title": "Kláraðu prófílinn þinn",

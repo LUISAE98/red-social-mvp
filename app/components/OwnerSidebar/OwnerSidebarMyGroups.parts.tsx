@@ -74,6 +74,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
+import { vozParaLocale } from "@/lib/tts/voices";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 
 import ScheduleDateTimeSelector, {
@@ -84,6 +85,8 @@ import ScheduleDateTimeSelector, {
 
 export function BuyerMessagePlayer({ message }: { message: string }) {
   const tServices = useTranslations("services");
+  // Quien escucha aquí es el creador, dentro de su propio sidebar.
+  const locale = useLocale();
   const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
   const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
   const [speechRate, setSpeechRate] = useState<1 | 1.4 | 1.8>(1);
@@ -106,6 +109,7 @@ export function BuyerMessagePlayer({ message }: { message: string }) {
     if (!sliceText.trim()) return;
     setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
     ttsAudioRef.current = playEdgeTTS(sliceText, {
+      voice: vozParaLocale(locale),
       playbackRate: speechRateRef.current,
       onProgress: (ratio) => {
         if (speechGenRef.current !== gen) return;
@@ -127,7 +131,7 @@ export function BuyerMessagePlayer({ message }: { message: string }) {
       },
     });
     setSpeechState("playing");
-  }, [message]);
+  }, [message, locale]);
 
   const handleToggleSpeech = useCallback(() => {
     if (speechState === "playing") { ttsAudioRef.current?.audio.pause(); setSpeechState("paused"); return; }

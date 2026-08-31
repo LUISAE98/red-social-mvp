@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Ndalo ndarjen e ekranit",
     "screenShare": "Ndaj ekranin",
     "watchLiveOf": "Shiko transmetimin e {name}",
-    "chartStart": "Fillimi"
+    "chartStart": "Fillimi",
+    "spokenSaid": "{user} tha: {text}"
   },
   "completeProfile": {
     "title": "Plotëso profilin tënd",

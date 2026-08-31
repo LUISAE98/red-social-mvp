@@ -3,6 +3,14 @@ import type { SuperCommentConfig } from "@/lib/liveChat/types";
 import type { CanonicalGroupCategory } from "@/types/group";
 
 export type ActiveSuperComment = {
+  /**
+   * Lo que la voz debe pronunciar, ya en el idioma del creador.
+   *
+   * Se arma en su lado porque allí están su idioma y el importe real que pagó
+   * el fan; aquí solo viaja el resultado. Los supercomentarios lanzados antes
+   * de esto no lo traen y se compone al vuelo, como antes.
+   */
+  spokenText?: string | null;
   id: string;
   userId: string;
   username: string;
@@ -247,6 +255,17 @@ export type LivePaidAccessMode = "everyone_pays" | "members_free_non_members_pay
 
 export type PostLiveData = {
   status?: LiveStatus;
+  /**
+   * Idioma del creador, tal como lo tenía al crear el live.
+   *
+   * Lo lee el text-to-speech para decir los supercomentarios en su idioma. Se
+   * guarda aquí porque quien escucha suele ser un espectador —o el Browser
+   * Source de OBS, sin sesión— y en ese momento el idioma del creador no está
+   * disponible en ninguna otra parte.
+   *
+   * Los lives creados antes de esto no lo traen: ahí se usa la voz de reserva.
+   */
+  creatorLocale?: string | null;
   title?: string | null;
   description?: string | null;
   coverUrl?: string | null;

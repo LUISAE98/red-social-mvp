@@ -32,8 +32,17 @@ const TABS: WalletTabItem[] = [
 
 export default function WalletSubNav({
   activeTab,
+  onTabTap,
 }: {
   activeTab: WalletTabKey;
+  /**
+   * Se avisa en el TOQUE, no cuando la ruta llega.
+   *
+   * El layout lo usa para adelantar la pestaña activa mientras el router
+   * todavía está trayendo la página. Sin esto, el indicador no se movería hasta
+   * que bajara el chunk de la pestaña nueva.
+   */
+  onTabTap?: (tab: WalletTabKey) => void;
 }) {
   const t = useTranslations("nav");
   const tabRefs = useRef<(HTMLAnchorElement | null)[]>([]);
@@ -73,6 +82,20 @@ export default function WalletSubNav({
         .tabLink {
           text-decoration: none;
           min-width: 0;
+          /* El flash gris del navegador estorba, la respuesta la damos nosotros
+             abajo y llega antes. */
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Respuesta INMEDIATA al dedo, en el mismo cuadro del toque y sin
+           esperar al router.
+
+           Va en :active y no en :hover porque en una pantalla táctil no hay
+           hover, y sin esto tocar una pestaña no producía absolutamente nada
+           hasta que bajaba el chunk de la página nueva. */
+        .tabLink:active .tabInner {
+          color: #c084fc;
+          transform: scale(0.94);
         }
 
         /* Base = solo icono (compacto), para celular y laptops estrechas. */
@@ -91,7 +114,9 @@ export default function WalletSubNav({
           line-height: 1;
           letter-spacing: -0.02em;
           white-space: nowrap;
-          transition: color 0.18s ease;
+          transition:
+            color 0.18s ease,
+            transform 0.12s ease;
         }
 
         .tabContent {
@@ -100,8 +125,14 @@ export default function WalletSubNav({
           gap: 0;
         }
 
-        .tabLink:hover .tabInner {
-          color: #c084fc;
+        /* Detrás de (hover: hover) a propósito: en una pantalla táctil el :hover
+           se queda PEGADO después de tocar, y dejaba encendida la pestaña que
+           acabas de abandonar mientras la nueva también lo estaba. Mismo criterio
+           que el acordeón del login. */
+        @media (hover: hover) and (pointer: fine) {
+          .tabLink:hover .tabInner {
+            color: #c084fc;
+          }
         }
 
         .tabInnerActive {
@@ -179,6 +210,7 @@ export default function WalletSubNav({
                 ref={(el) => { tabRefs.current[index] = el; }}
                 className="tabLink"
                 aria-current={isActive ? "page" : undefined}
+                onClick={() => onTabTap?.(tab.key)}
               >
                 <span className={`tabInner ${isActive ? "tabInnerActive" : ""}`}>
                   <span className="tabContent">

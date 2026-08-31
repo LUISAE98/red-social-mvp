@@ -316,10 +316,50 @@ export const refreshPayoutAccountStatus = onCall(
     );
     const cuenta = metodos.ok ? metodos.data?.data?.[0]?.bank_account : undefined;
 
-    const estado = await guardarEstado(uid, res.data, {
+    /**
+     * 🚨 LA COMPARACIÓN CONTRA LO DECLARADO, AQUÍ TAMBIÉN.
+     *
+     * ⚠️ Vivía SOLO en `guardarCuentaDeclarada`, que corre al enviar el cuestionario de
+     *    Didit. Y ahí compara únicamente «cuando hay las dos mitades» — pero el panel
+     *    obliga a declarar ANTES de registrar en Stripe, así que en el orden normal la
+     *    segunda mitad todavía no existe y la comparación NUNCA se hacía.
+     *
+     *    Resultado: `declaredAccountMatchesStripe` no se escribía jamás en el flujo real,
+     *    y el único control que tenemos sobre «¿es la cuenta que dijiste?» estaba muerto.
+     *    Alguien podía declarar una cuenta y registrar otra sin que saltara nada.
+     *
+     * Ahora se compara en los dos extremos: al declarar y al aprender el dato de Stripe.
+     * El que llegue segundo cierra la comprobación.
+     */
+    const extra: Record<string, unknown> = {
       ...(cuenta?.last4 ? { stripeAccountLast4: cuenta.last4 } : {}),
       ...(cuenta?.bank_name ? { stripeAccountBank: cuenta.bank_name } : {}),
-    });
+    };
+
+    if (cuenta?.last4) {
+      const perfilPrevio = (
+        await db.collection("creatorTaxProfiles").doc(uid).get()
+      ).data() ?? {};
+      const declarado =
+        typeof perfilPrevio.declaredAccountLast4 === "string"
+          ? perfilPrevio.declaredAccountLast4
+          : null;
+      if (declarado) {
+        const coincide = declarado === cuenta.last4;
+        extra.declaredAccountMatchesStripe = coincide;
+        if (!coincide) {
+          // Se registra fuerte: es el caso que alguien tiene que mirar.
+          logger.error("cuenta_declarada_no_coincide", {
+            uid,
+            declarado,
+            stripe: cuenta.last4,
+            origen: "refresh",
+          });
+        }
+      }
+    }
+
+    const estado = await guardarEstado(uid, res.data, extra);
     return { status: estado, country: res.data.identity?.country?.toUpperCase() ?? null };
   }
 );

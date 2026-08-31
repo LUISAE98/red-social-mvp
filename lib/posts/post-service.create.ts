@@ -347,6 +347,8 @@ export async function createLivePost(params: {
   currency?: "MXN" | "USD" | null;
   paidAccessMode?: "everyone_pays" | "members_free_non_members_pay" | null;
   broadcastGroupIds?: string[] | null;
+  /** Idioma del creador; el TTS lo usa para leer en su idioma. */
+  creatorLocale?: string | null;
 }): Promise<string>;
 export async function createLivePost(params: {
   contextType: "profile";
@@ -363,6 +365,8 @@ export async function createLivePost(params: {
   currency?: "MXN" | "USD" | null;
   paidAccessMode?: "everyone_pays" | "members_free_non_members_pay" | null;
   broadcastGroupIds?: string[] | null;
+  /** Idioma del creador; el TTS lo usa para leer en su idioma. */
+  creatorLocale?: string | null;
 }): Promise<string>;
 export async function createLivePost(params: {
   contextType?: PostContextType;
@@ -380,6 +384,8 @@ export async function createLivePost(params: {
   currency?: "MXN" | "USD" | null;
   paidAccessMode?: "everyone_pays" | "members_free_non_members_pay" | null;
   broadcastGroupIds?: string[] | null;
+  /** Idioma del creador; el TTS lo usa para leer en su idioma. */
+  creatorLocale?: string | null;
 }): Promise<string> {
   const cleanTitle = params.title.trim();
   if (!cleanTitle) {
@@ -414,6 +420,7 @@ export async function createLivePost(params: {
 
   const liveData: PostLiveData = {
     status: "upcoming",
+    creatorLocale: params.creatorLocale ?? null,
     title: cleanTitle,
     description: params.description?.trim() || null,
     coverUrl: params.coverUrl ?? null,

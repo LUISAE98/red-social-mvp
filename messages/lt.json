@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Nustoti bendrinti ekraną",
     "screenShare": "Bendrinti ekraną",
     "watchLiveOf": "Žiūrėti {name} transliaciją",
-    "chartStart": "Pradžia"
+    "chartStart": "Pradžia",
+    "spokenSaid": "{user} sako: {text}"
   },
   "completeProfile": {
     "title": "Užbaik savo profilį",

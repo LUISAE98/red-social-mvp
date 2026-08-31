@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Stop skærmdeling",
     "screenShare": "Del skærm",
     "watchLiveOf": "Se {name}s live",
-    "chartStart": "Start"
+    "chartStart": "Start",
+    "spokenSaid": "{user} sagde: {text}"
   },
   "completeProfile": {
     "title": "Gør din profil færdig",

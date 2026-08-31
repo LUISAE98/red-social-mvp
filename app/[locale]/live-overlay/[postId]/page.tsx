@@ -5,6 +5,7 @@ import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
+import { vozParaLocale } from "@/lib/tts/voices";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
@@ -83,6 +84,8 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ttsHandleRef = useRef<EdgeTTSHandle | null>(null);
+  /** Idioma del creador, que llega en el mismo documento que el supercomentario. */
+  const creatorLocaleRef = useRef<string | null>(null);
   const activeSCRef = useRef<ActiveSuperComment | null>(null);
 
   useEffect(() => {
@@ -119,7 +122,10 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
 
     if (durationSecs >= TTS_MIN_DURATION_SECS) {
       const ttsText = `${sc.username} dijo: ${sc.text}`;
-      ttsHandleRef.current = playEdgeTTS(ttsText, { volume: 1 });
+      ttsHandleRef.current = playEdgeTTS(ttsText, {
+        volume: 1,
+        voice: vozParaLocale(creatorLocaleRef.current),
+      });
     }
 
     // Fallback: ocultar cuando termina el tiempo display aunque Firestore sea lento
@@ -138,6 +144,9 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
       (snap) => {
         if (!snap.exists()) return;
         const activeSuper: ActiveSuperComment | null = snap.data()?.activeSuper ?? null;
+        // El idioma del creador viaja en el mismo documento: es lo único que
+        // tiene el overlay para saber en qué idioma leer.
+        creatorLocaleRef.current = (snap.data()?.creatorLocale as string | null) ?? null;
 
         const scKey = activeSuper?.id != null
           ? `${activeSuper.id}:${activeSuper.scheduledAt ?? 0}`

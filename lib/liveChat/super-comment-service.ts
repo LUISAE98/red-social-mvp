@@ -210,6 +210,18 @@ export async function pushActiveSuperToViewers(
   postId: string,
   superComment: SuperComment,
   scheduledAtMs?: number,
+  /**
+   * Frase ya pronunciable, armada por el creador en su idioma y con el importe
+   * que el fan pagó. Viaja hecha porque quien la lee —un espectador o el
+   * Browser Source de OBS— no tiene ni ese idioma ni esos datos.
+   */
+  spokenText?: string | null,
+  /**
+   * Idioma del creador. Viaja hasta `liveOverlays` porque el Browser Source de
+   * OBS lee ese documento y no tiene sesión: allí no hay otra forma de saber en
+   * qué idioma leer el supercomentario.
+   */
+  creatorLocale?: string | null,
 ): Promise<void> {
   const activeSuper: ActiveSuperComment = {
     id: superComment.id,
@@ -221,6 +233,7 @@ export async function pushActiveSuperToViewers(
     color: superComment.color,
     amount: superComment.amount,
     displaySeconds: superComment.displaySeconds,
+    spokenText: spokenText ?? null,
     ...(scheduledAtMs !== undefined ? { scheduledAt: scheduledAtMs } : {}),
   };
   await Promise.all([
@@ -232,6 +245,7 @@ export async function pushActiveSuperToViewers(
     // obsReady: null limpia la señal anterior para que el handshake funcione correctamente
     setDoc(doc(db, "liveOverlays", postId), {
       activeSuper,
+      creatorLocale: creatorLocale ?? null,
       obsReady: null,
       updatedAt: serverTimestamp(),
     }, { merge: true }),
@@ -271,9 +285,16 @@ export function frasePorVoz(
     presentmentAmount?: number;
     presentmentCurrency?: string;
   },
-  locale: string
+  locale: string,
+  /**
+   * Traductor del grupo `live`, en el idioma DEL CREADOR.
+   *
+   * Va por parámetro porque esta frase se arma en el lado del creador y se
+   * pronuncia con su voz: el idioma de quien escucha no pinta nada aquí.
+   */
+  t: (key: string, values?: Record<string, string>) => string
 ): string {
-  if (sc.text) return `${sc.username} dijo: ${sc.text}`;
+  if (sc.text) return t("spokenSaid", { user: sc.username, text: sc.text });
 
   const monto = sc.presentmentAmount ?? sc.amount;
   const moneda = sc.presentmentCurrency ?? "USD";
@@ -285,5 +306,5 @@ export function frasePorVoz(
     // Navegador sin DisplayNames: se queda el código.
   }
   const cifra = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(monto);
-  return `${sc.username} donó ${cifra} ${nombre}`;
+  return t("donatedTts", { user: sc.username, amount: `${cifra} ${nombre}` });
 }

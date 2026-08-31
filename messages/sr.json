@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Prekini deljenje ekrana",
     "screenShare": "Podeli ekran",
     "watchLiveOf": "Pogledaj prenos korisnika {name}",
-    "chartStart": "Početak"
+    "chartStart": "Početak",
+    "spokenSaid": "{user} je rekao: {text}"
   },
   "completeProfile": {
     "title": "Dovrši svoj profil",

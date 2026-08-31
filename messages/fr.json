@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Arrêter le partage d'écran",
     "screenShare": "Partager l'écran",
     "watchLiveOf": "Voir le direct de {name}",
-    "chartStart": "Début"
+    "chartStart": "Début",
+    "spokenSaid": "{user} a dit : {text}"
   },
   "completeProfile": {
     "title": "Complète ton profil",

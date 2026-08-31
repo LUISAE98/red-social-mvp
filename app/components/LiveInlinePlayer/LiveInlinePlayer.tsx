@@ -10,6 +10,7 @@ import { auth } from "@/lib/firebase";
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
+import { vozParaLocale } from "@/lib/tts/voices";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 
@@ -88,6 +89,8 @@ type Props = {
   streamProvider?: string | null;
   broadcastMode?: string | null;
   activeSuper?: ActiveSuperComment | null;
+  /** Idioma del creador del live: el TTS lee en su idioma, no en el del espectador. */
+  creatorLocale?: string | null;
   isViewerOpen?: boolean;
   onClick?: () => void;
   onOrientationDetected?: (portrait: boolean) => void;
@@ -124,6 +127,7 @@ export default function LiveInlinePlayer({
   streamProvider,
   broadcastMode,
   activeSuper,
+  creatorLocale,
   isViewerOpen = false,
   onClick,
   onOrientationDetected,
@@ -220,7 +224,9 @@ export default function LiveInlinePlayer({
       // iOS-safe: reutilizar elemento prewarmed (desbloqueado en gesto del usuario)
       const audio = prewarmAudioRef.current ?? document.createElement("audio");
       audio.pause();
-      audio.src = `/api/tts?text=${encodeURIComponent(ttsSlice)}&voice=es-MX-DaliaNeural`;
+      // Idioma del CREADOR del live, no el de quien mira.
+      const vozDelLive = vozParaLocale(creatorLocale);
+      audio.src = `/api/tts?text=${encodeURIComponent(ttsSlice)}&voice=${encodeURIComponent(vozDelLive)}`;
       audio.volume = mutedRef.current ? 0 : 1;
       if (!mutedRef.current) audio.play().catch(() => {});
       ttsAudioRef.current = {

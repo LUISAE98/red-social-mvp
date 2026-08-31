@@ -2928,6 +2928,7 @@ style={{
         </div>
       ) : (
         <LiveInlinePlayer
+          creatorLocale={post.liveData?.creatorLocale ?? null}
           postId={post.id}
           hlsUrl={liveVodUrl!}
           title={activeLiveData?.title}
@@ -3047,6 +3048,7 @@ style={{
       {isLivePlayer && (activeLiveData?.playbackId || activeLiveData?.hlsUrl) ? (
         <div style={{ position: "relative" }}>
           <LiveInlinePlayer
+            creatorLocale={post.liveData?.creatorLocale ?? null}
             postId={post.id}
             playbackId={activeLiveData.playbackId ?? undefined}
             hlsUrl={activeLiveData.hlsUrl ?? undefined}
@@ -3113,6 +3115,7 @@ style={{
             </div>
           ) : (
             <LiveInlinePlayer
+              creatorLocale={post.liveData?.creatorLocale ?? null}
               postId={post.id}
               hlsUrl={liveVodUrl!}
               title={activeLiveData?.title}

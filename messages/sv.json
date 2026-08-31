@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Sluta dela skärm",
     "screenShare": "Dela skärm",
     "watchLiveOf": "Se {name}s live",
-    "chartStart": "Start"
+    "chartStart": "Start",
+    "spokenSaid": "{user} sa: {text}"
   },
   "completeProfile": {
     "title": "Fyll i din profil",

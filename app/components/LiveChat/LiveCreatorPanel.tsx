@@ -54,6 +54,7 @@ import {
   fetchViewerHistory,
 } from "@/lib/liveKit/liveViewers";
 import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
+import { vozParaLocale } from "@/lib/tts/voices";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import { subscribeToTicketRevenue } from "@/lib/liveAccess/live-access-service";
 import { subscribeToVodRevenue } from "@/lib/posts/post-access-service";
@@ -1397,7 +1398,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const scheduledAtMs = Date.now() + LEAD_MS;
     if (!isEnded) {
       playSuperComment(post.id, sc).catch(() => {});
-      pushActiveSuperToViewers(post.id, sc, scheduledAtMs).catch(() => {});
+      pushActiveSuperToViewers(post.id, sc, scheduledAtMs, locale).catch(() => {});
     }
 
     // Lógica de mostrar overlay — llamada desde handshake OBS o desde timeout
@@ -1422,6 +1423,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         const prefixLen = isDonation ? 0 : `${sc.username} dijo: `.length;
         const totalLen = ttsText.length;
         ttsAudioRef.current = playEdgeTTS(ttsText, {
+          voice: vozParaLocale(locale),
           volume: 1,
           onProgress: (ratio) => {
             if (!isDonation) {

@@ -2545,7 +2545,8 @@
     "stopScreenShare": "หยุดแชร์หน้าจอ",
     "screenShare": "แชร์หน้าจอ",
     "watchLiveOf": "ดูไลฟ์ของ {name}",
-    "chartStart": "เริ่ม"
+    "chartStart": "เริ่ม",
+    "spokenSaid": "{user} บอกว่า: {text}"
   },
   "completeProfile": {
     "title": "กรอกโปรไฟล์ให้ครบ",

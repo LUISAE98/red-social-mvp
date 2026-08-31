@@ -2545,7 +2545,8 @@
     "stopScreenShare": "ឈប់ចែករំលែកអេក្រង់",
     "screenShare": "ចែករំលែកអេក្រង់",
     "watchLiveOf": "មើលការផ្សាយរបស់ {name}",
-    "chartStart": "ចាប់ផ្តើម"
+    "chartStart": "ចាប់ផ្តើម",
+    "spokenSaid": "{user} បាននិយាយថា៖ {text}"
   },
   "completeProfile": {
     "title": "បំពេញប្រវត្តិរូបរបស់អ្នក",

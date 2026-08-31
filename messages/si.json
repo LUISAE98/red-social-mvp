@@ -2545,7 +2545,8 @@
     "stopScreenShare": "තිරය බෙදාගැනීම නවත්වන්න",
     "screenShare": "තිරය බෙදාගන්න",
     "watchLiveOf": "{name} ගේ සජීවී විකාශය බලන්න",
-    "chartStart": "ආරම්භය"
+    "chartStart": "ආරම්භය",
+    "spokenSaid": "{user} පැවසුවේ: {text}"
   },
   "completeProfile": {
     "title": "ඔබේ පැතිකඩ සම්පූර්ණ කරන්න",

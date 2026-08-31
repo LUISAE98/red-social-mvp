@@ -16,6 +16,8 @@ const NAV_ITEMS = [
   { label: "Asignados a mí", href: "/admin/my-reports" },
   { label: "Asignados a otros", href: "/admin/other-reports" },
   { label: "Devoluciones", href: "/admin/refunds" },
+  // 🚨 Mueve dinero de verdad: aceptar una solicitud manda una transferencia.
+  { label: "Retiros", href: "/admin/retiros" },
   { label: "Historial", href: "/admin/audit-log" },
   { label: "Comunidades ocultas", href: "/admin/hidden-communities" },
   { label: "Comunidades privadas", href: "/admin/private-communities" },

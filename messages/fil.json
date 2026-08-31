@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Itigil ang pagbabahagi ng screen",
     "screenShare": "Ibahagi ang screen",
     "watchLiveOf": "Panoorin ang live ni {name}",
-    "chartStart": "Simula"
+    "chartStart": "Simula",
+    "spokenSaid": "Sabi ni {user}: {text}"
   },
   "completeProfile": {
     "title": "Kumpletuhin ang profile mo",

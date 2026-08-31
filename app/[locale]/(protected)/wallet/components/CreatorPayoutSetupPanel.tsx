@@ -44,6 +44,14 @@ type Props = {
   /** Deshabilita el paso de identidad: ya en curso, o en revisión manual. */
   kycBloqueado?: boolean;
   /**
+   * Didit está revisando su identidad A MANO. Puede tardar hasta 48 horas.
+   *
+   * ⚠️ Distinto de `kycBloqueado`, que también se pone al arrancar la sesión o mientras
+   * carga. Solo esto merece decírselo: sin ello el paso enseñaba su botón apagado y nada
+   * que explicara por qué no responde.
+   */
+  kycEnRevision?: boolean;
+  /**
    * El creador acaba de volver del formulario de Stripe.
    *
    * Cuando llega en `true` se relee la cuenta nada más abrir, porque Stripe avisa por
@@ -54,7 +62,7 @@ type Props = {
 };
 
 /** Estado visual de cada paso. */
-type EstadoPaso = "listo" | "pendiente" | "bloqueado";
+export type EstadoPaso = "listo" | "pendiente" | "bloqueado";
 
 export default function CreatorPayoutSetupPanel({
   open,
@@ -62,6 +70,7 @@ export default function CreatorPayoutSetupPanel({
   onOpenSello,
   onIniciarKyc,
   kycBloqueado,
+  kycEnRevision,
   volviendoDeStripe,
 }: Props) {
   const t = useTranslations("wallet");
@@ -70,6 +79,7 @@ export default function CreatorPayoutSetupPanel({
     esMexicano,
     csdReady,
     csdVencido,
+    csdRechazado,
     cobraFueraDeMexico,
     identityReady,
     payoutAccountReady,
@@ -93,7 +103,14 @@ export default function CreatorPayoutSetupPanel({
 
   // El ciclo de vida de la animación, el backdrop, el bloqueo de scroll y el gesto de
   // arrastre los resuelve el primitivo `Modal`.
-  const [guardando, setGuardando] = useState(false);
+  /**
+   * Qué paso tiene una llamada en vuelo. `null` = ninguno.
+   *
+   * ⚠️ Antes esto era un `guardando` booleano y SE CONTAGIABA: al tocar «Confirmar mi
+   *    cuenta» se ponían en «Abriendo…» todos los botones del panel a la vez, como si
+   *    hubieran arrancado tres cosas. Con el paso concreto solo se mueve el que se tocó.
+   */
+  const [ocupado, setOcupado] = useState<null | "cuenta" | "cobro">(null);
   const [error, setError] = useState<string | null>(null);
   const [refrescando, setRefrescando] = useState(false);
 
@@ -138,26 +155,26 @@ export default function CreatorPayoutSetupPanel({
    * de titularidad, que se compara luego contra lo que Stripe reporte.
    */
   async function abrirCuestionarioDeCuenta() {
-    setGuardando(true);
+    setOcupado("cuenta");
     setError(null);
     try {
       const { url } = await createPayoutAccountQuestionnaire();
       window.location.href = url;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-      setGuardando(false);
+      setOcupado(null);
     }
   }
 
   async function abrirAltaDeCobro() {
-    setGuardando(true);
+    setOcupado("cobro");
     setError(null);
     try {
       const { url } = await createPayoutAccountLink();
       window.location.href = url;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-      setGuardando(false);
+      setOcupado(null);
     }
   }
 
@@ -171,13 +188,26 @@ export default function CreatorPayoutSetupPanel({
    */
   const porWallbit = payoutRoute === "wallbit";
 
+  // Se lee antes que los estados de paso, que lo necesitan para des-completar el 3.
+  const cobroRestringidoRaw = stripeAccountStatus === "restricted";
+
+  /**
+   * 🚨 UN RECHAZO DEVUELVE EL PASO A PENDIENTE.
+   *
+   * Sin esto el paso seguía en verde con su «Cuenta confirmada» mientras el aviso de
+   * abajo le pedía corregirla — y su botón estaba ESCONDIDO, porque los pasos listos no
+   * lo enseñan. El creador leía qué hacer y no tenía con qué hacerlo.
+   */
   const pasoIdentidad: EstadoPaso = identityReady ? "listo" : "pendiente";
-  const pasoCobro: EstadoPaso = payoutAccountReady ? "listo" : "pendiente";
-  const pasoSello: EstadoPaso = csdReady ? "listo" : "pendiente";
+  const pasoCuenta: EstadoPaso =
+    cuentaDeclarada && !cuentaNoCoincide ? "listo" : "pendiente";
+  const pasoCobro: EstadoPaso =
+    payoutAccountReady && !cobroRestringidoRaw ? "listo" : "pendiente";
+  const pasoSello: EstadoPaso = csdReady && !csdVencido ? "listo" : "pendiente";
 
   // Dado de alta pero sin capacidad activa todavía: Stripe lo está revisando.
   const cobroEnRevision = stripeAccountStatus === "pending";
-  const cobroRestringido = stripeAccountStatus === "restricted";
+  const cobroRestringido = cobroRestringidoRaw;
 
   return (
     <Modal
@@ -185,12 +215,14 @@ export default function CreatorPayoutSetupPanel({
       /* Mientras guarda no se cierra: hay una llamada en vuelo —abrir el formulario de
          Stripe, o el cuestionario— y cerrar dejaría al creador sin saber si ocurrió. */
       onClose={() => {
-        if (!guardando) onClose();
+        if (!ocupado) onClose();
       }}
       title={t("payoutSetupTitle")}
       closeAriaLabel={t("payoutSetupClose")}
       contentPadding="20px 20px calc(20px + var(--vb-safe-bottom, 0px))"
     >
+      <style>{`@keyframes vbPasoSpin{to{transform:rotate(360deg)}}`}</style>
+
       {loading ? (
         <div style={{ display: "grid", gap: 10 }}>
           <Esqueleto alto={64} />
@@ -198,9 +230,9 @@ export default function CreatorPayoutSetupPanel({
           <Esqueleto alto={64} />
         </div>
       ) : (
-        /* 18 y no 14: sin caja que los delimite, el hueco es lo único que separa un
-           paso del siguiente. */
-        <div style={{ display: "grid", gap: 18 }}>
+        /* 32 y no 14: sin caja que los delimite, el hueco es lo único que separa un
+           paso del siguiente, así que tiene que ser generoso. */
+        <div style={{ display: "grid", gap: 32 }}>
           {/* 1. IDENTIDAD — el KYC de Didit. Es de todos, mexicanos y extranjeros, y va
               primero: sin saber quién es alguien no tiene sentido pedirle datos fiscales
               ni de cobro.
@@ -212,7 +244,13 @@ export default function CreatorPayoutSetupPanel({
             numero={1}
             estado={pasoIdentidad}
             titulo={t("payoutSetupStepIdentity")}
-            descripcion={t("payoutSetupStepIdentityHint")}
+            /* En revisión manual el paso no pide nada, informa: su botón está apagado y
+               sin esto no había forma de saber por qué. */
+            descripcion={
+              kycEnRevision
+                ? t("payoutSetupStepIdentityReviewing")
+                : t("payoutSetupStepIdentityHint")
+            }
             hecho={t("payoutSetupStepIdentityDone")}
             accion={t("payoutSetupStepIdentityCta")}
             onAccion={
@@ -240,7 +278,7 @@ export default function CreatorPayoutSetupPanel({
               le rechacen el país—, así que su cuestionario ES su registro de cobro. */}
           <Paso
             numero={2}
-            estado={cuentaDeclarada ? "listo" : "pendiente"}
+            estado={pasoCuenta}
             titulo={t(porWallbit ? "payoutSetupStepWallbit" : "payoutSetupStepDeclare")}
             descripcion={t(
               porWallbit ? "payoutSetupStepWallbitHint" : "payoutSetupStepDeclareHint"
@@ -248,12 +286,22 @@ export default function CreatorPayoutSetupPanel({
             hecho={t(
               porWallbit ? "payoutSetupStepWallbitDone" : "payoutSetupStepDeclareDone"
             )}
+            /* Si la cuenta no cuadra, el botón deja de invitar a declarar y pasa a
+               invitar a corregir. Es la misma llamada, otra intención. */
             accion={
-              guardando
-                ? t("payoutSetupStepPayoutOpening")
+              cuentaNoCoincide
+                ? t("payoutSetupStepDeclareFix")
                 : t(porWallbit ? "payoutSetupStepWallbitCta" : "payoutSetupStepDeclareCta")
             }
-            onAccion={guardando ? undefined : abrirCuestionarioDeCuenta}
+            aviso={
+              cuentaNoCoincide
+                ? { tono: "alerta", texto: t("payoutSetupAccountMismatch") }
+                : payoutTerms?.soloDolares && porWallbit
+                  ? { tono: "aviso", texto: t("payoutSetupWallbitUsdOnly") }
+                  : null
+            }
+            cargando={ocupado === "cuenta"}
+            onAccion={ocupado ? undefined : abrirCuestionarioDeCuenta}
           />
 
           {/* 3. REGISTRAR LA CUENTA EN STRIPE — solo la ruta de Stripe.
@@ -276,38 +324,25 @@ export default function CreatorPayoutSetupPanel({
               }
               hecho={t("payoutSetupStepPayoutDone")}
               accion={
-                guardando || refrescando
-                  ? t("payoutSetupStepPayoutOpening")
-                  : cobroEnRevision || cobroRestringido
-                    ? t("payoutSetupStepPayoutResume")
-                    : t("payoutSetupStepPayoutCta")
+                cobroEnRevision || cobroRestringido
+                  ? t("payoutSetupStepPayoutResume")
+                  : t("payoutSetupStepPayoutCta")
               }
+              aviso={
+                cobroRestringido
+                  ? { tono: "alerta", texto: t("payoutSetupPayoutRestricted") }
+                  : cobraFueraDeMexico
+                    ? { tono: "aviso", texto: t("payoutSetupForeignAccountWarning") }
+                    : null
+              }
+              /* `refrescando` también cuenta: al volver de Stripe se relee la cuenta y
+                 ese sí es trabajo de ESTE paso. */
+              cargando={ocupado === "cobro" || refrescando}
               onAccion={
                 // Sin declarar antes, no se abre: es lo que impone el orden.
-                !cuentaDeclarada || guardando || refrescando ? undefined : abrirAltaDeCobro
+                !cuentaDeclarada || ocupado || refrescando ? undefined : abrirAltaDeCobro
               }
             />
-          )}
-
-          {!porWallbit && cobroRestringido && (
-            <Aviso tono="alerta" texto={t("payoutSetupPayoutRestricted")} />
-          )}
-
-          {/* 🔴 Declaró una cuenta y en Stripe metió otra.
-
-              Puede ser un error de tecleo o algo peor. En cualquier caso el creador tiene
-              que resolverlo antes de cobrar, y alguien de Vibra ya lo tiene en los logs. */}
-          {cuentaNoCoincide && (
-            <Aviso tono="alerta" texto={t("payoutSetupAccountMismatch")} />
-          )}
-
-          {/* ⚠️ Cobra en dólares pero no puede pasarlos a su banco.
-
-              Chile, Uruguay, Paraguay y Honduras. Su única salida documentada es cripto,
-              y eso hay que decírselo AQUÍ, antes de que acumule, no el día que quiera
-              sacar el dinero. Se entra igual porque la alternativa era no pagarles. */}
-          {payoutTerms?.soloDolares && (
-            <Aviso tono="aviso" texto={t("payoutSetupWallbitUsdOnly")} />
           )}
 
           {/* 🔴 Su país vende pero no cobra.
@@ -317,32 +352,6 @@ export default function CreatorPayoutSetupPanel({
               ya lo hizo. */}
           {payoutCountryUnpayable && (
             <Aviso tono="alerta" texto={t("payoutNoRouteWarning")} />
-          )}
-
-          {/* 💰 Su comisión y su mínimo, con el MOTIVO.
-
-              Al del grupo caro hay que explicarle por qué le toca 30% y 500, o lo lee
-              como un castigo arbitrario. No lo es: la transferencia a su país cuesta 25
-              USD por envío frente a 1.50 en los demás, y a 300 se le comería el 8%.
-
-              Solo aparece cuando ya tiene cuenta: antes no se sabe su país. */}
-          {payoutTerms?.tier === "expensive" && (
-            <div
-              style={{
-                padding: "11px 14px",
-                borderRadius: 12,
-                /* Sin contorno y sin morado: el panel entero va en gris. */
-                background: "rgba(255,255,255,0.05)",
-                color: "rgba(255,255,255,0.7)",
-                fontSize: 12.5,
-                lineHeight: 1.55,
-              }}
-            >
-              {t("payoutTermsExpensive", {
-                pct: Math.round(payoutTerms.commissionRate * 100),
-                min: payoutTerms.minWithdrawalUsd,
-              })}
-            </div>
           )}
 
           {/* 3. DATOS FISCALES Y SELLO — solo si alguna de las dos señales dice México.
@@ -357,7 +366,22 @@ export default function CreatorPayoutSetupPanel({
               titulo={t("payoutSetupStepSeal")}
               descripcion={t("payoutSetupStepSealHint")}
               hecho={t("payoutSetupStepSealDone")}
-              accion={csdReady ? t("payoutSetupStepSealReplace") : t("payoutSetupStepSealCta")}
+              /* Vencido no es lo mismo que no tenerlo ni que reemplazarlo por gusto: el
+                 botón lo dice, porque es lo único que le indica que corre prisa. */
+              accion={
+                csdVencido || csdRechazado
+                  ? t("payoutSetupStepSealFix")
+                  : csdReady
+                    ? t("payoutSetupStepSealReplace")
+                    : t("payoutSetupStepSealCta")
+              }
+              aviso={
+                csdVencido
+                  ? { tono: "alerta", texto: t("payoutSetupSealExpired") }
+                  : csdRechazado
+                    ? { tono: "alerta", texto: t("payoutSetupSealRejected") }
+                    : null
+              }
               onAccion={() => {
                 onClose();
                 onOpenSello();
@@ -365,13 +389,6 @@ export default function CreatorPayoutSetupPanel({
             />
           )}
 
-          {csdVencido && (
-            <Aviso tono="alerta" texto={t("payoutSetupSealExpired")} />
-          )}
-
-          {cobraFueraDeMexico && (
-            <Aviso tono="aviso" texto={t("payoutSetupForeignAccountWarning")} />
-          )}
         </div>
       )}
 
@@ -382,8 +399,14 @@ export default function CreatorPayoutSetupPanel({
   );
 }
 
-/** Aviso corto dentro del panel. `alerta` bloquea algo; `aviso` solo advierte. */
-function Aviso({ tono, texto }: { tono: "alerta" | "aviso"; texto: string }) {
+/**
+ * Aviso corto dentro del panel. `alerta` bloquea algo; `aviso` solo advierte.
+ *
+ * Se EXPORTA para el catálogo de estados de `/admin/paneles`, que los pinta todos a la
+ * vez. Importar el componente de verdad es lo que impide que el catálogo enseñe una cosa
+ * y el panel otra.
+ */
+export function Aviso({ tono, texto }: { tono: "alerta" | "aviso"; texto: string }) {
   /**
    * ⚠️ Sin contorno y sin color, por decisión de Luis (2026-08-30): el panel entero va en
    *    gris. El tono sigue existiendo en el tipo y solo mueve el brillo del texto, para que
@@ -422,12 +445,14 @@ function Esqueleto({ alto }: { alto: number }) {
   );
 }
 
-function Paso({
+export function Paso({
   numero,
   estado,
   titulo,
   descripcion,
   hecho,
+  cargando,
+  aviso,
   accion,
   onAccion,
 }: {
@@ -442,6 +467,21 @@ function Paso({
    * palomita se fueron, así que un paso sin esto se ve idéntico a uno sin empezar.
    */
   hecho?: string;
+  /**
+   * Este paso —y solo este— tiene una llamada en vuelo.
+   *
+   * Enseña el spinner junto al título y apaga su botón. Lo lleva cada paso por separado
+   * a propósito: con un booleano común se ponían los tres a cargar de golpe.
+   */
+  cargando?: boolean;
+  /**
+   * El aviso de ESTE paso, dentro de su bloque.
+   *
+   * ⚠️ Antes los seis avisos se pintaban sueltos, todos después del paso 3. El de «tu
+   *    cuenta no coincide» hablaba del paso 2 y salía debajo del 3; el de Wallbit quedaba
+   *    huérfano porque en esa ruta el 3 ni se pinta. Cada uno junto a lo que explica.
+   */
+  aviso?: { tono: "alerta" | "aviso"; texto: string } | null;
   accion: string;
   onAccion?: () => void;
 }) {
@@ -454,8 +494,8 @@ function Paso({
            rejilla de arriba. Lo que dice que un paso está hecho es la línea verde de
            abajo, que sustituyó al fondo y a la palomita. */
         display: "grid",
-        gridTemplateColumns: "30px minmax(0, 1fr)",
-        gap: "0 12px",
+        gridTemplateColumns: "38px minmax(0, 1fr)",
+        gap: "0 14px",
         /* El número va centrado contra el alto del paso, no pegado arriba. Manda el
            bloque de texto, que es el alto; el número se alinea a su centro. */
         alignItems: "center",
@@ -471,7 +511,7 @@ function Paso({
           display: "grid",
           placeItems: "center",
           color: "#fff",
-          fontSize: 26,
+          fontSize: 34,
           fontWeight: 700,
           lineHeight: 1,
         }}
@@ -480,10 +520,80 @@ function Paso({
       </div>
 
       <div style={{ display: "grid", gap: 5, minWidth: 0 }}>
-        <span style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.3 }}>{titulo}</span>
+        {/* Título y, si el paso está hecho, la palomita blanca en su círculo verde.
+
+            Va pegada al título y no al número, que es blanco y siempre dice lo mismo. La
+            línea verde de abajo explica QUÉ quedó resuelto; esto se ve de un vistazo
+            recorriendo la lista, sin leer. */}
+        <span
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            fontSize: 14.5,
+            fontWeight: 600,
+            lineHeight: 1.3,
+            minWidth: 0,
+          }}
+        >
+          <span style={{ minWidth: 0 }}>{titulo}</span>
+
+          {/* Cargando: el spinner ocupa EL MISMO sitio que la palomita, para que el
+              estado del paso se lea siempre en el mismo punto y el título no se mueva. */}
+          {cargando && (
+            <span
+              aria-hidden="true"
+              style={{
+                flexShrink: 0,
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                border: "2px solid rgba(168,85,247,0.25)",
+                borderTopColor: "#a855f7",
+                animation: "vbPasoSpin 700ms linear infinite",
+              }}
+            />
+          )}
+
+          {!cargando && listo && (
+            <span
+              aria-hidden="true"
+              style={{
+                flexShrink: 0,
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: "#22c55e",
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#fff"
+                strokeWidth={3.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </span>
+          )}
+        </span>
         <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.62)", lineHeight: 1.5 }}>
           {descripcion}
         </span>
+        {/* El aviso del paso, entre la descripción y el botón: primero qué pasa y
+            luego con qué se arregla, que es el orden en que se lee. */}
+        {aviso && (
+          <div style={{ marginTop: 3 }}>
+            <Aviso tono={aviso.tono} texto={aviso.texto} />
+          </div>
+        )}
+
         {/* Hecho: la confirmación en verde, en el hueco que deja el botón.
 
             Sustituye a la palomita y al fondo verde que llevaba la caja. Cada paso trae la

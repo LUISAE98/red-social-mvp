@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Dừng chia sẻ màn hình",
     "screenShare": "Chia sẻ màn hình",
     "watchLiveOf": "Xem buổi phát của {name}",
-    "chartStart": "Bắt đầu"
+    "chartStart": "Bắt đầu",
+    "spokenSaid": "{user} nói: {text}"
   },
   "completeProfile": {
     "title": "Hoàn tất hồ sơ của bạn",

@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Oprește partajarea ecranului",
     "screenShare": "Partajează ecranul",
     "watchLiveOf": "Vezi transmisiunea lui {name}",
-    "chartStart": "Început"
+    "chartStart": "Început",
+    "spokenSaid": "{user} a spus: {text}"
   },
   "completeProfile": {
     "title": "Completează-ți profilul",

@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Lopeta näytön jako",
     "screenShare": "Jaa näyttö",
     "watchLiveOf": "Katso käyttäjän {name} live",
-    "chartStart": "Alku"
+    "chartStart": "Alku",
+    "spokenSaid": "{user} sanoi: {text}"
   },
   "completeProfile": {
     "title": "Täydennä profiilisi",

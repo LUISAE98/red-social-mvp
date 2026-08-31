@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import WalletSubNav, { type WalletTabKey } from "./components/WalletSubNav";
 import WalletOnboarding from "./components/WalletOnboarding";
 import { WalletDataContext } from "./components/WalletDataContext";
@@ -33,7 +33,29 @@ export default function WalletLayout({
   const showOnboarding = monetizationLoaded && !hasMonetization;
 
   const pathname = usePathname();
-  const activeTab = pathToTab(pathname);
+
+  /**
+   * Qué pestaña manda en el subnav.
+   *
+   * ⚠️ No puede salir SOLO de `usePathname()`. Ese valor no cambia hasta que la
+   * navegación se confirma, y las cinco pestañas son componentes de cliente
+   * grandes —calendario pasa de 1400 líneas—, así que en celular el dedo se
+   * queda sin respuesta todo lo que tarde en bajar ese chunk. El subnav tiene
+   * que contestarle al dedo, no al router.
+   *
+   * Se guarda DESDE QUÉ RUTA se tocó, y el toque manda mientras esa siga siendo
+   * la ruta actual. En cuanto el router llega, `pathname` cambia, la condición
+   * deja de cumplirse y vuelve a mandar la ruta.
+   *
+   * Derivado, sin efecto que lo limpie, por tres motivos: aquí
+   * `set-state-in-effect` es error; se cura solo si la navegación se cancela o
+   * si el usuario va atrás; y no hay ventana en la que el estado viejo y el
+   * nuevo se contradigan.
+   */
+  const [tocada, setTocada] = useState<{ tab: WalletTabKey; desde: string } | null>(
+    null
+  );
+  const activeTab = tocada?.desde === pathname ? tocada.tab : pathToTab(pathname);
 
   const headerRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +139,10 @@ export default function WalletLayout({
             {monetizationLoaded && !showOnboarding ? (
               <>
                 <h1 className="vibra-page-title">Wallet</h1>
-                <WalletSubNav activeTab={activeTab} />
+                <WalletSubNav
+                  activeTab={activeTab}
+                  onTabTap={(tab) => setTocada({ tab, desde: pathname })}
+                />
               </>
             ) : null}
           </div>

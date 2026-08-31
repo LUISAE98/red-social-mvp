@@ -20,6 +20,11 @@ export type TextReaderHighlight = { start: number; length: number };
 type Options = {
   /** Se llama cuando la lectura termina sola, no cuando se detiene a mano. */
   onFinished?: () => void;
+  /**
+   * Voz con la que leer. Quien llama decide de quién es el idioma: en unas
+   * pantallas manda el de quien escucha y en otras el del creador.
+   */
+  voice?: string;
 };
 
 export function useTextReader(text: string | null, options?: Options) {
@@ -32,6 +37,18 @@ export function useTextReader(text: string | null, options?: Options) {
   // callback que se crea una sola vez por texto; con el estado leería el valor
   // de cuando se creó.
   const rateRef = useRef<number>(1);
+  /**
+   * La voz, por referencia y no leída de `options` dentro del callback.
+   *
+   * `options` es un objeto literal nuevo en cada render, así que leerlo ahí
+   * dentro deja al compilador de React sin poder memoizar `startFrom`. Es el
+   * mismo motivo por el que la velocidad ya viajaba así.
+   */
+  const voiceRef = useRef<string | undefined>(options?.voice);
+  // Se actualiza en un efecto: escribir una ref durante el render no está permitido.
+  useEffect(() => {
+    voiceRef.current = options?.voice;
+  }, [options?.voice]);
   // Cada reproducción lleva número. Al empezar otra, o al parar, se incrementa y
   // los callbacks de la anterior se descartan solos. Sin esto, un audio viejo
   // que aún estaba sonando seguía moviendo el resaltado del nuevo.
@@ -74,6 +91,7 @@ export function useTextReader(text: string | null, options?: Options) {
       setHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
 
       audioRef.current = playEdgeTTS(slice, {
+        voice: voiceRef.current,
         playbackRate: rateRef.current,
         onProgress: (ratio) => {
           if (genRef.current !== gen) return;

@@ -2545,7 +2545,8 @@
     "stopScreenShare": "Stop sharing screen",
     "screenShare": "Share screen",
     "watchLiveOf": "Watch {name}'s live",
-    "chartStart": "Start"
+    "chartStart": "Start",
+    "spokenSaid": "{user} said: {text}"
   },
   "completeProfile": {
     "title": "Complete your profile",

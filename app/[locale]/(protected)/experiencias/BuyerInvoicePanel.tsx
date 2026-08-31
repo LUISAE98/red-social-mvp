@@ -423,7 +423,7 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
                   <input style={FIELD} value={taxId} maxLength={13} placeholder="RFC"
                     autoComplete="off"
                     onChange={(e) => { setTaxId(e.target.value.toUpperCase()); if (error) setError(null); }} />
-                  <input style={FIELD} value={legalName} placeholder="Nombre o razón social (como en tu Constancia)"
+                  <input style={FIELD} value={legalName} placeholder="Nombre o razón social (como en tu constancia)"
                     onChange={(e) => { setLegalName(e.target.value); if (error) setError(null); }} />
                   <div style={{ display: "flex", gap: 10 }}>
                     <div style={{ flex: 2, minWidth: 0 }}>

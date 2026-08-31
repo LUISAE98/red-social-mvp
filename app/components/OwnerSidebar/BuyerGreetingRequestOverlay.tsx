@@ -10,6 +10,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { createPortal } from "react-dom";
 import type { GreetingRequestDoc } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
+import { vozParaLocale } from "@/lib/tts/voices";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
@@ -167,6 +168,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
     if (!sliceText.trim()) return;
     setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
     ttsAudioRef.current = playEdgeTTS(sliceText, {
+      voice: vozParaLocale(locale),
       playbackRate: speechRateRef.current,
       onProgress: (ratio) => {
         if (speechGenRef.current !== gen) return;

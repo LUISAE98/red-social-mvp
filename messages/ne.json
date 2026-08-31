@@ -2545,7 +2545,8 @@
     "stopScreenShare": "स्क्रिन साझेदारी रोक्नुहोस्",
     "screenShare": "स्क्रिन साझा गर्नुहोस्",
     "watchLiveOf": "{name} को लाइभ हेर्नुहोस्",
-    "chartStart": "सुरु"
+    "chartStart": "सुरु",
+    "spokenSaid": "{user} ले भन्नुभयो: {text}"
   },
   "completeProfile": {
     "title": "आफ्नो प्रोफाइल पूरा गर्नुहोस्",

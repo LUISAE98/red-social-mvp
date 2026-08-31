@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
 import { NextRequest } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { VOCES_PERMITIDAS, VOZ_RESERVA } from "@/lib/tts/voices";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,17 +13,13 @@ export const dynamic = "force-dynamic";
 // acota por otras vías: voz de una lista fija, texto topado, ritmo por IP y
 // caché para que las repeticiones ni lleguen al servidor.
 
-// Solo las voces que el producto usa de verdad. Antes se aceptaba cualquier
-// cadena y se pasaba tal cual al motor.
-const ALLOWED_VOICES = new Set([
-  "es-MX-DaliaNeural",
-  "es-MX-JorgeNeural",
-  "es-ES-ElviraNeural",
-  "en-US-AriaNeural",
-  "en-US-GuyNeural",
-  "pt-BR-FranciscaNeural",
-]);
-const DEFAULT_VOICE = "es-MX-DaliaNeural";
+// La lista blanca sigue siendo obligatoria —antes se aceptaba cualquier cadena
+// y se pasaba tal cual al motor— pero ya no se escribe aquí: se deriva del mapa
+// de idiomas. Escribirla a mano significaba que añadir un idioma dejaba su voz
+// fuera de la lista, y el endpoint la cambiaba en silencio por la de reserva:
+// el fallo se habría visto como "el japonés suena en español", no como un error.
+const ALLOWED_VOICES = VOCES_PERMITIDAS;
+const DEFAULT_VOICE = VOZ_RESERVA;
 
 const MAX_CHARS = 1000;
 

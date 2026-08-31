@@ -2545,7 +2545,8 @@
     "stopScreenShare": "画面共有を停止",
     "screenShare": "画面を共有",
     "watchLiveOf": "{name} のライブを見る",
-    "chartStart": "開始"
+    "chartStart": "開始",
+    "spokenSaid": "{user}さんのコメント：{text}"
   },
   "completeProfile": {
     "title": "プロフィールを完成させましょう",

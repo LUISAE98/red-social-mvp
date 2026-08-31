@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
+import { vozParaLocale } from "@/lib/tts/voices";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import Image from "next/image";
 import ScheduleDateTimeSelector, {
@@ -193,6 +194,7 @@ export default function SessionRequestOverlay({
     setChatTtsIdx(idx);
     setChatTtsHighlight(null);
     chatTtsAudioRef.current = playEdgeTTS(text, {
+      voice: vozParaLocale(locale),
       playbackRate: chatTtsRateRef.current,
       onProgress: (ratio) => {
         if (chatTtsGenRef.current !== gen) return;

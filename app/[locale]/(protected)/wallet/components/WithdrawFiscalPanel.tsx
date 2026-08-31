@@ -229,14 +229,14 @@ export default function WithdrawFiscalPanel({
         {taxIdError && <div style={redNote}>{taxIdError}</div>}
       </div>
       <div>
-        <div style={LABEL}>Nombre o razón social (como en tu Constancia)</div>
+        <div style={LABEL}>{tWallet("fiscalLegalNameLabel")}</div>
         <input style={FIELD} value={legalName}
           onChange={(e) => { setLegalName(e.target.value); if (legalNameError) setLegalNameError(null); }} />
         {legalNameError && <div style={redNote}>{legalNameError}</div>}
       </div>
       <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
         <div style={{ flex: 2, position: "relative" }}>
-          <div style={LABEL}>Régimen fiscal</div>
+          <div style={LABEL}>{tWallet("fiscalTaxSystemLabel")}</div>
           <input
             style={FIELD}
             value={regimenQuery}
@@ -262,7 +262,7 @@ export default function WithdrawFiscalPanel({
           {taxSystemError && <div style={redNote}>{taxSystemError}</div>}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={LABEL}>CP fiscal</div>
+          <div style={LABEL}>{tWallet("fiscalZipLabel")}</div>
           <input
             ref={cpRef}
             style={FIELD}
@@ -298,20 +298,42 @@ export default function WithdrawFiscalPanel({
 
           {hasData && (
             <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.4)", margin: "0 0 6px", lineHeight: 1.5 }}>
-              Ya guardamos tus datos fiscales, así que solo falta tu sello.
+              {tWallet("fiscalDataAlreadySaved")}
             </p>
           )}
           {fiscalFields}
           <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
-          <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: 0 }}>
-            Sube tu Certificado de Sello Digital (CSD). Se guarda seguro en nuestro proveedor de facturación, nunca en la plataforma.
-          </p>
+          {/* 🛡️ El escudo va aquí y en ningún otro sitio del panel.
+
+              Subir el .cer y el .key es lo más delicado que se le pide al creador en toda
+              la plataforma, y es justo donde duda. El escudo dice «esto está resguardado»
+              antes de que lea la frase; repetirlo en otros campos lo volvería decoración. */}
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <svg
+              aria-hidden="true"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#a855f7"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ flexShrink: 0, marginTop: 1 }}
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <polyline points="9 12 11 14 15 10" />
+            </svg>
+            <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: 0 }}>
+              {tWallet("fiscalSealShieldNote")}
+            </p>
+          </div>
 
           {/* Subida del .cer: el texto morado ES el botón que abre el explorador. */}
           <div>
             <input ref={cerInputRef} type="file" accept=".cer" style={{ display: "none" }} onChange={(e) => pickCer(e.target.files?.[0] ?? null)} />
             <TextButton tone="brand" size="md" style={{ margin: 0, fontFamily: "inherit", textAlign: "start", display: "inline-flex", alignItems: "center", maxWidth: "100%" }} onClick={() => cerInputRef.current?.click()}>
-              {cer ? <FileChosen name={cer.name} /> : "Da clic aquí para subir tu archivo .cer"}
+              {cer ? <FileChosen name={cer.name} /> : tWallet("fiscalUploadCerCta")}
             </TextButton>
             {cerError && <div style={redNote}>{cerError}</div>}
           </div>
@@ -319,16 +341,16 @@ export default function WithdrawFiscalPanel({
           {/* Subida del .key: explicación + texto morado (botón). */}
           <div>
             <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: "0 0 6px" }}>
-              Ahora sube tu archivo .key (la llave privada de tu CSD).
+              {tWallet("fiscalUploadKeyHint")}
             </p>
             <input ref={keyInputRef} type="file" accept=".key" style={{ display: "none" }} onChange={(e) => pickKey(e.target.files?.[0] ?? null)} />
             <TextButton tone="brand" size="md" style={{ margin: 0, fontFamily: "inherit", textAlign: "start", display: "inline-flex", alignItems: "center", maxWidth: "100%" }} onClick={() => keyInputRef.current?.click()}>
-              {keyFile ? <FileChosen name={keyFile.name} /> : "Da clic aquí para subir tu archivo .key"}
+              {keyFile ? <FileChosen name={keyFile.name} /> : tWallet("fiscalUploadKeyCta")}
             </TextButton>
             {keyError && <div style={redNote}>{keyError}</div>}
           </div>
           <div>
-            <div style={LABEL}>Contraseña de la clave privada</div>
+            <div style={LABEL}>{tWallet("fiscalKeyPasswordLabel")}</div>
             <div style={{ position: "relative" }}>
               <input
                 style={{ ...FIELD, paddingInlineEnd: 42 }}
@@ -339,7 +361,7 @@ export default function WithdrawFiscalPanel({
               <button
                 type="button"
                 onClick={() => setShowPass((v) => !v)}
-                aria-label={showPass ? "Ocultar contraseña" : "Mostrar contraseña"}
+                aria-label={showPass ? tWallet("fiscalHidePassword") : tWallet("fiscalShowPassword")}
                 style={{
                   position: "absolute", top: "50%", insetInlineEnd: 10, transform: "translateY(-50%)",
                   background: "none", border: "none", padding: 4, cursor: "pointer",
@@ -352,13 +374,13 @@ export default function WithdrawFiscalPanel({
           </div>
           <div style={{ display: "flex", gap: 14, alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.72)", lineHeight: 1.5 }}>
-              Autorizo a Vibra a emitir mis CFDIs por mi cuenta (auto-facturación).
+              {tWallet("fiscalSelfInvoiceConsent")}
             </span>
             <button
               type="button"
               role="switch"
               aria-checked={consent}
-              aria-label="Autorizo la auto-facturación"
+              aria-label={tWallet("fiscalSelfInvoiceConsentAria")}
               onClick={() => setConsent((v) => !v)}
               style={{
                 position: "relative", width: 40, height: 22, borderRadius: 999, border: "none",
@@ -377,7 +399,7 @@ export default function WithdrawFiscalPanel({
             </button>
           </div>
           <button type="button" onClick={submitAuto} disabled={busy} style={primaryBtn(busy)}>
-            {busy ? "Validando CSD…" : "Activar y guardar"}
+            {busy ? tWallet("fiscalValidatingSeal") : tWallet("fiscalActivateAndSave")}
           </button>
         </div>
       );
@@ -387,12 +409,17 @@ export default function WithdrawFiscalPanel({
     return (
       <div style={{ display: "grid", gap: 14, textAlign: "center" }}>
         <div style={{ fontSize: 40 }}>✅</div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>Facturación automática activada</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{tWallet("fiscalAutoInvoicingActive")}</div>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, margin: 0 }}>
-          Emitiremos por ti la factura de cada venta y tu factura global del mes.
-          {profile?.csdExpiresAt ? ` Tu CSD vence el ${new Date(profile.csdExpiresAt).toLocaleDateString(intlLocale(locale))}.` : ""}
+          {tWallet("fiscalAutoInvoicingDone")}
+          {profile?.csdExpiresAt
+            ? " " +
+              tWallet("fiscalSealExpiresOn", {
+                date: new Date(profile.csdExpiresAt).toLocaleDateString(intlLocale(locale)),
+              })
+            : ""}
         </p>
-        <button type="button" onClick={handleClose} style={primaryBtn(false)}>Listo</button>
+        <button type="button" onClick={handleClose} style={primaryBtn(false)}>{tWallet("fiscalDoneCta")}</button>
       </div>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -403,7 +430,11 @@ export default function WithdrawFiscalPanel({
     <Modal
       open={open}
       onClose={handleClose}
-      title={`Retirar ${availableLabel}`}
+      /* Este panel tiene dos entradas: el botón de «Retirar» y el paso del sello del
+         panel de registro. `desglose` solo llega por la primera —Finanzas lo manda cuando
+         de verdad va a retirar—, así que sirve para saber cuál de las dos fue y titular en
+         consecuencia. «Retirar $0.00» encabezando una subida de archivos no decía nada. */
+      title={desglose ? `Retirar ${availableLabel}` : "Sello fiscal"}
       maxWidthDesktop={540}
       contentPadding="16px 18px calc(18px + var(--vb-safe-bottom, 0px))"
     >

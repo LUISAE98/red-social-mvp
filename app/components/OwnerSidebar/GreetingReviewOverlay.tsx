@@ -22,6 +22,7 @@ import { addStoryFromGreeting, deleteStory, subscribeToStoryByGreeting } from "@
 import type { StoryDoc } from "@/lib/stories/types";
 import type { GreetingRequestDoc, UserMini } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
+import { vozParaLocale } from "@/lib/tts/voices";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import {
   VideoMuteIcon,
@@ -1282,6 +1283,7 @@ export default function GreetingReviewOverlay({
     if (!sliceText.trim()) return;
     setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
     ttsAudioRef.current = playEdgeTTS(sliceText, {
+      voice: vozParaLocale(locale),
       playbackRate: speechRateRef.current,
       onProgress: (ratio) => {
         if (speechGenRef.current !== gen) return;
