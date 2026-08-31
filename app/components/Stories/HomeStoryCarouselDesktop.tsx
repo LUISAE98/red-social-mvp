@@ -3,7 +3,7 @@ import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 /* eslint-disable react-hooks/refs */
 
 import FillImage from "@/components/ui/FillImage";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { useTranslations } from "next-intl";
@@ -136,8 +136,26 @@ export default function HomeStoryCarouselDesktop({
   onOpenLive,
   behind = false,
 }: Props) {
-  // Freeze groups at mount so live Firestore updates don't shift indices mid-session
-  const groups = useRef(groupsProp).current;
+  // La LISTA se congela al montar, para que una actualizacion de Firestore no
+  // desplace los indices a media sesion y el carrusel salte de historia solo.
+  const frozen = useRef(groupsProp).current;
+
+  // ⚠️ Pero las FOTOS no pueden congelarse: llegan despues, de forma asincrona,
+  // y con la lista congelada el carrusel se quedaba con la version sin ellas.
+  // Las vistas previas salian con el circulo vacio para siempre mientras el
+  // avatar del centro si cargaba, porque ese lo pide el slide por su cuenta.
+  //
+  // Refrescar SOLO la foto no mueve nada: ni el orden, ni los indices, ni que
+  // historia esta al frente. Es justo lo que la congelacion protege.
+  const groups = useMemo(
+    () =>
+      frozen.map((g) => {
+        const fresco = groupsProp.find((x) => x.key === g.key);
+        const photoURL = fresco?.info.photoURL ?? g.info.photoURL;
+        return photoURL === g.info.photoURL ? g : { ...g, info: { ...g.info, photoURL } };
+      }),
+    [frozen, groupsProp],
+  );
 
   // +1 / -1 según el sentido de lectura. Este carrusel no tiene gesto, pero sí dos
   // capas que hay que voltear a la vez: la imagen (translateX) y su área clicable,
