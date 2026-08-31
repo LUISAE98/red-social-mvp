@@ -452,6 +452,10 @@ export default function CreatorServiceModals({
 
   // ── Greeting modal ────────────────────────────────────────────────────────
 
+  // Lo minimo para poder encargar: a quien va y que decir. El flujo se corta si
+  // falta alguno, asi que el boton no debe invitar a pulsarlo.
+  const greetReady = toName.trim().length > 0 && instructions.trim().length > 0;
+
   const greetingModal = createPortal(
     <Panel
       open={greetOpen}
@@ -464,8 +468,14 @@ export default function CreatorServiceModals({
         <button
           type="button"
           onClick={onSubmitGreeting}
-          disabled={greetSubmitting || !acceptedTerms}
-          style={{ ...s.primaryBtn, background: greetAccent, ...((greetSubmitting || !acceptedTerms) ? s.primaryBtnDisabled : {}) }}
+          // ⚠️ Tambien se desactiva si falta el destinatario o el contexto.
+          //
+          // Antes solo miraba los terminos, asi que con un campo vacio el boton
+          // se veia activo, se pulsaba, y el flujo se cortaba en silencio: el
+          // clic no hacia absolutamente nada y parecia que la pasarela estaba
+          // rota.
+          disabled={greetSubmitting || !acceptedTerms || !greetReady}
+          style={{ ...s.primaryBtn, background: greetAccent, ...((greetSubmitting || !acceptedTerms || !greetReady) ? s.primaryBtnDisabled : {}) }}
         >
           {greetSubmitting ? tServices("submitting") : isRetry ? tServices("retryLabel") : greetPriceLabel ? <>{tServices("continueToPayment")} <span style={{ color: "#fff", opacity: 0.5, margin: "0 4px" }}>·</span> {greetPriceLabel}</> : tServices("continueToPayment")}
         </button>
