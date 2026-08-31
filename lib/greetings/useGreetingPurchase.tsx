@@ -78,6 +78,12 @@ export function useGreetingPurchase({
   // Se lee del documento del creador, que es de lectura publica, asi que
   // funciona igual sin sesion.
   const [priceLabel, setPriceLabel] = useState<string | undefined>(undefined);
+  // ¿Este creador vende este servicio? null = todavia no se sabe.
+  //
+  // Sin esto se ofrecia comprar algo que no estaba a la venta: la persona
+  // llenaba el formulario entero y el servidor lo rechazaba al final con "este
+  // servicio no esta activo". El precio ausente era el mismo sintoma.
+  const [available, setAvailable] = useState<boolean | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [payRequestId, setPayRequestId] = useState<string | null>(null);
@@ -123,6 +129,7 @@ export function useGreetingPurchase({
         if (cancelled) return;
         const offerings = snap.data()?.offerings ?? null;
         const service = getServiceByType(offerings, type, source);
+        setAvailable(!!service);
         const price = service?.publicPrice ?? service?.memberPrice ?? null;
         if (typeof price !== "number") return;
         // Total todo incluido: base del creador, cargo fijo e impuesto del
@@ -327,5 +334,16 @@ export function useGreetingPurchase({
     ],
   );
 
-  return { open, isOpen, modals };
+  return {
+    open,
+    isOpen,
+    modals,
+    /**
+     * ¿Se puede encargar? `null` mientras se averigua.
+     *
+     * Quien lo monta decide que hacer: lo sensato es no ofrecer la compra
+     * cuando ya se sabe que no esta a la venta.
+     */
+    available,
+  };
 }

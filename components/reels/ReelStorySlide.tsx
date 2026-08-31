@@ -1067,17 +1067,23 @@ export default function ReelStorySlide({
             >
               {tServices("contextLabel")}
             </button>
-            <button
-              type="button"
-              onTouchStart={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                void purchase.open();
-              }}
-              style={{ flex: 1, padding: compact ? "8px 10px" : "11px 10px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #f472b6, #a855f7)", color: "#fff", fontSize: compact ? 12 : 14, fontWeight: 600, fontFamily: FONT, cursor: "pointer", letterSpacing: "-0.01em", transition: "opacity 150ms ease", WebkitTapHighlightColor: "transparent" }}
-            >
-              {effectiveType === "saludo" ? tServices("wantGreeting") : tServices("wantAdvice")}
-            </button>
+            {/* No se ofrece lo que este creador NO vende.
+                Antes se ofrecia igual: la persona llenaba el formulario entero y
+                el servidor lo rechazaba al final. Mientras no se sabe se
+                mantiene, para no hacer saltar la fila. */}
+            {purchase.available !== false && (
+              <button
+                type="button"
+                onTouchStart={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void purchase.open();
+                }}
+                style={{ flex: 1, padding: compact ? "8px 10px" : "11px 10px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #f472b6, #a855f7)", color: "#fff", fontSize: compact ? 12 : 14, fontWeight: 600, fontFamily: FONT, cursor: "pointer", letterSpacing: "-0.01em", transition: "opacity 150ms ease", WebkitTapHighlightColor: "transparent" }}
+              >
+                {effectiveType === "saludo" ? tServices("wantGreeting") : tServices("wantAdvice")}
+              </button>
+            )}
           </div>
         </div>
       </div>
