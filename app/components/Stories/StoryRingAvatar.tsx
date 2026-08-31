@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import FillImage from "@/components/ui/FillImage";
 import { useCallback, useRef, useState } from "react";
 import { recordStoryView } from "@/lib/stories/storyService";
 import { useStoryRingState } from "@/lib/stories/useStoryRingState";
@@ -160,12 +160,7 @@ export default function StoryRingAvatar({
           }}
         >
           {photoURL ? (
-            <Image
-              src={photoURL}
-              alt={displayName}
-              fill
-              style={{ objectFit: "cover" }}
-            />
+            <FillImage src={photoURL} alt={displayName} />
           ) : (
             <span
               style={{

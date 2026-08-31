@@ -15,15 +15,16 @@
 //   tapLayer         → z 5, sobre el video y bajo los controles (zonas de toque)
 //   topRightActions  → junto al botón de silencio (cerrar)
 
-import Image from "next/image";
+import FillImage from "@/components/ui/FillImage";
 import { IconButton } from "@/components/ui";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { useTextReader, scrollCursorIntoView } from "@/lib/tts/useTextReader";
+import { vozParaLocale } from "@/lib/tts/voices";
 import { useGreetingPurchase } from "@/lib/greetings/useGreetingPurchase";
 import { buildStoryUrl } from "@/lib/reels/reelStories";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -128,6 +129,7 @@ export default function ReelStorySlide({
   const tCommon = useTranslations("common");
   const tWallet = useTranslations("wallet");
   const tServices = useTranslations("services");
+  const locale = useLocale();
   const tGroups = useTranslations("groups");
   const { toast: shareToast, showToast: showShareToast } = useVibraToast(2400);
   const { user: likeUser } = useAuth();
@@ -373,6 +375,8 @@ export default function ReelStorySlide({
     : (instructions ?? tServices("noContextAvailable"));
 
   const reader = useTextReader(instructions ?? tServices("noContextAvailable"), {
+    // Quien escucha es el creador, leyendo lo que le pidieron.
+    voice: vozParaLocale(locale),
     // Al terminar de leer, el panel se cierra solo.
     onFinished: () => setContextOpen(false),
   });
@@ -552,11 +556,10 @@ export default function ReelStorySlide({
   const avatarRing = (
     <div style={{ position: "relative", width: avatarSz, height: avatarSz, flexShrink: 0 }}>
       <div style={{ position: "absolute", inset: avatarInset, borderRadius: "50%", overflow: "hidden", background: "rgba(255,255,255,0.1)" }}>
-        {creator?.photo ? (
-          <Image src={creator.photo} alt="" fill style={{ objectFit: "cover" }} />
-        ) : (
-          <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />
-        )}
+        <FillImage
+          src={creator?.photo}
+          fallback={<div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />}
+        />
       </div>
       <div
         style={{

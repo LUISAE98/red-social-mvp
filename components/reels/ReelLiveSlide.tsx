@@ -14,7 +14,7 @@
 // duplicado justo la parte que más cuesta mantener.
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import FillImage from "@/components/ui/FillImage";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
@@ -162,6 +162,7 @@ export default function ReelLiveSlide({
         }}
       >
         <LiveInlinePlayer
+          creatorLocale={ld?.creatorLocale ?? null}
           postId={post.id}
           hlsUrl={ld?.hlsUrl ?? null}
           playbackId={ld?.playbackId ?? null}
@@ -204,11 +205,10 @@ export default function ReelLiveSlide({
               background: "rgba(255,255,255,0.1)",
             }}
           >
-            {creator.photo ? (
-              <Image src={creator.photo} alt="" fill style={{ objectFit: "cover" }} />
-            ) : (
-              <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />
-            )}
+            <FillImage
+              src={creator.photo}
+              fallback={<div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />}
+            />
           </div>
           <div
             style={{

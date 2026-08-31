@@ -2,7 +2,7 @@
 import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 /* eslint-disable react-hooks/refs */
 
-import Image from "next/image";
+import FillImage from "@/components/ui/FillImage";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
@@ -83,10 +83,10 @@ function GroupPreview({ group }: { group: CarouselGroup }) {
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
         <div style={{ position: "relative", width: 84, height: 84 }}>
           <div style={{ position: "absolute", inset: 7, borderRadius: "50%", overflow: "hidden" }}>
-            {photoURL
-              ? <Image src={photoURL} alt="" fill style={{ objectFit: "cover" }} />
-              : <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />
-            }
+            <FillImage
+              src={photoURL}
+              fallback={<div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />}
+            />
           </div>
           <div style={{
             position: "absolute", inset: 0, borderRadius: "50%", background: VIBRA_RING,

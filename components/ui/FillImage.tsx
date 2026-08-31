@@ -1,0 +1,65 @@
+"use client";
+
+// Una imagen que llena a su contenedor posicionado.
+//
+// ⚠️ Es un `<img>` a pelo, y NO `next/image`, a propósito.
+//
+// `next/image` valida el dominio de cada URL contra la lista de
+// `remotePatterns` de la configuración — y lo hace AUNQUE las imágenes vayan sin
+// optimizar. Una foto de perfil alojada en un host que no esté en esa lista no
+// da error visible: sale en blanco. De ahí que los avatares cargaran "a veces
+// sí y a veces no", según de dónde viniera la foto de cada persona.
+//
+// El `Avatar` compartido ya usaba un `<img>` normal por este mismo motivo. Esto
+// es lo mismo para los sitios que necesitan que la imagen llene a su padre.
+//
+// El resultado visual es idéntico al de `next/image` con `fill`: ese modo pinta
+// exactamente `position:absolute; inset:0; width:100%; height:100%`.
+
+import { useState } from "react";
+
+type Props = {
+  src: string | null | undefined;
+  alt?: string;
+  /** Qué se ve si la imagen falla o no hay. Normalmente el marcador de siempre. */
+  fallback?: React.ReactNode;
+  objectFit?: "cover" | "contain";
+  className?: string;
+};
+
+export default function FillImage({
+  src,
+  alt = "",
+  fallback = null,
+  objectFit = "cover",
+  className,
+}: Props) {
+  // Una URL rota deja de intentarse y se enseña el marcador. Sin esto, el hueco
+  // se queda vacío y parece que la persona no tiene foto.
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) return <>{fallback}</>;
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      // Las fotos de Google rechazan la petición si les llega el origen que la
+      // pide. Sin esto, un avatar de una cuenta de Google puede no cargar.
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className={className}
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit,
+        display: "block",
+      }}
+    />
+  );
+}

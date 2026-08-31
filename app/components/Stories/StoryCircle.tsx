@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import FillImage from "@/components/ui/FillImage";
 import { useTranslations } from "next-intl";
 import type { StoryType } from "@/lib/stories/types";
 
@@ -87,12 +87,7 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, su
               />
             </svg>
           ) : thumbnailUrl ? (
-            <Image
-              src={thumbnailUrl}
-              alt={label}
-              fill
-              style={{ objectFit: "cover" }}
-            />
+            <FillImage src={thumbnailUrl} alt={label} />
           ) : (
             <span style={{ fontSize: Math.round(size * 0.35), lineHeight: 1 }}>
               {type === "saludo" ? "👋" : "💡"}

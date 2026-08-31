@@ -14,7 +14,7 @@
 // Las burbujas de EN VIVO sí siguen siendo cosa de este rail (los lives entran al
 // feed en su propia fase) y conservan su aro redondo.
 
-import Image from "next/image";
+import FillImage from "@/components/ui/FillImage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -620,7 +620,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
               }}
             >
               {thumb ? (
-                <Image src={thumb} alt={name} fill style={{ objectFit: "cover" }} />
+                <FillImage src={thumb} alt={name} />
               ) : (
                 <span
                   style={{
