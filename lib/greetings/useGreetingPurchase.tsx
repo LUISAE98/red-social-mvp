@@ -24,12 +24,12 @@ import { createGreetingStripeIntent } from "@/lib/stripe/stripePayments";
 import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { getServiceByType } from "@/lib/services/normalizeServices";
+import { attachGuestAccount } from "@/lib/guest/guestAccount";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
-import GuestAccountStep from "@/components/payments/GuestAccountStep";
 
 const FONT = "inherit";
 
@@ -59,6 +59,14 @@ export function useGreetingPurchase({
   const pathname = usePathname();
   const identityMode = usePurchaseIdentityMode();
   const pf = usePriceFormat();
+  /**
+   * Hay que pedir correo y contrasena DENTRO de la pasarela.
+   *
+   * Solo en Vibra Express y solo sin cuenta real. Un saludo llega dias
+   * despues, asi que sin una identidad recuperable la compra se pierde. Un
+   * boleto de live se usa al instante, y por eso ese si se cobra sin cuenta.
+   */
+  const necesitaCuenta = identityMode === "guest" && (!user || !!user.isAnonymous);
 
   const [formOpen, setFormOpen] = useState(false);
   const [toName, setToName] = useState("");
@@ -78,13 +86,14 @@ export function useGreetingPurchase({
   // Se lee del documento del creador, que es de lectura publica, asi que
   // funciona igual sin sesion.
   const [priceLabel, setPriceLabel] = useState<string | undefined>(undefined);
+  /** Precio base del creador, sin cargo ni impuesto. */
+  const [basePrice, setBasePrice] = useState<number | null>(null);
   // ¿Este creador vende este servicio? null = todavia no se sabe.
   //
   // Sin esto se ofrecia comprar algo que no estaba a la venta: la persona
   // llenaba el formulario entero y el servidor lo rechazaba al final con "este
   // servicio no esta activo". El precio ausente era el mismo sintoma.
   const [available, setAvailable] = useState<boolean | null>(null);
-  const [accountOpen, setAccountOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [payRequestId, setPayRequestId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState<number | null>(null);
@@ -138,8 +147,10 @@ export function useGreetingPurchase({
         const price = service?.publicPrice ?? service?.memberPrice ?? null;
         if (typeof price !== "number") {
           setPriceLabel(undefined);
+          setBasePrice(null);
           return;
         }
+        setBasePrice(price);
         // Total todo incluido: base del creador, cargo fijo e impuesto del
         // pais de quien mira. Es lo que se le va a cobrar.
         setPriceLabel(
@@ -208,16 +219,19 @@ export function useGreetingPurchase({
    */
   const submit = useCallback(async () => {
     if (submitting || !toName.trim() || !instructions.trim()) return;
-    const necesitaCuenta = identityMode === "guest" && (!user || user.isAnonymous);
     if (necesitaCuenta) {
-      setAccountOpen(true);
+      // El encargo NO se crea todavia: se crea DENTRO del cobro, cuando ya se
+      // sabe quien compra. Si el correo resulta tener cuenta, entrar en ella
+      // cambia el uid, y un encargo creado antes habria quedado pagado y sin
+      // dueno que pueda abrirlo.
+      setPayOpen(true);
       return;
     }
     await createOrder();
-  }, [submitting, toName, instructions, identityMode, user, createOrder]);
+  }, [submitting, toName, instructions, necesitaCuenta, createOrder]);
 
   /** ¿Hay algún modal abierto? El slide lo usa para pausar el video. */
-  const isOpen = formOpen || accountOpen || payOpen;
+  const isOpen = formOpen || payOpen;
 
   const totalAmount = payAmount != null ? payAmount + FIXED_SERVICE_FEE_USD : null;
 
@@ -272,29 +286,56 @@ export function useGreetingPurchase({
           serviceModalCardStyle={{ width: "min(720px, calc(100vw - 28px))", maxHeight: "calc(100dvh - 28px)", overflowY: "auto", background: "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 18, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.72)", color: "#fff" }}
           serviceToastStyle={{ position: "fixed", left: "50%", bottom: "calc(24px + var(--vb-safe-bottom, 0px))", transform: "translateX(-50%)", zIndex: 100002, maxWidth: "min(520px, calc(100vw - 28px))", padding: "10px 12px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(12,12,12,0.94)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT }}
         />
-        {/* El alta exprés. Al resolverse, sigue el encargo y el cobro. */}
-        <GuestAccountStep
-          open={accountOpen}
-          onClose={() => setAccountOpen(false)}
-          onReady={() => {
-            setAccountOpen(false);
-            void createOrder();
-          }}
-        />
-
         <StripePaymentModal
           open={payOpen}
-          amount={totalAmount}
-          amountCurrency="MXN"
-          createIntent={(args) =>
-            createGreetingStripeIntent({
-              greetingRequestId: payRequestId ?? "",
+          // Sin encargo todavia (invitado) el importe sale del precio del
+          // creador; con encargo, del que quedo congelado al crearlo.
+          amount={necesitaCuenta ? basePrice : totalAmount}
+          amountCurrency={necesitaCuenta ? SETTLEMENT_CURRENCY : "MXN"}
+          // Correo y contrasena, debajo de los metodos de pago. Solo aqui y solo
+          // sin cuenta.
+          collectAccount={necesitaCuenta}
+          createIntent={async (args) => {
+            let requestId = payRequestId;
+
+            if (necesitaCuenta) {
+              // ⚠️ El ORDEN importa y no es negociable.
+              //
+              // 1) Se resuelve la identidad. Si el correo ya tenia cuenta, aqui
+              //    cambia el uid.
+              // 2) Se crea el encargo, ya bajo el uid definitivo.
+              // 3) Se cobra.
+              //
+              // Creando el encargo antes del paso 1, un correo con cuenta previa
+              // lo dejaba pagado y sin dueno que pudiera abrirlo.
+              const cuenta = args.account;
+              if (!cuenta) throw new Error(tServices("requestError"));
+              const res = await attachGuestAccount(cuenta.email, cuenta.password, cuenta.exists);
+              if (!res.ok) throw new Error(tServices("requestError"));
+
+              const pedido = await createGreetingRequest({
+                creatorId,
+                profileUserId: creatorId,
+                type,
+                toName: toName.trim(),
+                instructions: instructions.trim(),
+                source: source === "group" ? "group" : "profile",
+                groupId: source === "group" ? groupId : null,
+                allowCreatorStory: allowStory,
+              });
+              requestId = pedido.requestId;
+              setPayRequestId(pedido.requestId);
+              setPayAmount(pedido.priceSnapshot ?? null);
+            }
+
+            return createGreetingStripeIntent({
+              greetingRequestId: requestId ?? "",
               saveCard: args.saveCard,
               taxCountry: args.taxCountry,
               savedPaymentMethodId: args.savedPaymentMethodId,
               applyCredit: args.applyCredit,
-            })
-          }
+            });
+          }}
           priceLabel={totalAmount != null ? `$${totalAmount} MXN` : undefined}
           productType={type === "consejo" ? "Consejo" : "Saludo"}
           providerName={creatorName ?? undefined}
@@ -332,8 +373,10 @@ export function useGreetingPurchase({
       submit,
       allowStory,
       priceLabel,
-      accountOpen,
-      createOrder,
+      basePrice,
+      necesitaCuenta,
+      source,
+      groupId,
       payOpen,
       totalAmount,
       payRequestId,

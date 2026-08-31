@@ -19,6 +19,7 @@ import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { repriceStripeIntentForCard } from "@/lib/stripe/stripePayments";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { emailHasAccount } from "@/lib/guest/guestAccount";
 import { taxRateForCountry } from "@/lib/tax/config";
 import { formatCurrency, convertToAnchor } from "@/lib/currency/format";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
@@ -57,10 +58,22 @@ type Props = {
   /** Crea el PaymentIntent y devuelve su client_secret. `taxCountry` = país fiscal del comprador (por IP).
    *  Si `savedPaymentMethodId` viene, el cobro es "un clic" off-session (sin CVV): se confirma
    *  server-side y la respuesta trae `status` ("succeeded" = cobrado). */
-  createIntent: (args: { amount: number; saveCard: boolean; taxCountry: string | null; savedPaymentMethodId?: string; nickname?: string | null; paymentMethodId?: string; applyCredit?: boolean; exactTotalLocal?: number | null }) => Promise<{ clientSecret?: string; status?: string }>;
+  createIntent: (args: { amount: number; saveCard: boolean; taxCountry: string | null; savedPaymentMethodId?: string; nickname?: string | null; paymentMethodId?: string; applyCredit?: boolean; exactTotalLocal?: number | null; account?: { email: string; password: string; exists: boolean } | null }) => Promise<{ clientSecret?: string; status?: string }>;
   /** Invitado (sin login): en el saludo "Bienvenido" muestra un input de APODO editable
    *  (placeholder), cacheado por dispositivo y enviado en `createIntent`. */
   collectNickname?: boolean;
+  /**
+   * Pide correo y contrasena debajo de los metodos de pago.
+   *
+   * Solo lo usan el saludo y el consejo sin cuenta: son encargos que llegan
+   * dias despues, asi que sin una identidad recuperable la compra se pierde.
+   * Lo que se usa al instante —un boleto de live, una donacion— se sigue
+   * cobrando sin pedir nada.
+   *
+   * Lo escrito aqui llega a `createIntent` en `account`, y es ESE quien
+   * decide que hacer con ello. Esta pantalla solo recoge.
+   */
+  collectAccount?: boolean;
   amountEditable?: boolean;
   /** Montos sugeridos de DONACIÓN (base MXN). Si no se pasan, usa los defaults. */
   donationPresets?: number[];
@@ -167,6 +180,7 @@ export default function StripePaymentModal({
   forceStacked = false,
   hideBuyerGreeting = false,
   collectNickname = false,
+  collectAccount = false,
   paymentHeading,
   payButtonLabel,
   savedCards = [],
@@ -177,6 +191,8 @@ export default function StripePaymentModal({
   onPaid,
 }: Props) {
   const tWallet = useTranslations("wallet");
+  const tReg = useTranslations("auth.register");
+  const tExpress = useTranslations("auth.express");
   const tCommon = useTranslations("common");
   const isSheet = presentation === "sheet";
   const [mounted, setMounted] = useState(false);
@@ -246,6 +262,21 @@ export default function StripePaymentModal({
 
   const isNewCard = selectedMethod === "credit" || selectedMethod === "debit";
   const savedCardId = selectedMethod?.startsWith("saved:") ? selectedMethod.slice(6) : null;
+
+  // ── Alta dentro del cobro (solo saludo y consejo sin cuenta) ──────────────
+  const [acctEmail, setAcctEmail] = useState("");
+  const [acctPassword, setAcctPassword] = useState("");
+  const [acctConfirm, setAcctConfirm] = useState("");
+  // null = todavia no se ha comprobado ese correo.
+  const [acctExists, setAcctExists] = useState<boolean | null>(null);
+  const acctEmailOk = /^[^s@]+@[^s@]+.[^s@]+$/.test(acctEmail.trim());
+  // Con cuenta previa NO se pide repetir: la contrasena se escribe de memoria
+  // y repetirla no aporta nada.
+  const acctOk =
+    !collectAccount ||
+    (acctEmailOk &&
+      acctPassword.length >= 6 &&
+      (acctExists === true || acctPassword === acctConfirm));
   const mxnAmount = amountEditable ? chosenAmount : (amount ?? null);
 
   // Total estimado en MXN (base + cargo fijo en donación + impuesto del país) para calcular cuánto crédito se
@@ -281,6 +312,7 @@ export default function StripePaymentModal({
   const amountOk = !amountEditable || (chosenAmount != null && chosenAmount > 0 && !belowMin);
   const canPay =
     amountOk &&
+    acctOk &&
     // Si el saldo a favor cubre el 100%, no hace falta tarjeta.
     (creditCoversAll ||
       (isNewCard
@@ -675,12 +707,12 @@ export default function StripePaymentModal({
       // El SALDO A FAVOR cubre el 100%: sin tarjeta. El backend materializa la compra
       // (remainder 0) y devuelve status "succeeded".
       if (creditCoversAll) {
-        const res = await createIntentRef.current({ amount: payAmount, exactTotalLocal: totalTecleado, saveCard: false, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null, applyCredit: true });
+        const res = await createIntentRef.current({ account: collectAccount ? { email: acctEmail.trim().toLowerCase(), password: acctPassword, exists: acctExists === true } : null, amount: payAmount, exactTotalLocal: totalTecleado, saveCard: false, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null, applyCredit: true });
         if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(res.status); return; }
         throw new Error("rejected");
       }
       if (savedCardId) {
-        const res = await createIntentRef.current({ amount: payAmount, exactTotalLocal: totalTecleado, saveCard: false, taxCountry: pf.buyerCountry ?? null, savedPaymentMethodId: savedCardId, nickname: collectNickname ? (nickname.trim() || null) : null, applyCredit: useCredit });
+        const res = await createIntentRef.current({ account: collectAccount ? { email: acctEmail.trim().toLowerCase(), password: acctPassword, exists: acctExists === true } : null, amount: payAmount, exactTotalLocal: totalTecleado, saveCard: false, taxCountry: pf.buyerCountry ?? null, savedPaymentMethodId: savedCardId, nickname: collectNickname ? (nickname.trim() || null) : null, applyCredit: useCredit });
         if (isGuest) {
           // Invitado: NO hay un-clic. El callable devolvió un clientSecret y aquí se confirma
           // ON-SESSION con la PM guardada + el CVV recolectado (Element solo-CVC). Así, en un
@@ -713,7 +745,7 @@ export default function StripePaymentModal({
 
       // Se manda el `pm_...` ya creado al leer la tarjeta: el backend consulta a Stripe de qué
       // país es y resuelve el impuesto con ese dato, no con el que diga el navegador.
-      const res = await createIntentRef.current({ amount: payAmount, exactTotalLocal: totalTecleado, saveCard, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null, paymentMethodId: cardPmRef.current?.id, applyCredit: useCredit });
+      const res = await createIntentRef.current({ account: collectAccount ? { email: acctEmail.trim().toLowerCase(), password: acctPassword, exists: acctExists === true } : null, amount: payAmount, exactTotalLocal: totalTecleado, saveCard, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null, paymentMethodId: cardPmRef.current?.id, applyCredit: useCredit });
       // Sin factura que confirmar (p. ej. REACTIVAR una suscripción con cancelación
       // pendiente: no se cobra de nuevo). El backend ya dejó todo listo → éxito directo.
       if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(res.status); return; }
@@ -988,6 +1020,73 @@ export default function StripePaymentModal({
               {effectiveSavedCards.map((c) => savedCardRow(c))}
             </div>
           </div>
+
+          {/* El alta, DEBAJO de los metodos de pago. No es un paso aparte: se
+              llena de corrido con la tarjeta y se resuelve al pagar. */}
+          {collectAccount && (
+            <div style={{ display: "grid", gap: 8, paddingTop: 14 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#3a3f4a" }}>
+                {tExpress("title")}
+              </span>
+              <span style={{ fontSize: 12.5, color: "#8a8f99", lineHeight: 1.45 }}>
+                {tExpress("subtitle")}
+              </span>
+              <input
+                className="vibra-pay-input"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                value={acctEmail}
+                onChange={(e) => {
+                  setAcctEmail(e.target.value);
+                  // Cambio el correo: lo que se sabia del anterior ya no vale.
+                  setAcctExists(null);
+                }}
+                onBlur={() => {
+                  if (!acctEmailOk) return;
+                  // Se pregunta ANTES de cobrar: decide si se enlaza sobre la
+                  // sesion de invitado o se entra a una cuenta que ya existia.
+                  void emailHasAccount(acctEmail).then(setAcctExists);
+                }}
+                placeholder={tReg("emailPlaceholder")}
+                aria-label={tReg("emailLabel")}
+                disabled={submitting}
+                style={textInput}
+              />
+              {acctExists === true && (
+                <span style={{ fontSize: 12.5, color: "#b45309", lineHeight: 1.45 }}>
+                  {tExpress("emailHasAccount")}
+                </span>
+              )}
+              <input
+                className="vibra-pay-input"
+                type="password"
+                autoComplete={acctExists ? "current-password" : "new-password"}
+                value={acctPassword}
+                onChange={(e) => setAcctPassword(e.target.value)}
+                placeholder={tReg("passwordPlaceholder")}
+                aria-label={tReg("passwordLabel")}
+                disabled={submitting}
+                style={textInput}
+              />
+              {acctExists !== true && (
+                <input
+                  className="vibra-pay-input"
+                  type="password"
+                  autoComplete="new-password"
+                  value={acctConfirm}
+                  onChange={(e) => setAcctConfirm(e.target.value)}
+                  placeholder={tReg("confirmPasswordPlaceholder")}
+                  aria-label={tReg("confirmPasswordLabel")}
+                  disabled={submitting}
+                  style={textInput}
+                />
+              )}
+              {acctExists !== true && acctConfirm.length > 0 && acctPassword !== acctConfirm && (
+                <span style={{ fontSize: 12.5, color: "#dc2626" }}>{tReg("passwordMismatch")}</span>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
