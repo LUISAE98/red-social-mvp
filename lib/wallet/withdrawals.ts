@@ -63,6 +63,8 @@ export type WithdrawalRequestDoc = {
   payoutCountry: string | null;
   declaredAccountLast4: string | null;
   declaredHolderName: string | null;
+  /** 🏷️ El TAG de Wallbit al que hay que transferir. Solo en esa ruta. */
+  wallbitTag: string | null;
   stripeRecipientId: string | null;
   stripeAccountBank: string | null;
   createdAt: Timestamp | null;
@@ -108,7 +110,14 @@ export async function reviewWithdrawal(
  * Las de Stripe no pasan por aquí: se cierran solas cuando sale el `OutboundPayment`, y
  * el backend rechaza el intento.
  */
-export async function markWithdrawalPaid(id: string, referencia?: string): Promise<void> {
+/**
+ * Cierra a mano un retiro de Wallbit.
+ *
+ * 🚨 `referencia` NO es opcional aunque el tipo lo permitiera antes: el servidor rechaza
+ *    cualquier cosa de menos de 6 caracteres. Es el identificador de la transferencia de
+ *    Wallbit, y es lo único que respalda ese pago — esa ruta no tiene API que consultar.
+ */
+export async function markWithdrawalPaid(id: string, referencia: string): Promise<void> {
   const fn = httpsCallable<{ id: string; referencia?: string }, unknown>(
     functions,
     "markWithdrawalPaid"
@@ -150,6 +159,7 @@ function normalizar(id: string, d: Record<string, unknown>): WithdrawalRequestDo
     llegadaEstimada: s(d.llegadaEstimada),
     declaredAccountLast4: s(d.declaredAccountLast4),
     declaredHolderName: s(d.declaredHolderName),
+    wallbitTag: s(d.wallbitTag),
     stripeRecipientId: s(d.stripeRecipientId),
     stripeAccountBank: s(d.stripeAccountBank),
     createdAt: (d.createdAt as Timestamp) ?? null,
@@ -191,7 +201,8 @@ export function suscribirRetiros(
  */
 export function suscribirMisRetiros(
   uid: string,
-  cb: (rows: WithdrawalRequestDoc[]) => void
+  cb: (rows: WithdrawalRequestDoc[]) => void,
+  onError?: (e: unknown) => void
 ): () => void {
   const q = query(
     collection(db, COL),
@@ -199,7 +210,18 @@ export function suscribirMisRetiros(
     orderBy("createdAt", "desc"),
     fsLimit(50)
   );
-  return onSnapshot(q, (snap) =>
-    cb(snap.docs.map((d) => normalizar(d.id, d.data() as Record<string, unknown>)))
+  /*
+   * 🚨 CON manejador de error, y no es opcional.
+   *
+   * Sin él esta suscripción se comía el fallo en silencio: faltaba el índice compuesto de
+   * `creatorId` + `createdAt` y la consulta se denegaba SIEMPRE, así que el creador no veía
+   * ninguno de sus retiros y `retiroEnRevision` nunca se encendía —con lo que su saldo
+   * apartado se le presentaba como «te faltan 300 USD para poder retirar»—. Dos síntomas
+   * distintos, una consulta rota que nadie veía.
+   */
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => normalizar(d.id, d.data() as Record<string, unknown>))),
+    (e) => onError?.(e)
   );
 }

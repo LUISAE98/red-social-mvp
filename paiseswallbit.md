@@ -99,6 +99,11 @@ Dos advertencias que aplican a todas las tablas:
 
 Los siete que funcionan de punta a punta son **Argentina, Brasil, Bolivia, Colombia, Guatemala, Panamá y Filipinas**.
 
+> ✅ **El código ya lo refleja (2026-09-01).** `payoutTiers.ts` tenía a Ecuador y El Salvador
+> como ruta completa por estar dolarizados; se corrigieron a `soloDolares`. Filipinas sigue
+> yendo por **Stripe wire** (30%, mínimo 500) aunque Wallbit le pague a banco local — es una
+> ruta más barata que no estamos usando, y está anotada como pendiente.
+
 El "solo cripto" de la última columna no es un detalle menor. Significa que el creador tiene que abrir una wallet, entender USDC, pagar comisión de red y luego venderlo en un exchange local. Contarlo como cobertura real sería engañarse.
 
 ## Pendientes de verificar

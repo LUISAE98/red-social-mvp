@@ -689,7 +689,7 @@ export default function WalletTransactions({
         <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, padding: "8px 0" }}>
           {tWallet("txLoading")}
         </div>
-      ) : visible.length === 0 ? (
+      ) : visible.length === 0 && !(enRetiros && misRetiros.length > 0) ? (
         <div
           style={{
             color: "rgba(255,255,255,0.5)",
@@ -699,7 +699,12 @@ export default function WalletTransactions({
           }}
         >
           {/* En Retiros el vacío significa otra cosa. «Aún no tienes movimientos» era
-              falso ahí —movimientos tiene, y muchos—: lo que no ha hecho es un retiro. */}
+              falso ahí —movimientos tiene, y muchos—: lo que no ha hecho es un retiro.
+
+              🚨 Y `visible` NO decide eso: en la pestaña de Retiros siempre está vacío,
+                 porque una solicitud de retiro no es un asiento del ledger. Así que este
+                 texto salía SIEMPRE, incluso con un retiro recién pedido en pantalla. Lo
+                 que manda es `misRetiros`. */}
           {tWallet(filter === "withdrawal" ? "withdrawHistoryEmpty" : "txEmpty")}
         </div>
       ) : (
@@ -841,6 +846,20 @@ function FilaRetiro({
             currency: r.acreditadoCurrency,
           }).format(r.acreditado)}
           {r.tipoCambio ? ` · ${r.tipoCambio}` : ""}
+        </span>
+      )}
+
+      {/* 🧾 El identificador de la transferencia, en los retiros de Wallbit.
+
+          Esa ruta no pasa por Stripe: alguien mueve el dinero a mano. Este dato es lo ÚNICO
+          que el creador puede cotejar contra su propia cuenta de Wallbit si cree que no le
+          llegó, así que se le enseña a él, no solo a administración. */}
+      {r.paymentReference && (
+        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.45 }}>
+          {t("withdrawWallbitReference")}{" "}
+          <span style={{ fontFamily: "monospace", color: "rgba(255,255,255,0.82)", wordBreak: "break-all" }}>
+            {r.paymentReference}
+          </span>
         </span>
       )}
 

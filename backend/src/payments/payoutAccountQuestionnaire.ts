@@ -38,7 +38,7 @@ import { defineSecret } from "firebase-functions/params";
  * `defineSecret` va por NOMBRE, así que declararlo dos veces apunta al mismo secreto.
  */
 const diditApiKey = defineSecret("DIDIT_API_KEY");
-import { payoutTermsOf, resolvePayoutCountry } from "../wallet/payoutTiers";
+import { payoutTermsOf, resolvePayoutCountry, type PayoutRoute } from "../wallet/payoutTiers";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -186,25 +186,56 @@ type Respuesta = { value?: unknown; element_type?: string; title?: unknown };
  * Saca de las respuestas lo poco que se guarda.
  *
  * Se identifica cada campo por su POSICIÓN en el cuestionario, no por su texto: el texto está
- * traducido a seis idiomas y cambiaría con cada retoque de copy. Los dos cuestionarios acaban
- * igual —titular, cuenta y consentimiento— aunque el de Wallbit tenga un campo más en medio.
+ * traducido a varios idiomas y cambiaría con cada retoque de copy.
+ *
+ * 🚨 LOS DOS CUESTIONARIOS PIDEN COSAS DISTINTAS, y lo que se guarda también.
+ *
+ *   · **Stripe**  → titular + cuenta bancaria. Se guardan los últimos 4 para poder comparar
+ *     contra lo que Stripe acabe reportando.
+ *   · **Wallbit** → titular + **TAG**. No hay cuenta que guardar.
+ *
+ * ⚠️ El de Wallbit pedía número de cuenta y routing number hasta el 2026-09-01, y era
+ *    **inútil**: una cuenta de Wallbit es una posición dentro de una cuenta ómnibus de Alpaca
+ *    Securities en BMO Harris. Ese número es EL MISMO para todos los usuarios de Wallbit, así
+ *    que los «últimos 4» de todos los creadores salían idénticos y no identificaban a nadie.
+ *    Lo que sí identifica es el TAG —se ve como `luis-aguirre-2`—, que es a donde se
+ *    transfiere.
+ *
+ *    Y el TAG lleva letras y guiones, así que el `replace(/\\D/g, "")` de antes lo habría
+ *    reducido a un dígito suelto.
  */
-export function extraerDatosDeclarados(respuestas: unknown): {
+export function extraerDatosDeclarados(
+  respuestas: unknown,
+  ruta: PayoutRoute = "stripe"
+): {
   holderName: string | null;
   accountLast4: string | null;
+  wallbitTag: string | null;
 } {
   const lista = Array.isArray(respuestas) ? (respuestas as Respuesta[]) : [];
   const textos = lista
     .filter((r) => r?.element_type === "SHORT_TEXT")
     .map((r) => (typeof r.value === "string" ? r.value.trim() : ""));
 
-  // El primer texto es siempre el nombre del titular; el de la cuenta es el último, que en el
-  // de Stripe es el tercero y en el de Wallbit el cuarto.
+  // El primero es siempre el nombre del titular, en los dos cuestionarios.
   const holderName = textos[0] || null;
+
+  if (ruta === "wallbit") {
+    /*
+     * El TAG se guarda TAL CUAL. Solo se le quitan los espacios y el símbolo de dólar que
+     * la app antepone al enseñarlo, porque el creador lo pega con él. Es el destino de la
+     * transferencia: alterarlo sería mandar el dinero a otro sitio o a ninguno.
+     */
+    const tag = (textos[textos.length - 1] || "")
+      .replace(/^[$]/, "")
+      .trim()
+      .slice(0, 100);
+    return { holderName, accountLast4: null, wallbitTag: tag || null };
+  }
+
   const cuenta = (textos[textos.length - 1] || "").replace(/\D/g, "");
   const accountLast4 = cuenta.length >= 4 ? cuenta.slice(-4) : null;
-
-  return { holderName, accountLast4 };
+  return { holderName, accountLast4, wallbitTag: null };
 }
 
 /**
@@ -224,10 +255,15 @@ export async function guardarCuentaDeclarada(
   uid: string,
   respuestas: unknown
 ): Promise<void> {
-  const { holderName, accountLast4 } = extraerDatosDeclarados(respuestas);
-
   const ref = db.collection("creatorTaxProfiles").doc(uid);
   const perfil = (await ref.get()).data() ?? {};
+
+  /*
+   * La ruta decide qué cuestionario contestó y, por tanto, qué trae la última respuesta:
+   * una cuenta bancaria en Stripe, un TAG en Wallbit.
+   */
+  const ruta: PayoutRoute = perfil.payoutAccountRoute === "wallbit" ? "wallbit" : "stripe";
+  const { holderName, accountLast4, wallbitTag } = extraerDatosDeclarados(respuestas, ruta);
   const stripeLast4 =
     typeof perfil.stripeAccountLast4 === "string" ? perfil.stripeAccountLast4 : null;
 
@@ -241,6 +277,13 @@ export async function guardarCuentaDeclarada(
       // 🚨 Solo los últimos 4. La cuenta completa se queda en Didit.
       declaredAccountLast4: accountLast4,
       declaredHolderName: holderName,
+      /*
+       * 🏷️ El TAG de Wallbit. A diferencia de la cuenta bancaria, este SÍ se guarda entero:
+       * no es un dato sensible —es justo lo que el creador comparte para que le paguen— y
+       * sin él no hay a dónde transferir. Es el equivalente de `stripeRecipientId` en esa
+       * ruta, y lo necesita quien hace la transferencia a mano.
+       */
+      ...(wallbitTag ? { wallbitTag } : {}),
       declaredAccountAt: admin.firestore.FieldValue.serverTimestamp(),
       payoutAccountDeclared: true,
       ...(coincide === null ? {} : { declaredAccountMatchesStripe: coincide }),

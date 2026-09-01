@@ -130,17 +130,26 @@ const STRIPE_WIRE: readonly string[] = [
 ];
 
 /**
- * Wallbit CON retiro a banco local en moneda local (8 países).
+ * Wallbit CON retiro a banco local en moneda local (6 países).
  *
- * Ruta completa: el creador cobra en Wallbit y lo pasa a su banco. Panamá, Ecuador y El
- * Salvador están dolarizados, así que ahí ni siquiera hay conversión de divisa.
+ * Ruta completa: el creador cobra en Wallbit y lo pasa a su banco. Panamá está dolarizado,
+ * así que ahí ni siquiera hay conversión de divisa.
+ *
+ * ⚠️ **Ecuador y El Salvador salieron de aquí el 2026-09-01.** Estaban incluidos con este
+ *    razonamiento: «están dolarizados, así que ahí ni siquiera hay conversión de divisa».
+ *    Es verdad y es irrelevante — el problema no es la conversión, es que **Wallbit no
+ *    tiene retiro a banco local ahí**. Estar dolarizado no te saca el dinero de la cuenta.
+ *
+ *    `paiseswallbit.md` los marca «solo cripto» y su propio recuento de rutas completas
+ *    no los incluye. Mientras estuvieron aquí, sus creadores NO veían el aviso de que su
+ *    única salida es cripto — que es exactamente para lo que existe la bandera.
  */
 const WALLBIT_COMPLETO: readonly string[] = [
-  "AR", "BR", "BO", "CO", "GT", "PA", "EC", "SV",
+  "AR", "BR", "BO", "CO", "GT", "PA",
 ];
 
 /**
- * Wallbit SIN retiro a banco local (4 países).
+ * Wallbit SIN retiro a banco local (6 países).
  *
  * ⚠️ Cobra en dólares y su única salida documentada es **cripto**: abrir una wallet, entender
  * USDC, pagar comisión de red y venderlo en un exchange local.
@@ -148,12 +157,14 @@ const WALLBIT_COMPLETO: readonly string[] = [
  * Se incluyen por decisión de producto del 2026-08-27, porque la alternativa era no pagarles
  * nada. Pero se marcan con `soloDolares` para que la interfaz pueda advertírselo ANTES de que
  * acumule saldo. Prometer un retiro que en la práctica no puede usar sería peor que decirle
- * que todavía no se le puede pagar.
+ * que todavía no se le puede pagar. El aviso sale en el paso 2 del panel de registro.
  *
  * 🔁 Si Wallbit confirma que tiene tarjeta de débito, o abre retiro local en estos países,
- * pasan a `WALLBIT_COMPLETO` y el aviso desaparece solo.
+ * pasan a `WALLBIT_COMPLETO` y el aviso desaparece solo. Para Ecuador, El Salvador y
+ * Uruguay hay una pregunta abierta a su soporte: los tres aparecen anunciados pero fuera
+ * de su lista de retiro local. Ver el pendiente 2 de `paiseswallbit.md`.
  */
-const WALLBIT_SOLO_DOLARES: readonly string[] = ["CL", "UY", "PY", "HN"];
+const WALLBIT_SOLO_DOLARES: readonly string[] = ["CL", "UY", "PY", "HN", "EC", "SV"];
 
 /**
  * Territorios que cobran con la cuenta bancaria de OTRO país.

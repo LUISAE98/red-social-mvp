@@ -84,6 +84,17 @@ export type DesgloseRetiro = {
    * más y que se gastara un dinero que le debe al SAT.
    */
   ivaPorDeclarar: string | null;
+  /**
+   * 🏷️ Por dónde cobra. Cambia lo que se le PROMETE, no lo que se le paga.
+   *
+   * 🚨 En Wallbit el dinero **no llega a su banco**: llega a su cuenta de Wallbit, y de ahí
+   *    él lo mueve pagando la comisión de Wallbit —2 % en USDC, 1 % por ACH—. En seis de
+   *    esos doce países ni siquiera puede llegar a un banco: su única salida es cripto.
+   *
+   *    Decirle «te llega al banco» era prometerle algo que no pasa y una cifra que no va a
+   *    ver. En Stripe sí es literal: Vibra absorbe todo el coste del envío.
+   */
+  esWallbit: boolean;
   /** Si hubo impuesto mexicano en sus ventas. Falso ⇒ la línea de la suma ni aparece. */
   hayIvaCobrado: boolean;
   /**
@@ -199,14 +210,25 @@ export default function WithdrawBreakdown({
       {/* 💰 Lo único que no se pliega. */}
       <div style={{ display: "grid", gap: 3 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("withdrawRowNet")}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
+            {t(desglose.esWallbit ? "withdrawRowNetWallbit" : "withdrawRowNet")}
+          </span>
           <span style={{ fontSize: 20, fontWeight: 700, color: "#4ade80", whiteSpace: "nowrap" }}>
             {desglose.neto}
           </span>
         </div>
 
-        {/* 💱 Lo que le va a llegar al banco, en su moneda. Aproximado, y lo dice. */}
-        {desglose.netoLocal && (
+        {/* 🏷️ En Wallbit hay un salto más que él tiene que dar, y le cuesta. Callarlo hace
+            que la cifra de arriba se lea como lo que va a ver en su banco. */}
+        {desglose.esWallbit && (
+          <span style={{ fontSize: 11.5, color: GRIS, lineHeight: 1.45 }}>
+            {t("withdrawWallbitNote")}
+          </span>
+        )}
+
+        {/* 💱 Lo que le va a llegar, en su moneda. Aproximado, y lo dice. En Wallbit no se
+            enseña: allí cobra en dólares y la conversión, si la hace, la hace él. */}
+        {!desglose.esWallbit && desglose.netoLocal && (
           <span style={{ fontSize: 11.5, color: GRIS, textAlign: "end", lineHeight: 1.4 }}>
             {t("withdrawNetLocal", { amount: desglose.netoLocal })}
           </span>

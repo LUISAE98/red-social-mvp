@@ -212,7 +212,18 @@ export default function WalletFinanzasPage() {
   useEffect(() => {
     if (!user?.uid) return;
     return suscribirMisRetiros(user.uid, (rows) => {
-      setRetiroEnRevision(rows.some((r) => r.status === "pending"));
+      /*
+       * 🚨 Son TRES estados, no uno. El saldo se aparta al SOLICITAR y no se libera hasta
+       *    que el retiro termina o se rechaza, así que mientras esté en `pending`,
+       *    `approved` o `sent` no puede pedir otro — el servidor se lo rechazaría.
+       *
+       *    Mirando solo `pending`, en cuanto administración lo aceptaba el botón volvía a
+       *    habilitarse y el creador podía intentar un segundo retiro del dinero que ya iba
+       *    en camino.
+       */
+      setRetiroEnRevision(
+        rows.some((r) => r.status === "pending" || r.status === "approved" || r.status === "sent")
+      );
     });
   }, [user?.uid]);
   const { toast: walletToast, showToast: showWalletToast } = useVibraToast();
@@ -482,6 +493,8 @@ export default function WalletFinanzasPage() {
       /** Del IVA cobrado, lo que no se le retuvo y declarará él. Nulo si no hay. */
       ivaPorDeclarar:
         r.ivaPorDeclarar > 0 ? formatSettlement(r.ivaPorDeclarar, { code: true }) : null,
+      // Decide el rótulo del total y el aviso: en Wallbit el dinero no acaba en su banco.
+      esWallbit: rutaDeCobro === "wallbit",
       hayIvaCobrado: r.ivaCobrado > 0,
       hayRetenciones: r.isr > 0 || r.iva > 0 || r.ivaComision > 0,
       /* Una por una, porque no siempre salen las tres: al extranjero que vende a México se
@@ -498,6 +511,7 @@ export default function WalletFinanzasPage() {
     summary.commissionVat,
     formatSettlement,
     refLocal,
+    rutaDeCobro,
   ]);
 
   // El saldo sube desde cero al entrar. La barra y el resto de cifras usan el valor real:
@@ -750,9 +764,14 @@ export default function WalletFinanzasPage() {
                   />
                 </div>
                 <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginTop: 6, lineHeight: 1.4 }}>
-                  {tWallet("payoutProgressLabel", {
-                    amount: formatMoney(faltaParaRetirar, { code: true }),
-                  })}
+                  {/* 🚨 Con un retiro en curso el saldo está APARTADO, no es que no haya
+                      llegado. «Te faltan 300 USD para poder retirar» justo después de pedir
+                      un retiro de 328 se lee como si el dinero se hubiera perdido. */}
+                  {retiroEnRevision
+                    ? tWallet("payoutProgressInProgress")
+                    : tWallet("payoutProgressLabel", {
+                        amount: formatMoney(faltaParaRetirar, { code: true }),
+                      })}
                 </div>
 
                 {/* Por qué su mínimo es más alto que el de otros. Va pegado a la barra,

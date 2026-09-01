@@ -35,12 +35,12 @@ const FONT =
  * vez de dejar un estado sin etiqueta que se pintaría como `undefined` en el panel.
  */
 const ESTADO: Record<WithdrawalStatus, { label: string; color: string }> = {
-  pending: { label: "En revisión", color: "#f59e0b" },
-  approved: { label: "Aceptada", color: "#34d399" },
+  pending: { label: "En verificación", color: "#f59e0b" },
+  approved: { label: "Verificada, sin enviar", color: "#f59e0b" },
   rejected: { label: "Rechazada", color: "#f87171" },
   /** El dinero salió y el banco todavía no lo acredita. De uno a siete días según el país. */
-  sent: { label: "En camino", color: "#60a5fa" },
-  paid: { label: "Pagada", color: "#34d399" },
+  sent: { label: "En proceso de envío", color: "#60a5fa" },
+  paid: { label: "Completada", color: "#34d399" },
   failed: { label: "Falló el envío", color: "#f87171" },
 };
 
@@ -139,7 +139,7 @@ export default function AdminRetiros() {
     if (ocupada) return;
     setOcupada(r.id);
     try {
-      await markWithdrawalPaid(r.id, referencia.trim() || undefined);
+      await markWithdrawalPaid(r.id, referencia.trim());
       showToast("Marcado como pagado.", "success");
       setReferencia("");
     } catch (e) {
@@ -333,10 +333,19 @@ export default function AdminRetiros() {
               porPagar.map((r) => (
                 <Tarjeta key={r.id} r={r} nombre={nombres[r.creatorId]}>
                   <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+                    {/* 🚨 OBLIGATORIO. La ruta de Wallbit no tiene API: alguien mueve el
+                        dinero a mano y luego cierra la solicitud. Sin este dato, lo único que
+                        respalda el pago es que el operador dijo que lo hizo, y si el creador
+                        reclama no hay nada que cotejar. El servidor lo rechaza por debajo de
+                        6 caracteres, así que el gate no depende de esta pantalla. */}
+                    <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.55)", lineHeight: 1.45 }}>
+                      Copia el identificador de la transferencia desde Wallbit. El creador lo
+                      va a ver en su retiro para poder cotejarlo.
+                    </div>
                     <input
                       value={referencia}
                       onChange={(ev) => setReferencia(ev.target.value)}
-                      placeholder="Referencia de la transferencia, opcional"
+                      placeholder="Identificador de la transferencia de Wallbit"
                       style={{
                         width: "100%",
                         background: "rgba(255,255,255,0.06)",
@@ -350,11 +359,13 @@ export default function AdminRetiros() {
                         boxSizing: "border-box",
                       }}
                     />
+                    {/* Sin identificador el botón no se puede pulsar. Un botón que se deja
+                        tocar promete que va a funcionar, y aquí fallaría en el servidor. */}
                     <TextButton
                       tone="brand"
                       size="sm"
                       style={{ margin: 0, justifySelf: "start" }}
-                      disabled={ocupada === r.id}
+                      disabled={ocupada === r.id || referencia.trim().length < 6}
                       onClick={() => cerrarPago(r)}
                     >
                       {ocupada === r.id ? "Cerrando…" : "Ya lo transferí"}
@@ -542,6 +553,26 @@ function Tarjeta({
           </div>
         )}
 
+        {/* 🧾 El identificador de la transferencia de Wallbit, una vez cerrada. Es lo que
+            respalda ese pago, así que se enseña aquí y en la tarjeta del creador. */}
+        {r.paymentReference && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              fontSize: 12,
+              color: "rgba(255,255,255,0.6)",
+              marginTop: -4,
+            }}
+          >
+            <span>Transferencia de Wallbit</span>
+            <span style={{ fontFamily: "monospace", wordBreak: "break-all" }}>
+              {r.paymentReference}
+            </span>
+          </div>
+        )}
+
         {/* Cuando ya se envió, el cambio deja de ser una estimación. */}
         {r.tipoCambio != null && r.acreditado != null && (
           <div
@@ -563,6 +594,32 @@ function Tarjeta({
           </div>
         )}
       </div>
+
+      {/* 🏷️ EL TAG DE WALLBIT, en grande y arriba de todo lo demás.
+
+          Es el dato con el que se hace la transferencia a mano, así que quien revisa el retiro
+          lo va a copiar de aquí. Va destacado y en monoespaciada porque un guión de más o de
+          menos manda el dinero a otra cuenta o a ninguna. */}
+      {r.wallbitTag && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 12px",
+            background: "rgba(168,85,247,0.12)",
+            border: "1px solid rgba(168,85,247,0.3)",
+            borderRadius: 10,
+            display: "grid",
+            gap: 2,
+          }}
+        >
+          <span style={{ fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>
+            Transfiere a este TAG
+          </span>
+          <span style={{ fontFamily: "monospace", fontSize: 15, fontWeight: 700, color: "#fff", wordBreak: "break-all" }}>
+            {r.wallbitTag}
+          </span>
+        </div>
+      )}
 
       {(r.declaredAccountLast4 || r.declaredHolderName) && (
         <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", marginTop: 12, lineHeight: 1.5 }}>

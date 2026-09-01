@@ -23,7 +23,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
-import { requirePlatformOwner } from "../authz";
+import { requirePlatformMod } from "../authz";
 import { calcularRetiro } from "../tax/fiscalEngine";
 import { payoutTermsOf, paisDeCobroDe, type PayoutRoute } from "./payoutTiers";
 import { SETTLEMENT_CURRENCY } from "./ledger";
@@ -99,6 +99,108 @@ export type WithdrawalStatus =
  * Un estado desconocido se trata como `sent`, no como `paid` ni como `failed`: ante la duda,
  * ni le damos por bueno un dinero que no llegó ni le devolvemos uno que sí.
  */
+/**
+ * 🚦 LAS PUERTAS DEL RETIRO, en un solo sitio y sin Firestore.
+ *
+ * Vivían dentro del `onCall`, enredadas con la transacción, y eso las volvía imposibles de
+ * probar: para comprobar que un mexicano sin sello no puede retirar hacía falta levantar el
+ * emulador, sembrar cuatro documentos e invocar un callable. Nadie lo hizo, y por eso el
+ * gate del sello llegó a producción sin comprobarse.
+ *
+ * Aquí son datos que entran y un motivo que sale. `requestWithdrawal` llama a esto y lanza;
+ * los tests llaman a esto y comparan.
+ *
+ * 🚨 Devuelve el PRIMER motivo que encuentra, en el mismo orden que antes: identidad, cuenta,
+ *    sello, mínimo. El orden importa porque es el que decide qué mensaje ve el creador, y
+ *    enseñarle «te falta saldo» cuando lo que le falta es el sello lo manda a buscar donde
+ *    no es.
+ */
+export type MotivoBloqueo =
+  | "sin_kyc"
+  | "cuenta_no_lista"
+  | "sin_sello"
+  | "bajo_minimo"
+  | "nada_que_retirar";
+
+export type EntradaPuertas = {
+  /** Perfil fiscal del creador (`creatorTaxProfiles`). */
+  perfil: {
+    payoutAccountDeclared?: unknown;
+    declaredAccountMatchesStripe?: unknown;
+    stripeAccountStatus?: unknown;
+    residency?: unknown;
+    payoutAccountCountry?: unknown;
+    csdStatus?: unknown;
+    csdExpiresAt?: unknown;
+  };
+  /** Su verificación de identidad (`kyc`). */
+  kyc: { status?: unknown; documentCountry?: unknown };
+  /** Su resumen de wallet. */
+  resumen: { lifetimeEarnedNet?: unknown; withdrawnNet?: unknown };
+  /** Condiciones de su país. */
+  condiciones: { route: PayoutRoute; minWithdrawalUsd: number };
+  /** Lo que le quedaría después de retenciones. Se pasa ya calculado. */
+  neto: number;
+};
+
+/**
+ * Lo que se le dice al creador por cada puerta cerrada.
+ *
+ * Van aparte del motivo a propósito: el motivo es un dato que los tests comparan sin
+ * depender de la redacción, y el texto se puede afinar sin romper una sola prueba.
+ */
+const MENSAJE_BLOQUEO: Record<
+  MotivoBloqueo,
+  (c: { minWithdrawalUsd: number }) => string
+> = {
+  sin_kyc: () => "Necesitas verificar tu identidad antes de retirar.",
+  cuenta_no_lista: () =>
+    "Tu cuenta de cobro no está lista. Revisa tu registro para retiros.",
+  sin_sello: () =>
+    "Necesitas tu sello digital vigente para poder retirar. Súbelo en tu registro para retiros.",
+  bajo_minimo: (c) =>
+    `Tu saldo no llega al mínimo de ${c.minWithdrawalUsd} ${SETTLEMENT_CURRENCY}.`,
+  nada_que_retirar: () => "No hay nada que retirar.",
+};
+export function motivoDeBloqueo(entrada: EntradaPuertas): MotivoBloqueo | null {
+  const { perfil, kyc, resumen, condiciones, neto } = entrada;
+
+  // 1 · Identidad. Es de los 89 países pagables, sin excepción.
+  if (kyc.status !== "approved") return "sin_kyc";
+
+  // 2 · Cuenta de cobro. En Wallbit no hay alta de Stripe que comprobar.
+  const declarada = perfil.payoutAccountDeclared === true;
+  const coincide = perfil.declaredAccountMatchesStripe !== false;
+  const stripeListo =
+    condiciones.route === "wallbit" || perfil.stripeAccountStatus === "verified";
+  if (!declarada || !coincide || !stripeListo) return "cuenta_no_lista";
+
+  /*
+   * 3 · Sello, solo al mexicano.
+   *
+   * ⚠️ MISMA REGLA QUE `useCreatorTaxProfile`, y no una parecida. Basta con que el documento
+   *    O la cuenta digan México: mirando solo la cuenta, un mexicano que cobra en Estados
+   *    Unidos salía «extranjero» y se saltaba el sello — justo el caso que hay que vigilar.
+   */
+  const paisDocumento = String(kyc.documentCountry ?? "").toUpperCase();
+  const paisCuenta = String(perfil.payoutAccountCountry ?? "").toUpperCase();
+  const esMexicano =
+    perfil.residency === "MX" ||
+    (perfil.residency !== "FOREIGN" && (paisDocumento === "MX" || paisCuenta === "MX"));
+  if (esMexicano) {
+    const selloVigente = perfil.csdStatus === "valid" && !selloCaducado(perfil.csdExpiresAt);
+    if (!selloVigente) return "sin_sello";
+  }
+
+  // 4 · Mínimo. Es el de SU país: 300 en el tramo estándar, 500 en el de wire.
+  const saldo = round2(num(resumen.lifetimeEarnedNet) - num(resumen.withdrawnNet));
+  if (saldo < condiciones.minWithdrawalUsd) return "bajo_minimo";
+
+  if (!(neto > 0)) return "nada_que_retirar";
+
+  return null;
+}
+
 export function estadoDeStripe(estado: string | null | undefined): WithdrawalStatus {
   switch ((estado ?? "").toLowerCase()) {
     case "posted":
@@ -135,6 +237,21 @@ export const requestWithdrawal = onCall(
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+
+    /**
+     * 🚨 UNA SESIÓN ANÓNIMA ES UNA SESIÓN.
+     *
+     * `request.auth.uid` existe también para los invitados —las compras sin login usan
+     * Anonymous Auth— así que comprobar solo que haya sesión deja la puerta abierta a que
+     * cualquiera invoque este callable.
+     *
+     * Hoy no consigue nada: fallaría en el KYC dos líneas más abajo. Pero es la misma
+     * clase de agujero que tuvo el sello, un control que existe más arriba y no aquí, y
+     * ese ya se coló una vez. Un creador siempre tiene cuenta de verdad.
+     */
+    if (request.auth?.token?.firebase?.sign_in_provider === "anonymous") {
+      throw new HttpsError("permission-denied", "Necesitas una cuenta para poder retirar.");
+    }
 
     /**
      * Atajo para dar el mensaje sin abrir una transacción. La comprobación QUE VALE está
@@ -221,66 +338,21 @@ export const requestWithdrawal = onCall(
        * El frontend decide si lo enseña; esto decide si vale. Un botón escondido no es un
        * control: basta con llamar al callable a mano para saltárselo.
        */
-      const declarada = perfil.payoutAccountDeclared === true;
-      const coincide = perfil.declaredAccountMatchesStripe !== false;
-      const stripeListo =
-        condiciones.route === "wallbit" || perfil.stripeAccountStatus === "verified";
-      if (!declarada || !coincide || !stripeListo) {
-        throw new HttpsError(
-          "failed-precondition",
-          "Tu cuenta de cobro no está lista. Revisa tu registro para retiros."
-        );
-      }
-
       /**
-       * 🚨 EL SELLO ES REQUISITO PARA COBRAR, no solo para facturar.
+       * 🚦 Las puertas, todas de golpe.
        *
-       * ⚠️ Esto FALTABA. El paso 4 del panel lo exige y el botón de Finanzas se esconde sin
-       *    él, pero aquí no se comprobaba: bastaba con llamar al callable a mano para
-       *    retirar sin sello. Un botón escondido no es un control.
-       *
-       * Y no es una formalidad. Sin sello vigente no hay emisor posible para sus facturas
-       * de venta, así que pagarle sería sacar dinero de ventas que nadie puede documentar.
-       *
-       * Solo al mexicano: el creador extranjero no emite CFDI y no tiene sello que subir.
+       * Estaban escritas aquí dentro, mezcladas con la transacción, y por eso nunca se
+       * probaron: comprobar que un mexicano sin sello no puede retirar exigía levantar el
+       * emulador e invocar el callable. Ahora viven en `motivoDeBloqueo`, que es una función
+       * pura, y los tests la llaman directamente. **Este código y el que se prueba son el
+       * mismo**, que es lo que un test de dinero tiene que garantizar.
        */
-      /**
-       * ⚠️ MISMA REGLA QUE `useCreatorTaxProfile`, y no una parecida.
-       *
-       * Miraba solo el país de COBRO, así que un mexicano con cuenta en Estados Unidos
-       * salía «extranjero» y se saltaba el sello — justo el caso que `cobraFueraDeMexico`
-       * existe para vigilar. Basta con que el documento O la cuenta digan México.
-       */
-      const paisDocumento = String(kyc.documentCountry ?? "").toUpperCase();
-      const paisCuenta = String(perfil.payoutAccountCountry ?? "").toUpperCase();
-      const esMexicano =
-        perfil.residency === "MX" ||
-        (perfil.residency !== "FOREIGN" &&
-          (paisDocumento === "MX" || paisCuenta === "MX"));
-      if (esMexicano) {
-        const selloVigente =
-          perfil.csdStatus === "valid" && !selloCaducado(perfil.csdExpiresAt);
-        if (!selloVigente) {
-          throw new HttpsError(
-            "failed-precondition",
-            "Necesitas tu sello digital vigente para poder retirar. Súbelo en tu registro para retiros."
-          );
-        }
-      }
-
-      // ── Cuánto ───────────────────────────────────────────────────────────
       const saldo = round2(num(s.lifetimeEarnedNet) - num(s.withdrawnNet));
-      if (saldo < condiciones.minWithdrawalUsd) {
-        throw new HttpsError(
-          "failed-precondition",
-          `Tu saldo no llega al mínimo de ${condiciones.minWithdrawalUsd} ${SETTLEMENT_CURRENCY}.`
-        );
-      }
 
-      /**
+      /*
        * El desglose se calcula AQUÍ, en el servidor, con el mismo motor que lo enseña la
-       * wallet. Nunca se acepta un importe que venga del cliente: sería dejar que el
-       * creador escriba cuánto se le paga.
+       * wallet. Nunca se acepta un importe que venga del cliente: sería dejar que el creador
+       * escriba cuánto se le paga.
        */
       const r = calcularRetiro({
         saldo,
@@ -289,8 +361,16 @@ export const requestWithdrawal = onCall(
         ivaPendiente: num(s.pendingRetainedIva),
         ivaComisionPendiente: num(s.pendingCommissionVat),
       });
-      if (!(r.neto > 0)) {
-        throw new HttpsError("failed-precondition", "No hay nada que retirar.");
+
+      const motivo = motivoDeBloqueo({
+        perfil,
+        kyc,
+        resumen: s,
+        condiciones,
+        neto: r.neto,
+      });
+      if (motivo) {
+        throw new HttpsError("failed-precondition", MENSAJE_BLOQUEO[motivo](condiciones));
       }
 
       const desglose: Desglose = {
@@ -336,6 +416,15 @@ export const requestWithdrawal = onCall(
         // Para que quien revise no tenga que ir a buscar de quién es.
         declaredAccountLast4: perfil.declaredAccountLast4 ?? null,
         declaredHolderName: perfil.declaredHolderName ?? null,
+        /*
+         * 🏷️ El TAG de Wallbit, congelado con el resto.
+         *
+         * Es el dato con el que se hace la transferencia a mano, así que quien revise el
+         * retiro lo necesita a la vista. Y se copia AQUÍ, no se lee del perfil al pagar:
+         * si el creador cambia de TAG entre que solicita y se le paga, el dinero tiene que
+         * ir al que declaró cuando pidió, no al nuevo.
+         */
+        wallbitTag: perfil.wallbitTag ?? null,
         /**
          * 🔎 La sesión de Didit donde vive la cuenta COMPLETA.
          *
@@ -403,7 +492,20 @@ export const reviewWithdrawal = onCall(
   { region: REGION, cors: true, secrets: [stripeSecretKey, stripePayoutsSecretKey] },
   async (request) => {
     // Solo el dueño. Mover dinero de verdad no es tarea de un moderador de comunidad.
-    const revisorUid = requirePlatformOwner(request);
+    /**
+     * 🔐 Supermoderador de plataforma: claim `role=moderator` MÁS sesión de Google.
+     *
+     * ⚠️ Antes era `requirePlatformOwner`, que además exige que el correo sea exactamente
+     *    el del dueño. Esa función existe **para migraciones y backfills** —lo dice su
+     *    propio comentario—, operaciones que se corren una vez y tocan la base entera.
+     *    Revisar retiros no es eso: es trabajo diario, y atarlo a un correo concreto
+     *    significaba que nadie más podría aprobar un retiro nunca, ni siquiera con el
+     *    claim puesto. Un viaje o una baja y los creadores dejan de cobrar.
+     *
+     * Sigue siendo estricto: hacen falta las DOS condiciones y el claim se pone a mano. Y
+     * queda rastro de quién fue, en `reviewedBy`.
+     */
+    const revisorUid = requirePlatformMod(request);
 
     const { id, aprobar, motivo } = (request.data ?? {}) as {
       id?: unknown;
@@ -607,10 +709,48 @@ export const reviewWithdrawal = onCall(
 export const markWithdrawalPaid = onCall(
   { region: REGION, cors: true },
   async (request) => {
-    const revisorUid = requirePlatformOwner(request);
+    /**
+     * 🔐 Supermoderador de plataforma: claim `role=moderator` MÁS sesión de Google.
+     *
+     * ⚠️ Antes era `requirePlatformOwner`, que además exige que el correo sea exactamente
+     *    el del dueño. Esa función existe **para migraciones y backfills** —lo dice su
+     *    propio comentario—, operaciones que se corren una vez y tocan la base entera.
+     *    Revisar retiros no es eso: es trabajo diario, y atarlo a un correo concreto
+     *    significaba que nadie más podría aprobar un retiro nunca, ni siquiera con el
+     *    claim puesto. Un viaje o una baja y los creadores dejan de cobrar.
+     *
+     * Sigue siendo estricto: hacen falta las DOS condiciones y el claim se pone a mano. Y
+     * queda rastro de quién fue, en `reviewedBy`.
+     */
+    const revisorUid = requirePlatformMod(request);
     const { id, referencia } = (request.data ?? {}) as { id?: unknown; referencia?: unknown };
     const requestId = typeof id === "string" ? id.trim() : "";
     if (!requestId) throw new HttpsError("invalid-argument", "Falta la solicitud.");
+
+    /**
+     * 🚨 EL IDENTIFICADOR DE LA TRANSFERENCIA ES OBLIGATORIO.
+     *
+     * La ruta de Wallbit no tiene API: alguien mueve el dinero a mano y luego cierra la
+     * solicitud. Sin este dato, lo ÚNICO que respalda un pago es que el operador dijo que
+     * lo hizo — y si mañana el creador dice que no le llegó, no hay nada que cotejar.
+     *
+     * Se pidió el identificador y no un PDF a propósito. Un PDF no lo verifica nadie: se
+     * puede subir el archivo equivocado y el sistema lo daría por bueno igual. Una cadena
+     * corta se compara contra la app de Wallbit en cinco segundos. Y el extracto de Wallbit
+     * contiene las transferencias de TODOS los creadores, así que adjuntarlo a la tarjeta de
+     * uno le enseñaría cuánto cobraron los demás.
+     *
+     * Los 6 caracteres son un mínimo deliberado: impiden cerrar con un espacio o un guion,
+     * que es lo que pasa cuando el campo es opcional y hay prisa.
+     */
+    const referenciaLimpia =
+      typeof referencia === "string" ? referencia.trim().slice(0, 200) : "";
+    if (referenciaLimpia.length < 6) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Falta el identificador de la transferencia de Wallbit. Sin él no se puede cerrar el retiro."
+      );
+    }
 
     const ref = db.collection(WITHDRAWALS).doc(requestId);
     await db.runTransaction(async (tx) => {
@@ -630,9 +770,9 @@ export const markWithdrawalPaid = onCall(
         status: "paid" satisfies WithdrawalStatus,
         paidAt: FieldValue.serverTimestamp(),
         paidBy: revisorUid,
-        // Referencia de la transferencia, para poder rastrearla después.
-        paymentReference:
-          typeof referencia === "string" ? referencia.trim().slice(0, 200) : null,
+        // El identificador de la transferencia de Wallbit. Lo ve el creador en su tarjeta
+        // de retiro, para que pueda cotejarlo contra su propia cuenta.
+        paymentReference: referenciaLimpia,
       });
     });
 

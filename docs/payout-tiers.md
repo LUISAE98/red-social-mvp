@@ -102,15 +102,36 @@ BA HK QA KW JP MY PH TH JO TW ZA EG TR RS AL MD VN AE LC AG LK BT BN MN BW NG KH
 ### Wallbit — 25%, mínimo 300 USD (12)
 
 Países donde Stripe no llega, o donde solo llega por wire. El creador cobra en una cuenta
-de Wallbit en dólares.
+de Wallbit en dólares. Se parten en dos según pueda o no pasar ese dinero a su banco.
+
+**Ruta completa hasta banco local (6)** — cobra en Wallbit y lo transfiere a su banco en
+moneda local. Panamá está dolarizado, así que ahí ni siquiera hay conversión:
 
 ```
-AR BR BO CO GT PA EC SV CL UY PY HN
+AR BR BO CO GT PA
 ```
 
-⚠️ **En CL, UY, PY, HN Wallbit NO tiene retiro a banco local.** El creador cobra en dólares y su
-única salida documentada es cripto. Se incluyen por decisión de producto del 2026-08-27 —la
-alternativa era no pagarles nada— y se les avisa en el alta, antes de que acumulen saldo.
+**Solo dólares (6)** — ⚠️ Wallbit **NO** tiene retiro a banco local. El creador cobra en
+dólares y su única salida documentada es **cripto**: abrir una wallet, entender USDC, pagar
+comisión de red y venderlo en un exchange local:
+
+```
+CL UY PY HN EC SV
+```
+
+Se incluyen por decisión de producto del 2026-08-27 —la alternativa era no pagarles nada—
+y se marcan con `soloDolares`, que hace salir un aviso en el **paso 2 del panel de registro**
+para retiros, antes de que empiecen a acumular saldo.
+
+> 📅 **Corregido el 2026-09-01.** Ecuador y El Salvador estaban clasificados como ruta
+> completa porque están dolarizados. Eso es cierto y no viene al caso: lo que decide es si
+> **Wallbit tiene retiro a banco local**, y ahí no lo tiene. Estar dolarizado no te saca el
+> dinero de la cuenta. Mientras estuvieron mal clasificados, sus creadores **no veían el**
+> **aviso** de que su única salida es cripto.
+
+🔁 Hay una pregunta abierta al soporte de Wallbit por **Ecuador, El Salvador y Uruguay**:
+los tres aparecen anunciados pero fuera de su lista de retiro local. Si confirman que sí
+lo tienen, pasan a ruta completa y el aviso desaparece solo.
 
 🔁 Si Wallbit confirma que tiene tarjeta de débito, o abre retiro local ahí, se quita la
 marca `soloDolares` y el aviso desaparece solo.

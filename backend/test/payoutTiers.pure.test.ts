@@ -159,12 +159,35 @@ describe("niveles de retiro — rutas de pago", () => {
     }
   });
 
-  it("solo Chile, Uruguay, Paraguay y Honduras quedan marcados como solo dólares", () => {
+  /**
+   * 🚨 La lista está FIJADA a propósito, y este test ya evitó un problema real.
+   *
+   * `soloDolares` es lo que hace salir el aviso del paso 2 del panel de registro, donde se le
+   * dice al creador que su única salida es cripto ANTES de que empiece a acumular. Un país
+   * que entra o sale de esta lista cambia si a alguien se le avisa o no, así que el cambio
+   * tiene que ser deliberado y pasar por aquí.
+   *
+   * 📅 **2026-09-01: entraron Ecuador y El Salvador.** Estaban clasificados como ruta
+   *    completa porque están dolarizados —cierto e irrelevante: el problema no es la
+   *    conversión, es que Wallbit no tiene retiro a banco local ahí—. Mientras estuvieron
+   *    mal clasificados, sus creadores no veían el aviso. Ver `paiseswallbit.md`.
+   */
+  it("los seis sin retiro local quedan marcados como solo dólares", () => {
     const soloUsd = Object.entries(back.PAYOUT_TERMS_BY_COUNTRY)
       .filter(([, t]) => t.soloDolares)
       .map(([c]) => c)
       .sort();
-    expect(soloUsd).toEqual(["CL", "HN", "PY", "UY"]);
+    expect(soloUsd).toEqual(["CL", "EC", "HN", "PY", "SV", "UY"]);
+  });
+
+  it("🚨 los marcados solo dólares siguen cobrando: la bandera avisa, no bloquea", () => {
+    // Se incluyeron por decisión de producto porque la alternativa era no pagarles nada.
+    // Si algún día la bandera empezara a impedir el cobro, esto lo cazaría.
+    const soloUsd = Object.entries(back.PAYOUT_TERMS_BY_COUNTRY).filter(([, t]) => t.soloDolares);
+    expect(soloUsd.length).toBeGreaterThan(0);
+    for (const [, t] of soloUsd) {
+      expect(t).toMatchObject({ route: "wallbit", commissionRate: 0.25, minWithdrawalUsd: 300 });
+    }
   });
 
   it("todo país pagable tiene una ruta, y ninguna otra", () => {

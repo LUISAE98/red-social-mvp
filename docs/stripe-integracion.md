@@ -1611,8 +1611,8 @@ Decidido el 2026-08-27. Fuente de verdad: **`docs/payout-tiers.md`**.
 |---|---|---|---|---|
 | **Estándar** — transferencia local de Stripe | **25%** | **300 USD** | 46 | 18.46% – 21.73% |
 | **Transferencia cara** — solo wire de Stripe | **30%** | **500 USD** | 27 | 20.62% – 22.21% |
-| **Wallbit** con retiro a banco local | **25%** | **300 USD** | 8 | — |
-| **Wallbit** sin retiro local ⚠️ | **25%** | **300 USD** | 4 | — |
+| **Wallbit** con retiro a banco local | **25%** | **300 USD** | 6 | — |
+| **Wallbit** sin retiro local ⚠️ | **25%** | **300 USD** | 6 | — |
 | Sin ruta de pago | — | — | 58 | — |
 
 **89 países pagables de 147.** Los 4 territorios que cobran con la cuenta de otro país
@@ -1635,20 +1635,28 @@ CR DO NO IS AU ID NZ SG CA US PE GB MA TT JM MC SM CI
 BA HK QA KW JP MY PH TH JO TW ZA EG TR RS AL MD VN AE LC AG LK BT BN MN BW NG KH
 ```
 
-**Wallbit con retiro a banco local (8)** — cobra en dólares y lo pasa a su banco. Panamá,
-Ecuador y El Salvador están dolarizados, así que ahí ni siquiera hay conversión:
+**Wallbit con retiro a banco local (6)** — cobra en dólares y lo pasa a su banco. Panamá
+está dolarizado, así que ahí ni siquiera hay conversión:
 
 ```
-AR BR BO CO GT PA EC SV
+AR BR BO CO GT PA
 ```
 
-**Wallbit sin retiro local (4)** — ⚠️ cobra en dólares y su única salida documentada es
+**Wallbit sin retiro local (6)** — ⚠️ cobra en dólares y su única salida documentada es
 **cripto**. Se incluyen por decisión de producto del 2026-08-27 porque la alternativa era no
-pagarles nada, y se les avisa en el alta antes de que acumulen saldo:
+pagarles nada, y se les avisa en el **paso 2 del panel de registro** antes de que acumulen
+saldo:
 
 ```
-CL UY PY HN
+CL UY PY HN EC SV
 ```
+
+> 📅 **Corregido el 2026-09-01.** Ecuador y El Salvador estaban clasificados como ruta
+> completa porque están dolarizados. Eso es cierto y no viene al caso: lo que decide es si
+> **Wallbit tiene retiro a banco local**, y ahí no lo tiene. Estar dolarizado no te saca el
+> dinero de la cuenta. Mientras estuvieron mal clasificados, sus creadores **no veían el**
+> **aviso** de que su única salida es cripto.
+
 
 **Sin ruta de pago (58)** — venden y pagan el impuesto de su país, pero nadie les puede pagar.
 Los únicos con mercado real son Nicaragua, Corea del Sur, Arabia Saudita, Nepal, Haití, Papúa
