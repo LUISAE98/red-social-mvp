@@ -12,6 +12,11 @@ import WalletTickets from "./WalletTickets";
 import WalletChannelFilter from "./WalletChannelFilter";
 import WalletMovementsChart, { type ChartBucket } from "./WalletMovementsChart";
 import WithdrawBreakdown, { type DesgloseRetiro } from "./WithdrawBreakdown";
+import {
+  suscribirMisRetiros,
+  type WithdrawalRequestDoc,
+  type WithdrawalStatus,
+} from "@/lib/wallet/withdrawals";
 import { useMediaSlideReservedHeight } from "@/app/[locale]/groups/[groupId]/components/posts/useMediaSlideReservedHeight";
 import { useOwnedChannels } from "@/lib/wallet/walletSubscriptionData";
 import { useWalletMoney } from "@/lib/wallet/useWalletMoney";
@@ -122,6 +127,24 @@ export default function WalletTransactions({
   // Formateador único: ver `useWalletMoney`.
   const { formatMoney } = useWalletMoney();
   const [filter, setFilter] = useState<Filter>("all");
+
+  /**
+   * 📄 Los retiros que el creador ha pedido.
+   *
+   * No salen del ledger: una solicitud de retiro no es un asiento, vive en su propia
+   * colección. Por eso esta pestaña enseñaba solo el desglose de «qué te llevarías hoy» y el
+   * creador no veía por ningún lado el retiro que acababa de pedir — ni siquiera para saber
+   * si había llegado.
+   *
+   * Se suscribe solo cuando la pestaña está abierta: es un listener más contra Firestore y
+   * en «Todos» no se usa para nada.
+   */
+  const [misRetiros, setMisRetiros] = useState<WithdrawalRequestDoc[]>([]);
+  const enRetiros = filter === "withdrawal";
+  useEffect(() => {
+    if (!uid || !enRetiros) return;
+    return suscribirMisRetiros(uid, setMisRetiros);
+  }, [uid, enRetiros]);
   // Filtro por estado dentro de "Todos" (multi-selección, mismo menú que Pendientes/Historial).
   const [statusFilter, setStatusFilter] = useState<Array<"all" | LedgerStatus>>(["all"]);
   // Filtro por mes dentro de "Todos".
@@ -540,8 +563,31 @@ export default function WalletTransactions({
 
           El desglose lo pinta el mismo componente que el panel de «Retirar», para que las
           dos pantallas no puedan decirle dos cifras distintas del mismo dinero. */}
+      {/* 📄 Sus retiros, lo primero. Antes de saber qué se llevaría hoy quiere saber qué
+          pasó con lo que ya pidió. */}
+      {enRetiros && misRetiros.length > 0 ? (
+        <div style={{ marginTop: 20, display: "grid", gap: 10 }}>
+          {misRetiros.map((r) => (
+            <FilaRetiro key={r.id} r={r} formatMoney={formatMoney} t={tWallet} locale={locale} />
+          ))}
+        </div>
+      ) : null}
+
       {filter === "withdrawal" && desgloseRetiro ? (
         <div style={{ marginTop: 20 }}>
+          {misRetiros.length > 0 && (
+            <div
+              style={{
+                fontSize: 12,
+                color: "rgba(255,255,255,0.5)",
+                marginBottom: 12,
+                paddingTop: 14,
+                borderTop: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              {tWallet("withdrawIfYouAskToday")}
+            </div>
+          )}
           <WithdrawBreakdown
             desglose={desgloseRetiro}
             impuestosRecaudados={impuestosRecaudados}
@@ -728,5 +774,80 @@ export default function WalletTransactions({
         </motion.div>
       </div>
     </WalletCard>
+  );
+}
+
+/**
+ * Un retiro pedido, tal y como lo ve el creador.
+ *
+ * ⚠️ **`sent` no es `paid`.** El dinero sale de Stripe y tarda de uno a siete días en llegar
+ * al banco. Decirle «Pagado» mientras va en camino es prometerle un dinero que todavía puede
+ * volver, y era lo que hacía el sistema hasta el 2026-08-31.
+ */
+const COLOR_ESTADO: Record<WithdrawalStatus, string> = {
+  pending: "#f59e0b",
+  approved: "#f59e0b",
+  sent: "#60a5fa",
+  paid: "#4ade80",
+  rejected: "#f87171",
+  failed: "#f87171",
+};
+
+function FilaRetiro({
+  r,
+  formatMoney,
+  t,
+  locale,
+}: {
+  r: WithdrawalRequestDoc;
+  formatMoney: (n: number, o?: { code?: boolean }) => string;
+  t: (k: string) => string;
+  locale: string;
+}) {
+  const color = COLOR_ESTADO[r.status] ?? "rgba(255,255,255,0.6)";
+  const fecha = r.createdAt?.toDate?.();
+
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: 12,
+        padding: "14px 16px",
+        display: "grid",
+        gap: 6,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
+        <span style={{ fontSize: 13.5, fontWeight: 600, color: "#fff" }}>
+          {formatMoney(r.neto, { code: true })}
+        </span>
+        <span style={{ fontSize: 12, fontWeight: 600, color, whiteSpace: "nowrap" }}>
+          {t(`withdrawStatus_${r.status}`)}
+        </span>
+      </div>
+
+      {fecha && (
+        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)" }}>
+          {fecha.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
+        </span>
+      )}
+
+      {/* 💱 Cuando ya salió, lo que de verdad le llegó a su banco y en su moneda. */}
+      {r.acreditado != null && r.acreditadoCurrency && (
+        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.72)" }}>
+          {new Intl.NumberFormat(locale, {
+            style: "currency",
+            currency: r.acreditadoCurrency,
+          }).format(r.acreditado)}
+          {r.tipoCambio ? ` · ${r.tipoCambio}` : ""}
+        </span>
+      )}
+
+      {/* Un rechazo sin motivo es lo peor que se le puede enseñar a alguien esperando dinero. */}
+      {r.rejectionReason && (
+        <span style={{ fontSize: 12, color: "#f87171", lineHeight: 1.5 }}>{r.rejectionReason}</span>
+      )}
+    </div>
   );
 }

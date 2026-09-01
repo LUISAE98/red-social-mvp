@@ -46,8 +46,19 @@ export type WithdrawalRequestDoc = {
   iva: number;
   ivaComision: number;
   ivaPorDeclarar: number;
-  /** Lo que se le manda. */
+  /** Lo que se le manda, en la moneda de liquidación. */
   neto: number;
+  /**
+   * 💱 Lo que de verdad le llegó al banco, EN SU MONEDA, y a qué cambio.
+   *
+   * Se rellenan al ENVIAR, no al solicitar: hasta que Stripe no mueve el dinero no existe el
+   * tipo de cambio. Salen de la respuesta del `OutboundPayment`, no de una cotización.
+   */
+  acreditado: number | null;
+  acreditadoCurrency: string | null;
+  tipoCambio: number | null;
+  /** Cuándo espera Stripe que llegue al banco. */
+  llegadaEstimada: string | null;
   route: "stripe" | "wallbit";
   payoutCountry: string | null;
   declaredAccountLast4: string | null;
@@ -130,8 +141,13 @@ function normalizar(id: string, d: Record<string, unknown>): WithdrawalRequestDo
     ivaComision: n(d.ivaComision),
     ivaPorDeclarar: n(d.ivaPorDeclarar),
     neto: n(d.neto),
+    // Nulos mientras el retiro no se haya enviado.
     route: d.route === "wallbit" ? "wallbit" : "stripe",
     payoutCountry: s(d.payoutCountry),
+    acreditado: typeof d.acreditado === "number" ? d.acreditado : null,
+    acreditadoCurrency: s(d.acreditadoCurrency),
+    tipoCambio: typeof d.tipoCambio === "number" ? d.tipoCambio : null,
+    llegadaEstimada: s(d.llegadaEstimada),
     declaredAccountLast4: s(d.declaredAccountLast4),
     declaredHolderName: s(d.declaredHolderName),
     stripeRecipientId: s(d.stripeRecipientId),

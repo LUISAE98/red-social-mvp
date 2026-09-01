@@ -15,7 +15,9 @@ import { db } from "@/lib/firebase";
 import { TextButton } from "@/components/ui";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
-import { formatCurrency } from "@/lib/currency/format";
+import { formatCurrency, convertFromAnchor } from "@/lib/currency/format";
+import { displayCurrencyForCountry } from "@/lib/currency/catalog";
+import { useExchangeRates } from "@/lib/currency/rates";
 import {
   suscribirRetiros,
   reviewWithdrawal,
@@ -442,6 +444,21 @@ function Tarjeta({
   const meta = ESTADO[r.status];
   const esWallbit = r.route === "wallbit";
   const money = (n: number) => formatCurrency(n, r.currency, "es-MX", { code: true });
+
+  /**
+   * 💱 Lo que el creador va a ver en SU banco.
+   *
+   * El desglose entero va en dólares porque así se liquida y así se factura, pero a él le
+   * llegan pesos, reales o euros. Quien revisa un retiro necesita saberlo: es lo único que
+   * puede contrastar contra lo que el creador reclame si algo sale mal.
+   *
+   * ⚠️ Es una APROXIMACIÓN al cambio de hoy. El bueno lo fija Stripe al enviar, y queda
+   *    guardado en la solicitud como `tipoCambio` en cuanto el pago sale.
+   */
+  const { rates } = useExchangeRates();
+  const monedaCreador = displayCurrencyForCountry(r.payoutCountry);
+  const enSuMoneda =
+    monedaCreador === r.currency ? null : convertFromAnchor(r.neto, monedaCreador, rates);
   return (
     <div
       style={{
@@ -501,6 +518,50 @@ function Tarjeta({
         {r.ivaComision > 0 && <Fila k="− IVA de la comisión" v={money(r.ivaComision)} />}
         <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "3px 0" }} />
         <Fila k="Se le manda" v={money(r.neto)} fuerte />
+
+        {/* Lo que de verdad ve en su banco. Si ya cobra en dólares, esta línea no aparece:
+            repetir la misma cifra en la misma moneda solo sería ruido. */}
+        {enSuMoneda != null && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              fontSize: 12,
+              color: "rgba(255,255,255,0.55)",
+              marginTop: -4,
+            }}
+          >
+            <span>
+              Su cuenta está en {monedaCreador}
+              {r.payoutCountry ? ` (${r.payoutCountry})` : ""}
+            </span>
+            <span style={{ whiteSpace: "nowrap" }}>
+              ≈ {formatCurrency(enSuMoneda, monedaCreador, "es-MX", { code: true })}
+            </span>
+          </div>
+        )}
+
+        {/* Cuando ya se envió, el cambio deja de ser una estimación. */}
+        {r.tipoCambio != null && r.acreditado != null && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              fontSize: 12,
+              color: "#4ade80",
+              marginTop: -4,
+            }}
+          >
+            <span>Se le mandaron, al cambio de Stripe {r.tipoCambio}</span>
+            <span style={{ whiteSpace: "nowrap", fontWeight: 600 }}>
+              {formatCurrency(r.acreditado, r.acreditadoCurrency ?? monedaCreador, "es-MX", {
+                code: true,
+              })}
+            </span>
+          </div>
+        )}
       </div>
 
       {(r.declaredAccountLast4 || r.declaredHolderName) && (
