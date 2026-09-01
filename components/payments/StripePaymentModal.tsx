@@ -193,6 +193,7 @@ export default function StripePaymentModal({
   const tWallet = useTranslations("wallet");
   const tReg = useTranslations("auth.register");
   const tExpress = useTranslations("auth.express");
+  const tShared = useTranslations("auth.shared");
   const tCommon = useTranslations("common");
   const isSheet = presentation === "sheet";
   const [mounted, setMounted] = useState(false);
@@ -320,24 +321,6 @@ export default function StripePaymentModal({
         : savedCardId
           ? (isGuest ? savedCvcValid : true) // invitado re-pide CVV; cuenta real = un-clic off-session
           : false));
-
-  /**
-   * Por que no se puede pagar todavia.
-   *
-   * El boton se apagaba por tres motivos distintos —falta la tarjeta, falta el
-   * nombre, falta la cuenta— y no decia ninguno. Quien lo mira solo ve un boton
-   * muerto y da por hecho que la pasarela esta rota.
-   */
-  const faltaParaPagar: string | null = (() => {
-    if (canPay) return null;
-    if (collectAccount && !acctEmailOk) return tReg("emailLabel");
-    if (collectAccount && acctPassword.length < 6) return tReg("passwordPlaceholder");
-    if (collectAccount && acctExists !== true && acctPassword !== acctConfirm)
-      return tReg("passwordMismatch");
-    if (isNewCard && cardName.trim().length === 0) return tWallet("payCardNameLabel");
-    if (isNewCard) return tWallet("payCardNumberLabel");
-    return null;
-  })();
 
   const stripeRef = useRef<StripeLike | null>(null);
   const numberElRef = useRef<StripeElement | null>(null);
@@ -1042,7 +1025,7 @@ export default function StripePaymentModal({
           {/* El alta, DEBAJO de los metodos de pago. No es un paso aparte: se
               llena de corrido con la tarjeta y se resuelve al pagar. */}
           {collectAccount && (
-            <div style={{ display: "grid", gap: 8, paddingTop: 14 }}>
+            <div style={{ display: "grid", gap: 8, paddingTop: 16, marginTop: 4, borderTop: "1px solid #eceef1" }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: "#3a3f4a" }}>
                 {tExpress("title")}
               </span>
@@ -1071,6 +1054,9 @@ export default function StripePaymentModal({
                 disabled={submitting}
                 style={textInput}
               />
+              {acctEmail.trim().length > 0 && !acctEmailOk && (
+                <span style={{ fontSize: 12.5, color: "#dc2626" }}>{tShared("errInvalidEmail")}</span>
+              )}
               {acctExists === true && (
                 <span style={{ fontSize: 12.5, color: "#b45309", lineHeight: 1.45 }}>
                   {tExpress("emailHasAccount")}
@@ -1317,11 +1303,7 @@ export default function StripePaymentModal({
         {submitting && <span aria-hidden="true" style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.28)", transformOrigin: "left center", animation: "vibraBtnFill 2400ms ease-out forwards" }} />}
         <span style={{ position: "relative" }}>{submitting ? tCommon("processing") : (payButtonLabel ?? tWallet("payButton"))}</span>
       </button>
-      {faltaParaPagar && !submitting && (
-        <span style={{ fontSize: 12.5, color: "#8a8f99", textAlign: "center", marginTop: 6 }}>
-          {faltaParaPagar}
-        </span>
-      )}
+
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 11, color: "#8a8f99", marginTop: -6 }}>
         <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
