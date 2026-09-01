@@ -144,6 +144,24 @@ export function useGreetingPurchase({
         const offerings = snap.data()?.offerings ?? null;
         const service = getServiceByType(offerings, type, source);
         setAvailable(!!service);
+        // Sin esto, "no encuentro el servicio", "lo encuentro sin precio" y "el
+        // precio esta en un campo que no miro" se ven todos igual: sin precio.
+        if (!service || (service.publicPrice == null && service.memberPrice == null)) {
+          console.warn("[useGreetingPurchase] sin precio para", type, "en", source, {
+            encontrado: service,
+            ofertasDelCreador: Array.isArray(offerings)
+              ? (offerings as Array<Record<string, unknown>>).map((o) => ({
+                  type: o?.type,
+                  enabled: o?.enabled,
+                  visible: o?.visible,
+                  sourceScope: o?.sourceScope,
+                  publicPrice: o?.publicPrice,
+                  memberPrice: o?.memberPrice,
+                  price: o?.price,
+                }))
+              : offerings,
+          });
+        }
         const price = service?.publicPrice ?? service?.memberPrice ?? null;
         if (typeof price !== "number") {
           setPriceLabel(undefined);
