@@ -54,6 +54,8 @@ export function useGreetingPurchase({
 }: Params) {
   const tWallet = useTranslations("wallet");
   const tServices = useTranslations("services");
+  const tExpress = useTranslations("auth.express");
+  const tRegister = useTranslations("auth.register");
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -336,8 +338,28 @@ export function useGreetingPurchase({
               // lo dejaba pagado y sin dueno que pudiera abrirlo.
               const cuenta = args.account;
               if (!cuenta) throw new Error(tServices("requestError"));
+
               const res = await attachGuestAccount(cuenta.email, cuenta.password, cuenta.exists);
-              if (!res.ok) throw new Error(tServices("requestError"));
+              if (!res.ok) {
+                // ⚠️ NO se lanza un error generico. El alta puede fallar por
+                // cosas muy distintas —la contrasena no cuadra, ese correo ya
+                // tiene cuenta, es demasiado corta— y decir "revisa los datos"
+                // para las tres deja a la persona sin saber cual arreglar.
+                console.error("[useGreetingPurchase] no se pudo crear la cuenta:", res.reason);
+                const mensaje =
+                  res.reason === "wrong-password"
+                    ? tExpress("wrongPassword")
+                    : res.reason === "email-in-use"
+                      ? tExpress("emailHasAccount")
+                      : res.reason === "weak-password"
+                        ? tRegister("passwordPlaceholder")
+                        : tServices("requestError");
+                // La pasarela solo muestra el texto de un error si viene con
+                // codigo; sin el lo sustituye por su mensaje generico.
+                const err = new Error(mensaje) as Error & { code?: string };
+                err.code = "express/cuenta";
+                throw err;
+              }
 
               const pedido = await createGreetingRequest({
                 creatorId,
@@ -409,6 +431,8 @@ export function useGreetingPurchase({
       payAmount,
       creatorId,
       tServices,
+      tExpress,
+      tRegister,
     ],
   );
 
