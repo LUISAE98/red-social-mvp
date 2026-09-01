@@ -41,6 +41,18 @@ type V2OutboundPayment = {
    * `canceled` si se cae. **Crear el pago NO es pagarlo.**
    */
   status?: string;
+  /** Lo que sale de la cuenta de Vibra. */
+  from?: { debited?: V2Importe; financial_account?: string };
+  /**
+   * 💱 Lo que le llega al creador, EN SU MONEDA, con la conversión ya aplicada por Stripe.
+   *
+   * Esta es la cifra que el creador ve en su banco, y de aquí sale el tipo de cambio real.
+   * Se lee del pago y no de la cotización porque `outbound_payment_quotes` devuelve 404 en
+   * nuestra cuenta — ver `cotizar()`.
+   */
+  to?: { credited?: V2Importe; recipient?: string; payout_method?: string };
+  /** Cuándo espera Stripe que llegue al banco. */
+  expected_arrival_date?: string;
 };
 
 type V2OutboundPaymentQuote = {
@@ -92,13 +104,39 @@ export type Cotizacion = {
   caducaEn: string | null;
 };
 
+/**
+ * 💱 Qué pasó de verdad con el dinero: cuánto salió, cuánto llegó y a qué cambio.
+ *
+ * Se arma del PAGO, no de la cotización, porque el pago siempre responde y la cotización
+ * puede no existir. Si además hubo cotización, se le pegan las comisiones, que el pago no
+ * desglosa.
+ */
+export type Liquidacion = {
+  /** Lo que salió de la cuenta de Vibra, en la moneda de liquidación. */
+  debitado: number;
+  /** Lo que le llega al creador, en SU moneda. */
+  acreditado: number;
+  monedaDestino: string;
+  /**
+   * Unidades de la moneda del creador por cada una de la nuestra. `null` si no hubo
+   * conversión, o si el pago no trajo las dos cifras.
+   */
+  tipoCambio: number | null;
+  /** Cuándo espera Stripe que llegue al banco. */
+  llegadaEstimada: string | null;
+  /** Solo si hubo cotización. El pago no las desglosa. */
+  comisiones: ComisionesEnvio | null;
+};
+
 export type EnvioResultado =
   | {
       ok: true;
       outboundPaymentId: string;
       estado: string;
-      /** Null solo si la cotización no se pudo crear y el envío salió sin ella. */
+      /** Null si la cotización no se pudo crear. Hoy es SIEMPRE null: da 404. */
       cotizacion: Cotizacion | null;
+      /** Siempre presente: sale del pago, que siempre responde. */
+      liquidacion: Liquidacion;
     }
   | { ok: false; motivo: string };
 
@@ -139,6 +177,67 @@ const aCentavos = (n: number) => Math.round(n * 100);
 const aUnidades = (n: number) => Math.round(n) / 100;
 
 /**
+ * Monedas que NO usan dos decimales.
+ *
+ * 🚨 Sin esto el tipo de cambio sale mal por un factor de 100 en las de cero decimales. Un
+ *    pago de 300 USD a un creador japonés devuelve `credited: 45000` que son 45 000 yenes,
+ *    no 450: dividir entre 100 daría un cambio de 1.5 en vez de 150.
+ *
+ * Las de tres decimales son las del golfo, donde el `value` viene en milésimas.
+ * Lista de Stripe: https://docs.stripe.com/currencies#zero-decimal
+ */
+const SIN_DECIMALES = new Set([
+  "BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF",
+  "UGX", "VND", "VUV", "XAF", "XOF", "XPF",
+]);
+const TRES_DECIMALES = new Set(["BHD", "JOD", "KWD", "OMR", "TND"]);
+
+function factorDe(moneda: string | null | undefined): number {
+  const m = (moneda ?? "").toUpperCase();
+  if (SIN_DECIMALES.has(m)) return 1;
+  if (TRES_DECIMALES.has(m)) return 1000;
+  return 100;
+}
+
+/**
+ * Arma la liquidación a partir de lo que respondió el pago.
+ *
+ * El tipo de cambio se calcula dividiendo lo acreditado entre lo debitado, cada uno con el
+ * factor de SU moneda. Es `null` cuando falta alguna de las dos cifras o cuando no hubo
+ * conversión —el creador cobra en dólares—, porque ahí no hay cambio que informar.
+ */
+export function liquidacionDelPago(
+  pago: V2OutboundPayment,
+  centavos: number,
+  currency: string,
+  comisiones: ComisionesEnvio | null
+): Liquidacion {
+  const debitadoMin = pago.from?.debited?.value ?? centavos;
+  const monedaOrigen = pago.from?.debited?.currency ?? currency;
+  const acreditadoMin = pago.to?.credited?.value;
+  const monedaDestino = (pago.to?.credited?.currency ?? currency).toUpperCase();
+
+  const debitado = debitadoMin / factorDe(monedaOrigen);
+  const acreditado =
+    acreditadoMin != null ? acreditadoMin / factorDe(monedaDestino) : debitado;
+
+  const hayConversion = monedaDestino !== monedaOrigen.toUpperCase();
+  const tipoCambio =
+    hayConversion && acreditadoMin != null && debitado > 0
+      ? Math.round((acreditado / debitado) * 1e6) / 1e6
+      : null;
+
+  return {
+    debitado: Math.round(debitado * 100) / 100,
+    acreditado: Math.round(acreditado * 100) / 100,
+    monedaDestino,
+    tipoCambio,
+    llegadaEstimada: pago.expected_arrival_date ?? null,
+    comisiones,
+  };
+}
+
+/**
  * 💱 LA COTIZACIÓN. Lo que Stripe va a cobrar y al tipo de cambio que va a convertir,
  *    ANTES de mover un peso.
  *
@@ -152,6 +251,15 @@ const aUnidades = (n: number) => Math.round(n) / 100;
  *      Ahora se omite y Stripe elige la que acepta el método de cobro.
  *   3. **El tipo de cambio.** No existía en ninguna parte del sistema, así que no se le podía
  *      enseñar al creador ni poner en su CFDI. Ahora llega en `fx_quote.rates`.
+ *
+ * 🔴 **HOY DEVUELVE 404 EN NUESTRA CUENTA.** Se comprobó el 2026-09-01 contra el sandbox:
+ *    `/v2/money_management/outbound_payments` responde 200 y `outbound_payment_quotes` da 404
+ *    en todas las versiones válidas. El endpoint no está provisionado.
+ *
+ *    No pasa nada: `enviarPago` sigue funcionando sin ella, y el tipo de cambio se saca del
+ *    propio pago con `liquidacionDelPago`. Lo único que se pierde es el desglose de
+ *    comisiones y la validación del saldo con ellas dentro. Se deja escrito porque el día
+ *    que Stripe lo habilite, funciona solo.
  *
  * ⚠️ **Vive cinco minutos.** Si se agota, el envío falla con `fx_quote_expired` y hay que
  *    pedir otra. Por eso se crea aquí, pegada al envío, y no cuando el creador abre el panel.
@@ -351,6 +459,7 @@ export async function enviarPago(params: {
     outboundPaymentId: res.data.id,
     estado: res.data.status ?? "processing",
     cotizacion,
+    liquidacion: liquidacionDelPago(res.data, centavos, currency, cotizacion?.comisiones ?? null),
   };
 }
 

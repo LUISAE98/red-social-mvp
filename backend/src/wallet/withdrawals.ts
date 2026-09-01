@@ -513,6 +513,9 @@ export const reviewWithdrawal = onCall(
        */
       const estado = estadoDeStripe(envio.estado);
       const c = envio.cotizacion;
+      // 💱 Lo que de verdad pasó con el dinero. Sale del PAGO, no de la cotización, porque
+      //    `outbound_payment_quotes` devuelve 404 en nuestra cuenta y el pago siempre responde.
+      const l = envio.liquidacion;
       await requestRef.update({
         status: estado,
         outboundPaymentId: envio.outboundPaymentId,
@@ -522,6 +525,13 @@ export const reviewWithdrawal = onCall(
         // 💱 Lo que Stripe cobró y al cambio que convirtió. Sin esto el coste del retiro
         //    era un modelo que nunca se contrastaba, y el creador no tenía el tipo de
         //    cambio con el que se le depositó — que es el que necesita para su CFDI.
+        // Siempre: cuánto salió, cuánto le llega, a qué cambio y cuándo.
+        debitado: l.debitado,
+        acreditado: l.acreditado,
+        acreditadoCurrency: l.monedaDestino,
+        tipoCambio: l.tipoCambio,
+        llegadaEstimada: l.llegadaEstimada,
+        // Solo si hubo cotización. El pago no desglosa las comisiones.
         ...(c
           ? {
               stripeQuoteId: c.id,
@@ -529,9 +539,6 @@ export const reviewWithdrawal = onCall(
               stripeFeeFijo: c.comisiones.fijo,
               stripeFeeTransfronteriza: c.comisiones.transfronteriza,
               stripeFeeConversion: c.comisiones.conversion,
-              acreditado: c.acreditado,
-              acreditadoCurrency: c.monedaDestino,
-              tipoCambio: c.tipoCambio,
             }
           : {}),
       });
@@ -540,9 +547,9 @@ export const reviewWithdrawal = onCall(
         enviado: true,
         outboundPaymentId: envio.outboundPaymentId,
         estado,
-        acreditado: c?.acreditado ?? null,
-        acreditadoCurrency: c?.monedaDestino ?? null,
-        tipoCambio: c?.tipoCambio ?? null,
+        acreditado: l.acreditado,
+        acreditadoCurrency: l.monedaDestino,
+        tipoCambio: l.tipoCambio,
       };
     }
 
