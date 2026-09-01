@@ -129,8 +129,24 @@ export default function WithdrawFiscalPanel({
   const [csdPass, setCsdPass] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [consent, setConsent] = useState(false);
+
+  /**
+   * Las tres cosas sin las que la llamada fallaría igual: los dos archivos y el permiso.
+   *
+   * La contraseña NO entra: se comprueba en el servidor contra el certificado, y adivinar
+   * aquí si es correcta no se puede. Bloquear por ella solo escondería el botón.
+   */
+  const puedeGuardar = cer != null && keyFile != null && consent;
   const cerInputRef = useRef<HTMLInputElement>(null);
   const keyInputRef = useRef<HTMLInputElement>(null);
+  /**
+   * Sobre cuál de los dos botones se está arrastrando algo.
+   *
+   * Sin esta señal el arrastre funciona pero no se ve, y el creador suelta el archivo a
+   * ciegas sin saber si va a caer en el sitio correcto — que con dos botones casi iguales
+   * es justo lo que hay que evitar.
+   */
+  const [arrastrando, setArrastrando] = useState<null | "cer" | "key">(null);
 
   function pickCer(f: File | null) {
     if (!f) return;
@@ -329,17 +345,29 @@ export default function WithdrawFiscalPanel({
             </p>
           </div>
 
-          {/* Subida del .cer: el texto morado ES el botón que abre el explorador. */}
-          <div>
+          {/* Subida del .cer: el texto morado ES el botón que abre el explorador, y además
+              se puede soltar el archivo encima. Las dos vías llaman a `pickCer`, así que la
+              validación es la misma se elija como se elija. */}
+          <ZonaDeArrastre
+            activa={arrastrando === "cer"}
+            onEntra={() => setArrastrando("cer")}
+            onSale={() => setArrastrando(null)}
+            onSuelta={pickCer}
+          >
             <input ref={cerInputRef} type="file" accept=".cer" style={{ display: "none" }} onChange={(e) => pickCer(e.target.files?.[0] ?? null)} />
             <TextButton tone="brand" size="md" style={{ margin: 0, fontFamily: "inherit", textAlign: "start", display: "inline-flex", alignItems: "center", maxWidth: "100%" }} onClick={() => cerInputRef.current?.click()}>
               {cer ? <FileChosen name={cer.name} /> : tWallet("fiscalUploadCerCta")}
             </TextButton>
             {cerError && <div style={redNote}>{cerError}</div>}
-          </div>
+          </ZonaDeArrastre>
 
-          {/* Subida del .key: explicación + texto morado (botón). */}
-          <div>
+          {/* Subida del .key: explicación + botón, y también acepta el archivo soltado. */}
+          <ZonaDeArrastre
+            activa={arrastrando === "key"}
+            onEntra={() => setArrastrando("key")}
+            onSale={() => setArrastrando(null)}
+            onSuelta={pickKey}
+          >
             <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: "0 0 6px" }}>
               {tWallet("fiscalUploadKeyHint")}
             </p>
@@ -348,7 +376,7 @@ export default function WithdrawFiscalPanel({
               {keyFile ? <FileChosen name={keyFile.name} /> : tWallet("fiscalUploadKeyCta")}
             </TextButton>
             {keyError && <div style={redNote}>{keyError}</div>}
-          </div>
+          </ZonaDeArrastre>
           <div>
             <div style={LABEL}>{tWallet("fiscalKeyPasswordLabel")}</div>
             <div style={{ position: "relative" }}>
@@ -398,8 +426,34 @@ export default function WithdrawFiscalPanel({
               />
             </button>
           </div>
-          <button type="button" onClick={submitAuto} disabled={busy} style={primaryBtn(busy)}>
-            {busy ? tWallet("fiscalValidatingSeal") : tWallet("fiscalActivateAndSave")}
+          {/* 🔒 No se habilita hasta tener LAS TRES COSAS: los dos archivos y el permiso.
+
+              Antes se podía pulsar sin nada y el error salía después, ya con la llamada
+              hecha. Un botón que se puede tocar promete que va a funcionar. */}
+          <button
+            type="button"
+            onClick={submitAuto}
+            disabled={!puedeGuardar || busy}
+            style={primaryBtn(!puedeGuardar || busy)}
+          >
+            {/* El relleno que avanza, igual que el botón de la pasarela de pago: valida el
+                sello contra el proveedor y puede tardar, así que un botón quieto se lee
+                como colgado. Ver `vibraBtnFill` en `StripePaymentModal`. */}
+            {busy && (
+              <span
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "rgba(255,255,255,0.28)",
+                  transformOrigin: "left center",
+                  animation: "vibraBtnFill 2400ms ease-out forwards",
+                }}
+              />
+            )}
+            <span style={{ position: "relative" }}>
+              {busy ? tWallet("fiscalValidatingSeal") : tWallet("fiscalActivateAndSave")}
+            </span>
           </button>
         </div>
       );
@@ -408,7 +462,35 @@ export default function WithdrawFiscalPanel({
     // done
     return (
       <div style={{ display: "grid", gap: 14, textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>✅</div>
+        {/* Palomita blanca dentro de un círculo verde, con el rebote de `vibraCheckPop`
+            que ya define este panel. El emoji ✅ que había aquí se pintaba distinto en cada
+            sistema y no se podía animar. */}
+        <div
+          aria-hidden="true"
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            background: "#22c55e",
+            display: "grid",
+            placeItems: "center",
+            justifySelf: "center",
+            animation: "vibraCheckPop 420ms cubic-bezier(0.2,0.8,0.2,1) both",
+          }}
+        >
+          <svg
+            width="30"
+            height="30"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#fff"
+            strokeWidth={3.2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
         <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{tWallet("fiscalAutoInvoicingActive")}</div>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, margin: 0 }}>
           {tWallet("fiscalAutoInvoicingDone")}
@@ -438,7 +520,10 @@ export default function WithdrawFiscalPanel({
       maxWidthDesktop={540}
       contentPadding="16px 18px calc(18px + var(--vb-safe-bottom, 0px))"
     >
-      <style>{`@keyframes vibraCheckPop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}`}</style>
+      <style>{`
+        @keyframes vibraCheckPop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+        @keyframes vibraBtnFill{0%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+      `}</style>
 
 
       {body}
@@ -465,6 +550,56 @@ const EYE_OFF_ICON = (
 );
 
 // Archivo elegido: nombre en morado + paloma blanca en círculo verde (pop).
+/**
+ * Zona que acepta un archivo arrastrado encima de su botón.
+ *
+ * ⚠️ `onDragOver` TIENE que llamar a `preventDefault()`. Sin eso el navegador se queda con
+ *    el archivo y lo ABRE en la pestaña, tirando el formulario a medio llenar. Es el fallo
+ *    clásico del arrastre y no da ningún error, simplemente se pierde lo escrito.
+ *
+ * Solo mira el PRIMER archivo: los dos campos son de uno, y aceptar varios haría creer que
+ * se pueden soltar el .cer y el .key juntos.
+ */
+function ZonaDeArrastre({
+  activa,
+  onEntra,
+  onSale,
+  onSuelta,
+  children,
+}: {
+  activa: boolean;
+  onEntra: () => void;
+  onSale: () => void;
+  onSuelta: (f: File) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      onDragOver={(ev) => {
+        ev.preventDefault();
+        onEntra();
+      }}
+      onDragLeave={onSale}
+      onDrop={(ev) => {
+        ev.preventDefault();
+        onSale();
+        const f = ev.dataTransfer.files?.[0];
+        if (f) onSuelta(f);
+      }}
+      style={{
+        borderRadius: 12,
+        padding: activa ? "8px 10px" : 0,
+        margin: activa ? "-8px -10px" : 0,
+        background: activa ? "rgba(168,85,247,0.10)" : "transparent",
+        outline: activa ? "1px dashed rgba(168,85,247,0.55)" : "none",
+        transition: "background 140ms ease",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function FileChosen({ name }: { name: string }) {
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
@@ -493,6 +628,8 @@ function errMsg(e: unknown): string {
 // Botón primario del panel base (vibra_style.md): #a855f7, alto 42, radio 5.
 function primaryBtn(busy: boolean): React.CSSProperties {
   return {
+    // `relative` + `hidden` para que el relleno de progreso quede dentro del botón.
+    position: "relative", overflow: "hidden",
     width: "100%", height: 42, borderRadius: 5, border: "none",
     background: busy ? "rgba(255,255,255,0.1)" : "#a855f7",
     color: busy ? "rgba(255,255,255,0.36)" : "rgba(255,255,255,0.98)",

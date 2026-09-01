@@ -2,7 +2,9 @@
 
 Registro de las auditorías de seguridad por bloques y de lo que queda pendiente.
 
-Última actualización: **2026-08-15** (bloques 1 a 5 cerrados; el 6 parcial a propósito, ver pendiente 9)
+Última actualización: **2026-08-31** — repaso de datos superados, sin auditar nada nuevo. Los bloques
+siguen como el 2026-08-15 (1 a 5 cerrados; el 6 parcial a propósito, ver pendiente 9); lo que cambió
+son dos pendientes que ya estaban resueltos y seguían escritos como abiertos, marcados abajo con ✅.
 
 ---
 
@@ -222,11 +224,27 @@ Lo que sí se pudo hacer sin la cuenta nueva —lógica, concurrencia, revocaci�
 
 **A. Cobro al creador (Stripe Connect y payouts). No existe nada todavía.**
 
+> ✅ **SUPERADO (2026-08-31).** **Stripe Connect se abandonó**; el camino real es **Global Payouts**
+> (`globalPayoutsRecipient.ts` + `outboundPayment.ts`). `stripeConnect.ts` sigue en el árbol pero
+> **no lo importa nadie** — se comprobó con un `grep` sobre `backend/src`, `app` y `lib`.
+>
+> Y como Global Payouts **no** verifica destinatarios, el KYC no venía incluido: se **reintegró
+> Didit** el 2026-08-27 (`backend/src/kyc.ts`, `lib/kyc/useKyc.ts`).
+>
+> Ya no es cierto que «no hay forma de sacarlo»: el alta de cobro, el panel de registro y la
+> pestaña de retiros existen. Lo que quede abierto de ese flujo se sigue en su propio ticket, no
+> aquí.
+
 `backend/src/payments/stripe/stripeConnect.ts` solo define tipos y funciones puras; el propio archivo dice que aún no llama a Stripe. Falta entero: crear cuentas conectadas, los Account Links de alta, el webhook `account.updated`, transferencias, payouts, conciliar transferencias y payouts fallidos, actualizar `withdrawnGross`/`withdrawnNet` y el bloqueo fiscal previo al pago.
 
 **Consecuencia hoy:** la wallet calcula lo que gana el creador, pero **no hay forma de sacarlo**. No es un agujero de seguridad, es una pieza sin construir.
 
-⚠️ **Mínimo de retiro: 400 USD** (regla de Luis). Va aquí, en el retiro del CREADOR — **no** en `cashout.ts`, que es otra cosa: la devolución a un COMPRADOR del saldo que le quedó de una compra rechazada. Ponerlo ahí impediría a alguien recuperar sus propios 300 pesos hasta juntar 400 dólares. **Falta que Luis lo confirme.**
+⚠️ **Mínimo de retiro** — va aquí, en el retiro del CREADOR, **no** en `cashout.ts`, que es otra cosa: la devolución a un COMPRADOR del saldo que le quedó de una compra rechazada. Ponerlo ahí impediría a alguien recuperar sus propios 300 pesos hasta juntar el mínimo.
+
+> ✅ **RESUELTO (2026-08-31).** Esta línea decía «400 USD, falta que Luis lo confirme». Ya está
+> confirmado y construido, y **no son 400**: son **300 USD**, o **500 USD** en los países a los que
+> solo llega la transferencia internacional, que cuesta 25 USD fijos y a 300 se comería más del 8%.
+> La cifra no se escribe a mano: sale de `lib/wallet/payoutTiers.ts`. Detalle en `docs/payout-tiers.md`.
 
 **B. H04 — Reembolsos parciales dejan la wallet inflada.**
 
@@ -256,6 +274,12 @@ La metadata fiscal se fija al crear la suscripción y se reutiliza en cada renov
 **Nada.** Ningún pendiente de esos bloques depende de Stripe. Los que siguen abiertos son los pendientes 1, 2 y 8 de este documento, y ninguno tiene que ver con pagos.
 
 #### Qué hacer cuando llegue la LLC
+
+> ✅ **La LLC llegó.** Vibra On, LLC opera con Stripe USA y denominación USD, y el modelo fiscal
+> quedó en **intermediación** (2026-08-26, `docs/legal/fiscal-iva-isr-plataforma.md`). Los puntos
+> 1 y 2 de esta lista ya no describen trabajo pendiente, y el 2 además nombra dos cosas que
+> cambiaron: **no es Connect** sino Global Payouts, y **no son 400 USD** sino 300, o 500 en ruta
+> cara. Se conserva la lista porque los puntos 3, 4 y 5 siguen vigentes.
 
 En este orden, porque cada uno depende del anterior:
 

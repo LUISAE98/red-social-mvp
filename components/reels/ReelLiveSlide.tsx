@@ -17,6 +17,7 @@ import { useEffect, useState } from "react";
 import FillImage from "@/components/ui/FillImage";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { ReelLivePost } from "@/lib/reels/reelItems";
@@ -136,7 +137,8 @@ export default function ReelLiveSlide({
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   const avatarSz = compact ? 40 : 54;
-  const avatarInset = compact ? 5 : 6;
+  // El hueco lo dicta la medida estándar del aro, no un número a ojo.
+  const avatarInset = medidaAroEnCaja(avatarSz).sobresale;
   // Aire por debajo de los botones. Con `safeBottom` numérico (historias en el
   // visor de círculos) no hay barra que esquivar y basta con el aire; con string
   // (el reel, que pasa el alto real del nav) se suma al hueco de la barra.
@@ -210,18 +212,7 @@ export default function ReelLiveSlide({
               fallback={<div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />}
             />
           </div>
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              borderRadius: "50%",
-              background: LIVE_RED,
-              WebkitMaskImage:
-                "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
-              maskImage:
-                "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
-            }}
-          />
+          <AvatarRing foto={medidaAroEnCaja(avatarSz).foto} color={LIVE_RED} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
           <span

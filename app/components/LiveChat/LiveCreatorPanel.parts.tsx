@@ -6,6 +6,7 @@ import Image from "next/image";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, memo, type CSSProperties } from "react";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
 import Hls from "hls.js";
 import { getAuth } from "firebase/auth";
 import {
@@ -222,8 +223,9 @@ export function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete
 
 export function ScAvatar({ url, name, ringColor }: { url?: string | null; name: string; ringColor?: string }) {
   const SIZE = 36;
-  const INSET = ringColor ? 3 : 0;
-  const RING = 2;
+  // El hueco lo dicta la medida estándar del aro, no un número a ojo.
+  const { foto, sobresale } = medidaAroEnCaja(SIZE);
+  const INSET = ringColor ? sobresale : 0;
   return (
     <div style={{ position: "relative", width: SIZE, height: SIZE, flexShrink: 0 }}>
       {url ? (
@@ -236,12 +238,7 @@ export function ScAvatar({ url, name, ringColor }: { url?: string | null; name: 
         </div>
       )}
       {ringColor && (
-        <div style={{
-          position: "absolute", inset: 0, borderRadius: "50%",
-          background: ringColor,
-          WebkitMaskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
-          maskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
-        }} />
+          <AvatarRing foto={foto} color={ringColor} />
       )}
     </div>
   );

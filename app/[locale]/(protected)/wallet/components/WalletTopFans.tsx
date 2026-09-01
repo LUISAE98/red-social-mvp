@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
 import {
   collection,
   documentId,
@@ -24,8 +25,6 @@ function pickString(value: unknown): string | null {
 type FanProfile = { displayName: string | null; avatarUrl: string | null };
 
 const SIZE = 34;
-// Aro de Vibra (mismo gradiente de marca que el aro de historias).
-const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 
 function FanAvatar({
   src,
@@ -85,32 +84,32 @@ function FanAvatar({
     );
   }
 
+  // La caja sigue midiendo lo mismo con aro y sin él: es la foto la que cede
+  // el sitio. Si no, la fila de fans se descuadraría al aparecer un aro.
+  const { foto } = medidaAroEnCaja(SIZE);
+
   return (
     <div
       style={{
         width: SIZE,
         height: SIZE,
         flexShrink: 0,
-        borderRadius: "50%",
-        background: VIBRA_RING,
+        position: "relative",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 2,
-        boxSizing: "border-box",
       }}
     >
+      <AvatarRing foto={foto} />
       <div
         style={{
-          width: "100%",
-          height: "100%",
+          width: foto,
+          height: foto,
           borderRadius: "50%",
-          border: "1.5px solid #0a0a0e",
           overflow: "hidden",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          boxSizing: "border-box",
         }}
       >
         {media}

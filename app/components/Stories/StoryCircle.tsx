@@ -2,9 +2,8 @@
 
 import FillImage from "@/components/ui/FillImage";
 import { useTranslations } from "next-intl";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
 import type { StoryType } from "@/lib/stories/types";
-
-const VIBRA_GRADIENT = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 
 type Props = {
   type: StoryType;
@@ -23,6 +22,8 @@ type Props = {
 export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, sublabel, empty = false }: Props) {
   const tCommon = useTranslations("common");
   const borderSize = size + 6;
+  // La caja manda: la foto es la que cede el sitio del aro.
+  const { foto } = medidaAroEnCaja(borderSize);
   const label = type === "saludo" ? tCommon("storySaludos") : tCommon("storyConsejos");
 
   return (
@@ -43,28 +44,26 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, su
         flexShrink: 0,
       }}
     >
-      {/* Gradient ring */}
+      {/* El aro. El hueco hasta la foto es un agujero, no un borde de color:
+          este círculo se coloca sobre fondos que no controla. */}
       <div
         style={{
           width: borderSize,
           height: borderSize,
           borderRadius: "50%",
-          background: VIBRA_GRADIENT,
+          position: "relative",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: 3,
-          boxSizing: "border-box",
           flexShrink: 0,
         }}
       >
-        {/* Inner circle */}
+        <AvatarRing foto={foto} />
         <div
           style={{
-            width: "100%",
-            height: "100%",
+            width: foto,
+            height: foto,
             borderRadius: "50%",
-            border: "2px solid rgb(10,10,14)",
             overflow: "hidden",
             background: "#1a1a2e",
             display: "flex",

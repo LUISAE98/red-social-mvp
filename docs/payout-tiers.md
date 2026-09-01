@@ -164,7 +164,48 @@ Antes de activar la monetización, y otra vez antes del primer retiro:
 
 ---
 
-## Referencia: el coste que hay detrás
+## Lo que cuesta cada retiro
+
+> Añadido el 2026-08-31. El tarifario vivía solo en `docs/stripe-integracion.md` §8-sexies,
+> y este documento —que es la fuente de verdad de los tramos— no lo tenía.
+
+```
+1.50 USD fijo  +  0.25% transfronteriza  +  1% conversión a moneda local
+```
+
+**Transferencia local**, los 46 del tramo estándar:
+
+| Retiro | Fijo | Transfronteriza | Conversión | Coste | % del retiro |
+|---|---|---|---|---|---|
+| 100 USD | 1.50 | 0.25 | 1.00 | 2.75 | **2.75%** |
+| **300 USD** ← mínimo | 1.50 | 0.75 | 3.00 | **5.25** | **1.75%** |
+| 500 USD | 1.50 | 1.25 | 5.00 | 7.75 | 1.55% |
+| 1,000 USD | 1.50 | 2.50 | 10.00 | 14.00 | 1.40% |
+
+**Wire**, los 27 del tramo caro. 25 USD fijos por envío:
+
+| Retiro | Coste | % del retiro |
+|---|---|---|
+| 300 USD | 25.00 | 8.33% |
+| **500 USD** ← mínimo | 25.00 | **5.00%** |
+| 1,000 USD | 25.00 | 2.50% |
+
+Ahí está el porqué de los dos mínimos: subirlo de 300 a 500 ahorra **3.33 puntos** en wire y
+solo **0.29** en local.
+
+⚠️ **La transfronteriza no es 0.25% en todos.** México, Estados Unidos, Reino Unido y Canadá
+están en el tramo barato. Hay países al 1% y Perú al 1.25%, lo que sobre 300 USD lleva el
+coste de 1.75% a 2.50% y 2.75%.
+
+⚠️ Stripe cobra estas comisiones **de la cuenta financiera**, no las descuenta del envío. Hace
+falta saldo para el pago Y para su comisión, o el envío falla.
+
+🔴 **De Wallbit no hay ni una tarifa medida.** Sus 12 países llevan 25% y 300 USD por analogía
+con la transferencia local de Stripe. Ver el pendiente 3 de `paiseswallbit.md`.
+
+---
+
+## Referencia: el coste total, payin más payout
 
 Peor caso, comprador con tarjeta internacional (payin 4.4%):
 
@@ -174,6 +215,14 @@ Peor caso, comprador con tarjeta internacional (payin 4.4%):
 | Transferencia cara, a 500 USD | 10.40% – 11.40% | **18.60% – 19.60%** |
 
 Con tarjeta estadounidense (payin 2.9%) el coste baja 1.5 puntos en todos.
+
+⚠️ **Estas dos filas se calcularon con el payout de Connect** (~0.5%), no con el 1.75% real de
+Global Payouts. El extremo bajo del estándar debería ser **6.15%**, no 4.90%, y lo que le queda
+a Vibra baja algo más de un punto. Rehacer con las cifras de arriba.
+
+⚠️ **El desglose de los «doce niveles de coste» del 3.40% al 14.73% no está escrito en ningún
+documento del repo.** Solo sobrevivió el rango, citado más arriba en este mismo archivo. Si
+hay que volver a justificar los tramos, hay que rehacerlo desde la tabla oficial de Stripe.
 
 ---
 
@@ -210,5 +259,5 @@ asiento no se puede rechazar; entre las dos comisiones, la benigna para él es l
 
 ### Pendiente
 
-🔴 Los **73 países sin ruta de pago** siguen pudiendo vender. Ya se les avisa en Finanzas, pero
+🔴 Los **58 países sin ruta de pago** siguen pudiendo vender. Ya se les avisa en Finanzas, pero
 la decisión de fondo —impedir monetizar o buscar otra vía— sigue abierta.

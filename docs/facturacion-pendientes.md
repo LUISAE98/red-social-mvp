@@ -20,6 +20,18 @@
 
 ## Actualización Stripe (2026-07-30)
 
+> ⚠️ **Instantánea de julio, conservada como historial. Varias cifras de aquí abajo ya no rigen**
+> y la advertencia de la cabecera no las cubre, porque no hablan de vendedor directo sino de
+> números:
+>
+> | Dice abajo | Vigente | Dónde manda |
+> |---|---|---|
+> | Comisión **23%** | **25%**, o 30% en ruta cara | `lib/wallet/payoutTiers.ts` |
+> | Mínimo de retiro **$2.000 MXN** | **300 USD**, o 500 en ruta cara | `lib/wallet/payoutTiers.ts` |
+> | **Stripe Connect** | **Global Payouts** | `backend/src/payments/stripe/globalPayoutsRecipient.ts` |
+> | Connect trae el KYC, «se elimina Didit» | **Didit**, reintegrado el 2026-08-27 | `backend/src/kyc.ts` |
+> | Liquidación en **MXN** | Denominación **USD**, entidad Vibra On, LLC | `docs/stripe-integracion.md` |
+
 **Migración: 100% de Mercado Pago → Stripe** (confirmado). Es el proyecto grande sobre el que va la facturación.
 
 - **Modelo aceptado** por Stripe (streaming + creadores, sin contenido sexual). Usaremos **Stripe Connect, plan "Tú controlas los precios"**. ⚠️ La nota original decía *Vibra como vendedor directo (Merchant of Record)*; **desde el 2026-08-26 Vibra es intermediaria** y cobra por cuenta del creador.

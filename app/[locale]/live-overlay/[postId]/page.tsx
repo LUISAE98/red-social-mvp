@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { ActiveSuperComment } from "@/lib/posts/types";
@@ -21,9 +22,9 @@ function SCCard({ sc, fadingOut }: { sc: ActiveSuperComment; fadingOut: boolean 
   // Widget autónomo — diseñado para un Browser Source de ~700×160 en OBS.
   // El creador lo posiciona libremente en su escena; no depende de un canvas 1920×1080.
   const { format: formatMoney } = usePriceFormat();
+  // El hueco lo dicta la medida estándar del aro, no un número a ojo.
   const SIZE = 56;
-  const RING = 3;
-  const INSET = 4;
+  const { foto, sobresale: INSET } = medidaAroEnCaja(SIZE);
   return (
     <div style={{
       width: "100%",
@@ -53,12 +54,7 @@ function SCCard({ sc, fadingOut }: { sc: ActiveSuperComment; fadingOut: boolean 
               <span style={{ fontSize: 22, color: "#fff", fontWeight: 700 }}>{sc.username.charAt(0).toUpperCase()}</span>
             </div>
           )}
-          <div style={{
-            position: "absolute", inset: 0, borderRadius: "50%",
-            background: sc.color,
-            WebkitMaskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
-            maskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
-          }} />
+          <AvatarRing foto={foto} color={sc.color} />
         </div>
         {/* Nombre + donó */}
         <div style={{ flex: 1, minWidth: 0 }}>

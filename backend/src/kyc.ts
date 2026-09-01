@@ -102,7 +102,12 @@ function buildCallback(origin: unknown, locale: unknown): string {
       // origin inválido → usamos el dominio oficial
     }
   }
-  return `${base}/${safeLocale}/wallet/finanzas`;
+  /**
+   * ⚠️ El `?paso=identidad` NO es decorativo: es lo que hace que al volver se reabra el
+   * panel de registro donde lo dejó. Sin él, Didit lo soltaba en una pantalla de Finanzas
+   * idéntica a la que dejó, sin decirle qué acababa de pasar ni qué sigue.
+   */
+  return `${base}/${safeLocale}/wallet/finanzas?paso=identidad`;
 }
 
 // ────────────────────────────────────────────────────────────────────────────

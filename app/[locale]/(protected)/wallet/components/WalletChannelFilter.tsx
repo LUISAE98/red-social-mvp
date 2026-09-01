@@ -3,22 +3,21 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { IconButton } from "@/components/ui";
 import { useTranslations } from "next-intl";
+import { AvatarRing, medidaAro } from "@/components/ui/AvatarRing";
 import Image from "next/image";
 import type { WalletChannel } from "@/lib/wallet/walletSubscriptionData";
 
 // Aro de Vibra (mismo gradiente de marca que el aro de historias).
-const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const AVATAR = 60; // diámetro del avatar (+30%)
-const RING_PAD = 2.4; // grosor del aro de Vibra (+20% sobre 2)
-const RING_GAP = 2.5; // hueco entre el aro y la foto
 /**
- * Cuánto sobresale el aro por fuera de la foto.
+ * Cuánto aire necesita el carrusel arriba y abajo.
  *
- * El aro va FUERA y no comiendo la foto, que es lo que antes obligaba a
- * cambiarle el tamaño a la imagen. Al estar posicionado en absoluto no ocupa
- * sitio en la fila, así que no descoloca a los avatares de al lado.
+ * Se calcula, no se elige: es lo que sobresale el aro en el punto alto del
+ * rebote. Puesto a ojo, subir el pop recortaría los avatares sin avisar.
  */
-const RING_OUT = RING_PAD + RING_GAP;
+const POP_MAX = 1.14;
+const SCROLL_PAD = Math.ceil((AVATAR / 2 + medidaAro(AVATAR).sobresale) * POP_MAX - AVATAR / 2);
+
 const STACK_OVERLAP = 44; // encimado de los avatares de "Todos" (más angosto)
 const STACK_MAX = 4; // avatares visibles en el grupo "Todos"
 const LAPTOP_MIN_WIDTH = 820;
@@ -73,11 +72,10 @@ function Avatar({
       className={ring ? "chf-avatar chf-on" : "chf-avatar"}
       style={{ width: size, height: size, position: "relative", flexShrink: 0 }}
     >
-      {/* El aro vive siempre en el árbol; lo que cambia es cuánto se ha
-          dibujado. Montarlo y desmontarlo dejaría la salida sin animación. */}
-      <span className="chf-ring" aria-hidden="true">
-        <span className="chf-ring-fill" />
-      </span>
+      {/* El aro no se monta y desmonta: siempre está, y lo que cambia es
+          cuánto lleva dibujado. Así hay animación también AL QUITARLO — un
+          elemento que sale del árbol no puede animar su salida. */}
+      <AvatarRing foto={size} progreso={ring ? 1 : 0} duracionMs={460} />
       <div className="chf-photo">{media}</div>
 
       {/* ⚠️ El bloque va AQUI, no en el componente de arriba. styled-jsx
@@ -85,70 +83,37 @@ function Avatar({
           etiqueta <style>, y solo a esos les aplica las reglas. Puesto fuera,
           el aro no recibia ni una linea de este CSS. */}
       <style jsx>{`
-        /* El aro se dibuja FUERA de la foto, en su propia capa. Al ir en
-           posicion absoluta no ocupa sitio: encenderlo no mueve ni un avatar
-           de la fila.
-
-           Aparece BARRIENDO, como una barra de carga circular, y al quitarlo
-           hace el mismo recorrido al reves. Por eso nunca se desmonta: un
-           elemento que sale del arbol no puede animar su salida. */
-        .chf-ring {
-          position: absolute;
-          inset: -${RING_OUT}px;
-          border-radius: 50%;
-          pointer-events: none;
-
-          /* UNA mascara por elemento. Componer dos en el mismo elemento
-             —mask-composite— fue lo que dejo el aro invisible. */
-          -webkit-mask: conic-gradient(from -90deg, #000 var(--chf-sweep, 0%), transparent 0);
-          mask: conic-gradient(from -90deg, #000 var(--chf-sweep, 0%), transparent 0);
-
-          opacity: 0;
-          transform: scale(0.82);
-          transition:
-            --chf-sweep 460ms cubic-bezier(0.22, 1, 0.36, 1),
-            opacity 160ms ease,
-            transform 460ms cubic-bezier(0.34, 1.56, 0.64, 1);
+        /* EL POP. El avatar entero crece y vuelve. Se dispara al añadirse la
+           clase, o sea justo al seleccionar. */
+        .chf-on {
+          animation: chf-pop 460ms cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes chf-pop {
+          0% {
+            transform: scale(1);
+          }
+          38% {
+            transform: scale(${POP_MAX});
+          }
+          100% {
+            transform: scale(1);
+          }
         }
 
-        /* El hijo pone el color y el agujero del centro: eso es lo que lo
-           convierte en aro y no en disco. */
-        .chf-ring-fill {
-          display: block;
-          width: 100%;
-          height: 100%;
-          border-radius: 50%;
-          background: ${VIBRA_RING};
-          -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - ${RING_PAD}px), #000 0);
-          mask: radial-gradient(farthest-side, transparent calc(100% - ${RING_PAD}px), #000 0);
-        }
-
-        .chf-on .chf-ring {
-          --chf-sweep: 100%;
-          opacity: 1;
-          transform: scale(1);
-        }
-
-        /* La foto se aparta un poco para dejarle sitio al aro. Es un
-           transform, no un cambio de medidas: la imagen sigue siendo la misma
-           y next/image no vuelve a pedirla. Ese cambio de tamano era lo que
-           ponia el avatar en negro al seleccionarlo. */
+        /* La foto NO cambia de tamaño. Antes encogía para hacerle sitio al
+           aro, y como next/image lleva las medidas en los atributos, eso la
+           hacía pedir otra imagen y se veía el fondo negro de debajo. El aro
+           va por fuera y no le quita ni un píxel. */
         .chf-photo {
           width: 100%;
           height: 100%;
           border-radius: 50%;
           overflow: hidden;
-          transform: scale(1);
-          transition: transform 460ms cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        .chf-on .chf-photo {
-          transform: scale(0.9);
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .chf-ring,
-          .chf-photo {
-            transition: none;
+          .chf-on {
+            animation: none;
           }
         }
       `}</style>
@@ -356,7 +321,7 @@ export default function WalletChannelFilter({
           /* ⚠️ overflow-x: auto hace que el navegador calcule tambien
              overflow-y: auto, asi que esto recorta arriba y abajo. El aro
              sobresale de la foto, y sin este aire se lo come. */
-          padding: ${RING_OUT + 2}px 2px;
+          padding: ${SCROLL_PAD}px 2px;
           /* Solo scroll horizontal: el navegador no dispara scroll/refresh vertical
              al arrastrar aquí (axis-lock también en usePullToRefresh). */
           touch-action: pan-x;

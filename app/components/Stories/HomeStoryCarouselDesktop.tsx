@@ -7,11 +7,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { useTranslations } from "next-intl";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
+
+/** La caja del avatar del carrusel. No cambia lleve aro o no. */
+const CAJA_AVATAR = 84;
+const FOTO_AVATAR = medidaAroEnCaja(CAJA_AVATAR).foto;
 import StoryViewer, { desktopPanelSize } from "./StoryViewer";
 import ReelLiveSlide from "@/components/reels/ReelLiveSlide";
 import type { ReelLivePost } from "@/lib/reels/reelItems";
 
-const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const LABELS: Record<StoryType, string> = { saludo: "Saludo", consejo: "Consejo" };
 const FONT = 'inherit';
 const NEXT_SCALE = 0.82;
@@ -81,18 +85,21 @@ function GroupPreview({ group }: { group: CarouselGroup }) {
           dentro llega al ojo bastante más pequeño de lo que dicen estos números.
           Por eso van holgados. */}
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
-        <div style={{ position: "relative", width: 84, height: 84 }}>
-          <div style={{ position: "absolute", inset: 7, borderRadius: "50%", overflow: "hidden" }}>
+        <div style={{ position: "relative", width: CAJA_AVATAR, height: CAJA_AVATAR }}>
+          <div
+            style={{
+              position: "absolute",
+              inset: (CAJA_AVATAR - FOTO_AVATAR) / 2,
+              borderRadius: "50%",
+              overflow: "hidden",
+            }}
+          >
             <FillImage
               src={photoURL}
               fallback={<div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />}
             />
           </div>
-          <div style={{
-            position: "absolute", inset: 0, borderRadius: "50%", background: VIBRA_RING,
-            WebkitMaskImage: "radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 4px))",
-            maskImage: "radial-gradient(farthest-side, transparent calc(100% - 4px), white calc(100% - 4px))",
-          }} />
+          <AvatarRing foto={FOTO_AVATAR} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
           <span style={{ color: "#fff", fontSize: 17, fontWeight: 500, fontFamily: FONT, maxWidth: 170, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "center" }}>

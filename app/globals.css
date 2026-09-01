@@ -1,22 +1,5 @@
 @import "tailwindcss";
 
-/**
- * Cuanto lleva dibujado el aro del filtro de Movimientos, de 0% a 100%.
- *
- * Va registrada porque una propiedad personalizada SIN registrar es texto para
- * el navegador: no sabe interpolar entre "0%" y "100%" y el valor salta de golpe.
- * Declarando su tipo, la transicion existe y el aro se dibuja barriendo en vez
- * de aparecer entero.
- *
- * Vive aqui y no en el componente porque `@property` es una regla de hoja de
- * estilos: dentro de un <style jsx> con ambito puede no llegar al registro.
- */
-@property --chf-sweep {
-  syntax: "<percentage>";
-  inherits: false;
-  initial-value: 0%;
-}
-
 :root {
   --background: #000000;
   --foreground: #ffffff;
@@ -609,4 +592,36 @@ body::-webkit-scrollbar-button {
 :where(a[href], button, input, textarea, select, [tabindex]:not([tabindex="-1"])):focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
+}
+
+/* Botón de acción con el degradado ANIMADO de la marca — el efecto de la palabra
+   "Vibra". Mismo contrato que `VibraGradientText`: mismos tres colores, mismo ángulo,
+   mismo background-size de 220% y los mismos 4.5s. Ahí se aplica al texto con
+   background-clip; aquí al fondo, porque el texto del botón va en blanco encima.
+
+   Vive en la hoja compartida y no en un estilo inline porque necesita @keyframes y una
+   media query, que un objeto de estilo de React no puede expresar. */
+.vbBrandFlowBtn {
+  background: linear-gradient(100deg, #ff2fb3 0%, #a855f7 45%, #4f46ff 100%);
+  background-size: 220% 220%;
+  animation: vibraTextFlow 4.5s ease-in-out infinite;
+}
+
+@keyframes vibraTextFlow {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Respeta a quien pidió menos movimiento: el degradado se queda quieto, pero el botón
+   conserva sus colores. Igual que en VibraGradientText. */
+@media (prefers-reduced-motion: reduce) {
+  .vbBrandFlowBtn {
+    animation: none;
+    background-position: 50% 50%;
+  }
 }

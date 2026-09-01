@@ -58,18 +58,31 @@ al creador ni CFDI**.
 
 ## 3. Comisiones de Stripe USA
 
-| Concepto | Tarifa |
-|---|---|
-| Procesamiento (tarjeta nacional) | 2.9% + $0.30 |
-| Recargo tarjeta no estadounidense | +1.5% |
-| Conversión de divisa | +1% |
-| Radar Standard | $0.05 / transacción |
-| Payout a banco propio | gratis |
-| Payout a cuenta conectada | 0.25% + $0.25 |
-| Payout transfronterizo | +0.25% |
-| Cuenta conectada activa | $2 / mes |
-| Disputa | $15 |
-| Liquidación multi-moneda | 1% |
+> ⚠️ **Actualizado el 2026-08-31 con la BASE de cada tarifa.** Sin ella la lista se lee mal:
+> el 2.9% no es sobre la base del creador sino sobre el total cobrado a la tarjeta, y el 1%
+> de conversión del payout no es sobre la base sino sobre el importe enviado.
+
+| Concepto | Tarifa | Se calcula sobre |
+|---|---|---|
+| Procesamiento (tarjeta nacional) | 2.9% + $0.30 | el % sobre el **total cobrado a la tarjeta**; el fijo, por transacción |
+| Recargo tarjeta no estadounidense | +1.5% | total cobrado a la tarjeta |
+| Conversión de divisa en el cobro | +1% | total cobrado a la tarjeta |
+| Radar Standard | $0.05 | por transacción |
+| Payout a banco propio | gratis | — |
+| **Global Payouts, fijo por envío** | **$1.50** | por envío |
+| **Global Payouts, transfronteriza** | **+0.25%** | **importe enviado** (0.25% en MX·US·GB·CA, 1% en otros, 1.25% en PE) |
+| **Global Payouts, conversión a moneda local** | **+1%** | **importe enviado** |
+| Wire, en vez del fijo de $1.50 | $25 | por envío |
+| Disputa | $15 | por contracargo |
+| Liquidación multi-moneda | 1% | importe liquidado |
+
+🗑️ **`Payout a cuenta conectada 0.25% + $0.25` y `Cuenta conectada activa $2/mes` se quitaron
+de esta lista.** Son tarifas de **Connect**, que no usamos: las transferencias transfronterizas
+de Connect solo alcanzan US·UK·EEE·CA·CH y México queda fuera. Ver §8-sexies.1. Si alguna nota
+vieja cita esas cifras, o un payout de 0.72%, está superada.
+
+⚠️ **Queda por confirmar** si Global Payouts cobra alguna cuota mensual por destinatario dado
+de alta, equivalente a la cuenta activa de Connect. No está verificado en ningún sitio.
 
 ### Cargo fijo al comprador: por qué $0.40 y no $0.35
 
@@ -108,27 +121,44 @@ cargo fijo **y** el FX; lo que absorbe es solo la diferencia contra lo que se ll
 | Nacional (EE.UU.) | 50.40 | 1.81 | 0.40 | **1.41 = 2.82%** |
 | Extranjero | 51.41 | 3.13 | 1.41 | **1.72 = 3.44%** |
 
-**Payout** (mínimo $300 USD; el creador recibe el 75% de la base)
+**Payout** (retiro de $300 USD, que corresponde a una base de $400 porque el creador
+recibe el 75%)
 
-| | Costo | % de la base |
-|---|---|---|
-| Nacional | $1.00 | 0.25% |
-| Transfronterizo | $1.75 | 0.44% |
-| Cuenta activa | $2 / mes | 0.50% |
+> ⚠️ **Rehecho el 2026-08-31.** Estas filas estaban calculadas con **Connect** ($1.00 y $1.75
+> sobre 300 USD), que no usamos. Con Global Payouts el coste es entre tres y siete veces mayor,
+> y la diferencia es el **1% de conversión**: Connect movía dólares a dólares, Global Payouts
+> convierte a moneda local en cada pago.
+
+| Destino | Desglose | Costo | % de la base |
+|---|---|---|---|
+| Creador en EE. UU. (sin conversión ni transfronteriza) | $1.50 | $1.50 | **0.38%** |
+| Creador en México y los otros 45 del tramo local | $1.50 + 0.25%·300 + 1%·300 | $5.25 | **1.31%** |
+| Creador en país de solo wire (retiro mínimo $500, base $666.67) | $25 fijos | $25.00 | **3.75%** |
 
 ### Totales
 
-| Base | Nacional | Extranjero |
-|---|---|---|
-| $10 | **3.25%** | **4.04%** |
-| $50 | **3.57%** | **4.38%** |
+> ⚠️ **Recalculados el 2026-08-31.** Los anteriores (3.25% / 4.04% / 3.57% / 4.38%) sumaban el
+> payout de Connect más la cuenta activa. Estos suman el payin absorbido de las tablas de
+> arriba más el payout de Global Payouts a un creador mexicano (1.31% de la base).
 
-**Neto contra la comisión del 25%:** 21.4–21.8% nacional · 20.6–21.0% extranjero.
+| Base | Comprador nacional | Comprador extranjero |
+|---|---|---|
+| $10 | **3.81%** | **4.41%** |
+| $50 | **4.13%** | **4.75%** |
+
+**Neto contra la comisión del 25%:** 20.9–21.2% nacional · 20.3–20.6% extranjero.
+
+Con un creador estadounidense el payout baja de 1.31% a 0.38%, casi un punto menos.
 
 > La versión anterior daba 3.83% / 6.66% y un neto de 18.34% para extranjero. La diferencia
 > son ~2.3 puntos, que a 100M MXN/mes son **~2.3M MXN al mes**.
 
-### Reparto de 100 puntos (retiro de $5,000 MXN, todo incluido)
+### Reparto de 100 puntos (todo incluido)
+
+> ⚠️ **Sin rehacer.** Esta tabla se calculó con un retiro de $5,000 MXN —el mínimo de antes del
+> corte a USD, que hoy son 300 y 500 USD— y con el payout de Connect. Los órdenes de magnitud
+> y el ranking de lo que más pesa siguen valiendo; las cifras de la columna «Stripe» hay que
+> subirlas alrededor de un punto. Rehacer cuando haga falta defenderla.
 
 100 puntos = base del creador. **El creador siempre se lleva 75.**
 
@@ -1405,40 +1435,72 @@ fiscales primero y sello después. El backend ya lo exige:
 
 Decidido el 2026-08-27. Fuente de verdad: **`docs/payout-tiers.md`**.
 
+> ⚠️ **Actualizado el 2026-08-31.** Esta sección tenía los conteos ANTERIORES a que entrara
+> Wallbit (45 / 29 / 73). Ecuador, Panamá y El Salvador figuraban como transferencia cara al
+> 30% cuando en el código ya eran Wallbit al 25%, y Brasil, Argentina y Colombia como «sin
+> ruta» cuando ya se les paga. Las listas de abajo se generaron desde
+> `backend/src/wallet/payoutTiers.ts`, que es quien decide.
+
 | Grupo | Comisión | Mínimo | Países | Le queda a Vibra |
 |---|---|---|---|---|
-| **Estándar** | **25%** | **300 USD** | 45 | 18.14% – 20.10% |
-| **Transferencia cara** | **30%** | **500 USD** | 29 | 18.60% – 19.60% |
-| Sin ruta de pago | — | — | 73 | — |
+| **Estándar** — transferencia local de Stripe | **25%** | **300 USD** | 46 | 18.14% – 20.10% |
+| **Transferencia cara** — solo wire de Stripe | **30%** | **500 USD** | 27 | 18.60% – 19.60% |
+| **Wallbit** con retiro a banco local | **25%** | **300 USD** | 8 | — |
+| **Wallbit** sin retiro local ⚠️ | **25%** | **300 USD** | 4 | — |
+| Sin ruta de pago | — | — | 58 | — |
 
-**Estándar (45)** — transferencia bancaria local:
+**89 países pagables de 147.** Los 4 territorios que cobran con la cuenta de otro país
+(`PR` y `VI` como Estados Unidos, `IC` y `EA` como España) van dentro del estándar.
 
-```
-US · AT BE BG CY CZ DE EE ES FI FR GB GR HR IE IS IT LT LU LV MT NL PT SI SK
-CA HU MX NO SE · DK ID JM MA NZ PL SG TT · MC SM · RO · AU CR DO · PE
-```
-
-**Transferencia cara (29)** — wire, 25 USD fijos:
+**Estándar (46)** — transferencia bancaria local, 1.50 USD fijos por envío:
 
 ```
-EC PA SV · HK TH ZA · TR
-AE AG AL BA BN BT BW EG GT JO JP KW LC LK MD MN MY PH QA RS TW VN
+MX AT BE BG CY CZ DE DK EE ES FI FR GR HR HU IE IT LT LU LV MT NL PL PT RO SE SI SK
+CR DO NO IS AU ID NZ SG CA US PE GB MA TT JM MC SM CI
 ```
 
-**Sin ruta de pago (73)** — venden pero no se les puede pagar. Incluye Brasil, Argentina,
-Colombia, Chile, Uruguay, Paraguay, Bolivia, Corea del Sur, Arabia Saudita, Nigeria.
+**Transferencia cara (27)** — wire, 25 USD fijos por envío:
 
 ```
-AD AI AR AS AZ BM BO BQ BR BZ CC CI CL CO CX DM EA FJ FM FO GD GF GG GI GL GP GU HN HT IC
-JE KH KI KN KR KY ME MH MP MQ MS MV NC NF NG NI NP NR NU PF PG PM PN PR PY RE SA SB SJ SR
-TC TK TO TV UY VA VC VG VI VU WF WS YT
+BA HK QA KW JP MY PH TH JO TW ZA EG TR RS AL MD VN AE LC AG LK BT BN MN BW NG KH
 ```
+
+**Wallbit con retiro a banco local (8)** — cobra en dólares y lo pasa a su banco. Panamá,
+Ecuador y El Salvador están dolarizados, así que ahí ni siquiera hay conversión:
+
+```
+AR BR BO CO GT PA EC SV
+```
+
+**Wallbit sin retiro local (4)** — ⚠️ cobra en dólares y su única salida documentada es
+**cripto**. Se incluyen por decisión de producto del 2026-08-27 porque la alternativa era no
+pagarles nada, y se les avisa en el alta antes de que acumulen saldo:
+
+```
+CL UY PY HN
+```
+
+**Sin ruta de pago (58)** — venden y pagan el impuesto de su país, pero nadie les puede pagar.
+Los únicos con mercado real son Nicaragua, Corea del Sur, Arabia Saudita, Nepal, Haití, Papúa
+Nueva Guinea y Azerbaiyán; el resto son islas y territorios de menos de cien mil habitantes:
+
+```
+NI GU PG NC FJ ME KR SA PF TO SB VU WS KI NR TV NU WF FM MH AS MP SR BZ GD KY BM TC VG HT
+BQ VC KN DM AI MS GL PM JE AD FO GI VA GG SJ AZ NP MV NF CX CC TK PN GF YT GP MQ RE
+```
+
+🚨 **Un país sin fila NO cae al 25% por defecto, es no pagable.** Tiene que fallar
+ruidosamente: si cayera al estándar, el creador vería un mínimo alcanzable para un dinero que
+nadie le puede mandar.
 
 ⚠️ **La lista vive en DOS sitios y tienen que coincidir**, igual que la tabla de impuestos y el
 motor fiscal: el **backend** decide (es quien calcula la comisión que se congela en el asiento) y
 el **frontend** solo muestra (el «ganarás X», el mínimo en la barra de progreso). Un test de
 paridad los compara, porque si se desalinean el creador ve una cifra y cobra otra.
 
+🔴 **De Wallbit no sabemos lo que cobra.** El 25% y los 300 USD se les asignaron por analogía
+con la transferencia local de Stripe, no porque se haya medido su tarifa. Lo único documentado
+es un mínimo de 2 USD en Argentina. Ver el pendiente 3 de `paiseswallbit.md`.
 ### 8-octies.5 Los bloques, en orden
 
 | | Bloque | Depende de |

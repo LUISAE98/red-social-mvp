@@ -36,6 +36,10 @@ import {
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useTranslations, useLocale } from "next-intl";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
+
+/** Caja del avatar del comprador en la tarjeta de revisión. */
+const CAJA_COMPRADOR = 54;
 import { ReadAlongText } from "@/components/tts/ReadAlongText";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
@@ -45,8 +49,6 @@ import { useCreatorNetRate } from "@/lib/wallet/useCreatorNetRate";
 const fontStack =
   'inherit';
 
-/** El aro de las historias. Mismo valor que en StoryCircle y StoryRingAvatar. */
-const VIBRA_GRADIENT = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 
 /** Guiones del prompter, indexados por encargo. Solo en el dispositivo. */
 const PROMPTER_STORAGE_KEY = "vibra.greetingPrompter.v1";
@@ -1529,12 +1531,11 @@ export default function GreetingReviewOverlay({
 
   const buyerStoryCard = (
     <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-      {/* Aro de Vibra. No es un relleno: es un disco de degradado enmascarado a
-          un anillo de 3px, y la foto va aparte con inset 6. Así, entre el aro y
-          la foto quedan 3px de aire en lugar de un borde de color. */}
-      <div style={{ position: "relative", width: 54, height: 54, flexShrink: 0 }}>
+      {/* El hueco entre el aro y la foto es aire, no un borde de color: esta
+          tarjeta se pinta sobre fondos que no controla. */}
+      <div style={{ position: "relative", width: CAJA_COMPRADOR, height: CAJA_COMPRADOR, flexShrink: 0 }}>
         <div style={{
-          position: "absolute", inset: 6, borderRadius: "50%",
+          position: "absolute", inset: medidaAroEnCaja(CAJA_COMPRADOR).sobresale, borderRadius: "50%",
           overflow: "hidden", background: "rgba(255,255,255,0.1)",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
@@ -1546,15 +1547,7 @@ export default function GreetingReviewOverlay({
             </span>
           )}
         </div>
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute", inset: 0, borderRadius: "50%",
-            background: VIBRA_GRADIENT,
-            WebkitMaskImage: "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
-            maskImage: "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
-          }}
-        />
+        <AvatarRing foto={medidaAroEnCaja(CAJA_COMPRADOR).foto} />
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>

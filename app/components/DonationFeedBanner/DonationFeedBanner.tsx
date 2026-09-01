@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
 import { SETTLEMENT_CURRENCY, DONATION_MIN_AMOUNT_USD } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -41,7 +42,6 @@ type Props = {
 
 type VideoDimensions = { w: number; h: number } | null;
 
-const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 
 function desktopPanelSize() {
   if (typeof window === "undefined") return { width: 380, height: 675 };
@@ -334,16 +334,15 @@ export default function DonationFeedBanner({
     const controlsTop = typeof safeTop === "number" ? safeTop + 28 : `calc(${safeTop} + 28px)`;
     const btnPadBottom = typeof safeBottom === "string" ? `max(8px, ${safeBottom})` : "8px";
     const avatarSz = sz === 20 ? 40 : 54;
-    const avatarInset = sz === 20 ? 5 : 6;
+    // El hueco de la foto ya no se pone a ojo: es lo que ocupa el aro.
+    const avatarInset = medidaAroEnCaja(avatarSz).sobresale;
 
     const avatarRing = (
       <div style={{ position: "relative", width: avatarSz, height: avatarSz, flexShrink: 0 }}>
         <div style={{ position: "absolute", inset: avatarInset, borderRadius: "50%", overflow: "hidden", background: "rgba(255,255,255,0.1)" }}>
           {profilePhoto ? <Image src={profilePhoto} alt="" fill style={{ objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />}
         </div>
-        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: VIBRA_RING,
-          WebkitMaskImage: "radial-gradient(farthest-side, transparent calc(100% - 2.5px), white calc(100% - 2.5px))",
-          maskImage: "radial-gradient(farthest-side, transparent calc(100% - 2.5px), white calc(100% - 2.5px))" }} />
+        <AvatarRing foto={medidaAroEnCaja(avatarSz).foto} />
       </div>
     );
 

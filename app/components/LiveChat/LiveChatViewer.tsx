@@ -5,6 +5,7 @@ import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
 import { useTranslations, useLocale } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
@@ -575,8 +576,9 @@ export default function LiveChatViewer({
 // ── Sub-components ─────────────────────────────────────────────────────────
 
 function Avatar({ url, name, size, ringColor }: { url?: string | null; name: string; size: number; ringColor?: string }) {
-  const INSET = ringColor ? 3 : 0;
-  const RING = 2;
+  // El hueco lo dicta la medida estándar del aro, no un número a ojo.
+  const { foto, sobresale } = medidaAroEnCaja(size);
+  const INSET = ringColor ? sobresale : 0;
   return (
     <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       {url ? (
@@ -591,12 +593,7 @@ function Avatar({ url, name, size, ringColor }: { url?: string | null; name: str
         </div>
       )}
       {ringColor && (
-        <div style={{
-          position: "absolute", inset: 0, borderRadius: "50%",
-          background: ringColor,
-          WebkitMaskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
-          maskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
-        }} />
+          <AvatarRing foto={foto} color={ringColor} />
       )}
     </div>
   );

@@ -20,6 +20,7 @@ import { IconButton } from "@/components/ui";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
 import { ReadAlongText } from "@/components/tts/ReadAlongText";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -52,7 +53,6 @@ import ScrubBar from "./ScrubBar";
 const BOTTOM_BREATHING_PX = 20;
 
 
-const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const FONT = "inherit";
 /** Segundos reproducidos para contar la historia como vista. */
 const VIEW_THRESHOLD_MS = 2_000;
@@ -573,7 +573,8 @@ export default function ReelStorySlide({
   const flameInset = (32 - flameIconSize) / 2;
 
   const avatarSz = compact ? 40 : 54;
-  const avatarInset = compact ? 5 : 6;
+  // El hueco de la foto ya no se pone a ojo: es lo que ocupa el aro.
+  const avatarInset = medidaAroEnCaja(avatarSz).sobresale;
   const profileHref = creator?.handle ? `/u/${creator.handle}` : null;
   // Aire por debajo de los botones. Con `safeBottom` numérico (historias en el
   // visor de círculos) no hay barra que esquivar y basta con el aire; con string
@@ -591,16 +592,7 @@ export default function ReelStorySlide({
           fallback={<div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />}
         />
       </div>
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          borderRadius: "50%",
-          background: VIBRA_RING,
-          WebkitMaskImage: "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
-          maskImage: "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
-        }}
-      />
+      <AvatarRing foto={medidaAroEnCaja(avatarSz).foto} />
     </div>
   );
 

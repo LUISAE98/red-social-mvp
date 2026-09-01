@@ -5,6 +5,11 @@ import { frasePorVoz } from "@/lib/liveChat/super-comment-service";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useTranslations , useLocale } from "next-intl";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
+
+/** Avatar del super comentario en el reproductor incrustado. */
+const SC_CAJA = 32;
+const { foto: SC_FOTO, sobresale: SC_HUECO } = medidaAroEnCaja(SC_CAJA);
 import Hls from "hls.js";
 import { auth } from "@/lib/firebase";
 import type { ActiveSuperComment } from "@/lib/posts/types";
@@ -672,21 +677,16 @@ export default function LiveInlinePlayer({
             borderInlineStart: `2px solid ${activeSC.color}`,
           }}>
             {/* Avatar con aro */}
-            <div style={{ position: "relative", width: 32, height: 32, flexShrink: 0 }}>
+            <div style={{ position: "relative", width: SC_CAJA, height: SC_CAJA, flexShrink: 0 }}>
               {activeSC.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={activeSC.avatarUrl} alt="" style={{ position: "absolute", inset: 2, borderRadius: "50%", width: "calc(100% - 4px)", height: "calc(100% - 4px)", objectFit: "cover" }} />
+                <img src={activeSC.avatarUrl} alt="" style={{ position: "absolute", inset: SC_HUECO, borderRadius: "50%", width: SC_FOTO, height: SC_FOTO, objectFit: "cover" }} />
               ) : (
-                <div style={{ position: "absolute", inset: 2, borderRadius: "50%", background: "rgba(168,85,247,0.5)", display: "grid", placeItems: "center" }}>
+                <div style={{ position: "absolute", inset: SC_HUECO, borderRadius: "50%", background: "rgba(168,85,247,0.5)", display: "grid", placeItems: "center" }}>
                   <span style={{ fontSize: 12, color: "#fff", fontWeight: 700, fontFamily: FONT }}>{activeSC.username.charAt(0).toUpperCase()}</span>
                 </div>
               )}
-              <div style={{
-                position: "absolute", inset: 0, borderRadius: "50%",
-                background: activeSC.color,
-                WebkitMaskImage: `radial-gradient(farthest-side, transparent calc(100% - 2px), white calc(100% - 2px))`,
-                maskImage: `radial-gradient(farthest-side, transparent calc(100% - 2px), white calc(100% - 2px))`,
-              }} />
+              <AvatarRing foto={SC_FOTO} color={activeSC.color} />
             </div>
             {/* Nombre + monto */}
             <div style={{ flex: 1, minWidth: 0 }}>

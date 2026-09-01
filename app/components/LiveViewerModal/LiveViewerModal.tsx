@@ -5,6 +5,7 @@ import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
 import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
@@ -1267,9 +1268,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   function renderSuperOverlay(position: "bottom" | "above-chat" | "top" = "bottom") {
     if (!activeSuperComment) return null;
     const sc = activeSuperComment;
-    const RING = 2;
-    const INSET = 3;
+    // El hueco lo dicta la medida estándar del aro, no un número a ojo.
     const SIZE = 40;
+    const { foto, sobresale: INSET } = medidaAroEnCaja(SIZE);
     const isTop = position === "top";
 
     return (
@@ -1313,12 +1314,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 <span style={{ fontSize: 16, color: "#fff", fontWeight: 700, fontFamily: FONT }}>{sc.username.charAt(0).toUpperCase()}</span>
               </div>
             )}
-            <div style={{
-              position: "absolute", inset: 0, borderRadius: "50%",
-              background: sc.color,
-              WebkitMaskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
-              maskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
-            }} />
+            <AvatarRing foto={foto} color={sc.color} />
           </div>
 
           {/* Nombre + badge donó */}

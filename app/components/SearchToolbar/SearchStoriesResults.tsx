@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
+
+/** Caja del avatar del creador. No cambia lleve aro o no. */
+const AVATAR_CAJA = 35;
+const AVATAR_FOTO = medidaAroEnCaja(AVATAR_CAJA).foto;
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
@@ -20,10 +25,6 @@ const STORY_SEARCH_PAGE_SIZE = 40;
 
 // Cuántos skeletons (rectángulos verticales) mientras carga la búsqueda.
 const STORY_SKELETON_COUNT = 12;
-
-// Aro morado de Vibra (mismo gradiente que StoryRingAvatar / preview de historias).
-const VIBRA_STORY_RING =
-  "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 
 // Cache module-level: sobrevive a desmontajes (cambios de pestaña) para no
 // recargar los resultados ni los avatares. Se limpia solo al recargar la página.
@@ -243,25 +244,27 @@ function StoryCard({
             minWidth: 0,
           }}
         >
-          {/* Avatar del creador con aro de Vibra (sin sombra, sin negro) */}
+          {/* Avatar del creador con el aro de Vibra. La caja sigue midiendo 35
+              para no descuadrar la fila: es la foto la que cede el sitio. */}
           <span
             style={{
               flexShrink: 0,
-              width: 35,
-              height: 35,
+              width: AVATAR_CAJA,
+              height: AVATAR_CAJA,
               borderRadius: "50%",
-              background: VIBRA_STORY_RING,
-              padding: 2.2,
-              boxSizing: "border-box",
+              position: "relative",
               display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
             aria-hidden="true"
           >
+            <AvatarRing foto={AVATAR_FOTO} />
             <span
               style={{
                 position: "relative",
-                width: "100%",
-                height: "100%",
+                width: AVATAR_FOTO,
+                height: AVATAR_FOTO,
                 borderRadius: "50%",
                 overflow: "hidden",
                 background: "#2a1a4a",
@@ -276,7 +279,7 @@ function StoryCard({
                   src={avatar}
                   alt={story.creatorName ?? ""}
                   fill
-                  sizes="35px"
+                  sizes={`${AVATAR_FOTO}px`}
                   style={{ objectFit: "cover" }}
                 />
               ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
 import { IconButton } from "@/components/ui";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -36,7 +37,6 @@ function desktopPanelSize(): { width: number; height: number } {
   return { width: Math.round((h * 9) / 16), height: h };
 }
 
-const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 
 export default function DonationViewer({ open, donation, profileName, profilePhoto, profileHandle, onClose, onDonate }: Props) {
   const tCommon = useTranslations("common");
@@ -287,7 +287,8 @@ export default function DonationViewer({ open, donation, profileName, profilePho
         {/* Creator header — avatar ring + name + "Donación" label */}
         {(() => {
           const avatarSz = sz === 20 ? 40 : 54;
-          const avatarInset = sz === 20 ? 5 : 6;
+          // El hueco de la foto ya no se pone a ojo: es lo que ocupa el aro.
+          const avatarInset = medidaAroEnCaja(avatarSz).sobresale;
           const headerTop = typeof safeTop === "number" ? safeTop + 36 : `calc(${safeTop} + 36px)`;
           const avatarRing = (
             <div style={{ position: "relative", width: avatarSz, height: avatarSz, flexShrink: 0 }}>
@@ -297,12 +298,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
                   : <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />
                 }
               </div>
-              <div style={{
-                position: "absolute", inset: 0, borderRadius: "50%",
-                background: VIBRA_RING,
-                WebkitMaskImage: "radial-gradient(farthest-side, transparent calc(100% - 2.5px), white calc(100% - 2.5px))",
-                maskImage: "radial-gradient(farthest-side, transparent calc(100% - 2.5px), white calc(100% - 2.5px))",
-              }} />
+              <AvatarRing foto={medidaAroEnCaja(avatarSz).foto} />
             </div>
           );
           const inner = (

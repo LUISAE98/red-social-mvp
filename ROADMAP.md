@@ -2,6 +2,19 @@
 
 > Documento maestro de lo que falta por integrar, organizado en **bloques desplegables paso a paso**.
 > Creado 2026-07-30. Fuentes de detalle: `docs/stripe-integracion.md`, `docs/facturacion-pendientes.md`, `docs/legal/fiscal-iva-isr-plataforma.md`.
+>
+> ⚠️ **Este documento es de julio de 2026 y varias decisiones cambiaron después.** Se conserva
+> porque el orden de los bloques sigue valiendo, pero antes de programar nada a partir de aquí,
+> comprobar contra la fuente de verdad. Lo que ya NO rige:
+>
+> | Dice aquí | Vigente | Dónde manda |
+> |---|---|---|
+> | Vibra vendedor directo | **Intermediación** (2026-08-26) | `docs/legal/fiscal-iva-isr-plataforma.md` |
+> | Stripe Connect | **Global Payouts** | `backend/src/payments/stripe/globalPayoutsRecipient.ts` |
+> | Stripe hace el KYC, se elimina Didit | **Didit**, reintegrado el 2026-08-27 | `backend/src/kyc.ts` |
+> | Comisión 23% | **25%**, o 30% en ruta cara | `lib/wallet/payoutTiers.ts` |
+> | Mínimo $2.000 MXN | **300 USD**, o 500 en ruta cara | `lib/wallet/payoutTiers.ts` |
+> | Entidad y moneda mexicanas | **Vibra On, LLC**, denominación USD | `docs/stripe-integracion.md` |
 > **Regla:** cada bloque se construye, se prueba y se despliega antes de pasar al siguiente. México primero; los demás países se activan por configuración.
 
 ---
@@ -31,7 +44,9 @@ PISTA DE CÓDIGO (una cosa a la vez):
 - 🔶 Todo el sistema de pagos actual es **Mercado Pago** → se migra a Stripe.
 
 ## Decisiones pendientes (no bloquean arrancar, sí antes de producción)
-- **D1** — ¿Quién absorbe el ~5% de Stripe? (23% de Vibra / comprador / creador). Afecta el ledger.
+- **D1** — ¿Quién absorbe el ~5% de Stripe? (**25%** de Vibra / comprador / creador). Afecta el ledger.
+  ⚠️ La comisión ya no es el 23% que decía esta línea: es **25%**, o **30%** en los países de
+  ruta cara. Sale de `lib/wallet/payoutTiers.ts`, no de este documento.
 - **D2** — Reservas/holds de Stripe (preguntar en reunión).
 - **D3** — Retenciones ISR/IVA (mexicano y extranjero) → **fiscalista**.
 - **D4** — KYC internacional: ¿el creador extranjero necesita **LLC US + EIN** o basta banco US (Wallbit/Takenos)? → probar.
@@ -63,14 +78,23 @@ PISTA DE CÓDIGO (una cosa a la vez):
 - Eventos: `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`.
 - **Entrega:** reemplaza `mpWebhook` para los flujos migrados.
 
-### S5 · Connect — alta del creador
+### S5 · Connect — alta del creador — ⚠️ SUPERADO
+> **Stripe Connect se abandonó.** El alta va por **Global Payouts**
+> (`backend/src/payments/stripe/globalPayoutsRecipient.ts`), que **no** trae verificación de
+> destinatarios, así que el **KYC lo hace Didit** — no se eliminó, se reintegró el 2026-08-27
+> (`backend/src/kyc.ts`, `lib/kyc/useKyc.ts`). `stripeConnect.ts` sigue en el árbol pero no
+> lo importa nadie.
+
 - Botón en Wallet "Da de alta tu cuenta para recibir tus pagos".
 - Crear cuenta conectada + **hosted onboarding** (Stripe hace el KYC) + webhook `account.updated`.
 - Rama por país: soportado → banco local; no soportado → recomendar Wallbit/Takenos.
 - **Entrega:** creador se da de alta y queda "listo para cobrar". (Reemplaza Didit.)
 
 ### S6 · Payouts (retiro)
-- `transfer` plataforma→creador + payout a su banco. **Mínimo $2,000 MXN.**
+- `transfer` plataforma→creador + payout a su banco. **Mínimo 300 USD**, o **500 USD** en los
+  países a los que solo llega la transferencia internacional, que cuesta 25 USD fijos y a 300
+  se comería más del 8%. La cifra NO se escribe a mano en ningún sitio: sale de
+  `lib/wallet/payoutTiers.ts` (espejo en `backend/src/wallet/`). Detalle en `docs/payout-tiers.md`.
 - Cablear el flujo de "pedir retiro" (`withdrawalRequests`).
 - **Entrega:** el creador retira y le llega a su banco.
 

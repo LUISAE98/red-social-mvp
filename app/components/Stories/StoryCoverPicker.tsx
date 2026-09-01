@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
 import { useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
@@ -51,29 +52,27 @@ function storyThumb(story: StoryDoc): string | null {
 
 const CIRCLE_SIZE = 60;
 const RING_SIZE = CIRCLE_SIZE + 5; // 2.5px ring padding each side
-const VIBRA_GRADIENT =
-  "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 
-// Outer wrapper — provides the colored ring via background + padding
-const ringWrap = (selected: boolean): React.CSSProperties => ({
+/** La foto, una vez descontado lo que ocupa el aro. */
+const FOTO = medidaAroEnCaja(RING_SIZE).foto;
+
+// La caja que ancla al aro. El aro en sí lo pinta <AvatarRing>.
+const ringWrap: React.CSSProperties = {
   width: RING_SIZE,
   height: RING_SIZE,
   borderRadius: "50%",
-  background: selected ? VIBRA_GRADIENT : "rgba(255,255,255,0.18)",
-  padding: 2.5,
-  boxSizing: "border-box",
+  position: "relative",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   flexShrink: 0,
-});
+};
 
 // Inner button — the actual circle content
 const innerBtn: React.CSSProperties = {
-  width: "100%",
-  height: "100%",
+  width: FOTO,
+  height: FOTO,
   borderRadius: "50%",
-  border: "2px solid rgb(14,14,20)",
   overflow: "hidden",
   background: "#111118",
   cursor: "pointer",
@@ -533,7 +532,8 @@ export default function StoryCoverPicker({
                   flexShrink: 0,
                 }}
               >
-                <div style={ringWrap(isCustomSelected)}>
+                <div style={ringWrap}>
+                  <AvatarRing foto={FOTO} variante={isCustomSelected ? "vibra" : "apagado"} />
                   <button
                     type="button"
                     disabled={uploading || saving}
@@ -593,7 +593,11 @@ export default function StoryCoverPicker({
                   flexShrink: 0,
                 }}
               >
-                <div style={ringWrap(!currentCoverStoryId && !currentCustomPhotoUrl)}>
+                <div style={ringWrap}>
+                  <AvatarRing
+                    foto={FOTO}
+                    variante={!currentCoverStoryId && !currentCustomPhotoUrl ? "vibra" : "apagado"}
+                  />
                   <button
                     type="button"
                     disabled={saving || uploading}
@@ -629,7 +633,8 @@ export default function StoryCoverPicker({
                       flexShrink: 0,
                     }}
                   >
-                    <div style={ringWrap(isSelected)}>
+                    <div style={ringWrap}>
+                      <AvatarRing foto={FOTO} variante={isSelected ? "vibra" : "apagado"} />
                       <button
                         type="button"
                         disabled={saving || uploading}

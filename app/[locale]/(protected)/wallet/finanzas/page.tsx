@@ -198,6 +198,8 @@ export default function WalletFinanzasPage() {
   const [mode, setMode] = useState<"net" | "gross">("net");
   const [withdrawPanelOpen, setWithdrawPanelOpen] = useState(false);
   const [confirmarRetiroOpen, setConfirmarRetiroOpen] = useState(false);
+  /** Vino del registro al panel del sello, así que al cerrarlo hay que devolverlo ahí. */
+  const [volverAlRegistro, setVolverAlRegistro] = useState(false);
   /**
    * ¿Tiene una solicitud esperando revisión?
    *
@@ -310,16 +312,35 @@ export default function WalletFinanzasPage() {
     const v = new URLSearchParams(window.location.search).get("alta");
     return v === "ok" || v === "reintentar" ? v : null;
   });
-  const [setupPanelOpen, setSetupPanelOpen] = useState(retornoAlta != null);
+
+  /**
+   * 🔁 ¿Vuelve de CUALQUIERA de los pasos que salen de Vibra?
+   *
+   * Son tres y cada uno volvía con su propia marca —o sin ninguna—, así que solo el de
+   * Stripe reabría el panel. Los otros dos dejaban al creador en una Finanzas idéntica a
+   * la que dejó, teniendo que acordarse solo de que le faltan pasos y volver a buscarlos.
+   *
+   *   `?alta=ok|reintentar` → formulario de Stripe
+   *   `?cuenta=ok`          → cuestionario de la cuenta, en Didit
+   *   `?paso=identidad`     → verificación de identidad, en Didit
+   */
+  const [vuelveDeUnPaso] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const q = new URLSearchParams(window.location.search);
+    return q.has("alta") || q.get("cuenta") === "ok" || q.get("paso") === "identidad";
+  });
+  const [setupPanelOpen, setSetupPanelOpen] = useState(vuelveDeUnPaso);
 
   // Fuera el parámetro de la barra de direcciones: ya cumplió, y si se queda, recargar
   // volvería a disparar la relectura y a reabrir el panel.
   useEffect(() => {
-    if (!retornoAlta || typeof window === "undefined") return;
+    if (!vuelveDeUnPaso || typeof window === "undefined") return;
     const url = new URL(window.location.href);
     url.searchParams.delete("alta");
+    url.searchParams.delete("cuenta");
+    url.searchParams.delete("paso");
     window.history.replaceState(null, "", url.toString());
-  }, [retornoAlta]);
+  }, [vuelveDeUnPaso]);
 
   // ── Identidad (KYC) ───────────────────────────────────────────────────────
   const kyc = useKyc(user?.uid);
@@ -447,6 +468,10 @@ export default function WalletFinanzasPage() {
     return {
       bruto: formatSettlement(r.bruto, { code: true }),
       ivaCobrado: formatSettlement(r.ivaCobrado, { code: true }),
+      /* Las tres retenciones sumadas. El desglose enseña ESTA cifra y las tres partes
+         debajo, sangradas: tres restas seguidas del mismo tamaño se leen como tres
+         castigos distintos, y en realidad son un solo dinero que va al SAT. */
+      retenidoTotal: formatSettlement(r.isr + r.iva + r.ivaComision, { code: true }),
       isr: formatSettlement(r.isr, { code: true }),
       iva: formatSettlement(r.iva, { code: true }),
       ivaComision: formatSettlement(r.ivaComision, { code: true }),
@@ -456,6 +481,11 @@ export default function WalletFinanzasPage() {
         r.ivaPorDeclarar > 0 ? formatSettlement(r.ivaPorDeclarar, { code: true }) : null,
       hayIvaCobrado: r.ivaCobrado > 0,
       hayRetenciones: r.isr > 0 || r.iva > 0 || r.ivaComision > 0,
+      /* Una por una, porque no siempre salen las tres: al extranjero que vende a México se
+         le retiene IVA pero no ISR, y su comisión va a 0% por exportación. */
+      hayIsr: r.isr > 0,
+      hayIva: r.iva > 0,
+      hayIvaComision: r.ivaComision > 0,
     };
   }, [
     disponibleNeto,
@@ -762,11 +792,58 @@ export default function WalletFinanzasPage() {
             {/* Mismo hueco que la barra: al alcanzar el mínimo, una desaparece y aparece el
                 otro. Nunca los dos. Si el alta de Stripe no está hecha, no hay botón — queda
                 a la vista el aviso morado del registro, que es lo que toca resolver primero. */}
+            {/* 💸 Retirar es la acción PRIMARIA de esta pantalla, así que se ve como tal.
+
+                Era un texto morado suelto, del mismo peso visual que los avisos y el enlace
+                del registro que tiene al lado. Ahora usa la caja del botón de «Seguir» del
+                perfil —degradado rosa a morado, 40 de alto, esquinas de 10, 260 de ancho
+                máximo— que es el botón de acción canónico del producto.
+
+                Copiar sus medidas y no inventarlas es lo que hace que las dos pantallas se
+                sientan del mismo sitio. Ver `ProfileSocialActions`. */}
             {!loadingAmounts && canWithdrawNow && puedeCobrar && (
-              <div style={{ width: "100%", maxWidth: 260, marginTop: 12, animation: "vbPayoutIn 420ms cubic-bezier(0.2,0.8,0.2,1) both" }}>
-                <TextButton tone="brand" size="sm" onClick={handleWithdrawClick} style={{ width: "100%" }}>
+              <div
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: "center",
+                  marginTop: 14,
+                  /* ⚠️ Aquí había `animation: vbPayoutIn …`, unos keyframes que NO EXISTEN
+                     en ninguna parte del repo. No hacía nada y el botón aparecía de golpe.
+                     Se quita en vez de inventarlos: el degradado ya se mueve solo. */
+                }}
+              >
+                <button
+                  type="button"
+                  className="vbBrandFlowBtn"
+                  onClick={handleWithdrawClick}
+                  disabled={retiroEnRevision}
+                  style={{
+                    flex: "1 1 140px",
+                    maxWidth: 260,
+                    minWidth: 120,
+                    minHeight: 40,
+                    borderRadius: 10,
+                    border: "none",
+                    /* El degradado lo pone `.vbBrandFlowBtn`, que además lo anima. Ponerlo
+                       también aquí lo pisaría: un estilo inline gana a la clase. */
+                    color: "#fff",
+                    fontFamily: "inherit",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    letterSpacing: "-0.01em",
+                    padding: "0 14px",
+                    WebkitTapHighlightColor: "transparent",
+                    transition: "opacity 150ms ease",
+                    /* En revisión no hay nada que pulsar: el panel solo repetiría lo que ya
+                       dice el propio botón. Se apaga en vez de esconderse, para que el
+                       creador vea que su solicitud existe. */
+                    cursor: retiroEnRevision ? "default" : "pointer",
+                    opacity: retiroEnRevision ? 0.55 : 1,
+                  }}
+                >
                   {retiroEnRevision ? tWallet("withdrawInReview") : tWallet("withdrawButton")}
-                </TextButton>
+                </button>
               </div>
             )}
           </div>
@@ -1054,7 +1131,12 @@ export default function WalletFinanzasPage() {
       <CreatorPayoutSetupPanel
         open={setupPanelOpen}
         onClose={() => setSetupPanelOpen(false)}
-        onOpenSello={() => setWithdrawPanelOpen(true)}
+        onOpenSello={() => {
+          /* El sello se sube en OTRO panel. Se recuerda que veníamos del registro para
+             poder volver ahí al cerrarlo, en vez de soltarlo en Finanzas a medias. */
+          setVolverAlRegistro(true);
+          setWithdrawPanelOpen(true);
+        }}
         onIniciarKyc={handleKycClick}
         kycBloqueado={kycCtaDisabled}
         kycEnRevision={kyc.status === "in_review"}
@@ -1068,7 +1150,6 @@ export default function WalletFinanzasPage() {
           open={confirmarRetiroOpen}
           onClose={() => setConfirmarRetiroOpen(false)}
           desglose={desgloseRetiro}
-          ruta={rutaDeCobro === "wallbit" ? "wallbit" : "stripe"}
           yaSolicitado={retiroEnRevision}
           onSolicitado={() => {
             setRetiroEnRevision(true);
@@ -1079,7 +1160,13 @@ export default function WalletFinanzasPage() {
 
       <WithdrawFiscalPanel
         open={withdrawPanelOpen}
-        onClose={() => setWithdrawPanelOpen(false)}
+        onClose={() => {
+          setWithdrawPanelOpen(false);
+          if (volverAlRegistro) {
+            setVolverAlRegistro(false);
+            setSetupPanelOpen(true);
+          }
+        }}
         uid={user?.uid}
         // ⚠️ En la moneda de liquidación SIEMPRE, aunque el creador esté leyendo en la suya:
         // de aquí salen el subtotal, el IVA y el «total a facturar» que copia a su CFDI, y

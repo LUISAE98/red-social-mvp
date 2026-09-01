@@ -188,7 +188,8 @@ no desde el cliente (las Firestore Rules no deben permitir que un usuario escrib
 Chokepoint ideal para notificar compra/venta: `backend/src/wallet/ledgerTriggers.ts` (siempre con
 `buyerId`, `creatorId`, `grossAmount`, `currency:"MXN"`, `type` = `LedgerServiceType`, `channelType/channelId`).
 Núcleo: `backend/src/wallet/ledger.ts` (`recordEarning` :147, `settleEarning` :243, `reverseEarning` :278;
-comisión plataforma 23%). 11 servicios: `supercomment, profile_donation, live_donation, live_ticket,
+comisión plataforma **25%**, o 30% en los países de ruta cara — sale de `lib/wallet/payoutTiers.ts`,
+no está escrita a mano; esta línea decía 23%, que es la cifra vieja). 11 servicios: `supercomment, profile_donation, live_donation, live_ticket,
 premium_post, greeting, advice, exclusive_session, live_session, subscription, vod_ticket`.
 
 | Acción | Trigger (ledgerTriggers.ts) | Destinatario | ¿Notifica hoy? |
