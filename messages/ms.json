@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} akan meneliti keadaan anda dan memberi nasihat yang disesuaikan untuk anda. Anda boleh memuat turun video nasihat itu dalam kualiti tinggi untuk disimpan dan dikongsi",
     "paySuccessSaludo": "Permohonan anda berjaya dihantar. Sekarang tinggal menunggu {name} merakam dan menghantar video ucapan anda",
     "paySuccessConsejo": "Permohonan anda berjaya dihantar. Sekarang tinggal menunggu {name} merakam dan menghantar nasihat anda",
+    "paySuccessGuestNote": "Kami akan maklumkan ke {email} apabila siap dirakam. Sementara itu anda boleh log masuk dengan alamat itu dan kata laluan anda untuk menjejaki permintaan anda.",
     "paySuccessScheduled": "Permohonan anda berjaya dihantar. Sekarang tinggal menunggu {name} menjadualkan sesinya",
     "charsRemaining": "Baki {count} aksara",
     "allowInspireConsejoLabel": "Benarkan nasihat ini memberi inspirasi kepada lebih ramai orang",

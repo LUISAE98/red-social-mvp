@@ -2060,6 +2060,7 @@
     "payDescConsejo": "Tilanteesi analysoidaan ja saat juuri sinulle sopivan neuvon. Tekijä: {name}. Voit ladata neuvovideosi korkealaatuisena, jotta voit tallentaa ja jakaa sen",
     "paySuccessSaludo": "Pyyntösi on lähetetty onnistuneesti. Nyt sinun tarvitsee vain odottaa, että tervehdyksesi kuvataan ja lähetetään. Tekijä: {name}.",
     "paySuccessConsejo": "Pyyntösi on lähetetty onnistuneesti. Nyt sinun tarvitsee vain odottaa, että neuvosi kuvataan ja lähetetään. Tekijä: {name}.",
+    "paySuccessGuestNote": "Ilmoitamme osoitteeseen {email}, kun se on kuvattu. Sillä välin voit kirjautua sisään tällä osoitteella ja salasanallasi seurataksesi pyyntöäsi.",
     "paySuccessScheduled": "Pyyntösi on lähetetty onnistuneesti. Nyt sinun tarvitsee vain odottaa, että sessio ajoitetaan. Tekijä: {name}.",
     "charsRemaining": "{count} merkkiä jäljellä",
     "allowInspireConsejoLabel": "Anna tämän neuvon inspiroida useampia ihmisiä",

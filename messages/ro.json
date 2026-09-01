@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} îți va analiza situația și îți va da un sfat croit pentru tine. Vei putea descărca videoclipul cu sfatul în calitate înaltă ca să îl păstrezi și să îl distribui",
     "paySuccessSaludo": "Cererea ta a fost trimisă cu succes. Acum trebuie doar să aștepți ca {name} să înregistreze și să îți trimită dedicația",
     "paySuccessConsejo": "Cererea ta a fost trimisă cu succes. Acum trebuie doar să aștepți ca {name} să înregistreze și să îți trimită sfatul",
+    "paySuccessGuestNote": "Îți scriem la {email} când este înregistrat. Între timp te poți conecta cu acea adresă și parola ta pentru a-ți urmări solicitarea.",
     "paySuccessScheduled": "Cererea ta a fost trimisă cu succes. Acum trebuie doar să aștepți ca {name} să programeze sesiunea",
     "charsRemaining": "Au mai rămas {count} caractere",
     "allowInspireConsejoLabel": "Permite acestui sfat să inspire mai mulți oameni",

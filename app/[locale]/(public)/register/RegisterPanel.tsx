@@ -798,8 +798,23 @@ export default function RegisterPanel({
             autoComplete="new-password"
             onChange={(e) => setPassword(e.target.value)}
             style={inputStyle}
-            placeholder={t("passwordPlaceholder")}
+            // ⚠️ NO el marcador de siempre, que dice "Mínimo 6 caracteres" y no
+            // es verdad: la política del proyecto pide 10 con mayúscula,
+            // minúscula, número y símbolo. Los requisitos completos van debajo.
+            placeholder={t("passwordLabel")}
           />
+          {/* Se dicen ANTES de fallar. En gris mientras se escribe, en rojo solo
+              cuando ya hay algo escrito que no los cumple. Antes esto solo
+              aparecía al enviar el formulario entero, con todo relleno. */}
+          <span
+            style={
+              password.length > 0 && !isPasswordAcceptable(password)
+                ? errorTextStyle
+                : { ...labelTextStyle, opacity: 0.7 }
+            }
+          >
+            {t("errPasswordWeak")}
+          </span>
         </label>
 
         <label style={{ display: "grid", gap: 4 }}>

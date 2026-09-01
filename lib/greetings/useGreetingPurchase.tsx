@@ -143,6 +143,14 @@ export function useGreetingPurchase({
     };
   }, [creatorId, creatorProfile, type, source, pf]);
   const [payOpen, setPayOpen] = useState(false);
+  /**
+   * Correo con el que se dio de alta esta compra, si llego sin cuenta.
+   *
+   * Se guarda porque el aviso final lo necesita y para entonces ya no hay forma
+   * de saberlo: en cuanto la cuenta queda enlazada, la sesion deja de ser de
+   * invitado.
+   */
+  const [correoAlta, setCorreoAlta] = useState<string | null>(null);
   const [payRequestId, setPayRequestId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState<number | null>(null);
 
@@ -398,6 +406,12 @@ export function useGreetingPurchase({
                 throw err;
               }
 
+              // Se recuerda para el aviso final. `necesitaCuenta` ya no sirve
+              // ahi: en cuanto la cuenta queda enlazada deja de ser cierto, y
+              // justo entonces es cuando hay que contarle a esta persona —que
+              // llego sin cuenta— como va a recibir lo que acaba de pagar.
+              setCorreoAlta(cuenta.email.trim().toLowerCase());
+
               const pedido = await createGreetingRequest({
                 creatorId,
                 profileUserId: creatorId,
@@ -428,9 +442,16 @@ export function useGreetingPurchase({
           description={tServices(type === "consejo" ? "payDescConsejo" : "payDescSaludo", {
             name: creatorName ?? tServices("creatorFallback"),
           })}
-          successMessage={tServices(type === "consejo" ? "paySuccessConsejo" : "paySuccessSaludo", {
-            name: creatorName ?? tServices("creatorFallback"),
-          })}
+          // Quien llego SIN cuenta necesita saber dos cosas mas que quien ya
+          // tenia sesion: por donde le va a llegar el aviso, y que ya puede
+          // entrar con lo que acaba de escribir. Sin decirlo, la compra termina
+          // en una pantalla verde y en ningun sitio al que volver.
+          successMessage={
+            tServices(type === "consejo" ? "paySuccessConsejo" : "paySuccessSaludo", {
+              name: creatorName ?? tServices("creatorFallback"),
+            }) +
+            (correoAlta ? " " + tServices("paySuccessGuestNote", { email: correoAlta }) : "")
+          }
           onClose={() => setPayOpen(false)}
           onPaid={() => {
             // El panel NO se cierra: muestra la pantalla de éxito. Solo se
@@ -467,6 +488,7 @@ export function useGreetingPurchase({
       payRequestId,
       payAmount,
       creatorId,
+      correoAlta,
       tServices,
       tExpress,
       tRegister,

@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} átnézi a helyzeted, és rád szabott tanácsot ad. A tanács videóját letöltheted jó minőségben, hogy megőrizd és megoszd",
     "paySuccessSaludo": "A kérésed sikeresen elment. Most már csak arra kell várnod, hogy {name} felvegye és elküldje a videóüzeneted",
     "paySuccessConsejo": "A kérésed sikeresen elment. Most már csak arra kell várnod, hogy {name} felvegye és elküldje a tanácsod",
+    "paySuccessGuestNote": "Szólunk a(z) {email} címre, amint elkészült a felvétel. Addig is bejelentkezhetsz ezzel a címmel és a jelszavaddal, hogy kövesd a kérésedet.",
     "paySuccessScheduled": "A kérésed sikeresen elment. Most már csak arra kell várnod, hogy {name} időpontot foglaljon az alkalomra",
     "charsRemaining": "Még {count} karakter",
     "allowInspireConsejoLabel": "Engedd, hogy ez a tanács több embert is inspiráljon",

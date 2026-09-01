@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} kigger på din situasjon og gir deg et råd som passer til deg. Du kan hente videoen med ditt råd i høy kvalitet, så du kan lagre og dele den",
     "paySuccessSaludo": "Din forespørsel er sendt. Nå skal du bare vente på, at {name} tar opp og sender din hilsen",
     "paySuccessConsejo": "Din forespørsel er sendt. Nå skal du bare vente på, at {name} tar opp og sender ditt råd",
+    "paySuccessGuestNote": "Vi sier fra til {email} når det er spilt inn. I mellomtiden kan du logge inn med den adressen og passordet ditt for å følge forespørselen din.",
     "paySuccessScheduled": "Din forespørsel er sendt. Nå skal du bare vente på, at {name} planlegger sesjonen",
     "charsRemaining": "{count} tegn tilbake",
     "allowInspireConsejoLabel": "La dette rådet inspirere flere mennesker",

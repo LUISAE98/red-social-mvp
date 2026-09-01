@@ -2060,6 +2060,7 @@
     "payDescConsejo": "Déanfaidh {name} anailís ar do chás agus tabharfaidh sé comhairle atá curtha in oiriúint duit. Beidh tú in ann físeán na comhairle a íoslódáil ar ardchaighdeán chun é a choinneáil agus a roinnt",
     "paySuccessSaludo": "Seoladh d'iarratas go rathúil. Anois níl le déanamh ach fanacht go dtaifeadfaidh agus go seolfaidh {name} do bheannacht",
     "paySuccessConsejo": "Seoladh d'iarratas go rathúil. Anois níl le déanamh ach fanacht go dtaifeadfaidh agus go seolfaidh {name} do chomhairle",
+    "paySuccessGuestNote": "Cuirfimid scéala chuig {email} nuair a bheidh sé taifeadta. Idir an dá linn is féidir leat logáil isteach leis an seoladh sin agus le do phasfhocal chun d'iarratas a leanúint.",
     "paySuccessScheduled": "Seoladh d'iarratas go rathúil. Anois níl le déanamh ach fanacht go sceidealóidh {name} an seisiún",
     "charsRemaining": "{count} carachtar fágtha",
     "allowInspireConsejoLabel": "Ceadaigh don chomhairle seo níos mó daoine a spreagadh",

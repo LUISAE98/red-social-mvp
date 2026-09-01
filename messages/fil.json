@@ -2060,6 +2060,7 @@
     "payDescConsejo": "Susuriin ni {name} ang sitwasyon mo at bibigyan ka niya ng payong akma sa iyo. Made-download mo ang video ng payo mo sa mataas na kalidad para i-save at ibahagi ito",
     "paySuccessSaludo": "Matagumpay na naipadala ang request mo. Kailangan mo na lang hintayin na i-record at ipadala ni {name} ang pagbati mo",
     "paySuccessConsejo": "Matagumpay na naipadala ang request mo. Kailangan mo na lang hintayin na i-record at ipadala ni {name} ang payo mo",
+    "paySuccessGuestNote": "Ipapaalam namin sa {email} kapag natapos nang i-record. Samantala, puwede kang mag-sign in gamit ang email na iyon at ang password mo para masubaybayan ang hiling mo.",
     "paySuccessScheduled": "Matagumpay na naipadala ang request mo. Kailangan mo na lang hintayin na i-iskedyul ni {name} ang session",
     "charsRemaining": "{count} karakter na lang",
     "allowInspireConsejoLabel": "Payagang makapagbigay-inspirasyon sa mas maraming tao ang payong ito",

@@ -2060,6 +2060,7 @@
     "payDescConsejo": "Ustvarjalec {name} bo analiziral tvojo situacijo in ti dal nasvet, prilagojen prav tebi. Video s svojim nasvetom boš lahko prenesel v visoki kakovosti, da ga shraniš in deliš",
     "paySuccessSaludo": "Tvoja zahteva je bila uspešno poslana. Zdaj samo počakaj, da ustvarjalec {name} posname in pošlje tvoje posvetilo",
     "paySuccessConsejo": "Tvoja zahteva je bila uspešno poslana. Zdaj samo počakaj, da ustvarjalec {name} posname in pošlje tvoj nasvet",
+    "paySuccessGuestNote": "Sporočili ti bomo na {email}, ko bo posneto. Medtem se lahko prijaviš s tem naslovom in svojim geslom, da spremljaš svoje naročilo.",
     "paySuccessScheduled": "Tvoja zahteva je bila uspešno poslana. Zdaj samo počakaj, da ustvarjalec {name} načrtuje sejo",
     "charsRemaining": "ostaja {count} znakov",
     "allowInspireConsejoLabel": "Naj ta nasvet navdihne več ljudi",

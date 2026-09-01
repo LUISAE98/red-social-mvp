@@ -16,9 +16,8 @@ import {
 import { httpsCallable } from "firebase/functions";
 import { auth, functions } from "@/lib/firebase";
 import { ensureGuestAuth } from "./ensureGuestAuth";
+import { isPasswordAcceptable } from "@/lib/auth/passwordPolicy";
 
-/** Mínimo que exige Firebase. */
-export const MIN_PASSWORD_LENGTH = 6;
 
 /**
  * ¿Este correo ya tiene cuenta?
@@ -79,7 +78,15 @@ export async function attachGuestAccount(
   alreadyHasAccount: boolean,
 ): Promise<GuestAccountResult> {
   const clean = email.trim().toLowerCase();
-  if (password.length < MIN_PASSWORD_LENGTH) return { ok: false, reason: "weak-password" };
+  // ⚠️ La MISMA regla que el registro normal y que la politica de Firebase, no
+  // el minimo del SDK. Con el minimo, esto dejaba pasar contrasenas que el
+  // servidor iba a rechazar despues, ya con la tarjeta puesta.
+  //
+  // Solo al CREAR. Entrar a una cuenta que ya existe no vuelve a juzgar su
+  // contrasena: quien la tiene desde antes de la politica sigue pudiendo entrar.
+  if (!alreadyHasAccount && !isPasswordAcceptable(password)) {
+    return { ok: false, reason: "weak-password" };
+  }
 
   try {
     if (alreadyHasAccount) {
@@ -102,7 +109,12 @@ export async function attachGuestAccount(
     if (code === "auth/email-already-in-use" || code === "auth/credential-already-in-use") {
       return { ok: false, reason: "email-in-use" };
     }
-    if (code === "auth/weak-password") return { ok: false, reason: "weak-password" };
+    // El segundo es el que devuelve Firebase cuando el proyecto tiene una
+    // politica de contrasenas configurada. Sin contemplarlo llegaba tal cual a
+    // la pantalla, en ingles y entre corchetes, sin decir que arreglar.
+    if (code === "auth/weak-password" || code === "auth/password-does-not-meet-requirements") {
+      return { ok: false, reason: "weak-password" };
+    }
     if (code === "auth/invalid-email") return { ok: false, reason: "invalid-email" };
     // Probar el flujo varias veces seguidas es suficiente para llegar aquí, y
     // sin nombrarlo se lee como que el registro está roto cuando solo hay que

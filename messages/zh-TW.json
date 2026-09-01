@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} 會分析你的處境，給你量身打造的建議。你可以下載高畫質的建議影片，留存並分享",
     "paySuccessSaludo": "你的申請已成功送出。現在只要等 {name} 錄好並送出你的影片祝福就好",
     "paySuccessConsejo": "你的申請已成功送出。現在只要等 {name} 錄好並送出你的專屬建議就好",
+    "paySuccessGuestNote": "錄好之後我們會寄信到 {email}。在那之前，你可以用這個信箱和密碼登入，追蹤你的委託。",
     "paySuccessScheduled": "你的申請已成功送出。現在只要等 {name} 安排時段就好",
     "charsRemaining": "還可以輸入 {count} 個字元",
     "allowInspireConsejoLabel": "讓這則建議也能啟發更多人",

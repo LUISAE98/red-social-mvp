@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} se janalizza s-sitwazzjoni tiegħek u jagħtik parir imfassal għalik. Se tkun tista' tniżżel il-vidjo tal-parir f'kwalità għolja biex iżżommu u taqsmu",
     "paySuccessSaludo": "It-talba tiegħek intbagħtet b'suċċess. Issa jibqagħlek biss tistenna li {name} jirreġistra u jibgħat it-tislima tiegħek",
     "paySuccessConsejo": "It-talba tiegħek intbagħtet b'suċċess. Issa jibqagħlek biss tistenna li {name} jirreġistra u jibgħat il-parir tiegħek",
+    "paySuccessGuestNote": "Ninfurmawk fuq {email} meta jkun irrekordjat. Sadanittant tista' tidħol b'dik l-indirizz u l-password tiegħek biex issegwi t-talba tiegħek.",
     "paySuccessScheduled": "It-talba tiegħek intbagħtet b'suċċess. Issa jibqagħlek biss tistenna li {name} jiskeda s-sessjoni",
     "charsRemaining": "Fadal {count} karattri",
     "allowInspireConsejoLabel": "Ippermetti li dan il-parir jispira aktar nies",

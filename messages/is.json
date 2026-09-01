@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} greinir aðstæður þínar og gefur þér ráð sniðin að þér. Þú getur sótt ráðamyndbandið í hárri gæðum til að geyma og deila",
     "paySuccessSaludo": "Beiðni þín hefur verið send. Nú þarftu bara að bíða eftir að {name} taki upp og sendi kveðjuna þína",
     "paySuccessConsejo": "Beiðni þín hefur verið send. Nú þarftu bara að bíða eftir að {name} taki upp og sendi ráðin þín",
+    "paySuccessGuestNote": "Við látum vita á {email} þegar það er tekið upp. Á meðan geturðu skráð þig inn með því netfangi og lykilorðinu þínu til að fylgjast með beiðninni.",
     "paySuccessScheduled": "Beiðni þín hefur verið send. Nú þarftu bara að bíða eftir að {name} tímasetji lotuna",
     "charsRemaining": "{count} stafir eftir",
     "allowInspireConsejoLabel": "Leyfa þessum ráðum að veita fleirum innblástur",

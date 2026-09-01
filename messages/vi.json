@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} sẽ xem xét hoàn cảnh của bạn và đưa ra lời khuyên phù hợp với bạn. Bạn sẽ tải được video lời khuyên ở chất lượng cao để lưu giữ và chia sẻ",
     "paySuccessSaludo": "Yêu cầu của bạn đã được gửi thành công. Giờ bạn chỉ cần đợi {name} quay và gửi video chúc mừng",
     "paySuccessConsejo": "Yêu cầu của bạn đã được gửi thành công. Giờ bạn chỉ cần đợi {name} quay và gửi lời khuyên",
+    "paySuccessGuestNote": "Chúng tôi sẽ báo tới {email} khi quay xong. Trong lúc chờ, bạn có thể đăng nhập bằng địa chỉ đó và mật khẩu để theo dõi yêu cầu.",
     "paySuccessScheduled": "Yêu cầu của bạn đã được gửi thành công. Giờ bạn chỉ cần đợi {name} lên lịch cho phiên",
     "charsRemaining": "Còn {count} ký tự",
     "allowInspireConsejoLabel": "Cho phép lời khuyên này truyền cảm hứng cho nhiều người hơn",

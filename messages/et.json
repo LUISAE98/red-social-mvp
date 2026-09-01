@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} analüüsib sinu olukorda ja annab sulle kohandatud nõu. Saad oma nõuandevideo kõrges kvaliteedis alla laadida, et seda hoida ja jagada",
     "paySuccessSaludo": "Sinu taotlus on edukalt saadetud. Nüüd tuleb vaid oodata, kuni {name} salvestab ja saadab sinu tervituse",
     "paySuccessConsejo": "Sinu taotlus on edukalt saadetud. Nüüd tuleb vaid oodata, kuni {name} salvestab ja saadab sinu nõuande",
+    "paySuccessGuestNote": "Anname teada aadressil {email}, kui see on salvestatud. Seni saad selle aadressi ja parooliga sisse logida, et oma soovi jälgida.",
     "paySuccessScheduled": "Sinu taotlus on edukalt saadetud. Nüüd tuleb vaid oodata, kuni {name} seansi ajastab",
     "charsRemaining": "Jäänud {count} tähemärki",
     "allowInspireConsejoLabel": "Luba sellel nõuandel rohkem inimesi inspireerida",

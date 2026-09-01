@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} analysiert deine Situation und gibt dir einen auf dich zugeschnittenen Ratschlag. Du kannst dein Ratschlag-Video in hoher Qualität herunterladen, um es zu speichern und zu teilen",
     "paySuccessSaludo": "Deine Anfrage wurde erfolgreich gesendet. Jetzt musst du nur noch warten, bis {name} deinen Gruß aufnimmt und sendet",
     "paySuccessConsejo": "Deine Anfrage wurde erfolgreich gesendet. Jetzt musst du nur noch warten, bis {name} deinen Ratschlag aufnimmt und sendet",
+    "paySuccessGuestNote": "Wir benachrichtigen {email}, sobald es aufgenommen ist. In der Zwischenzeit kannst du dich mit dieser Adresse und deinem Passwort anmelden, um deine Anfrage zu verfolgen.",
     "paySuccessScheduled": "Deine Anfrage wurde erfolgreich gesendet. Jetzt musst du nur noch warten, bis {name} die Session terminiert",
     "charsRemaining": "Noch {count} Zeichen",
     "allowInspireConsejoLabel": "Erlaube, dass dieser Ratschlag mehr Menschen inspiriert",

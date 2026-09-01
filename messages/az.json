@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} vəziyyətini araşdıracaq və sənə uyğun məsləhət verəcək. Məsləhət videonu yüksək keyfiyyətdə endirib saxlaya və paylaşa bilərsən",
     "paySuccessSaludo": "Sorğun uğurla göndərildi. İndi yalnız {name} adlı şəxsin təbrik videonu çəkib göndərməsini gözləmək qalır",
     "paySuccessConsejo": "Sorğun uğurla göndərildi. İndi yalnız {name} adlı şəxsin məsləhətini çəkib göndərməsini gözləmək qalır",
+    "paySuccessGuestNote": "Çəkiliş hazır olanda {email} ünvanına xəbər verəcəyik. Bu arada həmin ünvan və şifrənlə daxil olub sorğunu izləyə bilərsən.",
     "paySuccessScheduled": "Sorğun uğurla göndərildi. İndi yalnız {name} adlı şəxsin sessiyanı planlaşdırmasını gözləmək qalır",
     "charsRemaining": "{count} simvol qalıb",
     "allowInspireConsejoLabel": "Bu məsləhətin daha çox insana ilham verməsinə icazə ver",

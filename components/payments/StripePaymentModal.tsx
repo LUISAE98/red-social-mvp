@@ -20,6 +20,7 @@ import { auth, db } from "@/lib/firebase";
 import { repriceStripeIntentForCard } from "@/lib/stripe/stripePayments";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { emailHasAccount } from "@/lib/guest/guestAccount";
+import { isPasswordAcceptable } from "@/lib/auth/passwordPolicy";
 import { taxRateForCountry } from "@/lib/tax/config";
 import { formatCurrency, convertToAnchor } from "@/lib/currency/format";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
@@ -275,11 +276,20 @@ export default function StripePaymentModal({
   const acctEmailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(acctEmail.trim());
   // Con cuenta previa NO se pide repetir: la contrasena se escribe de memoria
   // y repetirla no aporta nada.
+  // ⚠️ La MISMA regla que Firebase Auth va a aplicar, no una inventada aqui.
+  //
+  // Antes bastaban 6 caracteres, que es el minimo del SDK pero NO la politica
+  // configurada en el proyecto. El campo dejaba pasar la contrasena, se cobraba
+  // el intento y Firebase la rechazaba al final con un codigo cripitico. Que la
+  // pantalla acepte algo que el servidor rechaza es la peor forma de validar.
+  //
+  // Con cuenta previa no se comprueba la fortaleza: esa contrasena ya existe y
+  // lo unico que importa es que sea la correcta.
+  const acctPasswordOk =
+    acctExists === true ? acctPassword.length > 0 : isPasswordAcceptable(acctPassword);
   const acctOk =
     !collectAccount ||
-    (acctEmailOk &&
-      acctPassword.length >= 6 &&
-      (acctExists === true || acctPassword === acctConfirm));
+    (acctEmailOk && acctPasswordOk && (acctExists === true || acctPassword === acctConfirm));
   const mxnAmount = amountEditable ? chosenAmount : (amount ?? null);
 
   // Total estimado en MXN (base + cargo fijo en donación + impuesto del país) para calcular cuánto crédito se
@@ -1072,11 +1082,29 @@ export default function StripePaymentModal({
                 autoComplete={acctExists ? "current-password" : "new-password"}
                 value={acctPassword}
                 onChange={(e) => setAcctPassword(e.target.value)}
-                placeholder={tReg("passwordPlaceholder")}
+                // ⚠️ NO el marcador de siempre, que dice "Minimo 6 caracteres" y
+                // no es verdad: la politica del proyecto pide bastante mas. Los
+                // requisitos completos van debajo, donde caben enteros.
+                placeholder={tReg("passwordLabel")}
                 aria-label={tReg("passwordLabel")}
                 disabled={submitting}
                 style={textInput}
               />
+              {/* Los requisitos se dicen ANTES de fallar, no despues.
+                  Se ensenan en gris desde el principio y se ponen en rojo solo
+                  cuando ya hay algo escrito que no los cumple: asi son una guia
+                  mientras se escribe y un aviso cuando hace falta. */}
+              {acctExists !== true && (
+                <span
+                  style={{
+                    fontSize: 12.5,
+                    lineHeight: 1.45,
+                    color: acctPassword.length > 0 && !acctPasswordOk ? "#dc2626" : "#8a8f99",
+                  }}
+                >
+                  {tReg("errPasswordWeak")}
+                </span>
+              )}
               {acctExists !== true && (
                 <input
                   className="vibra-pay-input"

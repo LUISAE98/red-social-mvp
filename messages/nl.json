@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} bekijkt je situatie en geeft je advies op maat. Je kunt de video van je advies in hoge kwaliteit downloaden om te bewaren en te delen",
     "paySuccessSaludo": "Je verzoek is succesvol verstuurd. Nu hoef je alleen nog te wachten tot {name} je videoboodschap opneemt en verstuurt",
     "paySuccessConsejo": "Je verzoek is succesvol verstuurd. Nu hoef je alleen nog te wachten tot {name} je advies opneemt en verstuurt",
+    "paySuccessGuestNote": "We laten het weten op {email} zodra het opgenomen is. Intussen kun je inloggen met dat adres en je wachtwoord om je aanvraag te volgen.",
     "paySuccessScheduled": "Je verzoek is succesvol verstuurd. Nu hoef je alleen nog te wachten tot {name} de sessie inplant",
     "charsRemaining": "Nog {count} tekens",
     "allowInspireConsejoLabel": "Sta toe dat dit advies meer mensen inspireert",

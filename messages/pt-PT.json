@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} vai analisar a tua situação e dar-te um conselho à tua medida. Vais poder transferir o vídeo do teu conselho em alta qualidade para o guardares e partilhares",
     "paySuccessSaludo": "O teu pedido foi enviado com sucesso. Agora é só esperares que {name} grave e envie a tua dedicatória",
     "paySuccessConsejo": "O teu pedido foi enviado com sucesso. Agora é só esperares que {name} grave e envie o teu conselho",
+    "paySuccessGuestNote": "Avisamos {email} quando estiver gravado. Entretanto podes entrar com esse e-mail e a tua palavra-passe para acompanhar o teu pedido.",
     "paySuccessScheduled": "O teu pedido foi enviado com sucesso. Agora é só esperares que {name} agende a sessão",
     "charsRemaining": "{count} caracteres restantes",
     "allowInspireConsejoLabel": "Deixa este conselho inspirar mais pessoas",

@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} analyserar din situation och ger dig råd anpassade efter dig. Du kan ladda ner din rådsvideo i hög kvalitet för att spara och dela den",
     "paySuccessSaludo": "Din förfrågan är skickad. Nu behöver du bara vänta på att {name} spelar in och skickar din hälsning",
     "paySuccessConsejo": "Din förfrågan är skickad. Nu behöver du bara vänta på att {name} spelar in och skickar ditt råd",
+    "paySuccessGuestNote": "Vi hör av oss till {email} när det är inspelat. Under tiden kan du logga in med den adressen och ditt lösenord för att följa din förfrågan.",
     "paySuccessScheduled": "Din förfrågan är skickad. Nu behöver du bara vänta på att {name} bokar in sessionen",
     "charsRemaining": "{count} tecken kvar",
     "allowInspireConsejoLabel": "Låt det här rådet inspirera fler människor",

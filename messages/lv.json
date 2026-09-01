@@ -2060,6 +2060,7 @@
     "payDescConsejo": "{name} izanalizēs tavu situāciju un sniegs tev pielāgotu padomu. Tu varēsi lejupielādēt padoma video augstā kvalitātē, lai to saglabātu un ar to dalītos",
     "paySuccessSaludo": "Tavs pieprasījums ir veiksmīgi nosūtīts. Tagad atliek tikai sagaidīt, kad {name} ierakstīs un nosūtīs tavu sveicienu",
     "paySuccessConsejo": "Tavs pieprasījums ir veiksmīgi nosūtīts. Tagad atliek tikai sagaidīt, kad {name} ierakstīs un nosūtīs tavu padomu",
+    "paySuccessGuestNote": "Paziņosim uz {email}, kad tas būs ierakstīts. Pa to laiku vari pieteikties ar šo adresi un savu paroli, lai sekotu savam pieprasījumam.",
     "paySuccessScheduled": "Tavs pieprasījums ir veiksmīgi nosūtīts. Tagad atliek tikai sagaidīt, kad {name} ieplānos sesiju",
     "charsRemaining": "Atlikušas {count} rakstzīmes",
     "allowInspireConsejoLabel": "Atļaut šim padomam iedvesmot vairāk cilvēku",

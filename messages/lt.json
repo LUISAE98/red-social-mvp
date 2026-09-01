@@ -2060,6 +2060,7 @@
     "payDescConsejo": "Kūrėjas {name} išanalizuos tavo situaciją ir duos tau būtent tau pritaikytą patarimą. Galėsi atsisiųsti savo patarimo vaizdo įrašą aukštos kokybės, kad jį išsaugotum ir pasidalytum",
     "paySuccessSaludo": "Tavo prašymas sėkmingai išsiųstas. Dabar tereikia palaukti, kol kūrėjas {name} įrašys ir atsiųs tavo sveikinimą",
     "paySuccessConsejo": "Tavo prašymas sėkmingai išsiųstas. Dabar tereikia palaukti, kol kūrėjas {name} įrašys ir atsiųs tavo patarimą",
+    "paySuccessGuestNote": "Pranešime adresu {email}, kai bus įrašyta. Tuo tarpu gali prisijungti su šiuo adresu ir savo slaptažodžiu, kad sektum savo užklausą.",
     "paySuccessScheduled": "Tavo prašymas sėkmingai išsiųstas. Dabar tereikia palaukti, kol kūrėjas {name} suplanuos sesiją",
     "charsRemaining": "liko {count} simbolių",
     "allowInspireConsejoLabel": "Leisk šiam patarimui įkvėpti daugiau žmonių",
