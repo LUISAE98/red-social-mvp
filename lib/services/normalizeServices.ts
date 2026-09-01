@@ -55,11 +55,27 @@ export function normalizeServices(
         visible:
           typeof s.visible === "boolean" ? s.visible : !!s.enabled,
 
+        // ⚠️ `price` es un tercer campo heredado, y hasta ahora se descartaba.
+        //
+        // El backend SI lo lee (ver `getOfferingPrice`), asi que el servidor
+        // conocia el precio de esos servicios y la pantalla no: el boton de
+        // comprar salia sin precio y la pasarela se plantaba con "no hay
+        // precio". Cliente y servidor tienen que mirar los mismos campos.
+        //
+        // Los especificos mandan; este solo rellena el hueco.
         memberPrice:
-          typeof s.memberPrice === "number" ? s.memberPrice : null,
+          typeof s.memberPrice === "number"
+            ? s.memberPrice
+            : typeof s.price === "number"
+              ? s.price
+              : null,
 
         publicPrice:
-          typeof s.publicPrice === "number" ? s.publicPrice : null,
+          typeof s.publicPrice === "number"
+            ? s.publicPrice
+            : typeof s.price === "number"
+              ? s.price
+              : null,
 
         currency:
           s.currency === "MXN" || s.currency === "USD"
