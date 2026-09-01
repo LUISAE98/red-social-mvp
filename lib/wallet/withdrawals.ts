@@ -19,7 +19,20 @@ import {
 } from "firebase/firestore";
 import { functions, db } from "@/lib/firebase";
 
-export type WithdrawalStatus = "pending" | "approved" | "rejected" | "paid" | "failed";
+/**
+ * ⚠️ ESPEJO de `backend/src/wallet/withdrawals.ts`. Solo sirve para MOSTRAR.
+ *
+ * `sent` se agregó el 2026-08-31: antes un retiro pasaba de `approved` a `paid` en cuanto
+ * Stripe aceptaba la orden, cuando en realidad el dinero tarda de uno a siete días en llegar
+ * al banco. Ahora `sent` es «va en camino» y `paid` es «el banco lo acreditó».
+ */
+export type WithdrawalStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "sent"
+  | "paid"
+  | "failed";
 
 export type WithdrawalRequestDoc = {
   id: string;

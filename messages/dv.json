@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "It is the VAT on our 25% commission and you claim it on your return.",
     "withdrawSeeBreakdown": "See breakdown",
     "withdrawHideBreakdown": "See less",
+    "withdrawNetLocal": "About {amount} in your bank",
     "withdrawRowVatCollected": "ތިބާގެ ގަންނަ މީހުންގެ އަތުން ނެގި VAT",
     "withdrawVatToDeclare": "އެ ފައިސާގެ ތެރެއިން {amount} އަކީ ތިބާ ނަގައި، ތިބާ އަމިއްލައަށް ރިޕޯޓްކުރާނެ VAT. އެއީ ތިބާގެ އާމްދަނީގެ ބައެއް ނޫން.",
     "withdrawRowBalance": "ތިބާގެ ބާކީ",

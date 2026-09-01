@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "It is the VAT on our 25% commission and you claim it on your return.",
     "withdrawSeeBreakdown": "See breakdown",
     "withdrawHideBreakdown": "See less",
+    "withdrawNetLocal": "About {amount} in your bank",
     "withdrawRowVatCollected": "VAT, ktorý si vybral od svojich kupujúcich",
     "withdrawVatToDeclare": "Z tejto platby je {amount} VAT, ktorý si vybral a priznáš si ho sám. Nie je súčasťou tvojho zárobku.",
     "withdrawRowBalance": "Tvoj zostatok",

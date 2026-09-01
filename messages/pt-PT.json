@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "It is the VAT on our 25% commission and you claim it on your return.",
     "withdrawSeeBreakdown": "See breakdown",
     "withdrawHideBreakdown": "See less",
+    "withdrawNetLocal": "About {amount} in your bank",
     "withdrawRowVatCollected": "IVA que cobraste aos teus compradores",
     "withdrawVatToDeclare": "Desse pagamento, {amount} é IVA que cobraste e que vais declarar tu. Não faz parte do teu ganho.",
     "withdrawRowBalance": "O teu saldo",

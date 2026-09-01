@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "It is the VAT on our 25% commission and you claim it on your return.",
     "withdrawSeeBreakdown": "See breakdown",
     "withdrawHideBreakdown": "See less",
+    "withdrawNetLocal": "About {amount} in your bank",
     "withdrawRowVatCollected": "Alıcılarından yığdığın VAT",
     "withdrawVatToDeclare": "Bu ödənişin {amount} hissəsi sənin yığdığın və özün bəyan edəcəyin VAT-dır. Bu, qazancının bir hissəsi deyil.",
     "withdrawRowBalance": "Balansın",

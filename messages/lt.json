@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "It is the VAT on our 25% commission and you claim it on your return.",
     "withdrawSeeBreakdown": "See breakdown",
     "withdrawHideBreakdown": "See less",
+    "withdrawNetLocal": "About {amount} in your bank",
     "withdrawRowVatCollected": "VAT, kurį surinkai iš savo pirkėjų",
     "withdrawVatToDeclare": "Iš to mokėjimo {amount} yra VAT, kurį surinkai ir deklaruosi pats. Tai nėra tavo uždarbio dalis.",
     "withdrawRowBalance": "Tavo likutis",

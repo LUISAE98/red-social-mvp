@@ -90,26 +90,82 @@ type StripeEvent = {
  * 🚨 Si la consulta falla NO se tira el webhook: el pago ya ocurrió y materializar la compra
  * importa mucho más que la forma de pago. Se devuelve «por definir», que es la verdad.
  */
-async function formaDePagoDelCobro(latestCharge: unknown): Promise<string> {
+/**
+ * Lo que el cobro dice de sí mismo, en una sola consulta.
+ *
+ * Devuelve dos cosas que no tienen nada que ver entre ellas pero salen del mismo objeto:
+ * la **forma de pago** para el CFDI, y **lo que Stripe se llevó de verdad**.
+ */
+type DatosDelCobro = {
+  formaPago: string;
+  /** Comisión REAL de Stripe, en la moneda de liquidación. `null` si no se pudo leer. */
+  comision: number | null;
+  /** Lo que quedó en el saldo de Vibra después de esa comisión. */
+  neto: number | null;
+  monedaLiquidacion: string | null;
+};
+
+const COBRO_SIN_DATOS: DatosDelCobro = {
+  formaPago: FORMA_PAGO.POR_DEFINIR,
+  comision: null,
+  neto: null,
+  monedaLiquidacion: null,
+};
+
+/**
+ * 🧮 LA COMISIÓN REAL, no la de la tabla de precios.
+ *
+ * Toda la economía del proyecto —el 2.9%, el 4.4%, lo que le queda a Vibra— se calculaba
+ * contra la **tarifa pública** de Stripe. Nadie había comprobado nunca que la cuenta de Vibra
+ * pague exactamente eso: un acuerdo particular, un método de pago con precio propio o un
+ * recargo que no habíamos contado cambiarían la cifra sin que nos enteráramos.
+ *
+ * `balance_transaction` es la verdad: trae `fee` y `net` de lo que Stripe se llevó en ese
+ * cobro concreto. Guardarlo convierte el modelo en un dato contrastable.
+ *
+ * ⚠️ Va expandido en la MISMA llamada del cargo, no en una segunda. Los webhooks no admiten
+ *    `expand` en el evento, pero la consulta al cargo sí.
+ */
+async function datosDelCobro(latestCharge: unknown): Promise<DatosDelCobro> {
   const id = typeof latestCharge === "string" ? latestCharge.trim() : "";
-  if (!id) return FORMA_PAGO.POR_DEFINIR;
+  if (!id) return COBRO_SIN_DATOS;
 
   try {
     const res = await stripeFetch<{
       payment_method_details?: { type?: string; card?: { funding?: string } };
-    }>(`/charges/${id}`, { method: "GET" });
+      balance_transaction?: { fee?: number; net?: number; currency?: string } | string | null;
+    }>(`/charges/${id}?expand[]=balance_transaction`, { method: "GET" });
+
     if (!res.ok || !res.data) {
-      logger.warn("forma_de_pago_no_consultada", { charge: id });
-      return FORMA_PAGO.POR_DEFINIR;
+      logger.warn("cobro_no_consultado", { charge: id });
+      return COBRO_SIN_DATOS;
     }
+
     const d = res.data.payment_method_details;
-    return formaDePagoSat({ type: d?.type ?? null, funding: d?.card?.funding ?? null });
+    const formaPago = formaDePagoSat({
+      type: d?.type ?? null,
+      funding: d?.card?.funding ?? null,
+    });
+
+    // Si la expansión no vino, `balance_transaction` sigue siendo el id suelto.
+    const bt = res.data.balance_transaction;
+    if (!bt || typeof bt === "string") {
+      return { ...COBRO_SIN_DATOS, formaPago };
+    }
+
+    // Stripe da los importes en la unidad mínima.
+    return {
+      formaPago,
+      comision: typeof bt.fee === "number" ? bt.fee / 100 : null,
+      neto: typeof bt.net === "number" ? bt.net / 100 : null,
+      monedaLiquidacion: bt.currency ? bt.currency.toUpperCase() : null,
+    };
   } catch (err) {
-    logger.warn("forma_de_pago_falló", {
+    logger.warn("cobro_consulta_falló", {
       charge: id,
       err: err instanceof Error ? err.message : String(err),
     });
-    return FORMA_PAGO.POR_DEFINIR;
+    return COBRO_SIN_DATOS;
   }
 }
 
@@ -173,7 +229,8 @@ export const stripeWebhook = onRequest(
          * Se calcula FUERA del `if`: lo necesitan las dos escrituras de abajo, y la del intent
          * ocurre aunque el cobro no traiga id.
          */
-        const formaPago = await formaDePagoDelCobro(pi.latest_charge);
+        const cobro = await datosDelCobro(pi.latest_charge);
+        const formaPago = cobro.formaPago;
 
         if (pi.id) {
           await db.collection("stripePayments").doc(pi.id).set(
@@ -185,6 +242,16 @@ export const stripeWebhook = onRequest(
               customer: pi.customer ?? null,
               metadata: pi.metadata ?? {},
               satFormaPago: formaPago,
+              /**
+               * 🧮 Lo que Stripe se llevó DE VERDAD en este cobro.
+               *
+               * Sin esto, las tarifas de `docs/stripe-integracion.md` §4-bis son un modelo que
+               * nadie contrasta. Con esto se puede comparar la comisión real contra el 2.9%
+               * o el 4.4% que damos por buenos y detectar cualquier desviación.
+               */
+              stripeFee: cobro.comision,
+              stripeNet: cobro.neto,
+              stripeSettlementCurrency: cobro.monedaLiquidacion,
               createdAt: admin.firestore.FieldValue.serverTimestamp(),
             },
             { merge: true }

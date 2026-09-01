@@ -20,13 +20,14 @@
 //    veces el mismo dinero. Al rechazar se devuelve entero.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { requirePlatformOwner } from "../authz";
 import { calcularRetiro } from "../tax/fiscalEngine";
 import { payoutTermsOf, paisDeCobroDe, type PayoutRoute } from "./payoutTiers";
 import { SETTLEMENT_CURRENCY } from "./ledger";
-import { enviarPago } from "../payments/stripe/outboundPayment";
+import { enviarPago, leerPago } from "../payments/stripe/outboundPayment";
 import { stripeSecretKey, stripePayoutsSecretKey } from "../payments/stripe/stripeClient";
 
 const REGION = "us-central1";
@@ -66,7 +67,51 @@ function selloCaducado(expiresAt: unknown): boolean {
  * queda en `approved` y el dinero se manda a mano. Están en el tipo desde ahora para que el
  * día que se conecte `OutboundPayment` no haya que migrar documentos.
  */
-export type WithdrawalStatus = "pending" | "approved" | "rejected" | "paid" | "failed";
+export type WithdrawalStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  /**
+   * 🚚 El dinero VA EN CAMINO, pero el banco todavía no lo acreditó.
+   *
+   * Es el estado en el que vive un `OutboundPayment` recién creado (`processing`), y puede
+   * durar de uno a siete días según el país. Existe porque antes se saltaba: se marcaba `paid`
+   * en cuanto Stripe respondía, así que un pago que el banco devolviera se quedaba como pagado
+   * para siempre y el creador nunca recuperaba su saldo.
+   */
+  | "sent"
+  /** El banco lo acreditó. `posted` en Stripe. Aquí sí terminó. */
+  | "paid"
+  | "failed";
+
+/**
+ * Del estado de Stripe al nuestro.
+ *
+ * 🚨 **Crear un `OutboundPayment` NO es haber pagado.** Nace en `processing` y solo pasa a
+ *    `posted` cuando el banco lo acredita, uno a siete días después. Entre medias puede caer
+ *    en `failed`, `returned` o `canceled`.
+ *
+ * Lo que devuelve:
+ *   · `paid`   — terminó bien, no hay nada más que hacer.
+ *   · `sent`   — va en camino, hay que seguir mirándolo.
+ *   · `failed` — se cayó, **y hay que devolverle el saldo al creador**.
+ *
+ * Un estado desconocido se trata como `sent`, no como `paid` ni como `failed`: ante la duda,
+ * ni le damos por bueno un dinero que no llegó ni le devolvemos uno que sí.
+ */
+export function estadoDeStripe(estado: string | null | undefined): WithdrawalStatus {
+  switch ((estado ?? "").toLowerCase()) {
+    case "posted":
+      return "paid";
+    case "failed":
+    case "returned":
+    case "canceled":
+    case "cancelled":
+      return "failed";
+    default:
+      return "sent";
+  }
+}
 
 export const WITHDRAWALS = "withdrawalRequests";
 
@@ -459,13 +504,46 @@ export const reviewWithdrawal = onCall(
     });
 
     if (envio.ok) {
+      /**
+       * 🚨 NO se marca `paid` aquí. Stripe devuelve `processing`, que significa «va en
+       *    camino», no «pagado». Marcarlo como pagado dejaba un retiro devuelto por el banco
+       *    como cobrado para siempre, sin devolverle el saldo al creador.
+       *
+       * El estado real lo cierra el webhook cuando Stripe dice `posted`.
+       */
+      const estado = estadoDeStripe(envio.estado);
+      const c = envio.cotizacion;
       await requestRef.update({
-        status: "paid" satisfies WithdrawalStatus,
+        status: estado,
         outboundPaymentId: envio.outboundPaymentId,
         outboundStatus: envio.estado,
-        paidAt: FieldValue.serverTimestamp(),
+        sentAt: FieldValue.serverTimestamp(),
+        ...(estado === "paid" ? { paidAt: FieldValue.serverTimestamp() } : {}),
+        // 💱 Lo que Stripe cobró y al cambio que convirtió. Sin esto el coste del retiro
+        //    era un modelo que nunca se contrastaba, y el creador no tenía el tipo de
+        //    cambio con el que se le depositó — que es el que necesita para su CFDI.
+        ...(c
+          ? {
+              stripeQuoteId: c.id,
+              stripeFeeTotal: c.comisiones.total,
+              stripeFeeFijo: c.comisiones.fijo,
+              stripeFeeTransfronteriza: c.comisiones.transfronteriza,
+              stripeFeeConversion: c.comisiones.conversion,
+              acreditado: c.acreditado,
+              acreditadoCurrency: c.monedaDestino,
+              tipoCambio: c.tipoCambio,
+            }
+          : {}),
       });
-      return { ...resultado, enviado: true, outboundPaymentId: envio.outboundPaymentId };
+      return {
+        ...resultado,
+        enviado: true,
+        outboundPaymentId: envio.outboundPaymentId,
+        estado,
+        acreditado: c?.acreditado ?? null,
+        acreditadoCurrency: c?.monedaDestino ?? null,
+        tipoCambio: c?.tipoCambio ?? null,
+      };
     }
 
     /**
@@ -553,5 +631,118 @@ export const markWithdrawalPaid = onCall(
 
     logger.info("retiro_marcado_pagado", { id: requestId, revisor: revisorUid });
     return { ok: true };
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. Conciliación: cerrar los retiros que van en camino
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 🚚 Cierra los retiros que Stripe todavía estaba moviendo.
+ *
+ * Un `OutboundPayment` nace en `processing` y tarda de uno a siete días en llegar al banco.
+ * Hasta el 2026-08-31 la solicitud se marcaba `paid` en cuanto Stripe aceptaba la orden, así
+ * que **un pago devuelto por el banco quedaba como cobrado para siempre** y el creador nunca
+ * recuperaba su saldo. Ahora queda en `sent` y esto es lo que lo cierra.
+ *
+ * Qué hace con cada uno:
+ *   · `posted`   → `paid`. Terminó.
+ *   · `failed`, `returned`, `canceled` → `failed` **y se le devuelve todo el saldo**, igual
+ *     que en un rechazo: el dinero que se apartó y las retenciones que se consumieron con él.
+ *   · cualquier otro → se deja en `sent` y se vuelve a mirar mañana.
+ *
+ * ⚠️ Es un SONDEO, no un webhook. Los eventos delgados (`thin events`) de la v2 son la vía
+ *    buena y siguen pendientes; mientras tanto esto garantiza que ningún retiro se quede
+ *    colgado, aunque tarde hasta un día en enterarse.
+ */
+export async function conciliarRetirosEnCamino(): Promise<{
+  revisados: number;
+  pagados: number;
+  fallidos: number;
+}> {
+  const db = admin.firestore();
+  const snap = await db
+    .collection(WITHDRAWALS)
+    .where("status", "==", "sent" satisfies WithdrawalStatus)
+    .limit(200)
+    .get();
+
+  let pagados = 0;
+  let fallidos = 0;
+
+  for (const doc of snap.docs) {
+    const w = doc.data() ?? {};
+    const pagoId = String(w.outboundPaymentId ?? "");
+    if (!pagoId) continue;
+
+    const lectura = await leerPago(pagoId);
+    if (!lectura.ok) continue; // se reintenta en la siguiente pasada
+
+    const estado = estadoDeStripe(lectura.estado);
+    if (estado === "sent") continue; // sigue en camino
+
+    if (estado === "paid") {
+      await doc.ref.update({
+        status: "paid" satisfies WithdrawalStatus,
+        outboundStatus: lectura.estado,
+        paidAt: FieldValue.serverTimestamp(),
+      });
+      pagados++;
+      logger.info("retiro_conciliado_pagado", { id: doc.id, creatorId: w.creatorId });
+      continue;
+    }
+
+    /**
+     * 🚨 SE CAYÓ → SE DEVUELVE EL DINERO, en transacción.
+     *
+     * Se relee el documento dentro de la transacción y solo se toca si sigue en `sent`: entre
+     * la lectura de arriba y esta escritura puede haber pasado cualquier cosa, y devolver el
+     * saldo dos veces sería regalarle dinero al creador.
+     */
+    const creatorId = String(w.creatorId ?? "");
+    if (!creatorId) continue;
+    const sRef = db.collection("users").doc(creatorId).collection("walletSummary").doc("current");
+
+    await db.runTransaction(async (tx) => {
+      const [wSnap, sSnap] = await Promise.all([tx.get(doc.ref), tx.get(sRef)]);
+      const actual = wSnap.data() ?? {};
+      if (actual.status !== "sent") return;
+      await devolverSaldo(tx, creatorId, actual, sSnap.data() ?? {}, sRef);
+      tx.update(doc.ref, {
+        status: "failed" satisfies WithdrawalStatus,
+        outboundStatus: lectura.estado,
+        rejectionReason: `El banco no lo aceptó (${lectura.estado}). Te devolvimos tu saldo completo.`,
+        reviewedAt: FieldValue.serverTimestamp(),
+      });
+    });
+
+    fallidos++;
+    logger.error("retiro_conciliado_fallido", {
+      id: doc.id,
+      creatorId,
+      estadoStripe: lectura.estado,
+    });
+  }
+
+  return { revisados: snap.size, pagados, fallidos };
+}
+
+/**
+ * El sondeo, cada hora.
+ *
+ * Una hora es holgado a propósito: un `OutboundPayment` tarda días, no minutos, así que
+ * mirarlo más seguido solo gastaría llamadas. Lo que importa es que ninguno se quede colgado.
+ *
+ * 🔁 **Sustituir por los eventos delgados de la v2 cuando estén.** Un webhook cerraría cada
+ *    retiro en el momento en que Stripe lo mueve, en vez de hasta una hora después.
+ */
+export const conciliarRetiros = onSchedule(
+  { schedule: "every 60 minutes", timeZone: "UTC", secrets: [stripePayoutsSecretKey] },
+  async () => {
+    const r = await conciliarRetirosEnCamino();
+    if (r.pagados || r.fallidos) {
+      logger.info("retiros_conciliados", r);
+    }
   }
 );

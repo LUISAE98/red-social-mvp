@@ -89,8 +89,9 @@
 
 ### Bloque 7 — KYC / Verificación ✅
 
-> ⚠️ **Didit se eliminó el 2026-08-13.** Las notificaciones de este bloque describen el proveedor
-> anterior. El KYC pasa ahora por la procesadora de pagos; revisar antes de darlas por vigentes.
+> ✅ **Didit está vigente** (act. 2026-08-31), reintegrado el 2026-08-27 con Global Payouts. Las
+> notificaciones de este bloque describen el proveedor **actual** y siguen valiendo. Esta nota decía
+> que se había eliminado.
 1. ✅ KYC aprobado — retiros habilitados (`kyc_update` action=approved)
 2. ✅ KYC rechazado + motivo (`kyc_update` action=declined)
 3. ✅ KYC en revisión manual (`kyc_update` action=in_review)

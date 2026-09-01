@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "It is the VAT on our 25% commission and you claim it on your return.",
     "withdrawSeeBreakdown": "See breakdown",
     "withdrawHideBreakdown": "See less",
+    "withdrawNetLocal": "About {amount} in your bank",
     "withdrawRowVatCollected": "VAT, amelyet a vásárlóidra kivetettél",
     "withdrawVatToDeclare": "Ebből a kifizetésből {amount} olyan VAT, amelyet beszedtél és magad vallasz be. Ez nem része a bevételednek.",
     "withdrawRowBalance": "Az egyenleged",

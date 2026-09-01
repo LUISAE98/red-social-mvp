@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "Es el IVA sobre nuestra comisión del 25% y lo acreditas en tu declaración.",
     "withdrawSeeBreakdown": "Ver desglose",
     "withdrawHideBreakdown": "Ver menos",
+    "withdrawNetLocal": "Aproximadamente {amount} en tu banco",
     "withdrawRowVatCollected": "Impuesto que pagaron tus compradores",
     "withdrawVatToDeclare": "De lo que te llega, {amount} es impuesto que cobraste, no ganancia. Apártalo para tu declaración.",
     "withdrawRowBalance": "Tu saldo",

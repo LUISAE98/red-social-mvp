@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "It is the VAT on our 25% commission and you claim it on your return.",
     "withdrawSeeBreakdown": "See breakdown",
     "withdrawHideBreakdown": "See less",
+    "withdrawNetLocal": "About {amount} in your bank",
     "withdrawRowVatCollected": "VAT li ġbart mingħand ix-xerrejja tiegħek",
     "withdrawVatToDeclare": "Minn dak il-ħlas, {amount} huwa VAT li ġbart u li tiddikjara int stess. Mhuwiex parti mill-qligħ tiegħek.",
     "withdrawRowBalance": "Il-bilanċ tiegħek",

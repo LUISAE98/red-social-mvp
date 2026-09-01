@@ -11,6 +11,10 @@
 > ⚠️ **YA NO ES PLANA (2026-08-27).** Son dos grupos según el país de la cuenta de cobro del
 > creador. Fuente de verdad: **`docs/payout-tiers.md`**.
 >
+> Lo que le queda a Vibra va de **18.46%** (comprador internacional, creador peruano) a
+> **22.56%** (comprador estadounidense, creador en país de wire). Los 24 casos en
+> `docs/stripe-integracion.md` §4-bis.
+>
 > | Grupo | Comisión | Mínimo de retiro | Países |
 > |---|---|---|---|
 > | Estándar (transferencia local de Stripe) | **25%** | 300 USD | 46 |
@@ -22,8 +26,8 @@
 > `backend/src/wallet/payoutTiers.ts`. Los anteriores (45 / 29 / 73) eran de antes de que
 > entrara Wallbit el 2026-08-27.
 >
-> Con esa regla, lo que le queda a Vibra cae entre **18.14% y 20.10%** en todos los casos,
-> contra un rango de once puntos con comisión plana.
+> Con esa regla, lo que le queda a Vibra cae entre **18.46% y 22.56%**, contra un rango de once
+> puntos con comisión plana. Desglose caso por caso en `docs/stripe-integracion.md` **§4-bis**.
 
 - **Comisión Vibra: 25% u 30%** sobre el precio base según el grupo (subió de 23% para cubrir
   devoluciones + sueldos y mantener 10% de utilidad).
@@ -41,7 +45,7 @@
 | **0.40 USD fijo por cobro** | **Comprador** | Protege el margen en cobros chicos (donde el fijo es brutal). ⚠️ Eran **$3 MXN** hasta el corte a la denominación en USD. Los 0.40 son los 0.30 del fijo de Stripe en EE. UU. + 0.05 de Radar, con el margen que exige que Stripe cobre su porcentaje también sobre ese cargo (mínimo real 0.361 nacional, 0.370 internacional). Constante `FIXED_SERVICE_FEE_USD`. |
 | **FX del cobro (2%)** | **Comprador** | ❌ NO es Stripe Adaptive Pricing (esa función es solo para Checkout/Prices fijos; nosotros usamos PaymentIntents dinámicos). **La conversión la hacemos NOSOTROS**: convertimos el precio del creador (USD) → moneda local del comprador con nuestro FX **+ 2%**, y cobramos en esa moneda local. El 2% cubre el spread de conversión de Stripe al liquidar a USD. Va ANTES del impuesto, porque es contraprestación de Vibra y forma parte de la base gravable. Ver `docs/stripe-integracion.md §13` y `backend/src/tax/composeCharge.ts`. |
 | **Stripe payin (%)** | **Vibra** | **2.9% + 0.30 USD**, más **1.5%** si la tarjeta no es estadounidense y **1%** más si hay conversión. Sobre el total cobrado. ⚠️ Eran 3.6% / 4.1% con la entidad mexicana; estas son las tarifas de Vibra On, LLC en EE. UU. |
-| **Stripe payout** | **Vibra** | **1.50 USD fijos + 0.25% transfronteriza + 1% de conversión a moneda local.** Sobre el mínimo de 300 USD son **1.75%**. Por wire son **25 USD fijos**, que sobre el mínimo de 500 USD son **5%**. La transfronteriza es 0.25% en México, EE. UU., Reino Unido y Canadá; hay países al 1% y Perú al 1.25%. ⚠️ Stripe las cobra **de la cuenta financiera**, no las descuenta del envío: hace falta saldo para el pago Y su comisión. Ver §8-sexies.7-ter. |
+| **Stripe payout** | **Vibra** | **1.50 USD fijos + transfronteriza + conversión.** La transfronteriza tiene **cinco tramos del 0.25% al 1.25%** según destino, y la conversión es **0.50%** entre dólar, euro y libra, **1%** el resto y **0%** si el creador ya cobra en dólares. Sobre el mínimo de 300 USD va de **0.50%** (EE. UU.) a **2.75%** (Perú); México son 1.75%. Por wire son **25 USD fijos** más los porcentajes, un 4.5–4.9% sobre el mínimo de 500. Tabla país por país en `lib/wallet/payoutFees.ts`. ⚠️ Stripe las cobra **de la cuenta financiera**, no las descuenta del envío: hace falta saldo para el pago Y su comisión. |
 | **FX del payout (USD→moneda local)** | **Vibra** | ⚠️ **Se invirtió con el corte a USD.** Antes el ledger vivía en pesos y el creador extranjero pagaba la conversión; hoy el ledger vive en USD y el **1% de conversión de Global Payouts lo absorbe Vibra**, incluido en el 1.75% del retiro. 🔴 Quién convierte de USD a MXN y a qué tipo de cambio **no está decidido ni escrito en el código**. |
 | **Retenciones ISR/IVA del creador** | **Creador** | MX: vía CFDI (Facturapi). Extranjero: en su país. |
 
@@ -71,7 +75,7 @@ mid-market. Ver el pendiente 3 de `paiseswallbit.md`.
 ## Márgenes objetivo (a escala)
 ```
 25% comisión =
-   ~6%  Stripe        (payin ~4.4% + payout 1.75%)   <- era ~5% con el payout de Connect
+   2.9–9.4%  Stripe    (payin 2.89–4.48% + payout 0–4.90%)   <- era ~5% con el payout de Connect
     8%  Operatividad  (Mux, Cloudflare, Firebase, LiveKit, Vercel, Facturapi)
     1%  Devoluciones / contracargos
     1%  Sueldos y otros
@@ -94,5 +98,9 @@ mid-market. Ver el pendiente 3 de `paiseswallbit.md`.
 - **D1** — Comprador absorbe el **cargo fijo + 2% FX** del cobro. ✅ *(el fijo eran $3 MXN, hoy son 0.40 USD)*
 - **D-comisión** — Comisión **25%**, o **30%** en los 27 países de solo wire. ✅ *(dejó de ser plana el 2026-08-27)*
 - **D-payout-mín** — **300 USD** estándar y **500 USD** wire. ✅ *(eran $10,000 MXN; el retiro anticipado se descartó y nunca se construyó)*
-- **D-payout-FX** — El FX del payout lo cubre el **banco del creador**, no Vibra. ✅
+- **D-payout-FX** — El FX del payout lo cubre **Vibra**. ✅ ⚠️ **Se invirtió con el corte a USD**
+  (2026-08-18) y esta línea se quedó diciendo lo contrario hasta el 2026-08-31. Cuando el ledger
+  vivía en pesos, el creador extranjero pagaba la conversión al recibir dólares; hoy el ledger
+  vive en dólares y es Vibra quien paga a Stripe la conversión a la moneda del creador. La fila
+  de «Quién absorbe cada costo» de arriba es la buena.
 - **D-payout-Vibra** — Vibra absorbe payin% + payout% → objetivo 25%. ⚠️ El reparto original (5% Stripe + 8% infra + 1% dev + 1% sueldos + 10% utilidad) daba por buenos **0.72% de payout**; con Global Payouts son **1.75%**, así que el punto de más sale de la utilidad. Rehacer el objetivo. ✅ la decisión, ⬜ el reparto.

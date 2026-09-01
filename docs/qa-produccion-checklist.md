@@ -442,19 +442,23 @@
 
 ## 17. KYC y retiros
 
-> ⚠️ **Didit se eliminó el 2026-08-13** y `backend/src/kyc.ts` ya no existe. Los puntos que nombran a
-> Didit describen el proveedor anterior; el KYC pasa ahora por la procesadora. **Reescribir esta
-> sección** cuando se conecte el alta de cobro de Stripe.
+> ✅ **Didit está VIGENTE** (act. 2026-08-31). Se eliminó el 2026-08-13 y se **reintegró el**
+> **2026-08-27**, al elegir Global Payouts en vez de Connect: Connect traía el KYC incluido,
+> Global Payouts no. `backend/src/kyc.ts` existe y lo usan ocho módulos.
+>
+> Esta nota afirmaba lo contrario. El KYC es de los **89 países pagables sin excepción**, y el
+> **país del documento** decide, junto con el de la cuenta de cobro, si el creador necesita
+> datos fiscales y sello.
 
 17.1 Iniciar verificación desde la wallet ×MATRIZ
 17.2 Estados: no iniciado, en revisión, aprobado, rechazado, expirado
-17.3 ⚠️ OBSOLETO — webhook de Didit. Sustituir por el del alta de cobro de la procesadora
+17.3 Webhook de Didit (`diditWebhook`): firma HMAC válida, firma inválida, reintento del mismo evento
 17.4 Reintento tras rechazo
 17.5 **Gate de retiro**: creador sin KYC aprobado no debe poder retirar
 17.6 Panel fiscal de retiro (`WithdrawFiscalPanel`): datos completos, datos incompletos, copiar datos
-17.7 🟠 **No encontré un flujo de payout automatizado** — confirmar que el retiro es intervención humana a propósito, y que el estado “solicitud de retiro” queda registrado y es auditable
+17.7 **Flujo de retiro con revisión humana** — el creador solicita, la petición cae en la pestaña «Retiros» del superadministrador, y ahí se acepta o se rechaza con motivo. Al aceptar, la ruta de Stripe envía por `OutboundPayment` y la de Wallbit pasa a «pendiente de pago» para transferir a mano. Verificar que el estado queda registrado y es auditable, y que un rechazo devuelve el saldo y las retenciones íntegros
 17.8 Retiro por más del saldo disponible; retiro del saldo pendiente; retiro mínimo
-17.9 ⚠️ OBSOLETO — free tier de Didit. Sin objeto tras su eliminación
+17.9 Consumo del free tier de Didit (500 verificaciones al mes) y qué pasa al agotarlo
 
 ---
 

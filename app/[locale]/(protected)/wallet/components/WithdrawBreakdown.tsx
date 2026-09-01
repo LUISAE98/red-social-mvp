@@ -58,8 +58,25 @@ export type DesgloseRetiro = {
   hayIsr: boolean;
   hayIva: boolean;
   hayIvaComision: boolean;
-  /** Lo que efectivamente le llega al banco. */
+  /** Lo que efectivamente le llega al banco, en la moneda de liquidación. */
   neto: string;
+  /**
+   * 💱 Lo mismo, aproximado a su moneda. `null` si ya cobra en dólares.
+   *
+   * Va como GUÍA y no como la cifra principal, y es una decisión con dos motivos que
+   * tiran en direcciones contrarias:
+   *
+   * · A su banco le llegan PESOS, no dólares. Enseñarle solo dólares le esconde la mitad
+   *   del dato justo cuando decide si retirar.
+   * · Pero el desglose alimenta su CFDI, y ahí una conversión al cambio de hoy no es una
+   *   guía sino un número que se factura mal.
+   *
+   * Así que la cifra ancla se queda en dólares y esto va debajo, en pequeño y con un
+   * «aproximadamente» por delante. **El tipo de cambio de verdad no existe hasta que se
+   * ejecuta el pago**: lo fija Stripe en el `OutboundPaymentQuote` y queda guardado en la
+   * solicitud como `tipoCambio`. Esta cifra usa el cambio de la app, que es otro.
+   */
+  netoLocal: string | null;
   /**
    * Del impuesto cobrado, la parte que NO se le retuvo y viaja dentro de `neto`. Nulo si no hay.
    *
@@ -180,11 +197,20 @@ export default function WithdrawBreakdown({
   return (
     <div style={{ display: "grid", gap: 14 }}>
       {/* 💰 Lo único que no se pliega. */}
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("withdrawRowNet")}</span>
-        <span style={{ fontSize: 20, fontWeight: 700, color: "#4ade80", whiteSpace: "nowrap" }}>
-          {desglose.neto}
-        </span>
+      <div style={{ display: "grid", gap: 3 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("withdrawRowNet")}</span>
+          <span style={{ fontSize: 20, fontWeight: 700, color: "#4ade80", whiteSpace: "nowrap" }}>
+            {desglose.neto}
+          </span>
+        </div>
+
+        {/* 💱 Lo que le va a llegar al banco, en su moneda. Aproximado, y lo dice. */}
+        {desglose.netoLocal && (
+          <span style={{ fontSize: 11.5, color: GRIS, textAlign: "end", lineHeight: 1.4 }}>
+            {t("withdrawNetLocal", { amount: desglose.netoLocal })}
+          </span>
+        )}
       </div>
 
       {/* El interruptor va ENCIMA del desglose, no debajo: abriéndose hacia abajo el botón

@@ -146,8 +146,20 @@ No eliminar ni simplificar componentes relacionados con:
 
 sin aprobación explícita.
 
-⚠️ **Didit se eliminó el 2026-08-13** con aprobación explícita. El KYC pasa por Stripe. No queda código
-suyo (`backend/src/kyc.ts` ya no existe).
+✅ **Didit ES el proveedor de KYC, y es el gate del retiro.** Se eliminó el 2026-08-13 y se
+**reintegró el 2026-08-27**, al decidir Global Payouts en vez de Connect: Connect traía el KYC
+incluido, Global Payouts no.
+
+Vive en `backend/src/kyc.ts` (`createKycSession`, `diditWebhook`, `resolverPaisDocumento`) y en
+`lib/kyc/useKyc.ts`. Lo consumen `payoutAccountQuestionnaire.ts`, `globalPayoutsRecipient.ts`,
+`wallet/withdrawals.ts`, `notifications.ts` y `lib/facturacion/creatorFiscal.ts`.
+
+🚨 **No lo borres.** Este documento afirmó durante cuatro días que Didit no existía y que
+`backend/src/kyc.ts` estaba borrado, cuando el archivo estaba ahí y ocho módulos lo usaban.
+El KYC es de los 89 países pagables, sin excepción, y sin él no se puede retirar.
+
+El **país del documento** del KYC decide, junto con el de la cuenta de cobro, si el creador
+necesita datos fiscales y sello. Basta con que uno de los dos diga México.
 
 ---
 
@@ -216,7 +228,9 @@ sobre el precio base, con el impuesto de la comisión por encima del 25%.
 
 Documento autoritativo de pagos: `docs/stripe-integracion.md`. Modelo fiscal: `docs/legal/fiscal-iva-isr-plataforma.md`.
 
-⚠️ **Didit (KYC) se eliminó el 2026-08-13.** Si un documento antiguo lo menciona, está superado.
+✅ **Didit (KYC) está VIGENTE**, reintegrado el 2026-08-27. Verifica la identidad del creador y
+es el primer paso del alta de cobro; Stripe hace el resto. Si un documento dice que se eliminó,
+es de la ventana del 13 al 27 de agosto y está superado.
 
 ## Mercado Pago
 

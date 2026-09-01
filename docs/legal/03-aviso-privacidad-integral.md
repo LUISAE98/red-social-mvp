@@ -120,8 +120,8 @@ instrucciones** (encargados), bajo obligaciones de confidencialidad y seguridad,
 - **Mux** (procesamiento y entrega de video/VOD).
 - **Cloudflare** (transmisiones en vivo y almacenamiento de grabaciones).
 - **LiveKit** (videollamadas 1‑a‑1 y su grabación).
-- **Didit** (verificación de identidad / KYC). *Se prevé su reemplazo por la verificación de identidad de **Stripe** antes del lanzamiento a producción; el aviso se actualizará entonces.*
-- **Stripe** (Stripe Connect — procesamiento de pagos y liquidación de retiros; **en el futuro también verificación de identidad**, ver §4), en lo que actúe como encargado.
+- **Didit** (verificación de identidad / KYC). Es el proveedor **vigente**, y es el requisito previo para poder retirar. *La nota anterior preveía su reemplazo por la verificación de Stripe; se descartó al elegir Global Payouts, que no incluye KYC.*
+- **Stripe** (procesamiento de pagos y liquidación de retiros mediante **Global Payouts**), en lo que actúe como encargado.
 
 Estas **remisiones**, conforme a la LFPDPPP, **no requieren tu consentimiento** adicional.
 

@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "It is the VAT on our 25% commission and you claim it on your return.",
     "withdrawSeeBreakdown": "See breakdown",
     "withdrawHideBreakdown": "See less",
+    "withdrawNetLocal": "About {amount} in your bank",
     "withdrawRowVatCollected": "VAT yang kamu tagihkan kepada pembelimu",
     "withdrawVatToDeclare": "Dari pembayaran itu, {amount} adalah VAT yang kamu pungut dan akan kamu laporkan sendiri. Itu bukan bagian dari penghasilanmu.",
     "withdrawRowBalance": "Saldomu",

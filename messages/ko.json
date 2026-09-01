@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "It is the VAT on our 25% commission and you claim it on your return.",
     "withdrawSeeBreakdown": "See breakdown",
     "withdrawHideBreakdown": "See less",
+    "withdrawNetLocal": "About {amount} in your bank",
     "withdrawRowVatCollected": "구매자에게 청구한 부가가치세",
     "withdrawVatToDeclare": "그 지급액 중 {amount}는 회원님이 걷어서 직접 신고할 부가가치세예요. 회원님 수익의 일부가 아니에요.",
     "withdrawRowBalance": "회원님의 잔액",

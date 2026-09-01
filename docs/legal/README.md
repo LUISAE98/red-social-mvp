@@ -46,11 +46,18 @@ que avanzamos uno.
 | 8 | **Términos de la Wallet / Monedero** | ⏸️ en espera | 🌐 | Onboarding de wallet (`WalletOnboarding`) | `08-terminos-wallet.md` |
 | 9 | **Política de Pagos, Comisiones y Retiros** | ⏸️ en espera | ⭐ | Flujo de retiro en `/wallet` + referida desde el Acuerdo de Creador (#2) | `09-pagos-comisiones-retiros.md` |
 
-> **⏸️ Bloque 3 (#8, #9) EN ESPERA (act. 2026-07-31):** la procesadora **ya está decidida = Stripe**
-> (Stripe Connect). Se mantienen en pausa hasta que el **money-out / payout esté
-> terminado** (hoy en construcción — ver [fiscal §0.6/0.7](./fiscal-iva-isr-plataforma.md) y
-> `docs/stripe-integracion.md`). Parámetros MX ya conocidos: retiro = `transfer` de Stripe, **mínimo
-> $10,000 MXN** (anticipado desde $2,000). Se redactan cuando el payout esté listo.
+> **⏸️ Bloque 3 (#8, #9) EN ESPERA (act. 2026-08-31):** la procesadora es **Stripe**, con
+> **Global Payouts**, no Connect. Se mantienen en pausa hasta que el **money-out esté terminado**
+> (ver [fiscal §0.6/0.7](./fiscal-iva-isr-plataforma.md) y `docs/stripe-integracion.md`).
+>
+> Parámetros vigentes: retiro = `OutboundPayment` de Global Payouts (no `transfer` de Connect),
+> denominación **USD**, mínimo **300 USD** en el tramo estándar y **500 USD** en el de wire, y
+> comisión **25% o 30%** según el país de la cuenta de cobro. **El retiro anticipado se**
+> **descartó** y nunca se construyó.
+>
+> ⚠️ Esta nota decía «Stripe Connect», «mínimo $10,000 MXN» y «anticipado desde $2,000» hasta el
+> 2026-08-31. Las tres cifras eran de antes del corte a la LLC estadounidense. Fuente de verdad:
+> `docs/payout-tiers.md`.
 | 10 | **Consentimiento de Grabación de sesiones 1-a-1** | ⬜ | 🤝 | Modal bloqueante antes de entrar a la videollamada (`LiveKitVideoRoom`) | `10-consentimiento-grabacion.md` |
 | 11 | **Aviso y Consentimiento de Datos Biométricos** | ⬜ | ⭐🤝 | Flujo de KYC (a través de la procesadora, en el alta de cobro) + dentro del #10 | `11-consentimiento-biometrico.md` |
 | 12 | **Política de Propiedad Intelectual / DMCA** | ⬜ | 🌐 | Pie del rail izquierdo + al subir contenido + formulario de reporte | `12-propiedad-intelectual-dmca.md` |

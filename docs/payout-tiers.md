@@ -38,8 +38,11 @@ Lo que separa a los dos grupos no es el porcentaje sino **el método de transfer
 * **Wire** — 25 USD fijos. Aquí el mínimo lo es todo: subirlo de 300 a 500 ahorra **3.33
   puntos**, once veces más. Por eso solo este grupo tiene mínimo alto.
 
-Con esta regla, **lo que le queda a Vibra cae entre 18.14% y 20.10%** en los doce niveles de
-coste, contra un rango de once puntos antes.
+Con esta regla, **lo que le queda a Vibra cae entre 18.46% y 22.56%**, contra un rango de once
+puntos antes.
+
+> ⚠️ Actualizado el 2026-08-31. Decía 18.14% – 20.10%, calculado restándole a Stripe el 2% del
+> comprador como si fuera margen. Ver `docs/stripe-integracion.md` §4-bis.
 
 ### Lo que se descartó, y por qué
 
@@ -170,10 +173,15 @@ Antes de activar la monetización, y otra vez antes del primer retiro:
 > y este documento —que es la fuente de verdad de los tramos— no lo tenía.
 
 ```
-1.50 USD fijo  +  0.25% transfronteriza  +  1% conversión a moneda local
+1.50 USD fijo  +  (0.25% a 1.25%) transfronteriza  +  (0% / 0.50% / 1%) conversión
 ```
 
-**Transferencia local**, los 46 del tramo estándar:
+> 🔄 **Corregido el 2026-08-31.** Antes decía «0.25% transfronteriza + 1% conversión» como si
+> fuera plano. No lo es: la transfronteriza tiene **cinco tramos** y la conversión es
+> **0.50%** entre dólar, euro y libra. Estaba mal en once de nuestros países. Tabla país por
+> país en `lib/wallet/payoutFees.ts`.
+
+**Transferencia local a México**, que paga 0.25% de transfronteriza y 1% de conversión:
 
 | Retiro | Fijo | Transfronteriza | Conversión | Coste | % del retiro |
 |---|---|---|---|---|---|
@@ -181,6 +189,18 @@ Antes de activar la monetización, y otra vez antes del primer retiro:
 | **300 USD** ← mínimo | 1.50 | 0.75 | 3.00 | **5.25** | **1.75%** |
 | 500 USD | 1.50 | 1.25 | 5.00 | 7.75 | 1.55% |
 | 1,000 USD | 1.50 | 2.50 | 10.00 | 14.00 | 1.40% |
+
+**Sobre el mínimo de 300 USD**, lo que cuesta cada destino:
+
+| Destino | Transfronteriza | Conversión | Coste | % del retiro |
+|---|---|---|---|---|
+| Estados Unidos | 0% | 0% | **1.50** | 0.50% |
+| Eurozona y Reino Unido | 0.25% | 0.50% | **3.75** | 1.25% |
+| México y los otros del 0.25% | 0.25% | 1% | **5.25** | 1.75% |
+| Los del 0.50% | 0.50% | 1% | **6.00** | 2.00% |
+| Los del 0.75% | 0.75% | 1% | **6.75** | 2.25% |
+| Los del 1% | 1% | 1% | **7.50** | 2.50% |
+| Perú | 1.25% | 1% | **8.25** | 2.75% |
 
 **Wire**, los 27 del tramo caro. 25 USD fijos por envío:
 
@@ -193,9 +213,17 @@ Antes de activar la monetización, y otra vez antes del primer retiro:
 Ahí está el porqué de los dos mínimos: subirlo de 300 a 500 ahorra **3.33 puntos** en wire y
 solo **0.29** en local.
 
-⚠️ **La transfronteriza no es 0.25% en todos.** México, Estados Unidos, Reino Unido y Canadá
-están en el tramo barato. Hay países al 1% y Perú al 1.25%, lo que sobre 300 USD lleva el
-coste de 1.75% a 2.50% y 2.75%.
+⚠️ **La transfronteriza tiene cinco tramos.** 0.25% en la eurozona, México, Canadá, Reino
+Unido, Suecia, Noruega, Hungría, Chequia, Islandia y Suiza. 0.50% en Dinamarca, Polonia, Hong
+Kong, Indonesia, Nueva Zelanda, Singapur, Tailandia, Sudáfrica, Marruecos, Jamaica, Trinidad y
+Tobago, Israel y Túnez. 0.75% en Rumanía, Turquía, India y Kenia. 1.25% en Perú. 1% el resto.
+
+⚠️ **La conversión tampoco es 1% plana.** Es **0.50%** entre dólar, euro y libra —así que el
+creador europeo o británico paga la mitad— y **0%** cuando ya cobra en dólares.
+
+🔴 **Ocho de nuestros pagables no están en la tabla de Stripe**: Costa Rica, República
+Dominicana, Mónaco, San Marino, Japón, Egipto, Nigeria y Camboya. Se les modela el 1% como
+peor caso hasta confirmarlo.
 
 ⚠️ Stripe cobra estas comisiones **de la cuenta financiera**, no las descuenta del envío. Hace
 falta saldo para el pago Y para su comisión, o el envío falla.
@@ -207,18 +235,38 @@ con la transferencia local de Stripe. Ver el pendiente 3 de `paiseswallbit.md`.
 
 ## Referencia: el coste total, payin más payout
 
-Peor caso, comprador con tarjeta internacional (payin 4.4%):
+> 🔄 **Rehecho el 2026-08-31.** Fuente de verdad: `docs/stripe-integracion.md` **§4-bis**.
+>
+> Las cifras anteriores (4.90% – 7.15% de coste, 18.14% – 20.10% para Vibra) tenían **dos**
+> errores acumulados: el payout de Connect en vez de Global Payouts, y —el grande— restarle a
+> Stripe el 2% completo del comprador como si fuera margen. **No lo es**: ese 2% está
+> comprometido en la conversión, el candado de la FX Quotes API y el colchón contra la deriva
+> del dólar. Vibra absorbe **2.9% con tarjeta estadounidense y 4.4% con internacional**.
 
-| Grupo | Coste Stripe | Le queda a Vibra |
-|---|---|---|
-| Estándar, a 300 USD | 4.90% – 7.15% | **18.14% – 20.10%** |
-| Transferencia cara, a 500 USD | 10.40% – 11.40% | **18.60% – 19.60%** |
+Base equivalente: el retiro mínimo entre lo que se lleva el creador. Estándar 300 ÷ 0.75 =
+**400**; wire 500 ÷ 0.70 = **714.29**.
 
-Con tarjeta estadounidense (payin 2.9%) el coste baja 1.5 puntos en todos.
+Los 24 casos están en `docs/stripe-integracion.md` §4-bis. Los extremos:
 
-⚠️ **Estas dos filas se calcularon con el payout de Connect** (~0.5%), no con el 1.75% real de
-Global Payouts. El extremo bajo del estándar debería ser **6.15%**, no 4.90%, y lo que le queda
-a Vibra baja algo más de un punto. Rehacer con las cifras de arriba.
+| Tarjeta | Creador cobra en | Payin | Payout | **Total** | **Le queda a Vibra** |
+|---|---|---|---|---|---|
+| 🇺🇸 estadounidense | 🌎 wire al 0.50% (30%) | 2.89% | 4.55% | **7.44%** | **22.56%** |
+| 🇺🇸 estadounidense | 🇺🇸 EE. UU. | 2.89% | 0.38% | **3.27%** | **21.73%** |
+| 🇺🇸 estadounidense | 🇪🇺 eurozona y Reino Unido | 2.89% | 0.94% | **3.83%** | **21.17%** |
+| 🇺🇸 estadounidense | 🇲🇽 México | 2.89% | 1.31% | **4.20%** | **20.80%** |
+| 🌎 internacional | 🌎 wire al 1% (30%) | 4.48% | 4.90% | **9.38%** | **20.62%** |
+| 🌎 internacional | 🇲🇽 México | 4.48% | 1.31% | **5.79%** | **19.21%** |
+| 🌎 internacional | 🇵🇪 Perú | 4.48% | 2.06% | **6.54%** | **18.46%** |
+
+**El rango real es 18.46% – 22.56%.** El peor caso es comprador internacional con creador
+peruano; el mejor, comprador estadounidense con creador en país de wire.
+
+🔄 **El wire resultó ser el mejor negocio, no el peor.** Su coste es casi cuatro veces el de
+una transferencia local, pero el 30% y el mínimo de 500 lo compensan de sobra.
+
+⚠️ **El wire sigue justificando su 30%.** Cuesta 4.90% de la base contra 1.31% de una
+transferencia local, casi cuatro veces más, y aun así el peor caso de wire (20.62%) queda por
+encima de varios del tramo estándar.
 
 ⚠️ **El desglose de los «doce niveles de coste» del 3.40% al 14.73% no está escrito en ningún
 documento del repo.** Solo sobrevivió el rango, citado más arriba en este mismo archivo. Si

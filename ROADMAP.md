@@ -38,7 +38,8 @@ PISTA DE CÓDIGO (una cosa a la vez):
 
 ## Estado actual (ya hecho)
 - ✅ Facturación comprador (Bloque 2): CFDI Vibra→comprador con Facturapi (modo prueba), correo, descarga.
-- ✅ Datos fiscales comprador/creador + KYC creador (Didit, que Stripe reemplazará).
+- ✅ Datos fiscales comprador/creador + KYC creador con **Didit**, que se queda: Global Payouts no
+  trae KYC. ⚠️ Esta línea decía «que Stripe reemplazará», de cuando el plan era Connect.
 - ✅ IVA del comprador (México 16%) calculado en backend.
 - ✅ Wallet interna (ledger) y experiencias del comprador.
 - 🔶 Todo el sistema de pagos actual es **Mercado Pago** → se migra a Stripe.
@@ -86,9 +87,11 @@ PISTA DE CÓDIGO (una cosa a la vez):
 > lo importa nadie.
 
 - Botón en Wallet "Da de alta tu cuenta para recibir tus pagos".
-- Crear cuenta conectada + **hosted onboarding** (Stripe hace el KYC) + webhook `account.updated`.
-- Rama por país: soportado → banco local; no soportado → recomendar Wallbit/Takenos.
-- **Entrega:** creador se da de alta y queda "listo para cobrar". (Reemplaza Didit.)
+- Crear destinatario de **Global Payouts** + formulario alojado + webhook de capacidades.
+- Rama por país: Stripe local → banco local; solo wire → tramo del 30%; sin ruta → Wallbit.
+- **Entrega:** creador se da de alta y queda "listo para cobrar". ⚠️ **NO reemplaza a Didit**:
+  esta línea asumía Connect, que traía el KYC incluido. Con Global Payouts, Didit sigue siendo
+  el primer paso del alta.
 
 ### S6 · Payouts (retiro)
 - `transfer` plataforma→creador + payout a su banco. **Mínimo 300 USD**, o **500 USD** en los

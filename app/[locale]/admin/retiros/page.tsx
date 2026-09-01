@@ -28,10 +28,16 @@ import {
 const FONT =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
+/**
+ * El Record es EXHAUSTIVO a propósito: al agregar `sent` al tipo, TypeScript reventó aquí en
+ * vez de dejar un estado sin etiqueta que se pintaría como `undefined` en el panel.
+ */
 const ESTADO: Record<WithdrawalStatus, { label: string; color: string }> = {
   pending: { label: "En revisión", color: "#f59e0b" },
   approved: { label: "Aceptada", color: "#34d399" },
   rejected: { label: "Rechazada", color: "#f87171" },
+  /** El dinero salió y el banco todavía no lo acredita. De uno a siete días según el país. */
+  sent: { label: "En camino", color: "#60a5fa" },
   paid: { label: "Pagada", color: "#34d399" },
   failed: { label: "Falló el envío", color: "#f87171" },
 };
@@ -115,8 +121,15 @@ export default function AdminRetiros() {
    * `OutboundPayment` sale ahí. Una de Stripe aquí significa que el envío falló a medias.
    */
   const porPagar = useMemo(() => rows.filter((r) => r.status === "approved"), [rows]);
+  /**
+   * 🚚 Stripe ya mandó el dinero y el banco todavía no lo acredita. De uno a siete días.
+   *
+   * Tienen grupo propio porque ni están pendientes de nada nuestro ni están resueltas: si
+   * alguna se queda aquí una semana, es que algo se atascó y hay que mirarla en Stripe.
+   */
+  const enCamino = useMemo(() => rows.filter((r) => r.status === "sent"), [rows]);
   const resueltas = useMemo(
-    () => rows.filter((r) => r.status !== "pending" && r.status !== "approved"),
+    () => rows.filter((r) => r.status !== "pending" && r.status !== "approved" && r.status !== "sent"),
     [rows]
   );
 
@@ -347,6 +360,14 @@ export default function AdminRetiros() {
                   </div>
                 </Tarjeta>
               ))
+            )}
+          </Grupo>
+
+          <Grupo titulo={`En camino · ${enCamino.length}`}>
+            {enCamino.length === 0 ? (
+              <Vacio texto="Ninguna transferencia en tránsito." />
+            ) : (
+              enCamino.map((r) => <Tarjeta key={r.id} r={r} nombre={nombres[r.creatorId]} />)
             )}
           </Grupo>
 

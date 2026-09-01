@@ -37,12 +37,14 @@
 - **Modelo aceptado** por Stripe (streaming + creadores, sin contenido sexual). Usaremos **Stripe Connect, plan "Tú controlas los precios"**. ⚠️ La nota original decía *Vibra como vendedor directo (Merchant of Record)*; **desde el 2026-08-26 Vibra es intermediaria** y cobra por cuenta del creador.
 - **Flujo de dinero (Opción B, agregador):** todo cae en Vibra; Vibra paga al creador (1–2 payouts/mes).
 - **Costos Stripe:** cobro 3.6% + 3 MXN (+0.5% si internacional); cuenta activa de creador **35 MXN/mes**; transferencia (payout) **0.25% + 12 MXN**. Total ≈ **<5% + fijos** (los fijos pegan en volumen bajo).
-- **Mínimo de retiro: $2,000 MXN** (para que los fijos no se coman el payout).
+- ⚠️ **Mínimo de retiro: era $2,000 MXN.** Hoy son **300 USD** en el tramo estándar y **500 USD**
+  en el de wire, desde el corte a la denominación en dólares. Ver `docs/payout-tiers.md`.
 - **⚠️ DECISIÓN PENDIENTE — quién absorbe el ~5% de Stripe:** ¿el 23% de Vibra (neto ≈18%), se pasa al comprador, o se descuenta al creador? Define cómo el ledger registra el neto.
 - **Liquidación en MXN** (Stripe Adaptive Pricing muestra moneda local al comprador). El CFDI del comprador sigue en MXN.
 - **Países / payouts:** en LatAm Stripe solo paga **local en México y Brasil**. Resto de LatAm: el creador abre **Wallbit o Takenos** y cobra en **USD**. → Los creadores se parten en: **mexicano** (CFDI + retenciones MX, Bloques 3/4/5) vs **extranjero** (USD, sin CFDI, **Bloque 8** aplica también a CREADORES).
 - **Stripe Tax:** solo calcula/recauda el **IVA de la venta (al comprador)** y valida RFC. **NO** hace retenciones ISR/IVA al creador, **NO** emite CFDI, **NO** reporta al SAT → las **retenciones (Bloque 5) siguen siendo de Vibra + fiscalista**.
-- **KYC:** Stripe Connect trae **KYC/KYB del creador gratis** → probablemente se **elimina Didit** (confirmar si Didit hace también verificación de edad u otro uso).
+- ⚠️ **KYC: la premisa cayó.** Esto asumía Stripe Connect, que trae KYC/KYB gratis. Se eligió
+  **Global Payouts**, que no trae ninguno, así que **Didit se quedó** y es el gate del retiro.
 - **Reservas/holds de Stripe:** no preguntado aún (otra reunión).
 - **Suscripciones recurrentes:** soportadas (Stripe Billing) para membresías de comunidad.
 - **Cuenta de prueba (sandbox):** disponible.

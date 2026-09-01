@@ -476,6 +476,9 @@ export default function WalletFinanzasPage() {
       iva: formatSettlement(r.iva, { code: true }),
       ivaComision: formatSettlement(r.ivaComision, { code: true }),
       neto: formatSettlement(r.neto, { code: true }),
+      /* La guía en su moneda. `refLocal` devuelve null cuando ya cobra en la de
+         liquidación, así que ahí la línea no se pinta sola. */
+      netoLocal: refLocal(r.neto),
       /** Del IVA cobrado, lo que no se le retuvo y declarará él. Nulo si no hay. */
       ivaPorDeclarar:
         r.ivaPorDeclarar > 0 ? formatSettlement(r.ivaPorDeclarar, { code: true }) : null,
@@ -494,6 +497,7 @@ export default function WalletFinanzasPage() {
     summary.retainedIva,
     summary.commissionVat,
     formatSettlement,
+    refLocal,
   ]);
 
   // El saldo sube desde cero al entrar. La barra y el resto de cifras usan el valor real:

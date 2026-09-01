@@ -436,7 +436,14 @@ export {
 } from "./wallet/ledgerTriggers";
 
 // Wallet — RETIROS. El creador solicita, administración acepta o rechaza.
-export { requestWithdrawal, reviewWithdrawal, markWithdrawalPaid } from "./wallet/withdrawals";
+export {
+  requestWithdrawal,
+  reviewWithdrawal,
+  markWithdrawalPaid,
+  // 🚚 Cierra los retiros que Stripe todavía estaba moviendo. Sin esto un pago devuelto por
+  //    el banco se quedaría como enviado para siempre y el creador no recuperaría su saldo.
+  conciliarRetiros,
+} from "./wallet/withdrawals";
 
 // Wallet — espejo de compras del comprador (users/{buyerId}/purchases)
 export { mirrorLedgerToBuyerPurchase } from "./wallet/buyerPurchases";

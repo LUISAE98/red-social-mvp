@@ -70,8 +70,8 @@ al creador ni CFDI**.
 | Radar Standard | $0.05 | por transacción |
 | Payout a banco propio | gratis | — |
 | **Global Payouts, fijo por envío** | **$1.50** | por envío |
-| **Global Payouts, transfronteriza** | **+0.25%** | **importe enviado** (0.25% en MX·US·GB·CA, 1% en otros, 1.25% en PE) |
-| **Global Payouts, conversión a moneda local** | **+1%** | **importe enviado** |
+| **Global Payouts, transfronteriza** | **+0.25% a +1.25%** | **importe enviado**, según país de destino. Cinco tramos, ver §4-bis |
+| **Global Payouts, conversión a moneda local** | **+0.50%** entre USD·EUR·GBP, **+1%** el resto, **0%** si ya cobra en dólares | **importe enviado** |
 | Wire, en vez del fijo de $1.50 | $25 | por envío |
 | Disputa | $15 | por contracargo |
 | Liquidación multi-moneda | 1% | importe liquidado |
@@ -99,6 +99,22 @@ $0.40 cubre las dos con holgura y es un número limpio.
 ---
 
 ## 4. Costo total de Stripe (sin impuesto)
+
+> 🚨 **LEE ANTES §4-bis. Las columnas «Vibra absorbe» de esta sección están calculadas
+> restándole a Stripe el 2% completo del comprador, como si fuera margen. NO LO ES.**
+>
+> El 2% está comprometido: 1% paga la conversión de Stripe, 0.15% paga el candado de la FX
+> Quotes API y el resto es colchón contra la deriva del dólar entre actualizaciones de precio.
+> Contarlo como descuento de la comisión de tarjeta es gastar el mismo dinero dos veces, y el
+> día que el dólar se mueva no hay con qué cubrirlo.
+>
+> Las cifras buenas están en **§4-bis**. Esta sección se conserva porque su desglose de qué
+> cobra Stripe y qué cubre el comprador es correcto; lo que está mal es la conclusión.
+
+> ⚠️ **Y ninguna tabla de aquí cuenta el impuesto.** Stripe cobra su porcentaje sobre el
+> **total capturado, impuesto incluido**: en una venta a comprador mexicano se cobran 118.80,
+> no 102.41, así que el 2.9% corre sobre un 16% más de importe. Son ~0.47 puntos más sobre la
+> base que no están en ningún cálculo. **Pendiente de confirmar contra un cobro real.**
 
 ⚠️ **Corrección del 2026-08-18.** La primera versión de esta tabla contaba el 1% de conversión
 como costo de Vibra. **Es falso: lo cubre el comprador** con el 2% de FX. Los números buenos
@@ -137,21 +153,19 @@ recibe el 75%)
 
 ### Totales
 
-> ⚠️ **Recalculados el 2026-08-31.** Los anteriores (3.25% / 4.04% / 3.57% / 4.38%) sumaban el
-> payout de Connect más la cuenta activa. Estos suman el payin absorbido de las tablas de
-> arriba más el payout de Global Payouts a un creador mexicano (1.31% de la base).
+> 🚨 **RETIRADOS. Los totales viven ahora en §4-bis.**
+>
+> Aquí hubo tres versiones seguidas y las tres estaban mal por la misma razón de fondo: le
+> restaban a Stripe el 2% del comprador como si fuera margen. La primera daba 3.83% / 6.66%; la
+> segunda 3.25% / 4.04%; la tercera, del 2026-08-31, 3.81% / 4.41%. Ninguna sirve.
+>
+> **El 2% está comprometido** en la conversión de Stripe, el candado de la FX Quotes API y el
+> colchón contra la deriva del dólar. Contarlo dos veces produce exactamente este error.
+>
+> Las cifras buenas, caso por caso y con el payout incluido, están en **§4-bis**.
 
-| Base | Comprador nacional | Comprador extranjero |
-|---|---|---|
-| $10 | **3.81%** | **4.41%** |
-| $50 | **4.13%** | **4.75%** |
-
-**Neto contra la comisión del 25%:** 20.9–21.2% nacional · 20.3–20.6% extranjero.
-
-Con un creador estadounidense el payout baja de 1.31% a 0.38%, casi un punto menos.
-
-> La versión anterior daba 3.83% / 6.66% y un neto de 18.34% para extranjero. La diferencia
-> son ~2.3 puntos, que a 100M MXN/mes son **~2.3M MXN al mes**.
+Lo que SÍ vale de esta sección es el desglose de arriba: qué se lleva Stripe, qué cubre el
+comprador y cuánto cuesta cada tipo de payout. Solo la conclusión estaba mal.
 
 ### Reparto de 100 puntos (todo incluido)
 
@@ -202,6 +216,158 @@ mordida es del 5.4%). El equilibrio exacto sería $0.3605 / $0.3700 USD; se redo
 cubrir las dos rutas con un número limpio.
 
 ---
+
+---
+
+## 4-bis. Lo que pagamos al final (2026-08-31)
+
+> Escrito el 2026-08-31 después de que §4 diera cifras optimistas durante dos semanas. **Esta
+> es la sección que hay que leer para saber cuánto cuesta operar.**
+
+### La regla que se olvidaba
+
+**El 2% que paga el comprador no compensa la comisión de tarjeta.** Está comprometido entero
+en cubrir el coste y el riesgo de la conversión. Restárselo a Stripe da un margen que no
+existe.
+
+Lo mismo con los 0.40: cubren el fijo de Stripe y Radar, no son margen.
+
+**Vibra absorbe 2.9% con tarjeta estadounidense y 4.4% con tarjeta internacional.** Punto.
+
+### Lo que cobra Stripe en el COBRO
+
+| Comisión | Cuánto | Sobre qué | Con qué se paga |
+|---|---|---|---|
+| Procesamiento | **2.9%** | total cobrado a la tarjeta | **Vibra**, de su comisión |
+| Recargo tarjeta no estadounidense | **+1.5%** | total cobrado a la tarjeta | **Vibra**, de su comisión |
+| Conversión de divisa | **+1%** | total cobrado a la tarjeta | el 2% del comprador |
+| Fijo por transacción | **0.30 USD** | por cobro | los 0.40 del comprador |
+| Radar | **0.05 USD** | por cobro | los 0.40 del comprador |
+
+### En qué se va el 2% del comprador
+
+| Parte | Cuánto | Para qué |
+|---|---|---|
+| Conversión de Stripe | **1%** | lo que cobra Stripe por convertir a USD |
+| Congelamiento | **0.15%** | candado de una hora de la FX Quotes API, para que el precio mostrado sea el cobrado |
+| Colchón | el resto | que el movimiento del dólar no nos pegue entre actualizaciones de precio, cada 24 h |
+
+En México el colchón real queda en **0.64%**, no en 0.85%, porque el 2% se cobra sobre el
+importe **antes** de impuesto. Ver §5.
+
+### En qué se van los 0.40 del comprador
+
+| Parte | Cuánto | Para qué |
+|---|---|---|
+| Fijo de Stripe | **0.30** | tarifa fija por cobro en EE. UU. |
+| Radar | **0.05** | antifraude por transacción |
+| Margen | **0.05** | Stripe cobra su porcentaje también sobre este cargo |
+
+### Lo que cobra Stripe en el RETIRO
+
+| Comisión | Cuánto | Sobre qué |
+|---|---|---|
+| Fijo por envío, transferencia local | **1.50 USD** | por envío |
+| Fijo por envío, wire | **25.00 USD** | por envío |
+| Transfronteriza | **0.25 % – 1.25 %** según país de destino | importe enviado |
+| Conversión a moneda local | **0.50 %** entre USD, EUR y GBP · **1 %** el resto · **0 %** si ya cobra en dólares | importe enviado |
+
+**La transfronteriza tiene cinco tramos, no tres.** 0.25 % en la eurozona, México, Canadá,
+Reino Unido, Suecia, Noruega, Hungría, Chequia, Islandia y Suiza. 0.50 % en Dinamarca, Polonia,
+Hong Kong, Indonesia, Nueva Zelanda, Singapur, Tailandia, Sudáfrica, Marruecos, Jamaica,
+Trinidad y Tobago, Israel y Túnez. 0.75 % en Rumanía, Turquía, India y Kenia. 1.25 % en Perú.
+1 % en el resto. Sin comisión cuando el destino es el propio país del emisor.
+
+🔴 **Ocho de nuestros países pagables no aparecen en la tabla de Stripe** — Costa Rica,
+República Dominicana, Mónaco, San Marino, Japón, Egipto, Nigeria y Camboya. Se les modela el
+peor caso del 1 % y se marcan aparte. Hay que preguntárselo a Stripe.
+
+👉 **La tabla país por país vive en `lib/wallet/payoutFees.ts`**, copiada de
+<https://docs.stripe.com/global-payouts/pricing>. La documentación se genera de ahí para que no
+puedan separarse.
+
+⚠️ **Y ni siquiera esa tabla manda en un retiro concreto.** El coste real lo devuelve un
+`OutboundPaymentQuote` de Stripe, con `payout_fee`, `cross_border_fee` y `fx_fee`. La tabla
+sirve para prever el margen, no para validar un pago.
+
+Lo paga **Vibra**, siempre. Al creador le llega su 75% (o 70%) íntegro y de ahí solo salen sus
+propias retenciones fiscales. Decisión de §8-sexies.4.
+
+### El coste total, caso por caso
+
+Base equivalente: el retiro mínimo dividido entre lo que se lleva el creador.
+
+* Tramo del **25%** — retiro mínimo **300 USD** ÷ 0.75 = **400** de base.
+* Tramo del **30%** — retiro mínimo **500 USD** ÷ 0.70 = **714.29** de base.
+
+| Dónde cobra el creador | Tarjeta | Comisión | Payin | Payout | Total | **Le queda a Vibra** |
+|---|---|---|---|---|---|---|
+| 🌎 Wire al 0.50 % | 🇺🇸 estadounidense | 30 % | 2.89 % | 4.55 % | 7.44 % | **22.56 %** |
+| 🌎 Wire al 0.75 % | 🇺🇸 estadounidense | 30 % | 2.89 % | 4.72 % | 7.62 % | **22.38 %** |
+| 🌎 Wire al 1 % | 🇺🇸 estadounidense | 30 % | 2.89 % | 4.90 % | 7.79 % | **22.21 %** |
+| 🌎 Wallbit 🔴 | 🇺🇸 estadounidense | 25 % | 2.89 % | 0.00 % | 2.89 % | **22.11 %** |
+| 🇺🇸 Estados Unidos | 🇺🇸 estadounidense | 25 % | 2.89 % | 0.38 % | 3.27 % | **21.73 %** |
+| 🇪🇺 Eurozona y Reino Unido | 🇺🇸 estadounidense | 25 % | 2.89 % | 0.94 % | 3.83 % | **21.17 %** |
+| 🌎 Wire al 0.50 % | 🌎 internacional | 30 % | 4.48 % | 4.55 % | 9.03 % | **20.97 %** |
+| 🇲🇽 México y los del 0.25 % | 🇺🇸 estadounidense | 25 % | 2.89 % | 1.31 % | 4.20 % | **20.80 %** |
+| 🌎 Wire al 0.75 % | 🌎 internacional | 30 % | 4.48 % | 4.72 % | 9.21 % | **20.79 %** |
+| 🌎 Wire al 1 % | 🌎 internacional | 30 % | 4.48 % | 4.90 % | 9.38 % | **20.62 %** |
+| 🌎 Países al 0.50 % | 🇺🇸 estadounidense | 25 % | 2.89 % | 1.50 % | 4.39 % | **20.61 %** |
+| 🌎 Wallbit 🔴 | 🌎 internacional | 25 % | 4.48 % | 0.00 % | 4.48 % | **20.52 %** |
+| 🌎 Países al 0.75 % | 🇺🇸 estadounidense | 25 % | 2.89 % | 1.69 % | 4.58 % | **20.42 %** |
+| 🌎 Países al 1 % | 🇺🇸 estadounidense | 25 % | 2.89 % | 1.88 % | 4.77 % | **20.23 %** |
+| 🇺🇸 Estados Unidos | 🌎 internacional | 25 % | 4.48 % | 0.38 % | 4.85 % | **20.15 %** |
+| 🇵🇪 Perú | 🇺🇸 estadounidense | 25 % | 2.89 % | 2.06 % | 4.95 % | **20.05 %** |
+| 🇪🇺 Eurozona y Reino Unido | 🌎 internacional | 25 % | 4.48 % | 0.94 % | 5.42 % | **19.58 %** |
+| 🇲🇽 México y los del 0.25 % | 🌎 internacional | 25 % | 4.48 % | 1.31 % | 5.79 % | **19.21 %** |
+| 🌎 Países al 0.50 % | 🌎 internacional | 25 % | 4.48 % | 1.50 % | 5.98 % | **19.02 %** |
+| 🌎 Países al 0.75 % | 🌎 internacional | 25 % | 4.48 % | 1.69 % | 6.17 % | **18.83 %** |
+| 🌎 Países al 1 % | 🌎 internacional | 25 % | 4.48 % | 1.88 % | 6.35 % | **18.65 %** |
+| 🇵🇪 Perú | 🌎 internacional | 25 % | 4.48 % | 2.06 % | 6.54 % | **18.46 %** |
+
+**El rango real es 18.46 % – 22.56 %.** El peor caso es comprador internacional con creador
+peruano; el mejor, comprador estadounidense con creador en país de wire.
+
+🔴 **Wallbit sale como el segundo mejor caso y es mentira.** Aparece a 0 % porque no tenemos su
+tarifa, no porque sea gratis.
+
+**El payin no es 2.9% y 4.4% clavados** porque el porcentaje corre sobre el importe cobrado,
+que ya trae el cargo fijo y —en internacional— el 2% encima. De ahí el 2.89% y el 4.48%.
+
+**El payout del creador estadounidense es solo el fijo de 1.50**: ni transfronteriza ni
+conversión, porque no sale del país ni cambia de moneda.
+
+**El wire resultó ser el MEJOR negocio, no el peor.** Cuesta 4.5 – 4.9% de la base contra el
+0.4 – 2.1% de una transferencia local, pero el 30% de comisión y el mínimo de 500 USD más que
+lo compensan: deja entre 20.62% y 22.56%, por encima de casi todo el tramo estándar. El
+mínimo alto es lo que lo sostiene; a 300 USD el wire dejaría 18.9%.
+
+**Lo que más mueve la aguja es de dónde es el COMPRADOR.** Una tarjeta internacional cuesta
+1.59 puntos más que una estadounidense, en todos los casos. Entre el creador más barato y el
+más caro del tramo estándar hay 1.68 puntos. Están casi empatados, y el eje del comprador es
+el que no se puede elegir.
+
+### Lo que esto cambia
+
+| | Decía | Es |
+|---|---|---|
+| Coste total | 3.25% – 4.38% | **2.89% – 9.38%** |
+| Le queda a Vibra | 21.4% – 21.8% | **18.46% – 22.56%** |
+| Transfronteriza | 3 tramos | **5 tramos, país por país** |
+| Conversión | 1% plano | **0.50% entre USD·EUR·GBP, 1% el resto, 0% en dólares** |
+
+El peor caso —comprador internacional y creador peruano— deja **18.46%**, casi tres puntos
+menos de lo que decía §4. El reparto objetivo del 25% en `docs/modelo-financiero.md` daba por
+buenos ~5 puntos de Stripe; el rango real llega a 9.38%.
+
+### Pendientes
+
+| # | Pendiente | Cómo se cierra |
+|---|---|---|
+| 1 | 🔴 Stripe cobra su % sobre el total **con impuesto**. Son ~0.47 puntos más sobre la base con comprador mexicano, que no están en ninguna tabla | Leer el `balance_transaction` de un cobro real con impuesto y comparar la comisión contra el 2.9% del importe sin impuesto |
+| 2 | 🔴 **Wallbit no tiene ni una tarifa medida.** Sus 12 países no aparecen en la tabla de arriba porque no hay con qué calcularlos | Cuenta de prueba y un retiro real contra el tipo mid-market. Ver `paiseswallbit.md` pendiente 3 |
+| 3 | 🟡 Si Global Payouts cobra cuota mensual por destinatario, equivalente a la cuenta activa de Connect | Preguntar a Stripe, en la misma conversación que la preaprobación |
+| 4 | 🟡 El «reparto de 100 puntos» de §4 sigue con el retiro mínimo en pesos y el payout de Connect | Rehacer con esta tabla si hace falta defenderlo |
 
 ## 5. Modelo de cambio de divisa — 📄 **BASE PARA CONTRATO Y DOCUMENTOS LEGALES**
 
@@ -1297,7 +1463,7 @@ fuente de verdad del dinero de cada quien, no en una copia de lo que Stripe ya s
 🚨 **Es MUCHO más caro que Connect** (0.25% + 0.25 USD). La diferencia es el **1% de
 conversión**: Connect movía dólares a dólares; aquí se convierte a pesos en cada pago.
 
-⚠️ `docs/modelo-financiero.md` tiene apuntado **0.72% de payout**, que era el número de Connect.
+✅ `docs/modelo-financiero.md` ya NO tiene el 0.72% (corregido el 2026-08-31). Era el número de Connect.
 Con Global Payouts y el mínimo actual son **1.75%**, y como Vibra absorbe el coste para que al
 creador le llegue su 75% íntegro, ese punto de más sale de la comisión del 25%.
 
@@ -1443,14 +1609,18 @@ Decidido el 2026-08-27. Fuente de verdad: **`docs/payout-tiers.md`**.
 
 | Grupo | Comisión | Mínimo | Países | Le queda a Vibra |
 |---|---|---|---|---|
-| **Estándar** — transferencia local de Stripe | **25%** | **300 USD** | 46 | 18.14% – 20.10% |
-| **Transferencia cara** — solo wire de Stripe | **30%** | **500 USD** | 27 | 18.60% – 19.60% |
+| **Estándar** — transferencia local de Stripe | **25%** | **300 USD** | 46 | 18.46% – 21.73% |
+| **Transferencia cara** — solo wire de Stripe | **30%** | **500 USD** | 27 | 20.62% – 22.21% |
 | **Wallbit** con retiro a banco local | **25%** | **300 USD** | 8 | — |
 | **Wallbit** sin retiro local ⚠️ | **25%** | **300 USD** | 4 | — |
 | Sin ruta de pago | — | — | 58 | — |
 
 **89 países pagables de 147.** Los 4 territorios que cobran con la cuenta de otro país
 (`PR` y `VI` como Estados Unidos, `IC` y `EA` como España) van dentro del estándar.
+
+> ⚠️ La columna «Le queda a Vibra» se rehizo el 2026-08-31. Decía 18.14% – 20.10% y
+> 18.60% – 19.60%, calculado restándole a Stripe el 2% del comprador. Desglose caso por caso
+> en **§4-bis**.
 
 **Estándar (46)** — transferencia bancaria local, 1.50 USD fijos por envío:
 

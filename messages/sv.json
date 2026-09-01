@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "It is the VAT on our 25% commission and you claim it on your return.",
     "withdrawSeeBreakdown": "See breakdown",
     "withdrawHideBreakdown": "See less",
+    "withdrawNetLocal": "About {amount} in your bank",
     "withdrawRowVatCollected": "VAT som du tagit ut av dina köpare",
     "withdrawVatToDeclare": "Av den betalningen är {amount} VAT som du tagit in och själv ska deklarera. Det ingår inte i din förtjänst.",
     "withdrawRowBalance": "Ditt saldo",

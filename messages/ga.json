@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "It is the VAT on our 25% commission and you claim it on your return.",
     "withdrawSeeBreakdown": "See breakdown",
     "withdrawHideBreakdown": "See less",
+    "withdrawNetLocal": "About {amount} in your bank",
     "withdrawRowVatCollected": "VAT a bhailigh tú ó do cheannaitheoirí",
     "withdrawVatToDeclare": "As an íocaíocht sin, is VAT é {amount} a bhailigh tú agus a dhearbhóidh tú féin. Ní cuid de do thuilleamh é.",
     "withdrawRowBalance": "Do iarmhéid",

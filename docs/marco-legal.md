@@ -4,9 +4,10 @@
 > modelo volvió exactamente a eso tras el paréntesis de *vendedor directo* (jul–ago 2026). **Lo que dice
 > sobre el rol de Vibra vuelve a ser correcto.** Ver `docs/legal/fiscal-iva-isr-plataforma.md` §0.
 >
-> ⚠️ **Didit se eliminó el 2026-08-13.** Donde este documento lo nombra como proveedor de KYC, léase
-> *la procesadora de pagos*. El análisis regulatorio de fondo (qué exige cada ley) sigue siendo válido;
-> lo que cambió es quién lo opera.
+> ✅ **Didit es el proveedor de KYC vigente** (act. 2026-08-31). Se eliminó el 2026-08-13 y se
+> **reintegró el 2026-08-27**, al elegir Global Payouts en vez de Connect: Connect traía el KYC
+> incluido, Global Payouts no. Donde este documento lo nombra como proveedor de KYC, es correcto.
+> Esta nota decía que se había eliminado y que había que leer *la procesadora de pagos*.
 
 > **Estado:** investigación informativa (2026-07-24). **NO es asesoría legal.**
 > Los puntos marcados con fuente primaria fueron verificados contra textos de ley oficiales

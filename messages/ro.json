@@ -1555,6 +1555,7 @@
     "withdrawRowCommissionVatWhy": "It is the VAT on our 25% commission and you claim it on your return.",
     "withdrawSeeBreakdown": "See breakdown",
     "withdrawHideBreakdown": "See less",
+    "withdrawNetLocal": "About {amount} in your bank",
     "withdrawRowVatCollected": "TVA pe care ai încasat-o de la cumpărătorii tăi",
     "withdrawVatToDeclare": "Din această plată, {amount} este TVA pe care ai încasat-o și pe care o vei declara tu. Nu face parte din câștigul tău.",
     "withdrawRowBalance": "Soldul tău",
