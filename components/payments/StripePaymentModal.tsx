@@ -270,7 +270,9 @@ export default function StripePaymentModal({
   const [acctConfirm, setAcctConfirm] = useState("");
   // null = todavia no se ha comprobado ese correo.
   const [acctExists, setAcctExists] = useState<boolean | null>(null);
-  const acctEmailOk = /^[^s@]+@[^s@]+.[^s@]+$/.test(acctEmail.trim());
+  // Algo@algo.algo, sin espacios. Basta para no dejar pasar un correo escrito a
+  // medias; el que decide de verdad si existe es el servidor.
+  const acctEmailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(acctEmail.trim());
   // Con cuenta previa NO se pide repetir: la contrasena se escribe de memoria
   // y repetirla no aporta nada.
   const acctOk =
@@ -1025,7 +1027,9 @@ export default function StripePaymentModal({
           {/* El alta, DEBAJO de los metodos de pago. No es un paso aparte: se
               llena de corrido con la tarjeta y se resuelve al pagar. */}
           {collectAccount && (
-            <div style={{ display: "grid", gap: 8, paddingTop: 16, marginTop: 4, borderTop: "1px solid #eceef1" }}>
+            // ⚠️ SIN linea propia arriba: la ultima fila de metodos de pago ya
+            // trae la suya por abajo, y poner otra dibujaba dos seguidas.
+            <div style={{ display: "grid", gap: 8, paddingTop: 16 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: "#3a3f4a" }}>
                 {tExpress("title")}
               </span>
