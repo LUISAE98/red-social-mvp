@@ -353,7 +353,17 @@ export default function ReelStorySlide({
   // botón de comprar. Antes se leía `story.creatorId`, que es el publicador, así
   // que esa misma historia salía con dos caras distintas según quién la subiera.
   useEffect(() => {
-    if (!greetingAuthorUid) return;
+    if (!greetingAuthorUid) {
+      // Sin identificador de creador no hay nombre, ni foto, ni precio: la
+      // historia sale muda y sin poder comprarse. Es un dato que falta en el
+      // documento, no un fallo de red, y por eso conviene verlo.
+      console.warn("[ReelStorySlide] historia sin creador:", story.id, {
+        creatorId: story.creatorId,
+        greetingCreatorId: story.greetingCreatorId,
+        esMuestra: story.isSample,
+      });
+      return;
+    }
     let cancelled = false;
     getDoc(doc(db, "users", greetingAuthorUid))
       .then((snap) => {
@@ -382,7 +392,7 @@ export default function ReelStorySlide({
     return () => {
       cancelled = true;
     };
-  }, [greetingAuthorUid]);
+  }, [greetingAuthorUid, story.id, story.creatorId, story.greetingCreatorId, story.isSample]);
 
   // ── Lectura del contexto y compra ─────────────────────────────────────────
 
@@ -1059,11 +1069,15 @@ export default function ReelStorySlide({
             >
               {tServices("contextLabel")}
             </button>
-            {/* No se ofrece lo que este creador NO vende.
-                Antes se ofrecia igual: la persona llenaba el formulario entero y
-                el servidor lo rechazaba al final. Mientras no se sabe se
-                mantiene, para no hacer saltar la fila. */}
-            {purchase.available !== false && (
+            {/* Solo se ofrece cuando SE SABE que se puede comprar.
+                ⚠️ Antes bastaba con que no se supiera lo contrario, y eso era el
+                origen de la inestabilidad: si la historia no traia identificador
+                de creador —o su lectura no llegaba— el boton se pintaba igual,
+                la persona llenaba el formulario entero y la pasarela terminaba
+                diciendo que no se pudo determinar el precio.
+                Aparecer un instante despues es mucho mejor que llevar a un
+                callejon sin salida. */}
+            {purchase.available === true && (
               <button
                 type="button"
                 onTouchStart={(e) => e.stopPropagation()}
