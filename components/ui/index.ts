@@ -31,6 +31,7 @@ export { default as Modal } from "./VibraResponsivePanel";
 // Los dos huecos de carga que se repiten en todo el producto: renglones de
 // avatar + texto, y cards apiladas. Nada de leyendas de "Cargando…".
 export { default as ListSkeleton, CardsSkeleton } from "./ListSkeleton";
+export { default as SkeletonBlock } from "./SkeletonBlock";
 
 // El glifo de "abrir menú": tres rayitas. Sustituye a los tres puntos, que
 // vivían en tres implementaciones distintas repartidas por el producto.

@@ -16,7 +16,7 @@
 //   topRightActions  → junto al botón de silencio (cerrar)
 
 import FillImage from "@/components/ui/FillImage";
-import { IconButton } from "@/components/ui";
+import { IconButton, SkeletonBlock } from "@/components/ui";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
@@ -28,6 +28,7 @@ import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { useTextReader, scrollCursorIntoView } from "@/lib/tts/useTextReader";
 import { vozParaLocale } from "@/lib/tts/voices";
 import { useGreetingPurchase } from "@/lib/greetings/useGreetingPurchase";
+import { useCreatorProfile } from "@/lib/reels/creatorProfiles";
 import { buildStoryUrl } from "@/lib/reels/reelStories";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -212,11 +213,6 @@ export default function ReelStorySlide({
   // El video ya está pintando imagen real. Hasta entonces se ve la portada.
   const [videoStarted, setVideoStarted] = useState(false);
   const [videoAspect, setVideoAspect] = useState<{ w: number; h: number } | null>(null);
-  const [creator, setCreator] = useState<{
-    name: string | null;
-    photo: string | null;
-    handle: string | null;
-  } | null>(null);
   const [contextOpen, setContextOpen] = useState(false);
   // Progreso propio, para la barra que pinta este componente. El anfitrión que
   // trae la suya sigue recibiéndolo por `onProgress`.
@@ -352,46 +348,26 @@ export default function ReelStorySlide({
   // creador: es su trabajo, y es a él a quien se le encarga uno nuevo desde el
   // botón de comprar. Antes se leía `story.creatorId`, que es el publicador, así
   // que esa misma historia salía con dos caras distintas según quién la subiera.
+  //
+  // ⚠️ Del lector COMPARTIDO, no de una lectura propia de este panel. El mismo
+  // documento lo necesitan tambien la compra y las vistas previas, y cuando
+  // cada uno abria la suya el nombre, la foto y el precio llegaban por separado:
+  // eso era lo que se veia como inestabilidad. Un creador ya leido sale puesto
+  // desde el primer pintado, sin pasar por el esqueleto.
+  const creator = useCreatorProfile(greetingAuthorUid);
+  /** Todavia no se sabe quien es. Lo que depende de el va en esqueleto. */
+  const creatorPendiente = !!greetingAuthorUid && creator === undefined;
+
   useEffect(() => {
-    if (!greetingAuthorUid) {
-      // Sin identificador de creador no hay nombre, ni foto, ni precio: la
-      // historia sale muda y sin poder comprarse. Es un dato que falta en el
-      // documento, no un fallo de red, y por eso conviene verlo.
-      console.warn("[ReelStorySlide] historia sin creador:", story.id, {
-        creatorId: story.creatorId,
-        greetingCreatorId: story.greetingCreatorId,
-        esMuestra: story.isSample,
-      });
-      return;
-    }
-    let cancelled = false;
-    getDoc(doc(db, "users", greetingAuthorUid))
-      .then((snap) => {
-        if (cancelled) return;
-        const d = snap.data();
-        const photo = typeof d?.photoURL === "string" && d.photoURL ? d.photoURL : null;
-        if (!snap.exists()) {
-          console.warn("[ReelStorySlide] el creador no existe:", greetingAuthorUid);
-        } else if (!photo) {
-          // Sin esto, "no tiene foto" y "no pude leerla" se ven igual: un hueco.
-          console.warn(
-            "[ReelStorySlide] el creador no trae photoURL:",
-            greetingAuthorUid,
-            { campos: Object.keys(d ?? {}) },
-          );
-        }
-        setCreator({
-          name: typeof d?.displayName === "string" ? d.displayName : null,
-          photo,
-          handle: typeof d?.handle === "string" ? d.handle : null,
-        });
-      })
-      .catch((err) => {
-        console.error("[ReelStorySlide] no se pudo leer al creador:", greetingAuthorUid, err);
-      });
-    return () => {
-      cancelled = true;
-    };
+    if (greetingAuthorUid) return;
+    // Sin identificador de creador no hay nombre, ni foto, ni precio: la
+    // historia sale muda y sin poder comprarse. Es un dato que falta en el
+    // documento, no un fallo de red, y por eso conviene verlo.
+    console.warn("[ReelStorySlide] historia sin creador:", story.id, {
+      creatorId: story.creatorId,
+      greetingCreatorId: story.greetingCreatorId,
+      esMuestra: story.isSample,
+    });
   }, [greetingAuthorUid, story.id, story.creatorId, story.greetingCreatorId, story.isSample]);
 
   // ── Lectura del contexto y compra ─────────────────────────────────────────
@@ -597,10 +573,14 @@ export default function ReelStorySlide({
   const avatarRing = (
     <div style={{ position: "relative", width: avatarSz, height: avatarSz, flexShrink: 0 }}>
       <div style={{ position: "absolute", inset: avatarInset, borderRadius: "50%", overflow: "hidden", background: "rgba(255,255,255,0.1)" }}>
-        <FillImage
-          src={creator?.photo}
-          fallback={<div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />}
-        />
+        {creatorPendiente ? (
+          <SkeletonBlock height="100%" circle />
+        ) : (
+          <FillImage
+            src={creator?.photo}
+            fallback={<div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />}
+          />
+        )}
       </div>
       <AvatarRing foto={medidaAroEnCaja(avatarSz).foto} />
     </div>
@@ -631,9 +611,15 @@ export default function ReelStorySlide({
     <>
       {avatarRing}
       <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        <span style={{ color: "#fff", fontSize: compact ? 13 : 17, fontWeight: 500, lineHeight: "1.2", fontFamily: FONT }}>
-          {creator?.name ?? ""}
-        </span>
+        {/* El renglon del nombre no se queda en blanco mientras carga: un hueco
+            mudo y un creador sin nombre se ven igual. */}
+        {creatorPendiente ? (
+          <SkeletonBlock width={compact ? 84 : 116} height={compact ? 13 : 17} radius={5} style={{ margin: "1px 0" }} />
+        ) : (
+          <span style={{ color: "#fff", fontSize: compact ? 13 : 17, fontWeight: 500, lineHeight: "1.2", fontFamily: FONT }}>
+            {creator?.name ?? ""}
+          </span>
+        )}
         <span style={{ color: "rgba(255,255,255,0.75)", fontSize: compact ? 11 : 13, fontWeight: 500, lineHeight: "1.2", fontFamily: FONT }}>
           {label}
         </span>
@@ -1077,6 +1063,13 @@ export default function ReelStorySlide({
                 diciendo que no se pudo determinar el precio.
                 Aparecer un instante despues es mucho mejor que llevar a un
                 callejon sin salida. */}
+            {/* Mientras no se sabe, el hueco del boton se reserva con su
+                esqueleto. Asi la fila no da un salto cuando el boton llega, y
+                se ve que algo esta cargando en vez de parecer que no hay nada
+                a la venta. */}
+            {purchase.available === null && creatorPendiente && (
+              <SkeletonBlock height={compact ? 31 : 41} radius={10} style={{ flex: 1 }} />
+            )}
             {purchase.available === true && (
               <button
                 type="button"

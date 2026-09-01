@@ -23,10 +23,9 @@ import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
 import { createGreetingStripeIntent } from "@/lib/stripe/stripePayments";
 import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { getServiceByType } from "@/lib/services/normalizeServices";
+import { getServiceByType, getVisibleServices } from "@/lib/services/normalizeServices";
 import { attachGuestAccount } from "@/lib/guest/guestAccount";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useCreatorProfile } from "@/lib/reels/creatorProfiles";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
@@ -87,15 +86,61 @@ export function useGreetingPurchase({
   //
   // Se lee del documento del creador, que es de lectura publica, asi que
   // funciona igual sin sesion.
-  const [priceLabel, setPriceLabel] = useState<string | undefined>(undefined);
-  /** Precio base del creador, sin cargo ni impuesto. */
-  const [basePrice, setBasePrice] = useState<number | null>(null);
-  // ¿Este creador vende este servicio? null = todavia no se sabe.
   //
-  // Sin esto se ofrecia comprar algo que no estaba a la venta: la persona
-  // llenaba el formulario entero y el servidor lo rechazaba al final con "este
-  // servicio no esta activo". El precio ausente era el mismo sintoma.
-  const [available, setAvailable] = useState<boolean | null>(null);
+  // ⚠️ Sale del lector COMPARTIDO de creadores, no de una suscripcion propia de
+  // este hook. Antes cada panel abria la suya y el mismo documento se leia por
+  // cuatro caminos distintos sin enterarse unos de otros; el boton de comprar,
+  // que cuelga de esta lectura, faltaba en perfiles que SI tenian el servicio a
+  // la venta solo porque su lectura aun no habia llegado. Compartiendo, un
+  // creador ya conocido resuelve en el primer pintado, sin espera.
+  const creatorProfile = useCreatorProfile(creatorId);
+
+  /**
+   * Precio y disponibilidad, derivados de lo que hay ahora mismo.
+   *
+   * Derivado y no en estado: un estado que copia lo leido siempre va un pintado
+   * por detras, y ese desfase es justo lo que se veia como inestabilidad.
+   *
+   * `available` es de tres estados a proposito. `null` = todavia no se sabe, y
+   * no puede confundirse con `false` = no lo vende: uno pinta esqueleto y el
+   * otro no pinta nada.
+   */
+  const { priceLabel, basePrice, available, servicio } = useMemo(() => {
+    if (!creatorId || creatorProfile === undefined) {
+      return {
+        priceLabel: undefined as string | undefined,
+        basePrice: null as number | null,
+        available: null as boolean | null,
+        servicio: null as ReturnType<typeof getServiceByType>,
+      };
+    }
+    // ⚠️ La MISMA definicion de "a la venta" que usa el perfil del creador
+    // (`getVisibleServices`): encendido, visible y del ambito que toca. Con
+    // `getServiceByType` a secas, un servicio APAGADO seguia ensenando su boton
+    // en el reel aunque en el perfil ya no apareciera.
+    const service =
+      getVisibleServices(creatorProfile.offerings, source).find((s) => s.type === type) ?? null;
+    const price = service?.publicPrice ?? service?.memberPrice ?? null;
+    // ⚠️ Encendido NO basta: sin precio no se puede vender. Un servicio sin
+    // importe ensenaba el boton, dejaba llenar el formulario y la pasarela se
+    // plantaba con "no se pudo determinar el precio". Para quien mira, un
+    // servicio sin precio y uno apagado son lo mismo: no esta a la venta.
+    const seVende = !!service && typeof price === "number" && price > 0;
+    return {
+      priceLabel:
+        typeof price === "number"
+          ? // Total todo incluido: base del creador, cargo fijo e impuesto del
+            // pais de quien mira. Es lo que se le va a cobrar.
+            pf.formatWithTax(price + FIXED_SERVICE_FEE_USD, {
+              baseCurrency: SETTLEMENT_CURRENCY,
+              code: true,
+            }).total
+          : undefined,
+      basePrice: typeof price === "number" ? price : null,
+      available: seVende,
+      servicio: service,
+    };
+  }, [creatorId, creatorProfile, type, source, pf]);
   const [payOpen, setPayOpen] = useState(false);
   const [payRequestId, setPayRequestId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState<number | null>(null);
@@ -132,68 +177,28 @@ export function useGreetingPurchase({
     setFormOpen(true);
   }, [resolveBuyer]);
 
-  // ⚠️ EN VIVO, no una lectura suelta.
-  //
-  // Si el creador cambia el precio o apaga el servicio mientras alguien tiene
-  // el feed abierto, lo que se ensena tiene que cambiar con el. Un precio leido
-  // una vez es un precio viejo esperando a equivocarse, y en algo que se cobra
-  // eso no vale.
+  // Sin esto, "no encuentro el servicio", "lo encuentro apagado", "lo encuentro
+  // sin precio" y "el precio esta en un campo que no miro" se ven todos igual:
+  // un boton que no sale. Solo cuando ya se leyo al creador, para no avisar de
+  // algo que simplemente todavia no ha llegado.
   useEffect(() => {
-    if (!creatorId) return;
-    return onSnapshot(
-      doc(db, "users", creatorId),
-      (snap) => {
-        const offerings = snap.data()?.offerings ?? null;
-        const service = getServiceByType(offerings, type, source);
-        const precio = service?.publicPrice ?? service?.memberPrice ?? null;
-        // ⚠️ Activo NO basta: sin precio no se puede vender.
-        //
-        // Antes bastaba con que el servicio existiera, asi que un servicio
-        // encendido sin importe ensenaba el boton de comprar, dejaba llenar el
-        // formulario y la pasarela se plantaba con "no se pudo determinar el
-        // precio". Para quien mira, un servicio sin precio y uno apagado son lo
-        // mismo: no esta a la venta.
-        setAvailable(!!service && typeof precio === "number" && precio > 0);
-        // Sin esto, "no encuentro el servicio", "lo encuentro sin precio" y "el
-        // precio esta en un campo que no miro" se ven todos igual: sin precio.
-        if (!service || (service.publicPrice == null && service.memberPrice == null)) {
-          console.warn("[useGreetingPurchase] sin precio para", type, "en", source, {
-            encontrado: service,
-            ofertasDelCreador: Array.isArray(offerings)
-              ? (offerings as Array<Record<string, unknown>>).map((o) => ({
-                  type: o?.type,
-                  enabled: o?.enabled,
-                  visible: o?.visible,
-                  sourceScope: o?.sourceScope,
-                  publicPrice: o?.publicPrice,
-                  memberPrice: o?.memberPrice,
-                  price: o?.price,
-                }))
-              : offerings,
-          });
-        }
-        const price = precio;
-        if (typeof price !== "number") {
-          setPriceLabel(undefined);
-          setBasePrice(null);
-          return;
-        }
-        setBasePrice(price);
-        // Total todo incluido: base del creador, cargo fijo e impuesto del
-        // pais de quien mira. Es lo que se le va a cobrar.
-        setPriceLabel(
-          pf.formatWithTax(price + FIXED_SERVICE_FEE_USD, {
-            baseCurrency: SETTLEMENT_CURRENCY,
-            code: true,
-          }).total,
-        );
-      },
-      (err) => {
-        // Sin saberlo no se puede prometer un precio ni ofrecer la compra.
-        console.error("[useGreetingPurchase] no se pudo leer al creador:", err);
-      },
-    );
-  }, [creatorId, type, source, pf]);
+    if (!creatorId || creatorProfile === undefined || available !== false) return;
+    console.warn("[useGreetingPurchase] no esta a la venta:", type, "en", source, {
+      creador: creatorId,
+      encontrado: servicio,
+      ofertasDelCreador: Array.isArray(creatorProfile.offerings)
+        ? (creatorProfile.offerings as Array<Record<string, unknown>>).map((o) => ({
+            type: o?.type,
+            enabled: o?.enabled,
+            visible: o?.visible,
+            sourceScope: o?.sourceScope,
+            publicPrice: o?.publicPrice,
+            memberPrice: o?.memberPrice,
+            price: o?.price,
+          }))
+        : creatorProfile.offerings,
+    });
+  }, [creatorId, creatorProfile, available, servicio, type, source]);
 
   const close = useCallback(() => {
     setFormOpen(false);

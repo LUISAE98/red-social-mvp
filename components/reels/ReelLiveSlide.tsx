@@ -13,13 +13,13 @@
 // en el feed de comunidades. Escribir un segundo reproductor aquí habría
 // duplicado justo la parte que más cuesta mantener.
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import FillImage from "@/components/ui/FillImage";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { AvatarRing, medidaAroEnCaja } from "@/components/ui/AvatarRing";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { SkeletonBlock } from "@/components/ui";
+import { useCreatorProfile } from "@/lib/reels/creatorProfiles";
 import type { ReelLivePost } from "@/lib/reels/reelItems";
 import FollowCreatorButton from "@/components/social/FollowCreatorButton";
 import { useLiveTicketAccess } from "@/lib/liveAccess/useLiveTicketAccess";
@@ -86,31 +86,14 @@ export default function ReelLiveSlide({
   const tLive = useTranslations("live");
 
   const ld = post.liveData;
-  const [creator, setCreator] = useState<{ name: string | null; photo: string | null }>({
-    name: null,
-    photo: null,
-  });
-
   // La cara del live es la de quien transmite. En un live no hay la ambigüedad
   // de las historias entre quien graba y quien publica: el autor del post es el
   // que está en cámara.
-  useEffect(() => {
-    if (!post.authorId) return;
-    let cancelled = false;
-    getDoc(doc(db, "users", post.authorId))
-      .then((snap) => {
-        if (cancelled) return;
-        const d = snap.data();
-        setCreator({
-          name: typeof d?.displayName === "string" ? d.displayName : null,
-          photo: typeof d?.photoURL === "string" ? d.photoURL : null,
-        });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [post.authorId]);
+  //
+  // Del lector COMPARTIDO: la superficie ya adelantó esta lectura al armar el
+  // feed, así que aquí el creador normalmente ya está y el panel sale puesto.
+  const creator = useCreatorProfile(post.authorId);
+  const creatorPendiente = !!post.authorId && creator === undefined;
 
   // Vertical llena la pantalla; horizontal se enmarca con negro arriba y abajo
   // en vez de recortarse. Es la misma regla que ya siguen las historias.
@@ -207,25 +190,33 @@ export default function ReelLiveSlide({
               background: "rgba(255,255,255,0.1)",
             }}
           >
-            <FillImage
-              src={creator.photo}
-              fallback={<div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />}
-            />
+            {creatorPendiente ? (
+              <SkeletonBlock height="100%" circle />
+            ) : (
+              <FillImage
+                src={creator?.photo}
+                fallback={<div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />}
+              />
+            )}
           </div>
           <AvatarRing foto={medidaAroEnCaja(avatarSz).foto} color={LIVE_RED} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-          <span
-            style={{
-              color: "#fff",
-              fontSize: compact ? 13 : 17,
-              fontWeight: 600,
-              lineHeight: "1.2",
-              fontFamily: FONT,
-            }}
-          >
-            {creator.name ?? ""}
-          </span>
+          {creatorPendiente ? (
+            <SkeletonBlock width={compact ? 84 : 116} height={compact ? 13 : 17} radius={5} style={{ margin: "1px 0" }} />
+          ) : (
+            <span
+              style={{
+                color: "#fff",
+                fontSize: compact ? 13 : 17,
+                fontWeight: 600,
+                lineHeight: "1.2",
+                fontFamily: FONT,
+              }}
+            >
+              {creator?.name ?? ""}
+            </span>
+          )}
           <span
             style={{
               color: "rgba(255,255,255,0.75)",

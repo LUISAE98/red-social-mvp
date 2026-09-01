@@ -14,8 +14,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+
+import { claveDeCreadores, useCreatorProfiles } from "@/lib/reels/creatorProfiles";
 import type { StoryDoc } from "@/lib/stories/types";
 import { recordStoryView } from "@/lib/stories/storyService";
 import { markSeenLocally } from "@/lib/reels/reelSeenLocal";
@@ -25,6 +25,7 @@ import HomeStoryCarouselDesktop, {
 } from "@/app/components/Stories/HomeStoryCarouselDesktop";
 import type { ReelItem, ReelLivePost } from "@/lib/reels/reelItems";
 import ReelFeed from "./ReelFeed";
+import ReelSkeleton from "./ReelSkeleton";
 
 // El visor completo del live, con chat y donaciones, pesa lo suyo. Se carga solo
 // cuando alguien entra a un live, no por abrir el feed.
@@ -124,53 +125,34 @@ export default function ReelsSurface({
     return () => mql.removeEventListener("change", h);
   }, []);
 
-  // Fotos de los creadores, solo para las vistas previas laterales del carrusel.
-  // En celular no se usan, así que ni se piden.
-  const [photos, setPhotos] = useState<Map<string, string | null>>(new Map());
-  const authorIds = useMemo(
-    () => [
-      ...new Set(
-        items
-          .map((i) => (i.kind === "live" ? i.post.authorId : authorOf(i.story)))
-          .filter((id): id is string => !!id),
-      ),
-    ],
+  // Los creadores que salen en este feed, leídos UNA vez y compartidos.
+  //
+  // ⚠️ Se piden también en celular, aunque ahí no haya vistas previas laterales.
+  // No es desperdicio: es el adelanto. Aquí se sabe quiénes van a salir mucho
+  // antes de que sus paneles se monten, así que para cuando el panel aparece el
+  // creador ya está leído y sale con su nombre, su foto y su precio puestos.
+  // Antes cada panel abría su propia lectura al montarse, y esa espera es lo que
+  // se veía como lentitud e inestabilidad.
+  //
+  // No es caro: los autores vienen sin repetir y en un feed real son unos pocos
+  // aunque haya decenas de historias. Y de uno en uno, no con `documentId() in`
+  // —esa consulta ya dejó sin foto a las vistas previas en este repositorio—.
+  const authorsKey = useMemo(
+    () =>
+      claveDeCreadores(
+        items.map((i) => (i.kind === "live" ? i.post.authorId : authorOf(i.story))),
+      )
+        .split("|")
+        .slice(0, MAX_AUTHOR_PHOTOS)
+        .join("|"),
     [items],
   );
-
-  useEffect(() => {
-    if (!isDesktop || authorIds.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      // ⚠️ De UNO EN UNO, no con `documentId() in`.
-      //
-      // Aquella consulta devolvia vacio y dejaba a las vistas previas sin foto,
-      // con el fallo tragado en silencio. Es el mismo patron que ya ha dado
-      // guerra antes en este repositorio. Leer el documento suelto es el camino
-      // que el slide del centro usa y que demostradamente funciona.
-      //
-      // No es caro: los autores ya vienen sin repetir, y en un feed real son
-      // unos pocos aunque haya decenas de historias.
-      const found = new Map<string, string | null>();
-      const results = await Promise.all(
-        authorIds.slice(0, MAX_AUTHOR_PHOTOS).map(async (id) => {
-          try {
-            const snap = await getDoc(doc(db, "users", id));
-            const url = snap.data()?.photoURL;
-            return [id, typeof url === "string" ? url : null] as const;
-          } catch (err) {
-            console.error("[ReelsSurface] no se pudo leer la foto de", id, err);
-            return [id, null] as const;
-          }
-        }),
-      );
-      for (const [id, url] of results) found.set(id, url);
-      if (!cancelled) setPhotos(found);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isDesktop, authorIds]);
+  const creators = useCreatorProfiles(authorsKey);
+  const photos = useMemo(() => {
+    const mapa = new Map<string, string | null>();
+    for (const [uid, perfil] of creators) mapa.set(uid, perfil?.photo ?? null);
+    return mapa;
+  }, [creators]);
 
   const handleStoryViewed = useCallback(
     (storyId: string) => {
@@ -200,7 +182,9 @@ export default function ReelsSurface({
             startIndex: 0,
             thumbnailUrl: ld?.coverUrl ?? null,
             info: {
-              displayName: null,
+              // Un live no denormaliza el nombre de quien transmite, asi que
+              // sale del mismo lector compartido que ya trae la foto.
+              displayName: creators.get(item.post.authorId ?? "")?.name ?? null,
               photoURL: photos.get(item.post.authorId ?? "") ?? null,
             },
             live: item.post,
@@ -220,27 +204,17 @@ export default function ReelsSurface({
           },
         };
       }),
-    [items, photos],
+    [items, photos, creators],
   );
 
   if (!mounted || !ready) {
-    return (
-      <div style={fullScreenCenter}>
-        <style>{`@keyframes reelSpinner { to { transform: rotate(360deg); } }`}</style>
-        <div
-          aria-label={tCommon("loading")}
-          role="status"
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: "50%",
-            border: "3px solid rgba(255,255,255,0.12)",
-            borderTopColor: "#a855f7",
-            animation: "reelSpinner 0.8s linear infinite",
-          }}
-        />
-      </div>
-    );
+    // Esqueleto y no spinner: es lo que pide `vibra_style.md`, y sobre todo es
+    // lo que hace que la espera se lea como "esto viene en camino" en vez de
+    // como una pantalla negra atascada.
+    //
+    // Antes de montar todavia no se sabe si el puntero es fino, y ahi se pinta
+    // la forma del movil: es la que no desentona si luego resulta ser la otra.
+    return <ReelSkeleton desktop={mounted && isDesktop} />;
   }
 
   if (items.length === 0) {
