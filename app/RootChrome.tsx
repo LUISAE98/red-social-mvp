@@ -61,6 +61,15 @@ const isPublicRoute =
 
 // Rutas que se renderizan SIN chrome (overlays a pantalla completa y la
 // plantilla de grabación de sesiones, que carga el grabador headless).
+/**
+ * Vibra Express: el feed a pantalla completa.
+ *
+ * Conserva la cabecera —iniciar sesion, moneda e idioma siguen haciendo falta
+ * ahi— pero SIN buscador: el reel ocupa la pantalla entera y una barra de
+ * busqueda flotando encima solo estorba.
+ */
+const isExpressRoute = pathname === "/express" || pathname.startsWith("/express/");
+
 const isOverlayRoute =
   pathname.startsWith("/live-overlay/") || pathname.startsWith("/egress/");
 
@@ -402,11 +411,13 @@ if (isPublicPostRoute || isOverlayRoute) {
               <div className="rootChromeBrandCol" />
 
               <div className="rootChromeDesktopSearchCol">
-                <GroupsSearchPanel
-                  fontStack={fontStack}
-                  showCreateGroup={false}
-                  createGroupHref="/login"
-                />
+                {!isExpressRoute && (
+                  <GroupsSearchPanel
+                    fontStack={fontStack}
+                    showCreateGroup={false}
+                    createGroupHref="/login"
+                  />
+                )}
               </div>
 
               <div className="rootChromeDesktopActions">
@@ -430,16 +441,18 @@ if (isPublicPostRoute || isOverlayRoute) {
               </div>
             </div>
 
-            <div className="rootChromeMobileSearchRow">
-              <div className="rootChromeMobileSearchCol">
-                <GroupsSearchPanel
-                  fontStack={fontStack}
-                  showCreateGroup={false}
-                  createGroupHref="/login"
-                  showCloseSearch={false}
-                />
+            {!isExpressRoute && (
+              <div className="rootChromeMobileSearchRow">
+                <div className="rootChromeMobileSearchCol">
+                  <GroupsSearchPanel
+                    fontStack={fontStack}
+                    showCreateGroup={false}
+                    createGroupHref="/login"
+                    showCloseSearch={false}
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </header>
 
