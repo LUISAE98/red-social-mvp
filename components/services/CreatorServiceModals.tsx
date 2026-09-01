@@ -164,6 +164,14 @@ const PANEL_CSS = `
     will-change: opacity;
   }
 
+  /* Portatiles BAJOS (no estrechos): el panel estaba pensado para pantallas
+     altas y ahi se comia la ventana entera. Se encoge y respira menos. */
+  @media (min-width: 560px) and (max-height: 780px) {
+    .vibra-svc-backdrop { padding: 12px; }
+    .vibra-svc-panel { width: min(100%, 460px); max-height: 94vh; }
+    .vibra-svc-body { padding-top: 10px; padding-bottom: 10px; }
+  }
+
   @media (max-width: 559px) {
     .vibra-svc-bg-img { opacity: 0.35; }
     .vibra-svc-bg-grad {

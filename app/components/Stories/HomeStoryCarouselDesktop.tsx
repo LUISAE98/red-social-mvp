@@ -186,7 +186,24 @@ export default function HomeStoryCarouselDesktop({
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
 
-  const { width: PW, height: PH } = panelSize;
+  // ⚠️ El tamaño del panel se acotaba SOLO por el alto de la ventana. Pero este
+  // carrusel enseña cinco paneles a la vez, asi que ocupa casi cuatro veces el
+  // ancho de uno: en una pantalla estrecha se salia por los dos lados y las
+  // vistas previas aparecian cortadas.
+  //
+  // El factor sale de la propia geometria de abajo: cada lado suma medio panel,
+  // uno reducido entero y medio lejano, mas dos separaciones.
+  const SPAN = 2 * (0.5 + NEXT_SCALE + FAR_SCALE / 2) + FAR_SCALE;
+  const anchoDisponible =
+    typeof window === "undefined" ? panelSize.width * SPAN : window.innerWidth - 24;
+  const maxPorAncho = Math.max(200, Math.floor((anchoDisponible - 4 * NEXT_GAP) / SPAN));
+
+  const PW = Math.min(panelSize.width, maxPorAncho);
+  // El alto sigue al ancho para conservar la proporcion vertical del video.
+  const PH = Math.round((PW * 16) / 9) <= panelSize.height
+    ? Math.round((PW * 16) / 9)
+    : panelSize.height;
+
   const offsetX = Math.round(PW / 2 + NEXT_GAP + (PW * NEXT_SCALE) / 2);
   // La lejana arranca donde acaba la cercana, con su propio hueco.
   const farOffsetX = Math.round(

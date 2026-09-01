@@ -321,6 +321,24 @@ export default function StripePaymentModal({
           ? (isGuest ? savedCvcValid : true) // invitado re-pide CVV; cuenta real = un-clic off-session
           : false));
 
+  /**
+   * Por que no se puede pagar todavia.
+   *
+   * El boton se apagaba por tres motivos distintos —falta la tarjeta, falta el
+   * nombre, falta la cuenta— y no decia ninguno. Quien lo mira solo ve un boton
+   * muerto y da por hecho que la pasarela esta rota.
+   */
+  const faltaParaPagar: string | null = (() => {
+    if (canPay) return null;
+    if (collectAccount && !acctEmailOk) return tReg("emailLabel");
+    if (collectAccount && acctPassword.length < 6) return tReg("passwordPlaceholder");
+    if (collectAccount && acctExists !== true && acctPassword !== acctConfirm)
+      return tReg("passwordMismatch");
+    if (isNewCard && cardName.trim().length === 0) return tWallet("payCardNameLabel");
+    if (isNewCard) return tWallet("payCardNumberLabel");
+    return null;
+  })();
+
   const stripeRef = useRef<StripeLike | null>(null);
   const numberElRef = useRef<StripeElement | null>(null);
   const onPaidRef = useRef(onPaid);
@@ -1299,6 +1317,11 @@ export default function StripePaymentModal({
         {submitting && <span aria-hidden="true" style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.28)", transformOrigin: "left center", animation: "vibraBtnFill 2400ms ease-out forwards" }} />}
         <span style={{ position: "relative" }}>{submitting ? tCommon("processing") : (payButtonLabel ?? tWallet("payButton"))}</span>
       </button>
+      {faltaParaPagar && !submitting && (
+        <span style={{ fontSize: 12.5, color: "#8a8f99", textAlign: "center", marginTop: 6 }}>
+          {faltaParaPagar}
+        </span>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 11, color: "#8a8f99", marginTop: -6 }}>
         <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1358,7 +1381,7 @@ export default function StripePaymentModal({
           ? { position: "absolute", inset: 0, boxSizing: "border-box", overflowY: "auto", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-y", background: "#fff", color: "#3a3f4a", paddingBottom: "var(--vb-safe-bottom, 0px)", transform: entered ? "translateY(0)" : "translateY(100%)", transition: "transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "transform" }
           : mobileSheet
             ? { position: "relative", width: "100%", maxHeight: "92vh", boxSizing: "border-box", overflowY: "auto", background: "#fff", borderRadius: "16px 16px 0 0", boxShadow: "0 -12px 48px rgba(0,0,0,0.4)", color: "#3a3f4a", paddingBottom: "var(--vb-safe-bottom, 0px)", transform: entered ? "translateY(0)" : "translateY(100%)", transition: "transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "transform" }
-            : { position: "relative", width: isNarrow || forceStacked ? "min(100%, 440px)" : "min(100%, 660px)", maxHeight: "92vh", overflowY: "auto", background: "#fff", borderRadius: 16, boxShadow: "0 24px 72px rgba(0,0,0,0.4)", color: "#3a3f4a", opacity: entered ? 1 : 0, transform: entered ? "translateY(0) scale(1)" : "translateY(10px) scale(0.985)", transition: "opacity 220ms ease, transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "opacity, transform" }}>
+            : { position: "relative", width: isNarrow || forceStacked ? "min(100%, 440px)" : "min(100%, 660px)", maxHeight: "min(92vh, 760px)", overflowY: "auto", background: "#fff", borderRadius: 16, boxShadow: "0 24px 72px rgba(0,0,0,0.4)", color: "#3a3f4a", opacity: entered ? 1 : 0, transform: entered ? "translateY(0) scale(1)" : "translateY(10px) scale(0.985)", transition: "opacity 220ms ease, transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "opacity, transform" }}>
         <style>{keyframes}</style>
         {showSuccess ? successView : autoPaying ? processingView : countryBlocked ? blockedNotice : (
           <div>
