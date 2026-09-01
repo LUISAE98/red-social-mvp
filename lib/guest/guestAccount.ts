@@ -49,6 +49,12 @@ export type GuestAccountResult =
   /** El correo ya está en uso por otra forma de entrar (Google, por ejemplo). */
   | { ok: false; reason: "email-in-use" }
   | { ok: false; reason: "weak-password" }
+  /** El correo no tiene forma de correo. */
+  | { ok: false; reason: "invalid-email" }
+  /** Demasiados intentos seguidos desde aquí. Firebase corta por un rato. */
+  | { ok: false; reason: "too-many-requests" }
+  /** No se llegó al servidor. */
+  | { ok: false; reason: "network" }
   /**
    * Cualquier otra cosa. Lleva el código de Firebase encima A PROPÓSITO: sin él,
    * media docena de fallos muy distintos —el proveedor de correo apagado, la
@@ -97,6 +103,12 @@ export async function attachGuestAccount(
       return { ok: false, reason: "email-in-use" };
     }
     if (code === "auth/weak-password") return { ok: false, reason: "weak-password" };
+    if (code === "auth/invalid-email") return { ok: false, reason: "invalid-email" };
+    // Probar el flujo varias veces seguidas es suficiente para llegar aquí, y
+    // sin nombrarlo se lee como que el registro está roto cuando solo hay que
+    // esperar.
+    if (code === "auth/too-many-requests") return { ok: false, reason: "too-many-requests" };
+    if (code === "auth/network-request-failed") return { ok: false, reason: "network" };
     // Esta sesión YA quedó enlazada a un correo en un intento anterior.
     //
     // Si es el MISMO correo, no hay nada que arreglar: la identidad ya está

@@ -55,6 +55,7 @@ export function useGreetingPurchase({
   const tServices = useTranslations("services");
   const tExpress = useTranslations("auth.express");
   const tRegister = useTranslations("auth.register");
+  const tAuth = useTranslations("auth.shared");
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -372,10 +373,27 @@ export function useGreetingPurchase({
                       ? tExpress("emailHasAccount")
                       : res.reason === "weak-password"
                         ? tRegister("errWeakPassword")
-                        : tRegister("errRegistrationFailed");
+                        : res.reason === "invalid-email"
+                          ? tAuth("errInvalidEmail")
+                          : res.reason === "too-many-requests"
+                            ? tAuth("errTooManyRequests")
+                            : res.reason === "network"
+                              ? tAuth("errNetworkFailed")
+                              : tRegister("errRegistrationFailed");
+                // En DESARROLLO el codigo de Firebase viaja pegado al mensaje.
+                //
+                // A quien compra no se le ensena jamas: no le dice nada y le
+                // ensucia el aviso. Pero a quien esta probando el flujo le
+                // ahorra abrir la consola para averiguar cual de la media docena
+                // de fallos posibles acaba de ocurrir, que es justo el paso que
+                // convierte un fallo en dos vueltas en vez de una.
+                const mensajeVisible =
+                  process.env.NODE_ENV !== "production" && res.reason === "unknown"
+                    ? `${mensaje} [${res.code}]`
+                    : mensaje;
                 // La pasarela solo muestra el texto de un error si viene con
                 // codigo; sin el lo sustituye por su mensaje generico.
-                const err = new Error(mensaje) as Error & { code?: string };
+                const err = new Error(mensajeVisible) as Error & { code?: string };
                 err.code = "express/cuenta";
                 throw err;
               }
@@ -452,6 +470,7 @@ export function useGreetingPurchase({
       tServices,
       tExpress,
       tRegister,
+      tAuth,
     ],
   );
 
