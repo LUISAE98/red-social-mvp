@@ -350,15 +350,29 @@ export function useGreetingPurchase({
                 // cosas muy distintas —la contrasena no cuadra, ese correo ya
                 // tiene cuenta, es demasiado corta— y decir "revisa los datos"
                 // para las tres deja a la persona sin saber cual arreglar.
-                console.error("[useGreetingPurchase] no se pudo crear la cuenta:", res.reason);
+                console.error(
+                  "[useGreetingPurchase] no se pudo crear la cuenta:",
+                  res.reason,
+                  // El codigo de Firebase, cuando el motivo es "cualquier otra
+                  // cosa". Sin el, media docena de fallos distintos se ven
+                  // todos igual y no hay por donde empezar a mirar.
+                  res.reason === "unknown" ? res.code : "",
+                  { correo: cuenta.email, yaTeniaCuenta: cuenta.exists },
+                );
+                //
+                // ⚠️ Ninguno de estos es un texto de campo reaprovechado. Antes
+                // la contrasena corta ensenaba "Minimo 6 caracteres", que es el
+                // marcador de un campo y no un aviso, y el resto caia en "Error
+                // al enviar la solicitud", que habla de un encargo cuando lo que
+                // fallo fue el alta. Los cuatro dicen QUE paso.
                 const mensaje =
                   res.reason === "wrong-password"
                     ? tExpress("wrongPassword")
                     : res.reason === "email-in-use"
                       ? tExpress("emailHasAccount")
                       : res.reason === "weak-password"
-                        ? tRegister("passwordPlaceholder")
-                        : tServices("requestError");
+                        ? tRegister("errWeakPassword")
+                        : tRegister("errRegistrationFailed");
                 // La pasarela solo muestra el texto de un error si viene con
                 // codigo; sin el lo sustituye por su mensaje generico.
                 const err = new Error(mensaje) as Error & { code?: string };

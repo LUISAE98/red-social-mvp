@@ -49,7 +49,13 @@ export type GuestAccountResult =
   /** El correo ya está en uso por otra forma de entrar (Google, por ejemplo). */
   | { ok: false; reason: "email-in-use" }
   | { ok: false; reason: "weak-password" }
-  | { ok: false; reason: "unknown" };
+  /**
+   * Cualquier otra cosa. Lleva el código de Firebase encima A PROPÓSITO: sin él,
+   * media docena de fallos muy distintos —el proveedor de correo apagado, la
+   * sesión ya enlazada, un correo mal formado— se ven todos como el mismo
+   * "Error al enviar la solicitud" y no hay por dónde empezar a mirar.
+   */
+  | { ok: false; reason: "unknown"; code: string };
 
 /**
  * Deja la sesión lista para comprar, con cuenta.
@@ -91,6 +97,17 @@ export async function attachGuestAccount(
       return { ok: false, reason: "email-in-use" };
     }
     if (code === "auth/weak-password") return { ok: false, reason: "weak-password" };
-    return { ok: false, reason: "unknown" };
+    // Esta sesión YA quedó enlazada a un correo en un intento anterior.
+    //
+    // Si es el MISMO correo, no hay nada que arreglar: la identidad ya está
+    // resuelta y cortar aquí dejaría sin comprar a quien solo pulsó dos veces.
+    // Si es OTRO, sí importa: seguir adelante colgaría la compra de una cuenta
+    // que no es la que la persona acaba de escribir.
+    if (code === "auth/provider-already-linked") {
+      if (auth.currentUser?.email?.toLowerCase() === clean) return { ok: true };
+      return { ok: false, reason: "email-in-use" };
+    }
+    console.error("[guestAccount] el alta falló:", code || err, err);
+    return { ok: false, reason: "unknown", code: code || String(err) };
   }
 }
