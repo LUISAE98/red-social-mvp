@@ -143,7 +143,15 @@ export function useGreetingPurchase({
       (snap) => {
         const offerings = snap.data()?.offerings ?? null;
         const service = getServiceByType(offerings, type, source);
-        setAvailable(!!service);
+        const precio = service?.publicPrice ?? service?.memberPrice ?? null;
+        // ⚠️ Activo NO basta: sin precio no se puede vender.
+        //
+        // Antes bastaba con que el servicio existiera, asi que un servicio
+        // encendido sin importe ensenaba el boton de comprar, dejaba llenar el
+        // formulario y la pasarela se plantaba con "no se pudo determinar el
+        // precio". Para quien mira, un servicio sin precio y uno apagado son lo
+        // mismo: no esta a la venta.
+        setAvailable(!!service && typeof precio === "number" && precio > 0);
         // Sin esto, "no encuentro el servicio", "lo encuentro sin precio" y "el
         // precio esta en un campo que no miro" se ven todos igual: sin precio.
         if (!service || (service.publicPrice == null && service.memberPrice == null)) {
@@ -162,7 +170,7 @@ export function useGreetingPurchase({
               : offerings,
           });
         }
-        const price = service?.publicPrice ?? service?.memberPrice ?? null;
+        const price = precio;
         if (typeof price !== "number") {
           setPriceLabel(undefined);
           setBasePrice(null);
