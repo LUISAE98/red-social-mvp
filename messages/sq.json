@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Kërkesa jote u dërgua me sukses. Tani të mbetet vetëm të presësh që {name} ta regjistrojë dhe ta dërgojë urimin tënd",
     "paySuccessConsejo": "Kërkesa jote u dërgua me sukses. Tani të mbetet vetëm të presësh që {name} ta regjistrojë dhe ta dërgojë këshillën tënde",
     "paySuccessGuestNote": "Do të njoftojmë në {email} kur të jetë incizuar. Ndërkohë mund të hysh me atë adresë dhe fjalëkalimin tënd për të ndjekur kërkesën tënde.",
+    "payingAs": "Blen si {email}",
+    "payUseAnotherEmail": "Përdor një email tjetër",
     "paySuccessScheduled": "Kërkesa jote u dërgua me sukses. Tani të mbetet vetëm të presësh që {name} ta planifikojë sesionin",
     "charsRemaining": "{count} shkronja të mbetura",
     "allowInspireConsejoLabel": "Lejo që kjo këshillë të frymëzojë më shumë njerëz",

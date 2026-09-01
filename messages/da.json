@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Din anmodning er sendt. Nu skal du bare vente på, at {name} optager og sender din hilsen",
     "paySuccessConsejo": "Din anmodning er sendt. Nu skal du bare vente på, at {name} optager og sender dit råd",
     "paySuccessGuestNote": "Vi giver besked på {email}, når det er optaget. I mellemtiden kan du logge ind med den adresse og din adgangskode for at følge din anmodning.",
+    "payingAs": "Du køber som {email}",
+    "payUseAnotherEmail": "Brug en anden e-mail",
     "paySuccessScheduled": "Din anmodning er sendt. Nu skal du bare vente på, at {name} planlægger sessionen",
     "charsRemaining": "{count} tegn tilbage",
     "allowInspireConsejoLabel": "Lad dette råd inspirere flere mennesker",

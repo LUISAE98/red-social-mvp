@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Beiðni þín hefur verið send. Nú þarftu bara að bíða eftir að {name} taki upp og sendi kveðjuna þína",
     "paySuccessConsejo": "Beiðni þín hefur verið send. Nú þarftu bara að bíða eftir að {name} taki upp og sendi ráðin þín",
     "paySuccessGuestNote": "Við látum vita á {email} þegar það er tekið upp. Á meðan geturðu skráð þig inn með því netfangi og lykilorðinu þínu til að fylgjast með beiðninni.",
+    "payingAs": "Þú kaupir sem {email}",
+    "payUseAnotherEmail": "Nota annað netfang",
     "paySuccessScheduled": "Beiðni þín hefur verið send. Nú þarftu bara að bíða eftir að {name} tímasetji lotuna",
     "charsRemaining": "{count} stafir eftir",
     "allowInspireConsejoLabel": "Leyfa þessum ráðum að veita fleirum innblástur",

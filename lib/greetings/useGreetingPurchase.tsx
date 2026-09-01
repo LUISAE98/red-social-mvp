@@ -17,6 +17,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { usePurchaseIdentityMode } from "./purchaseIdentity";
 import type { StoryType } from "@/lib/stories/types";
 import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
@@ -26,6 +28,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { getServiceByType, getVisibleServices } from "@/lib/services/normalizeServices";
 import { attachGuestAccount } from "@/lib/guest/guestAccount";
 import { useCreatorProfile } from "@/lib/reels/creatorProfiles";
+import { frenarReelFeed } from "@/lib/reels/reelFeedRefresh";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
@@ -69,6 +72,19 @@ export function useGreetingPurchase({
    * boleto de live se usa al instante, y por eso ese si se cobra sin cuenta.
    */
   const necesitaCuenta = identityMode === "guest" && (!user || !!user.isAnonymous);
+
+  /**
+   * Con qué cuenta se está comprando en Vibra Express.
+   *
+   * ⚠️ Tras la primera compra la sesión ya es real, así que la segunda no vuelve
+   * a pedir nada y se cobra en silencio a esa misma cuenta. Quien llegó a Vibra
+   * Express sin sesión no tiene por qué saber que eso pasó, y si quiere comprar
+   * a nombre de otro correo se encontraba sin salida.
+   *
+   * Con esto la pasarela dice a nombre de quién va y deja cambiarlo.
+   */
+  const cuentaEnUso =
+    identityMode === "guest" && user && !user.isAnonymous ? (user.email ?? null) : null;
 
   const [formOpen, setFormOpen] = useState(false);
   const [toName, setToName] = useState("");
@@ -151,6 +167,17 @@ export function useGreetingPurchase({
    * invitado.
    */
   const [correoAlta, setCorreoAlta] = useState<string | null>(null);
+
+  /**
+   * Correo al que se le va a avisar, para el panel de compra hecha.
+   *
+   * ⚠️ NO basta con el del alta recién hecha. La segunda compra en Vibra
+   * Express ya no da de alta nada —la sesión es real desde la primera—, y sin
+   * esto se quedaba sin el aviso justo igual que antes. Lo que importa no es si
+   * la cuenta se acaba de crear, sino que esta persona llegó por Vibra Express
+   * y necesita saber por dónde le llega lo que compró.
+   */
+  const correoDelAviso = correoAlta ?? cuentaEnUso;
   const [payRequestId, setPayRequestId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState<number | null>(null);
 
@@ -208,6 +235,41 @@ export function useGreetingPurchase({
         : creatorProfile.offerings,
     });
   }, [creatorId, creatorProfile, available, servicio, type, source]);
+
+  // ⚠️ Con el formulario o la pasarela abiertos, el feed de debajo se congela.
+  //
+  // No es una precaucion teorica. En Vibra Express, entrar con un correo que ya
+  // tenia cuenta cambia el uid a mitad del cobro; el feed se rearmaba, la lista
+  // de paneles cambiaba, y el panel que desaparecia se llevaba por delante esta
+  // misma pasarela y su pantalla verde. Se cobraba y no se veia la confirmacion.
+  useEffect(() => {
+    if (!formOpen && !payOpen) return;
+    return frenarReelFeed();
+  }, [formOpen, payOpen]);
+
+  /**
+   * Volver a ser invitado para comprar a nombre de otro correo.
+   *
+   * Se suelta el encargo que hubiera empezado: como `necesitaCuenta` vuelve a
+   * ser cierto, la pasarela lo creará de nuevo bajo la identidad definitiva, al
+   * cobrar. El encargo suelto se queda esperando pago y nadie lo paga, que es
+   * exactamente lo que ya pasa cuando alguien abandona un carrito.
+   *
+   * El feed no se rearma por debajo aunque el uid cambie dos veces: hay una
+   * compra abierta y eso lo tiene congelado.
+   */
+  const usarOtroCorreo = useCallback(async () => {
+    try {
+      await signOut(auth);
+      await ensureGuestAuth();
+      setPayRequestId(null);
+      setPayAmount(null);
+      setCorreoAlta(null);
+      setError(null);
+    } catch (err) {
+      console.error("[useGreetingPurchase] no se pudo cambiar de cuenta:", err);
+    }
+  }, []);
 
   const close = useCallback(() => {
     setFormOpen(false);
@@ -337,6 +399,10 @@ export function useGreetingPurchase({
           // Correo y contrasena, debajo de los metodos de pago. Solo aqui y solo
           // sin cuenta.
           collectAccount={necesitaCuenta}
+          // Solo en Vibra Express. En la app quien compra ya sabe con qué cuenta
+          // entró, y decírselo sobraría.
+          accountEmail={cuentaEnUso}
+          onUseAnotherAccount={cuentaEnUso ? usarOtroCorreo : undefined}
           createIntent={async (args) => {
             let requestId = payRequestId;
 
@@ -450,7 +516,9 @@ export function useGreetingPurchase({
             tServices(type === "consejo" ? "paySuccessConsejo" : "paySuccessSaludo", {
               name: creatorName ?? tServices("creatorFallback"),
             }) +
-            (correoAlta ? " " + tServices("paySuccessGuestNote", { email: correoAlta }) : "")
+            (correoDelAviso
+              ? " " + tServices("paySuccessGuestNote", { email: correoDelAviso })
+              : "")
           }
           onClose={() => setPayOpen(false)}
           onPaid={() => {
@@ -488,7 +556,9 @@ export function useGreetingPurchase({
       payRequestId,
       payAmount,
       creatorId,
-      correoAlta,
+      correoDelAviso,
+      cuentaEnUso,
+      usarOtroCorreo,
       tServices,
       tExpress,
       tRegister,

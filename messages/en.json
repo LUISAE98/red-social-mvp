@@ -2066,6 +2066,8 @@
     "paySuccessSaludo": "Your request has been sent successfully. Now you just have to wait for {name} to record and send your greeting",
     "paySuccessConsejo": "Your request has been sent successfully. Now you just have to wait for {name} to record and send your advice",
     "paySuccessGuestNote": "We'll email {email} when it's recorded. In the meantime you can sign in with that address and your password to follow your request.",
+    "payingAs": "Buying as {email}",
+    "payUseAnotherEmail": "Use another email",
     "paySuccessScheduled": "Your request has been sent successfully. Now you just have to wait for {name} to schedule the session",
     "charsRemaining": "{count} characters remaining",
     "allowInspireConsejoLabel": "Allow this advice to inspire more people",

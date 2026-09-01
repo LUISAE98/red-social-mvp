@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Yêu cầu của bạn đã được gửi thành công. Giờ bạn chỉ cần đợi {name} quay và gửi video chúc mừng",
     "paySuccessConsejo": "Yêu cầu của bạn đã được gửi thành công. Giờ bạn chỉ cần đợi {name} quay và gửi lời khuyên",
     "paySuccessGuestNote": "Chúng tôi sẽ báo tới {email} khi quay xong. Trong lúc chờ, bạn có thể đăng nhập bằng địa chỉ đó và mật khẩu để theo dõi yêu cầu.",
+    "payingAs": "Mua với tài khoản {email}",
+    "payUseAnotherEmail": "Dùng email khác",
     "paySuccessScheduled": "Yêu cầu của bạn đã được gửi thành công. Giờ bạn chỉ cần đợi {name} lên lịch cho phiên",
     "charsRemaining": "Còn {count} ký tự",
     "allowInspireConsejoLabel": "Cho phép lời khuyên này truyền cảm hứng cho nhiều người hơn",

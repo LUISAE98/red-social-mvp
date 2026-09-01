@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Ta demande a bien été envoyée. Il ne te reste plus qu'à attendre que {name} enregistre et envoie ta dédicace",
     "paySuccessConsejo": "Ta demande a bien été envoyée. Il ne te reste plus qu'à attendre que {name} enregistre et envoie ton conseil",
     "paySuccessGuestNote": "Nous préviendrons {email} dès que ce sera enregistré. En attendant, tu peux te connecter avec cette adresse et ton mot de passe pour suivre ta demande.",
+    "payingAs": "Achat en tant que {email}",
+    "payUseAnotherEmail": "Utiliser une autre adresse",
     "paySuccessScheduled": "Ta demande a bien été envoyée. Il ne te reste plus qu'à attendre que {name} programme la session",
     "charsRemaining": "{count} caractères restants",
     "allowInspireConsejoLabel": "Autorise ce conseil à inspirer plus de personnes",

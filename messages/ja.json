@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "リクエストを送信しました。あとは{name}がビデオメッセージを撮影して送ってくれるのを待つだけです",
     "paySuccessConsejo": "リクエストを送信しました。あとは{name}がアドバイスを撮影して送ってくれるのを待つだけです",
     "paySuccessGuestNote": "収録が終わったら {email} にお知らせします。それまでは、そのメールアドレスとパスワードでログインして依頼の状況を確認できます。",
+    "payingAs": "{email} として購入します",
+    "payUseAnotherEmail": "別のメールアドレスを使う",
     "paySuccessScheduled": "リクエストを送信しました。あとは{name}がセッションの日程を決めてくれるのを待つだけです",
     "charsRemaining": "残り{count}文字",
     "allowInspireConsejoLabel": "このアドバイスが他の人の力になることを許可する",

@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "İsteğin başarıyla gönderildi. Şimdi tek yapman gereken {name} adlı kişinin kutlama videonu çekip göndermesini beklemek",
     "paySuccessConsejo": "İsteğin başarıyla gönderildi. Şimdi tek yapman gereken {name} adlı kişinin tavsiyeni çekip göndermesini beklemek",
     "paySuccessGuestNote": "Kaydedildiğinde {email} adresine haber vereceğiz. Bu arada o adres ve şifrenle giriş yaparak talebini takip edebilirsin.",
+    "payingAs": "{email} olarak alıyorsun",
+    "payUseAnotherEmail": "Başka e-posta kullan",
     "paySuccessScheduled": "İsteğin başarıyla gönderildi. Şimdi tek yapman gereken {name} adlı kişinin seansı planlamasını beklemek",
     "charsRemaining": "{count} karakter kaldı",
     "allowInspireConsejoLabel": "Bu tavsiyenin daha çok kişiye ilham vermesine izin ver",

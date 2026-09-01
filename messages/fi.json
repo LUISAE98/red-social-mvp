@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Pyyntösi on lähetetty onnistuneesti. Nyt sinun tarvitsee vain odottaa, että tervehdyksesi kuvataan ja lähetetään. Tekijä: {name}.",
     "paySuccessConsejo": "Pyyntösi on lähetetty onnistuneesti. Nyt sinun tarvitsee vain odottaa, että neuvosi kuvataan ja lähetetään. Tekijä: {name}.",
     "paySuccessGuestNote": "Ilmoitamme osoitteeseen {email}, kun se on kuvattu. Sillä välin voit kirjautua sisään tällä osoitteella ja salasanallasi seurataksesi pyyntöäsi.",
+    "payingAs": "Ostat tunnuksella {email}",
+    "payUseAnotherEmail": "Käytä toista sähköpostia",
     "paySuccessScheduled": "Pyyntösi on lähetetty onnistuneesti. Nyt sinun tarvitsee vain odottaa, että sessio ajoitetaan. Tekijä: {name}.",
     "charsRemaining": "{count} merkkiä jäljellä",
     "allowInspireConsejoLabel": "Anna tämän neuvon inspiroida useampia ihmisiä",

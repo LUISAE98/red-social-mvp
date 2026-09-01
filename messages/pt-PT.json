@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "O teu pedido foi enviado com sucesso. Agora é só esperares que {name} grave e envie a tua dedicatória",
     "paySuccessConsejo": "O teu pedido foi enviado com sucesso. Agora é só esperares que {name} grave e envie o teu conselho",
     "paySuccessGuestNote": "Avisamos {email} quando estiver gravado. Entretanto podes entrar com esse e-mail e a tua palavra-passe para acompanhar o teu pedido.",
+    "payingAs": "A comprar como {email}",
+    "payUseAnotherEmail": "Usar outro e-mail",
     "paySuccessScheduled": "O teu pedido foi enviado com sucesso. Agora é só esperares que {name} agende a sessão",
     "charsRemaining": "{count} caracteres restantes",
     "allowInspireConsejoLabel": "Deixa este conselho inspirar mais pessoas",

@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Sua solicitação foi enviada com sucesso. Agora é só esperar {name} gravar e enviar sua saudação",
     "paySuccessConsejo": "Sua solicitação foi enviada com sucesso. Agora é só esperar {name} gravar e enviar seu conselho",
     "paySuccessGuestNote": "Avisaremos {email} quando estiver gravado. Enquanto isso, você pode entrar com esse e-mail e sua senha para acompanhar seu pedido.",
+    "payingAs": "Comprando como {email}",
+    "payUseAnotherEmail": "Usar outro e-mail",
     "paySuccessScheduled": "Sua solicitação foi enviada com sucesso. Agora é só esperar {name} agendar a sessão",
     "charsRemaining": "{count} caracteres restantes",
     "allowInspireConsejoLabel": "Permita que este conselho inspire mais pessoas",

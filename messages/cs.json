@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Tvoje žádost byla úspěšně odeslána. Teď už jen počkej, až {name} natočí a pošle tvoje věnování",
     "paySuccessConsejo": "Tvoje žádost byla úspěšně odeslána. Teď už jen počkej, až {name} natočí a pošle tvoji radu",
     "paySuccessGuestNote": "Dáme vědět na {email}, až to bude natočené. Mezitím se můžeš přihlásit tou adresou a svým heslem a sledovat svou žádost.",
+    "payingAs": "Nakupuješ jako {email}",
+    "payUseAnotherEmail": "Použít jiný e-mail",
     "paySuccessScheduled": "Tvoje žádost byla úspěšně odeslána. Teď už jen počkej, až {name} naplánuje sezení",
     "charsRemaining": "Zbývá {count} znaků",
     "allowInspireConsejoLabel": "Dovol této radě inspirovat víc lidí",

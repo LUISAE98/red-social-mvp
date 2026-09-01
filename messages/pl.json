@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Twoja prośba została wysłana. Teraz wystarczy poczekać, aż {name} nagra i wyśle twoją dedykację",
     "paySuccessConsejo": "Twoja prośba została wysłana. Teraz wystarczy poczekać, aż {name} nagra i wyśle twoją poradę",
     "paySuccessGuestNote": "Damy znać na {email}, gdy będzie nagrane. W międzyczasie możesz zalogować się tym adresem i swoim hasłem, żeby śledzić swoje zgłoszenie.",
+    "payingAs": "Kupujesz jako {email}",
+    "payUseAnotherEmail": "Użyj innego adresu",
     "paySuccessScheduled": "Twoja prośba została wysłana. Teraz wystarczy poczekać, aż {name} zaplanuje sesję",
     "charsRemaining": "Pozostało {count} znaków",
     "allowInspireConsejoLabel": "Pozwól, by ta porada zainspirowała więcej osób",

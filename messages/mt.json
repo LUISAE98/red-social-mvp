@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "It-talba tiegħek intbagħtet b'suċċess. Issa jibqagħlek biss tistenna li {name} jirreġistra u jibgħat it-tislima tiegħek",
     "paySuccessConsejo": "It-talba tiegħek intbagħtet b'suċċess. Issa jibqagħlek biss tistenna li {name} jirreġistra u jibgħat il-parir tiegħek",
     "paySuccessGuestNote": "Ninfurmawk fuq {email} meta jkun irrekordjat. Sadanittant tista' tidħol b'dik l-indirizz u l-password tiegħek biex issegwi t-talba tiegħek.",
+    "payingAs": "Qed tixtri bħala {email}",
+    "payUseAnotherEmail": "Uża email ieħor",
     "paySuccessScheduled": "It-talba tiegħek intbagħtet b'suċċess. Issa jibqagħlek biss tistenna li {name} jiskeda s-sessjoni",
     "charsRemaining": "Fadal {count} karattri",
     "allowInspireConsejoLabel": "Ippermetti li dan il-parir jispira aktar nies",

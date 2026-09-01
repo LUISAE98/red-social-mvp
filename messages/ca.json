@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "La teva sol·licitud s'ha enviat correctament. Ara només has d'esperar que {name} gravi i enviï la teva felicitació",
     "paySuccessConsejo": "La teva sol·licitud s'ha enviat correctament. Ara només has d'esperar que {name} gravi i enviï el teu consell",
     "paySuccessGuestNote": "T'avisarem a {email} quan estigui gravat. Mentrestant pots iniciar sessió amb aquesta adreça i la teva contrasenya per seguir la teva sol·licitud.",
+    "payingAs": "Compres com a {email}",
+    "payUseAnotherEmail": "Utilitzar un altre correu",
     "paySuccessScheduled": "La teva sol·licitud s'ha enviat correctament. Ara només has d'esperar que {name} programi la sessió",
     "charsRemaining": "Queden {count} caràcters",
     "allowInspireConsejoLabel": "Permet que aquest consell inspiri més gent",

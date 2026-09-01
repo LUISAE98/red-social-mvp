@@ -22,7 +22,13 @@ export default function ExpressPage() {
   // anterior. Las dos valen; el feed no pregunta.
   const { user } = useAuth();
 
-  const { items, ready, loadMore, recordEngagement } = useReelFeed(user?.uid);
+  // Se le dice que la sesión es de invitado. Así, cuando esa persona se dé de
+  // alta a mitad de una compra, el feed que ya está en pantalla se queda hasta
+  // que llegue el suyo, en vez de vaciarse y llevarse la pasarela por delante.
+  const { items, ready, loadMore, recordEngagement } = useReelFeed(
+    user?.uid,
+    user?.isAnonymous ?? true,
+  );
 
   useScreenReady(ready);
 

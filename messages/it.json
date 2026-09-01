@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "La tua richiesta è stata inviata correttamente. Ora devi solo aspettare che {name} registri e invii la tua dedica",
     "paySuccessConsejo": "La tua richiesta è stata inviata correttamente. Ora devi solo aspettare che {name} registri e invii il tuo consiglio",
     "paySuccessGuestNote": "Ti avviseremo a {email} quando sarà registrato. Nel frattempo puoi accedere con quell'indirizzo e la tua password per seguire la tua richiesta.",
+    "payingAs": "Acquisto come {email}",
+    "payUseAnotherEmail": "Usa un'altra email",
     "paySuccessScheduled": "La tua richiesta è stata inviata correttamente. Ora devi solo aspettare che {name} programmi la sessione",
     "charsRemaining": "{count} caratteri rimanenti",
     "allowInspireConsejoLabel": "Consenti a questo consiglio di ispirare più persone",

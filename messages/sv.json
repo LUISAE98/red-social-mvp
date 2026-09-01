@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Din förfrågan är skickad. Nu behöver du bara vänta på att {name} spelar in och skickar din hälsning",
     "paySuccessConsejo": "Din förfrågan är skickad. Nu behöver du bara vänta på att {name} spelar in och skickar ditt råd",
     "paySuccessGuestNote": "Vi hör av oss till {email} när det är inspelat. Under tiden kan du logga in med den adressen och ditt lösenord för att följa din förfrågan.",
+    "payingAs": "Du köper som {email}",
+    "payUseAnotherEmail": "Använd en annan e-post",
     "paySuccessScheduled": "Din förfrågan är skickad. Nu behöver du bara vänta på att {name} bokar in sessionen",
     "charsRemaining": "{count} tecken kvar",
     "allowInspireConsejoLabel": "Låt det här rådet inspirera fler människor",

@@ -75,6 +75,14 @@ type Props = {
    * decide que hacer con ello. Esta pantalla solo recoge.
    */
   collectAccount?: boolean;
+  /**
+   * Correo de la cuenta con la que se está comprando, cuando ya hay una y por
+   * tanto no se pide nada. Solo se usa para DECIRLO; quien lo pasa decide si
+   * tiene sentido enseñarlo (en Vibra Express sí, en la app no hace falta).
+   */
+  accountEmail?: string | null;
+  /** Volver a empezar con otro correo. Sin esto, el bloque solo informa. */
+  onUseAnotherAccount?: () => void | Promise<void>;
   amountEditable?: boolean;
   /** Montos sugeridos de DONACIÓN (base MXN). Si no se pasan, usa los defaults. */
   donationPresets?: number[];
@@ -182,6 +190,8 @@ export default function StripePaymentModal({
   hideBuyerGreeting = false,
   collectNickname = false,
   collectAccount = false,
+  accountEmail = null,
+  onUseAnotherAccount,
   paymentHeading,
   payButtonLabel,
   savedCards = [],
@@ -195,6 +205,7 @@ export default function StripePaymentModal({
   const tReg = useTranslations("auth.register");
   const tExpress = useTranslations("auth.express");
   const tShared = useTranslations("auth.shared");
+  const tServicesPay = useTranslations("services");
   const tCommon = useTranslations("common");
   const isSheet = presentation === "sheet";
   const [mounted, setMounted] = useState(false);
@@ -1120,6 +1131,48 @@ export default function StripePaymentModal({
               )}
               {acctExists !== true && acctConfirm.length > 0 && acctPassword !== acctConfirm && (
                 <span style={{ fontSize: 12.5, color: "#dc2626" }}>{tReg("passwordMismatch")}</span>
+              )}
+            </div>
+          )}
+
+          {/* Ya hay cuenta en esta sesion, asi que no se pide nada. Pero SI se
+              dice a nombre de quien va a quedar la compra, y se deja cambiarlo.
+              Sin esto, la segunda compra se cobraba en silencio al correo de la
+              primera y no habia forma de usar otro. */}
+          {!collectAccount && accountEmail && (
+            <div
+              style={{
+                borderTop: "1px solid rgba(0,0,0,0.08)",
+                marginTop: 14,
+                paddingTop: 14,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <span style={{ fontSize: 13, color: "#4b5563", minWidth: 0, wordBreak: "break-all" }}>
+                {tServicesPay("payingAs", { email: accountEmail })}
+              </span>
+              {onUseAnotherAccount && (
+                <button
+                  type="button"
+                  onClick={() => void onUseAnotherAccount()}
+                  disabled={submitting}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#2563eb",
+                    cursor: submitting ? "default" : "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  {tServicesPay("payUseAnotherEmail")}
+                </button>
               )}
             </div>
           )}

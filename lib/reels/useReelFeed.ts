@@ -42,6 +42,9 @@ import { loadLocalSeen } from "./reelSeenLocal";
 import {
   getReelFeedGeneration,
   getReelFeedGenerationServer,
+  isReelFeedHeld,
+  isReelFeedHeldServer,
+  subscribeToReelFeedHold,
   subscribeToReelFeedRefresh,
 } from "./reelFeedRefresh";
 import {
@@ -74,9 +77,18 @@ type State = {
   uid: string | null;
   items: ReelItem[];
   ready: boolean;
+  /**
+   * Este feed se armó para un INVITADO.
+   *
+   * Importa al cambiar de sesión: un feed de invitado no lleva nada personal
+   * —no sigue a nadie, no tiene gusto aprendido ni historial—, así que puede
+   * seguir en pantalla mientras se arma el de la cuenta nueva sin enseñarle a
+   * nadie lo que no es suyo.
+   */
+  anonimo: boolean;
 };
 
-const EMPTY: State = { uid: null, items: [], ready: false };
+const EMPTY: State = { uid: null, items: [], ready: false, anonimo: true };
 
 async function fetchViewedMap(uid: string): Promise<Map<string, number>> {
   const map = new Map<string, number>();
@@ -100,7 +112,10 @@ async function fetchViewedMap(uid: string): Promise<Map<string, number>> {
   return map;
 }
 
-export function useReelFeed(uid: string | null | undefined) {
+export function useReelFeed(uid: string | null | undefined, esAnonimo = false) {
+  // Quien mira es un INVITADO. Sin cuenta de verdad, o con una firmada al vuelo
+  // en Vibra Express.
+  const esInvitado = !uid || esAnonimo;
   // Quien mira, o NADIE.
   //
   // ⚠️ Se normaliza a null porque el estado se compara con esto para saber si
@@ -116,6 +131,14 @@ export function useReelFeed(uid: string | null | undefined) {
     subscribeToReelFeedRefresh,
     getReelFeedGeneration,
     getReelFeedGenerationServer,
+  );
+
+  // ¿Hay una compra abierta ahora mismo? Mientras la haya, el feed no se toca.
+  // Al soltarse, este valor cambia y el efecto de carga se dispara solo.
+  const frenado = useSyncExternalStore(
+    subscribeToReelFeedHold,
+    isReelFeedHeld,
+    isReelFeedHeldServer,
   );
 
   const tasteRef = useRef<Map<CanonicalGroupCategory, number>>(new Map());
@@ -197,6 +220,14 @@ export function useReelFeed(uid: string | null | undefined) {
   // muestras no preguntan quien eres. Un feed sin personalizar sigue siendo un
   // feed; uno que no carga, no.
   useEffect(() => {
+    // ⚠️ Con una compra abierta, el feed espera.
+    //
+    // Rearmarlo cambia la lista de paneles, y el panel que se va se lleva por
+    // delante la pasarela que vive dentro. En Vibra Express eso pasaba justo en
+    // el peor momento: al entrar con un correo que ya tenía cuenta, en mitad del
+    // cobro. El feed puede esperar unos segundos; una compra a medias, no.
+    if (frenado) return;
+
     let cancelled = false;
 
     // Reinicio total: cambiar de usuario no puede heredar ni el gusto ni las
@@ -280,7 +311,12 @@ export function useReelFeed(uid: string | null | undefined) {
       // salieron.
       const tail = arrange([...pool.stories, ...samples]);
 
-      setState({ uid: viewerUid, items: dedupeItems([...head, ...tail]), ready: true });
+      setState({
+        uid: viewerUid,
+        items: dedupeItems([...head, ...tail]),
+        ready: true,
+        anonimo: esInvitado,
+      });
       } catch (err) {
         // ⚠️ Sin esto, cualquier fallo de aqui dentro dejaba el feed en el
         // spinner PARA SIEMPRE: `setState` no llegaba a ejecutarse y `ready` se
@@ -291,14 +327,14 @@ export function useReelFeed(uid: string | null | undefined) {
         // Un feed vacio es un mal resultado; un feed que carga eternamente es
         // peor, porque no se distingue de la aplicacion rota.
         console.error("[useReelFeed] no se pudo armar el feed:", err);
-        if (!cancelled) setState({ uid: viewerUid, items: [], ready: true });
+        if (!cancelled) setState({ uid: viewerUid, items: [], ready: true, anonimo: esInvitado });
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [viewerUid, arrange, generation]);
+  }, [viewerUid, arrange, generation, frenado, esInvitado]);
 
   // Los lives entran y salen solos mientras el feed está abierto.
   //
@@ -393,7 +429,23 @@ export function useReelFeed(uid: string | null | undefined) {
   }, [viewerUid]);
 
   // Si el estado es de otra sesión, se ignora hasta que llegue el de esta.
-  const current = state.uid === viewerUid ? state : EMPTY;
+  //
+  // ⚠️ CON UNA EXCEPCIÓN, y no es cosmética: si lo que había era un feed de
+  // INVITADO, se sigue enseñando mientras se arma el de la cuenta nueva.
+  //
+  // Sin esto, darse de alta en mitad de una compra vaciaba el feed, la
+  // superficie volvía al esqueleto y con ella se desmontaba la pasarela y su
+  // pantalla verde. El cobro se hacía y quien pagaba no llegaba a verlo nunca.
+  //
+  // Se puede dejar en pantalla porque un feed de invitado no lleva nada de
+  // nadie: no sigue a ningún creador, no tiene gusto aprendido ni historial. Lo
+  // que se ve es descubrimiento público, y sigue siéndolo un segundo después.
+  const current =
+    state.uid === viewerUid
+      ? state
+      : state.ready && state.anonimo
+        ? { ...state, uid: viewerUid }
+        : EMPTY;
   // `stories` se mantiene para quien solo entiende de historias, como el rail
   // del home: ahí un live no pinta nada.
   const stories = useMemo(() => storiesOf(current.items), [current.items]);

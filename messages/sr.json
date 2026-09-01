@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Tvoj zahtev je uspešno poslan. Sada samo pričekaj da kreator {name} snimi i pošalje tvoju posvetu",
     "paySuccessConsejo": "Tvoj zahtev je uspešno poslan. Sada samo pričekaj da kreator {name} snimi i pošalje tvoj savet",
     "paySuccessGuestNote": "Јавићемо се на {email} када буде снимљено. У међувремену можеш да се пријавиш том адресом и својом лозинком да пратиш свој захтев.",
+    "payingAs": "Купујеш као {email}",
+    "payUseAnotherEmail": "Користи другу адресу",
     "paySuccessScheduled": "Tvoj zahtev je uspešno poslan. Sada samo pričekaj da kreator {name} zakaže sesiju",
     "charsRemaining": "preostaje {count} znakova",
     "allowInspireConsejoLabel": "Neka ovaj savet nadahne više ljudi",

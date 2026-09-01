@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Permohonan anda berjaya dihantar. Sekarang tinggal menunggu {name} merakam dan menghantar video ucapan anda",
     "paySuccessConsejo": "Permohonan anda berjaya dihantar. Sekarang tinggal menunggu {name} merakam dan menghantar nasihat anda",
     "paySuccessGuestNote": "Kami akan maklumkan ke {email} apabila siap dirakam. Sementara itu anda boleh log masuk dengan alamat itu dan kata laluan anda untuk menjejaki permintaan anda.",
+    "payingAs": "Membeli sebagai {email}",
+    "payUseAnotherEmail": "Guna e-mel lain",
     "paySuccessScheduled": "Permohonan anda berjaya dihantar. Sekarang tinggal menunggu {name} menjadualkan sesinya",
     "charsRemaining": "Baki {count} aksara",
     "allowInspireConsejoLabel": "Benarkan nasihat ini memberi inspirasi kepada lebih ramai orang",

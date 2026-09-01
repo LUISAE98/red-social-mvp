@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Tavs pieprasījums ir veiksmīgi nosūtīts. Tagad atliek tikai sagaidīt, kad {name} ierakstīs un nosūtīs tavu sveicienu",
     "paySuccessConsejo": "Tavs pieprasījums ir veiksmīgi nosūtīts. Tagad atliek tikai sagaidīt, kad {name} ierakstīs un nosūtīs tavu padomu",
     "paySuccessGuestNote": "Paziņosim uz {email}, kad tas būs ierakstīts. Pa to laiku vari pieteikties ar šo adresi un savu paroli, lai sekotu savam pieprasījumam.",
+    "payingAs": "Pērc kā {email}",
+    "payUseAnotherEmail": "Izmantot citu e-pastu",
     "paySuccessScheduled": "Tavs pieprasījums ir veiksmīgi nosūtīts. Tagad atliek tikai sagaidīt, kad {name} ieplānos sesiju",
     "charsRemaining": "Atlikušas {count} rakstzīmes",
     "allowInspireConsejoLabel": "Atļaut šim padomam iedvesmot vairāk cilvēku",

@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Je verzoek is succesvol verstuurd. Nu hoef je alleen nog te wachten tot {name} je videoboodschap opneemt en verstuurt",
     "paySuccessConsejo": "Je verzoek is succesvol verstuurd. Nu hoef je alleen nog te wachten tot {name} je advies opneemt en verstuurt",
     "paySuccessGuestNote": "We laten het weten op {email} zodra het opgenomen is. Intussen kun je inloggen met dat adres en je wachtwoord om je aanvraag te volgen.",
+    "payingAs": "Je koopt als {email}",
+    "payUseAnotherEmail": "Ander e-mailadres gebruiken",
     "paySuccessScheduled": "Je verzoek is succesvol verstuurd. Nu hoef je alleen nog te wachten tot {name} de sessie inplant",
     "charsRemaining": "Nog {count} tekens",
     "allowInspireConsejoLabel": "Sta toe dat dit advies meer mensen inspireert",

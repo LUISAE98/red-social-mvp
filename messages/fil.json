@@ -2065,6 +2065,8 @@
     "paySuccessSaludo": "Matagumpay na naipadala ang request mo. Kailangan mo na lang hintayin na i-record at ipadala ni {name} ang pagbati mo",
     "paySuccessConsejo": "Matagumpay na naipadala ang request mo. Kailangan mo na lang hintayin na i-record at ipadala ni {name} ang payo mo",
     "paySuccessGuestNote": "Ipapaalam namin sa {email} kapag natapos nang i-record. Samantala, puwede kang mag-sign in gamit ang email na iyon at ang password mo para masubaybayan ang hiling mo.",
+    "payingAs": "Bumibili bilang {email}",
+    "payUseAnotherEmail": "Gumamit ng ibang email",
     "paySuccessScheduled": "Matagumpay na naipadala ang request mo. Kailangan mo na lang hintayin na i-iskedyul ni {name} ang session",
     "charsRemaining": "{count} karakter na lang",
     "allowInspireConsejoLabel": "Payagang makapagbigay-inspirasyon sa mas maraming tao ang payong ito",
