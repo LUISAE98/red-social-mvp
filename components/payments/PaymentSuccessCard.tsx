@@ -33,7 +33,11 @@ export default function PaymentSuccessCard({
 }) {
   const purchaseDate = new Date().toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
   return (
-    <div style={{ height: stacked ? 480 : 440, display: "flex", flexDirection: "column", position: "relative" }}>
+    // ⚠️ `minHeight`, NO `height`. Con alto fijo, un mensaje más largo que el
+    // hueco reservado empujaba la paloma fuera de la tarjeta y había que
+    // desplazar para verla. Una confirmación de pago se lee de una ojeada o no
+    // sirve: el panel crece con su texto en vez de recortarlo.
+    <div style={{ minHeight: stacked ? 480 : 440, display: "flex", flexDirection: "column", position: "relative" }}>
       <style>{SUCCESS_KEYFRAMES}</style>
       {showClose && (
         <button type="button" onClick={onClose} aria-label="Cerrar" style={{ position: "absolute", top: 10, insetInlineEnd: 16, zIndex: 2, border: "none", background: "transparent", color: "#fff", fontSize: 32, lineHeight: 1, padding: 2, cursor: "pointer" }}>×</button>

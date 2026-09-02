@@ -179,6 +179,17 @@ export function useGreetingPurchase({
    * y necesita saber por dónde le llega lo que compró.
    */
   const correoDelAviso = correoAlta ?? cuentaEnUso;
+
+  /**
+   * Moneda en la que el creador puso su precio.
+   *
+   * Es la misma lectura que hace el perfil del creador. Casi siempre es la de
+   * liquidacion, pero un servicio antiguo puede traer la suya, y adivinarla es
+   * justo lo que hacia que la pasarela ensenara un importe y se cobrara otro.
+   */
+  const monedaDelServicio = servicio?.currency ?? SETTLEMENT_CURRENCY;
+  /** El cobro de esta apertura ya se hizo. Decide que se cierra al salir. */
+  const [compraHecha, setCompraHecha] = useState(false);
   const [payRequestId, setPayRequestId] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState<number | null>(null);
 
@@ -419,7 +430,15 @@ export function useGreetingPurchase({
           // del cobro y el importe y la moneda cambiaban de golpe por debajo de
           // la pasarela. Cuanto se cobra no tiene nada que ver con quien eres.
           amount={payAmount != null ? totalAmount : basePrice}
-          amountCurrency={payAmount != null ? "MXN" : SETTLEMENT_CURRENCY}
+          // ⚠️ La moneda del SERVICIO, nunca "MXN" a secas.
+          //
+          // Estaba escrito a mano y se quedo asi desde antes de que la
+          // plataforma liquidara en dolares. Con un consejo de 100 USD, la
+          // pasarela recibia 100 y lo etiquetaba como pesos: ensenaba un total
+          // de 6.89 USD y el servidor cobraba el equivalente a 116.49. Ver un
+          // importe y que te cobren otro es lo mas grave que puede hacer una
+          // pasarela.
+          amountCurrency={monedaDelServicio}
           // Correo y contrasena, debajo de los metodos de pago. Solo aqui y solo
           // sin cuenta.
           collectAccount={necesitaCuenta}
@@ -525,7 +544,10 @@ export function useGreetingPurchase({
               applyCredit: args.applyCredit,
             });
           }}
-          priceLabel={totalAmount != null ? `$${totalAmount} MXN` : undefined}
+          // El mismo total, ya con impuesto y en la moneda de quien mira, que
+          // ensena el boton del formulario. Antes se armaba a mano pegandole
+          // "MXN" al numero, con el mismo error de moneda de arriba.
+          priceLabel={priceLabel}
           productType={type === "consejo" ? "Consejo" : "Saludo"}
           providerName={creatorName ?? undefined}
           avatarUrl={creatorPhoto}
@@ -544,10 +566,31 @@ export function useGreetingPurchase({
               ? " " + tServices("paySuccessGuestNote", { email: correoDelAviso })
               : "")
           }
-          onClose={() => setPayOpen(false)}
+          onClose={() => {
+            setPayOpen(false);
+            // ⚠️ Con la compra HECHA se cierra tambien el formulario.
+            //
+            // Sin esto, cerrar la confirmacion devolvia al formulario relleno,
+            // con su boton de "Continuar al pago" ofreciendo pagar algo que se
+            // acababa de pagar. Es la forma mas facil de que alguien compre dos
+            // veces sin querer.
+            //
+            // Solo con la compra hecha: quien cierra la pasarela SIN pagar tiene
+            // que encontrarse su formulario donde lo dejo.
+            if (!compraHecha) return;
+            setCompraHecha(false);
+            setFormOpen(false);
+            setToName("");
+            setInstructions("");
+            setAllowStory(false);
+            setPayRequestId(null);
+            setPayAmount(null);
+            setCorreoAlta(null);
+          }}
           onPaid={() => {
             // El panel NO se cierra: muestra la pantalla de éxito. Solo se
             // registra la compra.
+            setCompraHecha(true);
             registrarCompraGeo({
               creatorId,
               serviceType: type === "consejo" ? "advice" : "greeting",
@@ -581,6 +624,8 @@ export function useGreetingPurchase({
       payAmount,
       creatorId,
       correoDelAviso,
+      compraHecha,
+      monedaDelServicio,
       cuentaEnUso,
       usarOtroCorreo,
       tServices,
