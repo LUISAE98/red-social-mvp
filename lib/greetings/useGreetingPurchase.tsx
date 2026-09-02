@@ -410,10 +410,16 @@ export function useGreetingPurchase({
         />
         <StripePaymentModal
           open={payOpen}
-          // Sin encargo todavia (invitado) el importe sale del precio del
-          // creador; con encargo, del que quedo congelado al crearlo.
-          amount={necesitaCuenta ? basePrice : totalAmount}
-          amountCurrency={necesitaCuenta ? SETTLEMENT_CURRENCY : "MXN"}
+          // Sin encargo todavia el importe sale del precio del creador; con
+          // encargo, del que quedo congelado al crearlo.
+          //
+          // ⚠️ Cuelga de si HAY encargo, no de si hace falta cuenta. Antes
+          // colgaba de lo segundo, y eso ataba el importe a la sesion: al entrar
+          // con un correo que ya tenia cuenta, la sesion se volvia real a mitad
+          // del cobro y el importe y la moneda cambiaban de golpe por debajo de
+          // la pasarela. Cuanto se cobra no tiene nada que ver con quien eres.
+          amount={payAmount != null ? totalAmount : basePrice}
+          amountCurrency={payAmount != null ? "MXN" : SETTLEMENT_CURRENCY}
           // Correo y contrasena, debajo de los metodos de pago. Solo aqui y solo
           // sin cuenta.
           collectAccount={necesitaCuenta}

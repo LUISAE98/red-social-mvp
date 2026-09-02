@@ -345,6 +345,13 @@ export default function StripePaymentModal({
           ? (isGuest ? savedCvcValid : true) // invitado re-pide CVV; cuenta real = un-clic off-session
           : false));
 
+  /**
+   * Hay un cobro en marcha (o ya hecho) en esta apertura.
+   *
+   * Mientras valga `true`, la pantalla no se reinicia aunque cambien el importe
+   * o la moneda que le pasan. Se limpia al cerrar.
+   */
+  const cobroEnCursoRef = useRef(false);
   const stripeRef = useRef<StripeLike | null>(null);
   const numberElRef = useRef<StripeElement | null>(null);
   const onPaidRef = useRef(onPaid);
@@ -613,8 +620,23 @@ export default function StripePaymentModal({
   }, [open, sdkReady, isGuest, savedCardId]);
 
   // (A) Al abrir: carga Stripe.js.
+  //
+  // ⚠️ Este efecto BORRA el estado de la pantalla —incluida la verde de "listo"—
+  // y depende de `amount`. Eso es correcto al abrir y catastrofico a mitad del
+  // cobro, que es justo cuando el importe puede cambiar: en Vibra Express, al
+  // entrar con un correo que ya tenia cuenta, el encargo se crea DENTRO del
+  // cobro y con el llega el importe definitivo. La pasarela se reiniciaba
+  // entera un instante despues de pagar, asi que la compra se hacia, al creador
+  // le llegaba la solicitud, y quien pagaba veia desaparecer todo sin mas.
+  //
+  // Con un cobro en marcha, esta pantalla ya no se reinicia por nada.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // Cerrada, vuelve a estar disponible para el siguiente cobro.
+      cobroEnCursoRef.current = false;
+      return;
+    }
+    if (cobroEnCursoRef.current) return;
     // En donación (amountEditable) el monto es dinámico (se elige adentro) → NO exigir `amount`.
     if (!amountEditable && (!amount || amount <= 0)) { setError(tWallet("payErrorNoPrice")); setLoading(false); return; }
     let cancelled = false;
@@ -708,6 +730,10 @@ export default function StripePaymentModal({
 
     setSubmitting(true);
     setError(null);
+    // Desde aquí, esta pantalla NO se reinicia por mucho que cambien sus datos
+    // de entrada. Ver el efecto (A): el cobro puede cambiar el importe y la
+    // moneda por debajo, y reiniciar en mitad del cobro borra la pantalla verde.
+    cobroEnCursoRef.current = true;
     // Marca el pago como exitoso (pantalla verde o cierre, según successMessage).
     //
     // ⚠️ La pantalla verde se pone en el MISMO tick que `onPaid`, no 300 ms después.
