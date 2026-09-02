@@ -44,8 +44,8 @@ const VIDEOS_EXPERIENCIAS = [
 const VIDEOS_BLOQUEANTES = 3;
 import LegalLinksFooter from "@/components/legal/LegalLinksFooter";
 import RegisterPanel from "@/app/[locale]/(public)/register/RegisterPanel";
-import CompleteProfilePanel from "@/app/[locale]/(public)/complete-profile/CompleteProfilePanel";
-import { useProfileOnboarding } from "@/app/[locale]/(public)/complete-profile/useProfileOnboarding";
+import CompleteProfilePanel from "@/components/profile/CompleteProfilePanel";
+import { useProfileOnboarding } from "@/lib/profile/useProfileOnboarding";
 import { useScreenReady } from "@/lib/useScreenReady";
 import { showSplash } from "@/lib/splash";
 import { useExperienceVideos } from "./useExperienceVideos";

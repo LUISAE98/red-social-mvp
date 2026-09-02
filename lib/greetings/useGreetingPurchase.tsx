@@ -32,6 +32,7 @@ import { useCreatorProfile } from "@/lib/reels/creatorProfiles";
 import { frenarReelFeed } from "@/lib/reels/reelFeedRefresh";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
+import CompleteProfileAside from "@/components/payments/CompleteProfileAside";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
 
 const FONT = "inherit";
@@ -565,6 +566,16 @@ export function useGreetingPurchase({
             (correoDelAviso
               ? " " + tServices("paySuccessGuestNote", { email: correoDelAviso })
               : "")
+          }
+          // Completar el perfil, junto a la confirmación y sin taparla.
+          //
+          // Solo en Vibra Express: en la app quien compra ya tiene perfil, y
+          // ofrecérselo sería ruido. El propio panel se retira si resulta que ya
+          // hay perfil, así que esto es solo la puerta.
+          successAside={
+            identityMode === "guest"
+              ? ({ stacked }) => <CompleteProfileAside stacked={stacked} />
+              : null
           }
           onClose={() => {
             setPayOpen(false);

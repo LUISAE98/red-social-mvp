@@ -10,8 +10,8 @@ import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getNextFromSearchParams } from "@/lib/auth-redirect";
-import CompleteProfilePanel from "./CompleteProfilePanel";
-import { useProfileOnboarding } from "./useProfileOnboarding";
+import CompleteProfilePanel from "@/components/profile/CompleteProfilePanel";
+import { useProfileOnboarding } from "@/lib/profile/useProfileOnboarding";
 
 export default function CompleteProfileClient() {
   const router = useRouter();

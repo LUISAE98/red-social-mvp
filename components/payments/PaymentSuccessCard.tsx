@@ -21,6 +21,7 @@ export default function PaymentSuccessCard({
   locale = "en",
   stacked = false,
   showClose = true,
+  aside = null,
 }: {
   avatarUrl?: string | null;
   providerName?: string | null;
@@ -30,14 +31,35 @@ export default function PaymentSuccessCard({
   locale?: string;
   stacked?: boolean;
   showClose?: boolean;
+  /**
+   * Algo que ofrecer JUNTO a la confirmación, sin taparla.
+   *
+   * En escritorio va como segunda columna a la derecha; en celular, donde el
+   * panel es una hoja, va debajo y se alcanza desplazando. Nunca por encima: lo
+   * primero que esa persona tiene que ver es que su compra se hizo.
+   *
+   * Se recibe como función y no como nodo para poder decirle CÓMO va colocado:
+   * quien lo monta está lejos de aquí y no sabe si esta pantalla es hoja o
+   * ventana, y esa diferencia cambia su forma.
+   */
+  aside?: ((opts: { stacked: boolean }) => React.ReactNode) | null;
 }) {
   const purchaseDate = new Date().toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
-  return (
+  const confirmacion = (
     // ⚠️ `minHeight`, NO `height`. Con alto fijo, un mensaje más largo que el
     // hueco reservado empujaba la paloma fuera de la tarjeta y había que
     // desplazar para verla. Una confirmación de pago se lee de una ojeada o no
     // sirve: el panel crece con su texto en vez de recortarlo.
-    <div style={{ minHeight: stacked ? 480 : 440, display: "flex", flexDirection: "column", position: "relative" }}>
+    <div
+      style={{
+        minHeight: stacked ? 480 : 440,
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+        // Con acompañante al lado, esta columna se estrecha y cede el resto.
+        ...(aside && !stacked ? { flex: 1, minWidth: 0 } : null),
+      }}
+    >
       <style>{SUCCESS_KEYFRAMES}</style>
       {showClose && (
         <button type="button" onClick={onClose} aria-label="Cerrar" style={{ position: "absolute", top: 10, insetInlineEnd: 16, zIndex: 2, border: "none", background: "transparent", color: "#fff", fontSize: 32, lineHeight: 1, padding: 2, cursor: "pointer" }}>×</button>
@@ -59,6 +81,24 @@ export default function PaymentSuccessCard({
           <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7" /></svg>
         </div>
       </div>
+    </div>
+  );
+
+  if (!aside) return confirmacion;
+
+  // En ESCRITORIO, dos columnas: la confirmación a la izquierda y lo que se
+  // ofrece a la derecha. En CELULAR el panel es una hoja, así que va apilado y
+  // el acompañante queda debajo, alcanzable desplazando.
+  return (
+    <div
+      style={
+        stacked
+          ? { display: "flex", flexDirection: "column" }
+          : { display: "flex", alignItems: "stretch", minHeight: 440 }
+      }
+    >
+      {confirmacion}
+      {aside({ stacked })}
     </div>
   );
 }

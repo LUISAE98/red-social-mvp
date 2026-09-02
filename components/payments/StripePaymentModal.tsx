@@ -100,6 +100,12 @@ type Props = {
   avatarUrl?: string | null;
   description?: string | null;
   successMessage?: string | null;
+  /**
+   * Algo que ofrecer JUNTO a la pantalla de compra hecha, sin taparla.
+   * En escritorio va como segunda columna; en celular, debajo. Recibe cómo va
+   * colocado, porque esa diferencia cambia su forma.
+   */
+  successAside?: ((opts: { stacked: boolean }) => React.ReactNode) | null;
   /** Mensaje de éxito cuando el pago quedó como HOLD (retención, `requires_capture`) — las 4
    *  experiencias: aclara que se cobra al entregar/agendar. Si el pago se captura de una
    *  (crédito cubre todo, o servicio inmediato), se usa `successMessage`. */
@@ -181,6 +187,7 @@ export default function StripePaymentModal({
   avatarUrl,
   description,
   successMessage,
+  successAside = null,
   holdSuccessMessage,
   durationMinutes,
   locale = "en",
@@ -1450,6 +1457,7 @@ export default function StripePaymentModal({
       onClose={onClose}
       locale={locale}
       stacked={stacked}
+      aside={successAside}
     />
   );
 

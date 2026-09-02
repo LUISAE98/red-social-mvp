@@ -37,6 +37,9 @@ export default function CompleteProfilePanel({
   msg,
   onSubmit,
   onCancel,
+  cancelLabel,
+  title,
+  subtitle,
 }: {
   showIdentity: boolean;
   handle: string;
@@ -58,6 +61,18 @@ export default function CompleteProfilePanel({
   msg: string | null;
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
+  /**
+   * Qué dice el segundo botón.
+   *
+   * En el alta es «Cancelar», porque ahí sí se abandona el registro. Tras una
+   * compra no se cancela nada —el perfil se puede dejar para luego y habrá otra
+   * oportunidad—, y llamarlo cancelar daría a entender que se pierde algo.
+   */
+  cancelLabel?: string;
+  /** Encabezado, para los sitios donde el de por defecto no encaja. */
+  title?: string;
+  /** Bajada. Se puede apagar con cadena vacía donde ya lo explica el entorno. */
+  subtitle?: string;
 }) {
   const t = useTranslations("completeProfile");
   // El aviso de error sale por el toast de Vibra, no como caja bajo el formulario.
@@ -197,8 +212,12 @@ export default function CompleteProfilePanel({
 
   return (
     <>
-      <h1 style={titleStyle}>{t("title")}</h1>
-      <p style={subtitleStyle}>{t("subtitle")}</p>
+      <h1 style={titleStyle}>{title ?? t("title")}</h1>
+      {/* La cadena vacía apaga la bajada, para los sitios donde el entorno ya
+          explica de qué va y repetirlo sobra. */}
+      {(subtitle ?? t("subtitle")) ? (
+        <p style={subtitleStyle}>{subtitle ?? t("subtitle")}</p>
+      ) : null}
 
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 13 }}>
             {/* Portada + foto de perfil (mismo acomodo/estilo que crear cuenta). */}
@@ -422,7 +441,7 @@ export default function CompleteProfilePanel({
                 cursor: loading ? "not-allowed" : "pointer",
               }}
             >
-              {t("cancel")}
+              {cancelLabel ?? t("cancel")}
             </button>
           </form>
 
