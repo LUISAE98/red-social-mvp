@@ -16,7 +16,6 @@ import {
 import { httpsCallable } from "firebase/functions";
 import { auth, functions } from "@/lib/firebase";
 import { ensureGuestAuth } from "./ensureGuestAuth";
-import { isPasswordAcceptable } from "@/lib/auth/passwordPolicy";
 
 
 /**
@@ -78,15 +77,17 @@ export async function attachGuestAccount(
   alreadyHasAccount: boolean,
 ): Promise<GuestAccountResult> {
   const clean = email.trim().toLowerCase();
-  // ⚠️ La MISMA regla que el registro normal y que la politica de Firebase, no
-  // el minimo del SDK. Con el minimo, esto dejaba pasar contrasenas que el
-  // servidor iba a rechazar despues, ya con la tarjeta puesta.
+  // ⚠️ AQUÍ NO se juzga la fortaleza de la contraseña, y es deliberado.
   //
-  // Solo al CREAR. Entrar a una cuenta que ya existe no vuelve a juzgar su
-  // contrasena: quien la tiene desde antes de la politica sigue pudiendo entrar.
-  if (!alreadyHasAccount && !isPasswordAcceptable(password)) {
-    return { ok: false, reason: "weak-password" };
-  }
+  // La pantalla sí la exige antes de habilitar el botón, que es donde sirve de
+  // algo. Repetir el juicio aquí cerraba una puerta que hace falta: si la
+  // pregunta de "¿ya tiene cuenta?" no llegó a tiempo, esto se cree que va a
+  // crear una cuenta nueva, y a alguien con una cuenta VIEJA —contraseña de
+  // antes de la política— se le rechazaba su propia contraseña sin llegar
+  // siquiera a intentar entrar.
+  //
+  // La política real vive en Firebase Auth y se aplica igual al crear; su error
+  // se traduce más abajo. No hace falta adelantarse a ella para cerrar el paso.
 
   try {
     if (alreadyHasAccount) {
@@ -106,8 +107,32 @@ export async function attachGuestAccount(
     if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
       return { ok: false, reason: "wrong-password" };
     }
+    // Ese correo ya era de alguien. En vez de rendirse, se ENTRA con él.
+    //
+    // ⚠️ Sin esto había un callejón sin salida, y no hacía falta mala suerte
+    // para caer en él. La pregunta de "¿este correo ya tiene cuenta?" se lanza
+    // al salir del campo; si alguien escribe su correo y pulsa pagar sin
+    // esperar, la respuesta aún no ha llegado y aquí se intenta CREAR una cuenta
+    // que ya existe. El aviso decía "escribe tu contraseña para continuar" —y ya
+    // estaba escrita—, así que reintentar daba exactamente el mismo error para
+    // siempre.
+    //
+    // Ahora esa pregunta es una comodidad para la pantalla, no un requisito
+    // para cobrar. Si la contraseña es la suya, entra; si no, se le dice.
     if (code === "auth/email-already-in-use" || code === "auth/credential-already-in-use") {
-      return { ok: false, reason: "email-in-use" };
+      try {
+        await signInWithEmailAndPassword(auth, clean, password);
+        return { ok: true };
+      } catch (err2) {
+        const code2 = (err2 as { code?: string })?.code ?? "";
+        if (code2 === "auth/wrong-password" || code2 === "auth/invalid-credential") {
+          return { ok: false, reason: "wrong-password" };
+        }
+        if (code2 === "auth/too-many-requests") return { ok: false, reason: "too-many-requests" };
+        if (code2 === "auth/network-request-failed") return { ok: false, reason: "network" };
+        console.error("[guestAccount] el correo ya existía y tampoco se pudo entrar:", code2, err2);
+        return { ok: false, reason: "email-in-use" };
+      }
     }
     // El segundo es el que devuelve Firebase cuando el proyecto tiene una
     // politica de contrasenas configurada. Sin contemplarlo llegaba tal cual a

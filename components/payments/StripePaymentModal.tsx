@@ -1119,6 +1119,17 @@ export default function StripePaymentModal({
                 autoComplete={acctExists ? "current-password" : "new-password"}
                 value={acctPassword}
                 onChange={(e) => setAcctPassword(e.target.value)}
+                onFocus={() => {
+                  // Segunda oportunidad para saber si ese correo ya tiene cuenta.
+                  //
+                  // La pregunta se lanza al salir del campo del correo, y si
+                  // aquella vez falló se queda sin saberse. Eso importa: sin
+                  // saberlo se exige contraseña FUERTE, y alguien con una cuenta
+                  // vieja no puede escribir la suya ni habilitar el botón. Aquí
+                  // no cuesta nada volver a preguntar.
+                  if (acctExists !== null || !acctEmailOk) return;
+                  void emailHasAccount(acctEmail).then(setAcctExists);
+                }}
                 // ⚠️ NO el marcador de siempre, que dice "Minimo 6 caracteres" y
                 // no es verdad: la politica del proyecto pide bastante mas. Los
                 // requisitos completos van debajo, donde caben enteros.
