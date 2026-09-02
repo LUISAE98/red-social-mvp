@@ -533,16 +533,10 @@ export default function ExperienceRequestsInbox({
                       // Sin foto Y sin nombre: no hay iniciales que sacar, solo
                       // las de un código de relleno. El detective dice lo que
                       // pasa de verdad, que esta persona aún no tiene perfil.
-                      <div
-                        style={{
-                          ...styles.avatarFallback,
-                          width: 44,
-                          height: 44,
-                          color: "rgba(255,255,255,0.62)",
-                        }}
-                      >
-                        <VibraDetectiveIcon size={24} />
-                      </div>
+                      //
+                      // Va solo, sin el círculo de respaldo debajo: trae el suyo,
+                      // y dos círculos concéntricos es lo que se veía mal.
+                      <VibraDetectiveIcon size={44} />
                     )}
                     <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
                       {buyer?.handle ? (

@@ -1488,13 +1488,16 @@ export default function GreetingReviewOverlay({
           width={38} height={38}
           style={{ borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}
         />
+      ) : buyerSinPerfil ? (
+        // Trae su propio círculo, así que no lleva el de respaldo debajo.
+        <VibraDetectiveIcon size={38} />
       ) : (
         <div style={{
           width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,0.07)",
           border: "1px solid rgba(255,255,255,0.12)", display: "flex", alignItems: "center",
           justifyContent: "center", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0,
         }}>
-          {buyerSinPerfil ? <VibraDetectiveIcon size={20} /> : buyerLetter}
+          {buyerLetter}
         </div>
       )}
       {/* Sin la ganancia al lado, el nombre dispone de toda la fila y ya no hace
