@@ -48,7 +48,7 @@ export const createMuxLiveStream = onCall(
       throw new HttpsError("already-exists", "Este live ya tiene un stream configurado.");
     }
 
-    const mux = createMuxClient();
+    const mux = await createMuxClient();
     let liveStream: Awaited<ReturnType<typeof mux.video.liveStreams.create>>;
     try {
       liveStream = await mux.video.liveStreams.create({

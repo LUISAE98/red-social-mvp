@@ -18,21 +18,18 @@ import * as admin from "firebase-admin";
 import { onRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import {
-  EncodedFileOutput,
-  S3Upload,
-  EncodingOptions,
-  EgressStatus,
-  type EgressInfo,
-} from "livekit-server-sdk";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import {
   livekitApiKey,
   livekitApiSecret,
   egressS3AccessKey,
   egressS3SecretKey,
   createEgressClient,
 } from "./livekit";
+
+type LazyEgressInfo = {
+  status: number;
+  error?: string;
+  fileResults?: unknown[];
+};
 import { extractS3Key } from "./recordingDownload";
 import { safeLocale } from "./locales";
 import { isGreetingParticipant } from "./greetingAccess";
@@ -125,6 +122,13 @@ export const greetingAnimatedDownload = onRequest(
       return;
     }
 
+    const {
+      EncodedFileOutput,
+      EncodingOptions,
+      EgressStatus,
+      S3Upload,
+    } = await import("livekit-server-sdk");
+
     // URL pública de la plantilla con los datos del saludo en query params.
     const q = new URLSearchParams({ playbackId, name, avatar, type, orientation });
     const egressUrl = `${GREETING_EGRESS_HOST}/${locale}/egress/greeting?${q.toString()}`;
@@ -154,11 +158,11 @@ export const greetingAnimatedDownload = onRequest(
       keyFrameInterval: 2,
     });
 
-    const egressClient = createEgressClient();
+    const egressClient = await createEgressClient();
 
     let egressId: string | undefined;
     try {
-      const info = await egressClient.startWebEgress(egressUrl, fileOutput, {
+      const info = await egressClient.startWebEgress(egressUrl, fileOutput as never, {
         // Espera a que la plantilla llame EgressHelper.startRecording() cuando el
         // video de Mux esté cargado — así no se graba un frame en blanco al inicio.
         awaitStartSignal: true,
@@ -175,12 +179,12 @@ export const greetingAnimatedDownload = onRequest(
     // Polling hasta que el egress complete (la plantilla llama endRecording() al
     // final del outro). Guarda de tiempo por si el grabador se cuelga.
     const deadline = Date.now() + MAX_WAIT_MS;
-    let finalInfo: EgressInfo | undefined;
+    let finalInfo: LazyEgressInfo | undefined;
     while (Date.now() < deadline) {
       await sleep(POLL_INTERVAL_MS);
-      let list: EgressInfo[];
+      let list: LazyEgressInfo[];
       try {
-        list = await egressClient.listEgress({ egressId });
+        list = (await egressClient.listEgress({ egressId })) as unknown as LazyEgressInfo[];
       } catch (err) {
         logger.warn("greetingAnimatedDownload_poll_failed", { egressId, err });
         continue;
@@ -208,7 +212,7 @@ export const greetingAnimatedDownload = onRequest(
     // info.result.value.location — NO como info.file.location. Serializar a JSON
     // aplana el oneof a `file`, así que leemos de ahí y no dependemos de la forma
     // interna del protobuf (esto era el bug que mandaba todo al canvas viejo).
-    const readLocation = (info: EgressInfo): string => {
+    const readLocation = (info: LazyEgressInfo): string => {
       const plain = JSON.parse(
         JSON.stringify(info, (_k, v) => (typeof v === "bigint" ? v.toString() : v))
       ) as { fileResults?: Array<{ location?: string }>; file?: { location?: string } };
@@ -219,7 +223,7 @@ export const greetingAnimatedDownload = onRequest(
     for (let i = 0; i < 5 && !location; i++) {
       await sleep(1500);
       try {
-        const l = await egressClient.listEgress({ egressId });
+        const l = (await egressClient.listEgress({ egressId })) as unknown as LazyEgressInfo[];
         if (l[0]) { finalInfo = l[0]; location = readLocation(l[0]); }
       } catch { /* reintentar */ }
     }
@@ -238,6 +242,10 @@ export const greetingAnimatedDownload = onRequest(
     const key = extractS3Key(location, bucket);
     const filename = `vibra-${type}-${(name || "video").replace(/\s+/g, "-")}.mp4`;
 
+    const [{ GetObjectCommand, S3Client }, { getSignedUrl }] = await Promise.all([
+      import("@aws-sdk/client-s3"),
+      import("@aws-sdk/s3-request-presigner"),
+    ]);
     const client = new S3Client({
       region,
       endpoint,

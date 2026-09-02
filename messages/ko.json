@@ -2672,6 +2672,18 @@
       "in_review": "신원 인증을 검토하고 있습니다.",
       "pending": "신원 인증이 대기 중입니다. 계속하려면 누르세요."
     },
+    "withdrawal": {
+      "requested": "We got your withdrawal request for {amount}. We set that money aside and will let you know once we review it.",
+      "approved": "We approved your withdrawal of {amount}. We are preparing the transfer to your Wallbit.",
+      "sent": "Your withdrawal of {amount} is on its way.",
+      "paid": "We deposited your withdrawal of {amount}.",
+      "rejected": "We could not process your withdrawal of {amount}. We returned your full balance.",
+      "returned": "Your bank did not accept the transfer of {amount}. We returned your full balance, please check your payout account details.",
+      "can_withdraw": "You can withdraw now. You have {amount} available.",
+      "seal_expiring": "Your digital seal expires soon. Renew it to keep withdrawing.",
+      "arrives": "Arrives around {date}.",
+      "credited": "You received {amount}."
+    },
     "donation": {
       "fromProfile": "님이 내 프로필에서 후원했습니다",
       "fromGroup": "님이 {group}에서 후원했습니다"

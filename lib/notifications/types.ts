@@ -27,6 +27,8 @@ export type NotificationType =
   | "live_vod_ready"
   | "session_event"
   | "kyc_update"
+  /** 💸 Todo el ciclo de un retiro. `target.action` dice en qué momento. */
+  | "withdrawal_update"
   | "invite_expired"
   | "moderation_warning"
   | "donation";
@@ -48,10 +50,25 @@ export interface NotificationTarget {
   imageUrl?: string | null;
   /** invite_expired: motivo ("max_uses" | "expired"). */
   reason?: string | null;
+  /** withdrawal_update: la solicitud, para poder abrirla desde el aviso. */
+  withdrawalId?: string | null;
+  /**
+   * withdrawal_update: importes YA FORMATEADOS por quien emitió el aviso.
+   *
+   * 🚨 No son número + moneda a propósito. El aviso se lee meses después y tiene que decir
+   *    lo mismo que dijo ese día: formateando al leer, un cambio de moneda de visualización
+   *    reescribiría la historia del creador.
+   */
+  amountText?: string | null;
+  creditedText?: string | null;
+  /** withdrawal_update: cuándo espera llegar, ISO. */
+  arrivalDate?: string | null;
   /**
    * group_moderation: acción ("muted" | "kicked" | "banned").
    * group_subscription_transition: "legacy_free" | "removed_needs_subscription" | "removed_now_free".
    * kyc_update: estado ("approved" | "declined" | "in_review" | "pending").
+   * withdrawal_update: momento del retiro — requested, approved, sent, paid, rejected,
+   * returned, can_withdraw, seal_expiring.
    */
   action?: string | null;
   /** donation: id de la donación individual (detalle por separado, futuro). */
@@ -117,6 +134,7 @@ export const KNOWN_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "live_vod_ready",
   "session_event",
   "kyc_update",
+  "withdrawal_update",
   "invite_expired",
   "donation",
 ]);

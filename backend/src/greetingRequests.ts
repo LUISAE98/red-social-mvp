@@ -524,7 +524,7 @@ export const createGreetingMuxUpload = onCall(
       );
     }
 
-    const mux = createMuxClient();
+    const mux = await createMuxClient();
 
     let upload: Awaited<ReturnType<typeof mux.video.uploads.create>>;
 

@@ -47,8 +47,8 @@ type Counters = {
  * documentos (la historia del creador y la del comprador, por ejemplo), y no
  * tiene sentido preguntarlo dos veces.
  */
-function makeAliveChecker(counters: Counters) {
-  const mux = createMuxClient();
+async function makeAliveChecker(counters: Counters) {
+  const mux = await createMuxClient();
   const cache = new Map<string, boolean>();
 
   return async function isAlive(playbackId: string): Promise<boolean> {
@@ -121,7 +121,7 @@ export const cleanupDeletedMuxVideos = onCall(
       erroresConsultandoMux: 0,
     };
 
-    const isAlive = makeAliveChecker(counters);
+    const isAlive = await makeAliveChecker(counters);
 
     // ── Historias ────────────────────────────────────────────────────────────
     let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;

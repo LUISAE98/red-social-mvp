@@ -1,7 +1,9 @@
 // LiveKit backend module — credentials, client factory y utilidades base.
 // Las funciones que generen tokens o administren salas deben importar desde aquí.
 
-import { RoomServiceClient, AccessToken, EgressClient, type VideoGrant } from "livekit-server-sdk";
+import type {
+  VideoGrant,
+} from "livekit-server-sdk";
 import { defineSecret } from "firebase-functions/params";
 
 export const livekitApiKey = defineSecret("LIVEKIT_API_KEY");
@@ -21,7 +23,8 @@ function getLivekitUrl(): string {
 
 // Crea un cliente de administración de salas (Room Service).
 // Requiere que la función declare livekitApiKey y livekitApiSecret como secrets.
-export function createRoomServiceClient(): RoomServiceClient {
+export async function createRoomServiceClient() {
+  const { RoomServiceClient } = await import("livekit-server-sdk");
   return new RoomServiceClient(
     getLivekitUrl(),
     livekitApiKey.value(),
@@ -31,7 +34,8 @@ export function createRoomServiceClient(): RoomServiceClient {
 
 // Crea un cliente de Egress para gestionar grabaciones.
 // Requiere que la función declare livekitApiKey y livekitApiSecret como secrets.
-export function createEgressClient(): EgressClient {
+export async function createEgressClient() {
+  const { EgressClient } = await import("livekit-server-sdk");
   return new EgressClient(
     getLivekitUrl(),
     livekitApiKey.value(),
@@ -41,7 +45,8 @@ export function createEgressClient(): EgressClient {
 
 // Crea un AccessToken base para generar JWTs de participantes.
 // El caller es responsable de agregar grants y llamar .toJwt().
-export function createAccessToken(): AccessToken {
+export async function createAccessToken() {
+  const { AccessToken } = await import("livekit-server-sdk");
   return new AccessToken(livekitApiKey.value(), livekitApiSecret.value());
 }
 
@@ -55,6 +60,7 @@ export async function createParticipantToken(params: {
   ttlSeconds?: number;
 }): Promise<string> {
   const { roomName, identity, displayName, metadata, ttlSeconds = 14400 } = params;
+  const { AccessToken } = await import("livekit-server-sdk");
 
   const grant: VideoGrant = {
     room: roomName,

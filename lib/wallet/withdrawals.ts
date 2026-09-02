@@ -65,6 +65,17 @@ export type WithdrawalRequestDoc = {
   declaredHolderName: string | null;
   /** 🏷️ El TAG de Wallbit al que hay que transferir. Solo en esa ruta. */
   wallbitTag: string | null;
+  /**
+   * 🧮 Lo que Stripe cobró por ESTE envío, desglosado.
+   *
+   * Sale de `estimated_fees` de la cotización, y hoy llega vacío: el endpoint
+   * `outbound_payment_quotes` devuelve 404 en nuestra cuenta. El panel enseña entonces el
+   * coste MODELADO de `payoutFees.ts`, marcado como estimación.
+   */
+  stripeFeeTotal: number | null;
+  stripeFeeFijo: number | null;
+  stripeFeeTransfronteriza: number | null;
+  stripeFeeConversion: number | null;
   stripeRecipientId: string | null;
   stripeAccountBank: string | null;
   createdAt: Timestamp | null;
@@ -160,6 +171,12 @@ function normalizar(id: string, d: Record<string, unknown>): WithdrawalRequestDo
     declaredAccountLast4: s(d.declaredAccountLast4),
     declaredHolderName: s(d.declaredHolderName),
     wallbitTag: s(d.wallbitTag),
+    stripeFeeTotal: typeof d.stripeFeeTotal === "number" ? d.stripeFeeTotal : null,
+    stripeFeeFijo: typeof d.stripeFeeFijo === "number" ? d.stripeFeeFijo : null,
+    stripeFeeTransfronteriza:
+      typeof d.stripeFeeTransfronteriza === "number" ? d.stripeFeeTransfronteriza : null,
+    stripeFeeConversion:
+      typeof d.stripeFeeConversion === "number" ? d.stripeFeeConversion : null,
     stripeRecipientId: s(d.stripeRecipientId),
     stripeAccountBank: s(d.stripeAccountBank),
     createdAt: (d.createdAt as Timestamp) ?? null,

@@ -150,6 +150,46 @@ function Avatar({ n }: { n: AppNotification }) {
   );
 }
 
+/**
+ * Círculo de un aviso de retiro. El color dice en qué acabó sin leer el texto.
+ *
+ * Verde lo que terminó bien, rojo lo que no salió, morado lo que sigue en marcha. `returned`
+ * va en rojo aunque el creador recupere su dinero: algo tiene que revisar.
+ */
+function RetiroAvatar({ action }: { action?: string | null }) {
+  const color =
+    action === "paid" || action === "can_withdraw"
+      ? "#22c55e"
+      : action === "rejected" || action === "returned"
+        ? "#ef4444"
+        : action === "seal_expiring"
+          ? "#f59e0b"
+          : "#a855f7";
+  return (
+    <span
+      style={{
+        position: "relative",
+        flex: "0 0 auto",
+        width: 44,
+        height: 44,
+        borderRadius: "50%",
+        background: "#1a1a1a",
+        display: "grid",
+        placeItems: "center",
+      }}
+    >
+      {/* Billete. Es el mismo dibujo para los ocho momentos: lo que cambia es el color. */}
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block" }}>
+        <path
+          fill={color}
+          d="M2 6h20a0 0 0 0 1 0 0v12a0 0 0 0 1 0 0H2a0 0 0 0 1 0 0V6a0 0 0 0 1 0 0Z"
+        />
+        <circle cx="12" cy="12" r="3" fill="#0e0e12" />
+      </svg>
+    </span>
+  );
+}
+
 /** Escudo de verificación (KYC): verde aprobado, rojo rechazado, morado en proceso. */
 function KycAvatar({ status }: { status?: string | null }) {
   const color =
@@ -399,6 +439,8 @@ export default function NotificationList({
 }: NotificationListProps) {
   const t = useTranslations("notifications");
   const timeAgo = useTimeAgo();
+  // Para la fecha de llegada de los retiros, que se escribe en el idioma del creador.
+  const locale = useLocale();
 
   // Portadas de las comunidades con solicitudes pendientes: se usan como fondo
   // de esa notificación para que se reconozca de un vistazo a qué comunidad
@@ -547,6 +589,45 @@ export default function NotificationList({
                       group,
                     })}
                   </span>
+                  <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                </span>
+              </Link>
+            ) : n.type === "withdrawal_update" ? (
+              /* 💸 Todo el ciclo del retiro. El texto sale de `target.action`, y debajo, en
+                 pequeño, lo que ese momento concreto añade: la fecha de llegada cuando va en
+                 camino, lo recibido cuando ya llegó, el motivo cuando se rechazó. */
+              <Link href={href} className="notifLink" onClick={() => handleItemClick(n, path)}>
+                <RetiroAvatar action={n.target.action} />
+                <span className="notifBody">
+                  <span className="notifText">
+                    {t(`withdrawal.${n.target.action ?? "requested"}`, {
+                      amount: n.target.amountText ?? "",
+                    })}
+                  </span>
+
+                  {/* La fecha de llegada, que es lo que evita el «¿y mi dinero?» del día
+                      siguiente: un pago transfronterizo tarda de uno a siete días. */}
+                  {n.target.arrivalDate && (
+                    <span className="notifSub">
+                      {t("withdrawal.arrives", {
+                        date: new Date(n.target.arrivalDate).toLocaleDateString(locale, {
+                          day: "numeric",
+                          month: "long",
+                        }),
+                      })}
+                    </span>
+                  )}
+
+                  {/* Lo que de verdad recibió, en SU moneda. */}
+                  {n.target.creditedText && (
+                    <span className="notifSub">
+                      {t("withdrawal.credited", { amount: n.target.creditedText })}
+                    </span>
+                  )}
+
+                  {/* 🚨 El motivo. Un rechazo mudo deja al creador sin saber qué corregir. */}
+                  {n.target.reason && <span className="notifSub">{n.target.reason}</span>}
+
                   <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
                 </span>
               </Link>
@@ -780,6 +861,17 @@ export default function NotificationList({
               .notifTime {
                 font-size: 12px;
                 color: rgba(255, 255, 255, 0.4);
+              }
+              /* Línea secundaria de un aviso: la fecha de llegada de un retiro, lo que
+                 recibió, o el motivo de un rechazo. A diferencia de notifText SÍ se
+                 puede partir en varios renglones: un motivo de rechazo cortado con puntos
+                 suspensivos no le sirve de nada a quien está esperando su dinero. */
+              .notifSub {
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.45);
+                line-height: 1.4;
+                white-space: normal;
+                max-width: 100%;
               }
               .notifItem :global(.notifThumb) {
                 flex: 0 0 auto;

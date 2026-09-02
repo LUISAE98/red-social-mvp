@@ -15,13 +15,6 @@ import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import {
-  EncodedFileOutput,
-  S3Upload,
-  EncodingOptionsPreset,
-  type EgressInfo,
-  type EgressClient,
-} from "livekit-server-sdk";
-import {
   livekitApiKey,
   livekitApiSecret,
   egressS3AccessKey,
@@ -84,7 +77,7 @@ function resolveCollection(sessionType: unknown): string {
 // Inicia una grabación RoomComposite en S3.
 // Devuelve el egressId si arrancó correctamente, null si el S3 no está configurado.
 async function startRecording(
-  egressClient: EgressClient,
+  egressClient: Awaited<ReturnType<typeof createEgressClient>>,
   roomName: string,
   sessionId: string,
   locale?: string
@@ -105,6 +98,9 @@ async function startRecording(
     return null;
   }
 
+  const { EncodedFileOutput, EncodingOptionsPreset, S3Upload } =
+    await import("livekit-server-sdk");
+
   const s3 = new S3Upload({
     accessKey,
     secret: secretKey,
@@ -118,7 +114,9 @@ async function startRecording(
     output: { case: "s3", value: s3 },
   });
 
-  let egressInfo: EgressInfo;
+  let egressInfo: Awaited<
+    ReturnType<Awaited<ReturnType<typeof createEgressClient>>["startRoomCompositeEgress"]>
+  >;
   try {
     egressInfo = await egressClient.startRoomCompositeEgress(roomName, fileOutput, {
       // Plantilla propia con layout FIJO: creador grande + comprador PiP en la
@@ -144,7 +142,7 @@ async function startRecording(
 
 // Detiene un egress activo. No lanza si no hay egressId o si falla.
 async function stopRecording(
-  egressClient: EgressClient,
+  egressClient: Awaited<ReturnType<typeof createEgressClient>>,
   egressId: string | null | undefined,
   sessionId: string
 ): Promise<void> {
@@ -271,7 +269,7 @@ export const joinSession = onCall(
     // dentro). Solo el participante que fijó startedAt entra aquí, así que no hay
     // doble egress: el otro ya ve startedAt puesto y no re-arranca.
     if (startedNow && roomNameForEgress) {
-      const egressClient = createEgressClient();
+      const egressClient = await createEgressClient();
       // Locale del cliente que completó la unión → textos horneados en ese idioma.
       const joinLocale = (request.data as { locale?: string } | undefined)?.locale;
       const egressId = await startRecording(egressClient, roomNameForEgress, cleanId, joinLocale);
@@ -399,7 +397,7 @@ export const endSession = onCall(
       let signaled = false;
       if (roomName) {
         try {
-          await createRoomServiceClient().updateRoomMetadata(
+          await (await createRoomServiceClient()).updateRoomMetadata(
             roomName as string,
             JSON.stringify({ ended: true })
           );
@@ -409,7 +407,7 @@ export const endSession = onCall(
         }
       }
       if (!signaled) {
-        const egressClient = createEgressClient();
+        const egressClient = await createEgressClient();
         await stopRecording(egressClient, livekitEgressId as string, cleanId);
         updates.recordingStatus = "processing";
       }
@@ -484,7 +482,7 @@ export const signalSessionClosing = onCall(
 
     if (livekitEgressId && recordingStatus === "recording" && roomName) {
       try {
-        await createRoomServiceClient().updateRoomMetadata(
+        await (await createRoomServiceClient()).updateRoomMetadata(
           roomName as string,
           JSON.stringify(metadata)
         );
@@ -667,7 +665,7 @@ async function finalizeRecordingBackstop(
   if (!data || data.recordingStatus !== "recording" || !data.livekitEgressId) return;
 
   try {
-    await stopRecording(createEgressClient(), data.livekitEgressId as string, ref.id);
+    await stopRecording(await createEgressClient(), data.livekitEgressId as string, ref.id);
     await ref.update({
       recordingStatus: "processing",
       updatedAt: admin.firestore.Timestamp.now(),

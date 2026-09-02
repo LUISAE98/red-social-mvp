@@ -4,17 +4,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 
-import { expireMeetGreetNoShowsHandler, autoExpirePendingMeetGreetRequestsHandler, autoRejectUndeliveredMeetGreetRequestsHandler } from "./meetGreetRequests";
-import { expireExclusiveSessionNoShowsHandler, autoExpirePendingExclusiveSessionRequestsHandler, autoRejectUndeliveredExclusiveSessionRequestsHandler } from "./exclusiveSessionRequests";
-import { autoExpirePendingGreetingRequestsHandler, autoRejectUndeliveredGreetingRequestsHandler } from "./greetingRequests";
-import { updateExchangeRatesHandler } from "./exchangeRates";
-import { refreshFrozenRatesHandler } from "./tax/frozenRates";
-import { updateVatRatesHandler } from "./vatRates";
-import { sessionRemindersHandler } from "./sessionLifecycle";
-import { expireGroupSubscriptionsHandler } from "./payments/groupSubscriptionCore";
 import { stripeSecretKey } from "./payments/stripe/stripeClient";
-import { cleanupAbandonedCreditReservationsHandler } from "./payments/stripe/creditReservationCleanup";
-import { sweepGroupVisibilityDriftHandler } from "./groupVisibilityDriftSweep";
 
 // Healthcheck público
 export const healthcheck = onRequest(
@@ -44,9 +34,14 @@ export const expireScheduledServiceNoShows = onSchedule(
   async () => {
     logger.info("expireScheduledServiceNoShows started");
 
+    const [meetGreet, exclusiveSession] = await Promise.all([
+      import("./meetGreetRequests.js"),
+      import("./exclusiveSessionRequests.js"),
+    ]);
+
     await Promise.all([
-      expireMeetGreetNoShowsHandler(),
-      expireExclusiveSessionNoShowsHandler(),
+      meetGreet.expireMeetGreetNoShowsHandler(),
+      exclusiveSession.expireExclusiveSessionNoShowsHandler(),
     ]);
 
     logger.info("expireScheduledServiceNoShows finished");
@@ -66,15 +61,21 @@ export const autoExpirePendingServiceRequests = onSchedule(
   async () => {
     logger.info("autoExpirePendingServiceRequests started");
 
+    const [greeting, meetGreet, exclusiveSession] = await Promise.all([
+      import("./greetingRequests.js"),
+      import("./meetGreetRequests.js"),
+      import("./exclusiveSessionRequests.js"),
+    ]);
+
     await Promise.all([
       // Respaldo de captura del hold (día 6).
-      autoExpirePendingGreetingRequestsHandler(),
-      autoExpirePendingMeetGreetRequestsHandler(),
-      autoExpirePendingExclusiveSessionRequestsHandler(),
+      greeting.autoExpirePendingGreetingRequestsHandler(),
+      meetGreet.autoExpirePendingMeetGreetRequestsHandler(),
+      exclusiveSession.autoExpirePendingExclusiveSessionRequestsHandler(),
       // Auto-rechazo por no entregar en 60 días (ya cobradas).
-      autoRejectUndeliveredGreetingRequestsHandler(),
-      autoRejectUndeliveredMeetGreetRequestsHandler(),
-      autoRejectUndeliveredExclusiveSessionRequestsHandler(),
+      greeting.autoRejectUndeliveredGreetingRequestsHandler(),
+      meetGreet.autoRejectUndeliveredMeetGreetRequestsHandler(),
+      exclusiveSession.autoRejectUndeliveredExclusiveSessionRequestsHandler(),
     ]);
 
     logger.info("autoExpirePendingServiceRequests finished");
@@ -96,6 +97,9 @@ export const cleanupAbandonedCreditReservations = onSchedule(
   },
   async () => {
     logger.info("cleanupAbandonedCreditReservations started");
+    const { cleanupAbandonedCreditReservationsHandler } = await import(
+      "./payments/stripe/creditReservationCleanup.js"
+    );
     await cleanupAbandonedCreditReservationsHandler();
     logger.info("cleanupAbandonedCreditReservations finished");
   }
@@ -110,6 +114,7 @@ export const sessionPreSessionReminders = onSchedule(
   },
   async () => {
     logger.info("sessionPreSessionReminders started");
+    const { sessionRemindersHandler } = await import("./sessionLifecycle.js");
     await sessionRemindersHandler();
     logger.info("sessionPreSessionReminders finished");
   }
@@ -133,6 +138,11 @@ export const updateExchangeRates = onSchedule(
   },
   async () => {
     logger.info("updateExchangeRates started");
+    const [{ updateExchangeRatesHandler }, { refreshFrozenRatesHandler }] =
+      await Promise.all([
+        import("./exchangeRates.js"),
+        import("./tax/frozenRates.js"),
+      ]);
     // Respaldo: mantiene viva la tabla si Stripe no responde. El refresco bueno lo hace
     // el congelamiento de abajo con la tasa de Stripe, que es la que de verdad cobra.
     await updateExchangeRatesHandler();
@@ -162,6 +172,7 @@ export const watchFxDrift = onSchedule(
     secrets: [stripeSecretKey],
   },
   async () => {
+    const { refreshFrozenRatesHandler } = await import("./tax/frozenRates.js");
     const r = await refreshFrozenRatesHandler(false);
     if (r.refrescadas.length > 0) logger.info("watchFxDrift refrescó monedas", r);
   }
@@ -179,6 +190,7 @@ export const updateVatRates = onSchedule(
   },
   async () => {
     logger.info("updateVatRates started");
+    const { updateVatRatesHandler } = await import("./vatRates.js");
     await updateVatRatesHandler();
     logger.info("updateVatRates finished");
   }
@@ -194,6 +206,9 @@ export const expireGroupSubscriptions = onSchedule(
   },
   async () => {
     logger.info("expireGroupSubscriptions started");
+    const { expireGroupSubscriptionsHandler } = await import(
+      "./payments/groupSubscriptionCore.js"
+    );
     await expireGroupSubscriptionsHandler();
     logger.info("expireGroupSubscriptions finished");
   }
@@ -212,6 +227,9 @@ export const sweepGroupVisibilityDrift = onSchedule(
   },
   async () => {
     logger.info("sweepGroupVisibilityDrift started");
+    const { sweepGroupVisibilityDriftHandler } = await import(
+      "./groupVisibilityDriftSweep.js"
+    );
     const result = await sweepGroupVisibilityDriftHandler();
     logger.info("sweepGroupVisibilityDrift finished", result);
   }
@@ -436,6 +454,14 @@ export {
 } from "./wallet/ledgerTriggers";
 
 // Wallet — RETIROS. El creador solicita, administración acepta o rechaza.
+/**
+ * 📡 Cierra un retiro en cuanto Stripe mueve su pago, en vez de esperar al cron.
+ *
+ * Convive con `conciliarRetiros` a propósito: el webhook es rápido, el cron es terco. Si un
+ * evento se pierde o llega desordenado, el barrido lo arregla igual.
+ */
+export { stripePayoutsWebhook } from "./payments/stripe/payoutsWebhook";
+
 export {
   requestWithdrawal,
   reviewWithdrawal,
@@ -443,6 +469,10 @@ export {
   // 🚚 Cierra los retiros que Stripe todavía estaba moviendo. Sin esto un pago devuelto por
   //    el banco se quedaría como enviado para siempre y el creador no recuperaría su saldo.
   conciliarRetiros,
+  // 🎉 La primera vez que su saldo cruza el mínimo. Una sola vez por creador.
+  avisarPuedeRetirar,
+  // 📅 30 días antes de que caduque su sello, que si caduca le atasca el retiro.
+  avisarSelloPorCaducar,
 } from "./wallet/withdrawals";
 
 // Wallet — espejo de compras del comprador (users/{buyerId}/purchases)

@@ -21,6 +21,7 @@
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { requirePlatformMod } from "../authz";
@@ -28,6 +29,7 @@ import { calcularRetiro } from "../tax/fiscalEngine";
 import { payoutTermsOf, paisDeCobroDe, type PayoutRoute } from "./payoutTiers";
 import { SETTLEMENT_CURRENCY } from "./ledger";
 import { enviarPago, leerPago } from "../payments/stripe/outboundPayment";
+import { notifyWithdrawal } from "../notifications";
 import { stripeSecretKey, stripePayoutsSecretKey } from "../payments/stripe/stripeClient";
 
 const REGION = "us-central1";
@@ -128,6 +130,8 @@ export type EntradaPuertas = {
     payoutAccountDeclared?: unknown;
     declaredAccountMatchesStripe?: unknown;
     stripeAccountStatus?: unknown;
+    /** 🏷️ Solo en la ruta de Wallbit. Es su cuenta: sin él no hay a dónde pagar. */
+    wallbitTag?: unknown;
     residency?: unknown;
     payoutAccountCountry?: unknown;
     csdStatus?: unknown;
@@ -168,12 +172,23 @@ export function motivoDeBloqueo(entrada: EntradaPuertas): MotivoBloqueo | null {
   // 1 · Identidad. Es de los 89 países pagables, sin excepción.
   if (kyc.status !== "approved") return "sin_kyc";
 
-  // 2 · Cuenta de cobro. En Wallbit no hay alta de Stripe que comprobar.
+  /*
+   * 2 · Cuenta de cobro. Se pide lo que hace falta para PAGARLE, que no es lo mismo en las
+   *     dos rutas.
+   *
+   * 🚨 En Wallbit hace falta el TAG, y no basta con que haya completado el cuestionario.
+   *    `payoutAccountDeclared` solo dice que lo mandó; si la respuesta llegó sin TAG —una
+   *    forma inesperada de Didit, un campo vacío— el creador pasaría el gate, pediría su
+   *    retiro, y en el panel no habría a dónde transferir. El TAG ES la cuenta ahí: sin él
+   *    el dinero no tiene destino.
+   */
   const declarada = perfil.payoutAccountDeclared === true;
   const coincide = perfil.declaredAccountMatchesStripe !== false;
-  const stripeListo =
-    condiciones.route === "wallbit" || perfil.stripeAccountStatus === "verified";
-  if (!declarada || !coincide || !stripeListo) return "cuenta_no_lista";
+  const destinoListo =
+    condiciones.route === "wallbit"
+      ? typeof perfil.wallbitTag === "string" && perfil.wallbitTag.trim().length > 0
+      : perfil.stripeAccountStatus === "verified";
+  if (!declarada || !coincide || !destinoListo) return "cuenta_no_lista";
 
   /*
    * 3 · Sello, solo al mexicano.
@@ -217,6 +232,38 @@ export function estadoDeStripe(estado: string | null | undefined): WithdrawalSta
 
 export const WITHDRAWALS = "withdrawalRequests";
 
+/**
+ * Formatea un importe para un AVISO.
+ *
+ * 🚨 Se formatea aquí, al emitir, y el texto se guarda ya hecho. El aviso se lee meses
+ *    después y tiene que decir lo mismo que dijo ese día: guardando número y moneda y
+ *    formateando al leer, un cambio de moneda de visualización reescribiría su historia.
+ */
+/**
+ * Emite un aviso sin poder tumbar lo que lo provocó.
+ *
+ * 🚨 Los avisos van SIEMPRE fuera de la transacción y con el fallo tragado. Un error del
+ *    sistema de notificaciones no puede hacer que un retiro correcto se deshaga, ni que un
+ *    saldo devuelto se quede sin devolver. Se registra y se sigue.
+ */
+async function avisar(params: Parameters<typeof notifyWithdrawal>[0]): Promise<void> {
+  try {
+    await notifyWithdrawal(params);
+  } catch (err) {
+    logger.warn("retiro_aviso_falló", {
+      accion: params.action,
+      id: params.withdrawalId,
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+function textoDinero(monto: unknown, moneda: unknown): string {
+  const n = num(monto);
+  const m = typeof moneda === "string" && moneda ? moneda.toUpperCase() : SETTLEMENT_CURRENCY;
+  return `${n.toFixed(2)} ${m}`;
+}
+
 /** Lo que se congela de una solicitud. Todo en la moneda de liquidación. */
 type Desglose = {
   saldo: number;
@@ -233,7 +280,7 @@ type Desglose = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const requestWithdrawal = onCall(
-  { region: REGION, cors: true },
+  { region: REGION, cors: true, minInstances: 1 },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -445,6 +492,20 @@ export const requestWithdrawal = onCall(
       return { id: requestRef.id, ...desglose };
     });
 
+    /*
+     * 💸 Su saldo ACABA de bajar. Este aviso es el único registro permanente de eso: el
+     *    toast desaparece y la tarjeta hay que ir a buscarla.
+     *
+     * Fuera de la transacción, como todos: un fallo del sistema de avisos no puede tumbar
+     * un retiro que ya se apartó correctamente.
+     */
+    await avisar({
+      uid,
+      action: "requested",
+      withdrawalId: resultado.id,
+      amountText: textoDinero(resultado.neto, SETTLEMENT_CURRENCY),
+    });
+
     logger.info("retiro_solicitado", {
       uid,
       id: resultado.id,
@@ -462,7 +523,21 @@ export const requestWithdrawal = onCall(
  *    administración y el FALLO del envío. En los dos casos el creador se quedó sin su
  *    dinero apartado y sin recibirlo, que es el único estado que no puede persistir.
  */
-async function devolverSaldo(
+/**
+ * Deshace lo que la solicitud apartó: el saldo y las cuatro retenciones que consumió.
+ *
+ * 🚨 ES SIMÉTRICA CON `requestWithdrawal`, y tiene que seguir siéndolo. Aquí se resta
+ *    `w.saldo` —que es el bruto que allá se sumó a `withdrawnNet`— y se reponen los cuatro
+ *    contadores que allá se restaron. Si un día cambia una de las dos mitades y no la otra,
+ *    el creador acaba con más o menos dinero del que tenía y nadie se entera.
+ *
+ * El `Math.max(0, …)` impide que un doble rechazo deje el contador en negativo, que sería
+ * regalarle saldo. La otra mitad de esa defensa es el gate de estado de quien la llama.
+ *
+ * Exportada solo para poder PROBARLA con el código real: el test del emulador reproducía esta
+ * aritmética a mano, y una copia no protege de que la original cambie.
+ */
+export async function devolverSaldo(
   tx: admin.firestore.Transaction,
   creatorId: string,
   w: Record<string, unknown>,
@@ -489,7 +564,12 @@ async function devolverSaldo(
 
 export const reviewWithdrawal = onCall(
   // El envío necesita la clave de Global Payouts, que es distinta de la de cobros.
-  { region: REGION, cors: true, secrets: [stripeSecretKey, stripePayoutsSecretKey] },
+  {
+    region: REGION,
+    cors: true,
+    minInstances: 1,
+    secrets: [stripeSecretKey, stripePayoutsSecretKey],
+  },
   async (request) => {
     // Solo el dueño. Mover dinero de verdad no es tarea de un moderador de comunidad.
     /**
@@ -539,6 +619,53 @@ export const reviewWithdrawal = onCall(
       const creatorId = String(w.creatorId ?? "");
       if (!creatorId) throw new HttpsError("internal", "La solicitud no tiene creador.");
 
+      /**
+       * 🚦 LAS PUERTAS, OTRA VEZ, JUSTO ANTES DE MANDAR EL DINERO.
+       *
+       * Se comprobaron al solicitar, pero entre eso y esto pasan días: la solicitud espera en
+       * `pending` hasta que alguien la revisa. En ese hueco el sello del creador puede
+       * caducar, o su verificación de identidad puede dejar de estar aprobada tras una
+       * revisión de Didit.
+       *
+       * Aprobar sin volver a mirar sería pagarle a alguien que YA no cumple. Y el sello no es
+       * una formalidad: sin él no hay emisor para sus facturas, así que ese dinero saldría de
+       * ventas que nadie puede documentar.
+       *
+       * Solo al aprobar. Rechazar no necesita puertas: devuelve el saldo y no mueve nada
+       * hacia fuera.
+       */
+      if (aprobar) {
+        const [perfilSnap, kycSnap] = await Promise.all([
+          tx.get(db.collection("creatorTaxProfiles").doc(creatorId)),
+          tx.get(db.collection("kyc").doc(creatorId)),
+        ]);
+        const perfil = perfilSnap.data() ?? {};
+        const kyc = kycSnap.data() ?? {};
+
+        /*
+         * Las condiciones CONGELADAS en la solicitud, no las de hoy: si el país cambió de
+         * tramo mientras esperaba, se le paga con lo que se le prometió.
+         */
+        const motivo = motivoDeBloqueo({
+          perfil,
+          kyc,
+          // El saldo ya se apartó al solicitar, así que el mínimo no se vuelve a mirar: lo
+          // que importa aquí es que siga siendo alguien a quien se le puede pagar.
+          resumen: { lifetimeEarnedNet: num(w.saldo), withdrawnNet: 0 },
+          condiciones: {
+            route: (w.route === "wallbit" ? "wallbit" : "stripe") satisfies PayoutRoute,
+            minWithdrawalUsd: 0,
+          },
+          neto: num(w.neto),
+        });
+        if (motivo) {
+          throw new HttpsError(
+            "failed-precondition",
+            `El creador ya no cumple para cobrar (${motivo}). Rechaza la solicitud para devolverle el saldo.`
+          );
+        }
+      }
+
       if (aprobar) {
         tx.update(requestRef, {
           status: "approved" satisfies WithdrawalStatus,
@@ -572,7 +699,14 @@ export const reviewWithdrawal = onCall(
         rejectionReason: razon,
       });
 
-      return { id: requestId, creatorId, aprobado: false, neto: num(w.neto) };
+      return {
+        id: requestId,
+        creatorId,
+        aprobado: false,
+        neto: num(w.neto),
+        currency: String(w.currency ?? SETTLEMENT_CURRENCY),
+        motivo: razon,
+      };
     });
 
     logger.info("retiro_revisado", {
@@ -583,8 +717,38 @@ export const reviewWithdrawal = onCall(
       revisor: revisorUid,
     });
 
-    // Rechazada, no hay nada más que hacer.
-    if (!resultado.aprobado) return resultado;
+    if (!resultado.aprobado) {
+      /*
+       * 🚨 Con el MOTIVO. Un rechazo mudo es lo peor que se le puede enseñar a alguien
+       *    esperando dinero: no sabe si fue un error suyo, nuestro, o si va a volver a pasar.
+       *    Y se le dice que el saldo volvió, que es la primera pregunta que se hace.
+       */
+      await avisar({
+        uid: resultado.creatorId,
+        action: "rejected",
+        withdrawalId: resultado.id,
+        amountText: textoDinero(resultado.neto, resultado.currency),
+        reason: resultado.motivo || null,
+      });
+      return resultado;
+    }
+
+    /*
+     * 🏷️ En WALLBIT el dinero no sale solo: alguien lo transfiere a mano, y eso puede tardar.
+     *    Sin este aviso el creador se queda sin noticias entre que pide y cobra.
+     *
+     *    En Stripe NO se manda: el envío ocurre unas líneas más abajo, en la misma llamada,
+     *    y avisar de las dos cosas serían dos notificaciones con un segundo de diferencia.
+     */
+    if (resultado.ruta !== "stripe") {
+      await avisar({
+        uid: resultado.creatorId,
+        action: "approved",
+        withdrawalId: resultado.id,
+        amountText: textoDinero(resultado.neto, resultado.currency),
+      });
+      return resultado;
+    }
 
     /**
      * 🚨 EL ENVÍO, fuera de la transacción y a propósito.
@@ -596,7 +760,7 @@ export const reviewWithdrawal = onCall(
      * ⚠️ Wallbit no tiene envío automatizado. Su solicitud se queda en `approved` y la
      *    transferencia se hace a mano, que es lo que dice el aviso del panel.
      */
-    if (resultado.ruta !== "stripe") return resultado;
+    // La rama de Wallbit ya salió arriba, con su aviso.
 
     const envio = await enviarPago({
       requestId: resultado.id,
@@ -644,6 +808,20 @@ export const reviewWithdrawal = onCall(
             }
           : {}),
       });
+      /*
+       * 💸 El dinero salió. Este es el aviso que lleva la FECHA DE LLEGADA, y es lo que
+       *    evita el «¿y mi dinero?» del día siguiente: un pago transfronterizo tarda de uno
+       *    a siete días y sin decírselo el silencio se lee como que algo falló.
+       */
+      await avisar({
+        uid: resultado.creatorId,
+        action: estado === "paid" ? "paid" : "sent",
+        withdrawalId: resultado.id,
+        amountText: textoDinero(resultado.neto, resultado.currency),
+        creditedText: l.tipoCambio ? textoDinero(l.acreditado, l.monedaDestino) : null,
+        arrivalDate: l.llegadaEstimada,
+      });
+
       return {
         ...resultado,
         enviado: true,
@@ -681,6 +859,18 @@ export const reviewWithdrawal = onCall(
         rejectionReason: envio.motivo,
         reviewedAt: FieldValue.serverTimestamp(),
       });
+    });
+
+    /*
+     * No se pudo ni mandar. Al creador se le devolvió todo, y hay que decírselo: su saldo
+     * bajó al pedir y volvió a subir sin que él tocara nada.
+     */
+    await avisar({
+      uid: resultado.creatorId,
+      action: "returned",
+      withdrawalId: resultado.id,
+      amountText: textoDinero(resultado.neto, resultado.currency),
+      reason: envio.motivo,
     });
 
     logger.error("retiro_envio_falló", {
@@ -776,8 +966,119 @@ export const markWithdrawalPaid = onCall(
       });
     });
 
+    /*
+     * 🏷️ Wallbit cerrado a mano. Lleva el identificador de la transferencia como motivo:
+     *    es lo que el creador puede cotejar contra su propia cuenta si cree que no le llegó.
+     */
+    const cerrado = (await ref.get()).data() ?? {};
+    await avisar({
+      uid: String(cerrado.creatorId ?? ""),
+      action: "paid",
+      withdrawalId: requestId,
+      amountText: textoDinero(cerrado.neto, cerrado.currency),
+      reason: referenciaLimpia,
+    });
+
     logger.info("retiro_marcado_pagado", { id: requestId, revisor: revisorUid });
     return { ok: true };
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3-bis. Los dos avisos que NO son un cambio de estado
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 🎉 «Ya puedes retirar», la primera vez que su saldo cruza el mínimo.
+ *
+ * No es un estado, es lo que PROVOCA la acción. Hoy el creador tiene que entrar a Finanzas a
+ * mirar si ya llegó, y la mayoría no entra: junta saldo durante meses sin saber que podía
+ * haber cobrado.
+ *
+ * 🚨 Una sola vez, nunca más. Se marca en el perfil con `avisoPuedeRetirarAt`, porque si no
+ *    cada venta por encima del mínimo dispararía otro aviso y se volvería spam — que es la
+ *    forma más rápida de que desactive las notificaciones y se pierda las que sí importan.
+ *
+ * Corre como disparador del resumen de wallet, que es lo que cambia al ganar.
+ */
+export const avisarPuedeRetirar = onDocumentWritten(
+  { document: "users/{uid}/walletSummary/current", region: REGION },
+  async (event) => {
+    const uid = event.params.uid;
+    const despues = event.data?.after?.data();
+    if (!despues) return;
+
+    const perfilRef = db.collection("creatorTaxProfiles").doc(uid);
+    const perfil = (await perfilRef.get()).data() ?? {};
+
+    // Ya se le avisó. No se vuelve a mirar nada.
+    if (perfil.avisoPuedeRetirarAt) return;
+
+    const condiciones = payoutTermsOf(paisDeCobroDe(perfil));
+    // Sin país de cobro todavía no hay mínimo que cruzar: se le avisa cuando lo tenga.
+    if (!condiciones) return;
+
+    const saldo = round2(num(despues.lifetimeEarnedNet) - num(despues.withdrawnNet));
+    if (saldo < condiciones.minWithdrawalUsd) return;
+
+    /*
+     * Se marca ANTES de avisar, y a propósito. Dos ventas simultáneas disparan dos veces esta
+     * función; marcando después, las dos pasarían el `if` y mandarían dos avisos.
+     */
+    await perfilRef.set(
+      { creatorId: uid, avisoPuedeRetirarAt: FieldValue.serverTimestamp() },
+      { merge: true }
+    );
+
+    await avisar({
+      uid,
+      action: "can_withdraw",
+      amountText: textoDinero(saldo, SETTLEMENT_CURRENCY),
+    });
+    logger.info("retiro_aviso_puede_retirar", { uid, saldo });
+  }
+);
+
+/**
+ * 📅 «Tu sello caduca pronto», 30 días antes. Solo a mexicanos.
+ *
+ * 🚨 Importa porque las puertas se revalidan AL APROBAR: con el sello caducado su retiro se
+ *    queda atascado y se entera entonces, cuando ya pidió el dinero y lo está esperando.
+ *    Renovar un sello en el SAT no es cosa de una tarde.
+ *
+ * Una vez por sello: se marca con la fecha de caducidad avisada, así que al renovar vuelve a
+ * armarse solo para el sello nuevo.
+ */
+export const avisarSelloPorCaducar = onSchedule(
+  { schedule: "every 24 hours", timeZone: "America/Mexico_City" },
+  async () => {
+    const limite = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+    const snap = await db
+      .collection("creatorTaxProfiles")
+      .where("csdStatus", "==", "valid")
+      .limit(500)
+      .get();
+
+    let avisados = 0;
+    for (const doc of snap.docs) {
+      const p = doc.data() ?? {};
+      const caduca = p.csdExpiresAt?.toDate?.() ?? (p.csdExpiresAt ? new Date(p.csdExpiresAt) : null);
+      if (!caduca || caduca > limite) continue;
+
+      // Ya se avisó de ESTE sello. Al renovar cambia la fecha y se vuelve a armar.
+      const yaAvisado = p.avisoSelloCaducaPara;
+      if (yaAvisado && new Date(yaAvisado).getTime() === caduca.getTime()) continue;
+
+      await doc.ref.set({ avisoSelloCaducaPara: caduca.toISOString() }, { merge: true });
+      await avisar({
+        uid: doc.id,
+        action: "seal_expiring",
+        arrivalDate: caduca.toISOString(),
+      });
+      avisados++;
+    }
+
+    if (avisados) logger.info("retiro_aviso_sello_por_caducar", { avisados });
   }
 );
 
@@ -819,60 +1120,134 @@ export async function conciliarRetirosEnCamino(): Promise<{
   let fallidos = 0;
 
   for (const doc of snap.docs) {
-    const w = doc.data() ?? {};
-    const pagoId = String(w.outboundPaymentId ?? "");
-    if (!pagoId) continue;
-
-    const lectura = await leerPago(pagoId);
-    if (!lectura.ok) continue; // se reintenta en la siguiente pasada
-
-    const estado = estadoDeStripe(lectura.estado);
-    if (estado === "sent") continue; // sigue en camino
-
-    if (estado === "paid") {
-      await doc.ref.update({
-        status: "paid" satisfies WithdrawalStatus,
-        outboundStatus: lectura.estado,
-        paidAt: FieldValue.serverTimestamp(),
-      });
-      pagados++;
-      logger.info("retiro_conciliado_pagado", { id: doc.id, creatorId: w.creatorId });
-      continue;
-    }
-
-    /**
-     * 🚨 SE CAYÓ → SE DEVUELVE EL DINERO, en transacción.
-     *
-     * Se relee el documento dentro de la transacción y solo se toca si sigue en `sent`: entre
-     * la lectura de arriba y esta escritura puede haber pasado cualquier cosa, y devolver el
-     * saldo dos veces sería regalarle dinero al creador.
-     */
-    const creatorId = String(w.creatorId ?? "");
-    if (!creatorId) continue;
-    const sRef = db.collection("users").doc(creatorId).collection("walletSummary").doc("current");
-
-    await db.runTransaction(async (tx) => {
-      const [wSnap, sSnap] = await Promise.all([tx.get(doc.ref), tx.get(sRef)]);
-      const actual = wSnap.data() ?? {};
-      if (actual.status !== "sent") return;
-      await devolverSaldo(tx, creatorId, actual, sSnap.data() ?? {}, sRef);
-      tx.update(doc.ref, {
-        status: "failed" satisfies WithdrawalStatus,
-        outboundStatus: lectura.estado,
-        rejectionReason: `El banco no lo aceptó (${lectura.estado}). Te devolvimos tu saldo completo.`,
-        reviewedAt: FieldValue.serverTimestamp(),
-      });
-    });
-
-    fallidos++;
-    logger.error("retiro_conciliado_fallido", {
-      id: doc.id,
-      creatorId,
-      estadoStripe: lectura.estado,
-    });
+    const r = await conciliarUnRetiro(doc.ref);
+    if (r === "paid") pagados++;
+    else if (r === "failed") fallidos++;
   }
 
   return { revisados: snap.size, pagados, fallidos };
+}
+
+/**
+ * Cierra UN retiro consultando su pago en Stripe.
+ *
+ * Lo usan las DOS vías —el cron que barre y el webhook que reacciona— a propósito. Si cada
+ * una tuviera su copia, un día divergirían y el dinero de un retiro devuelto se comportaría
+ * distinto según quién lo detectara primero.
+ *
+ * 🚨 Vuelve a preguntarle a Stripe aunque el webhook ya diga qué pasó. Los eventos v2 son
+ *    **delgados**: traen el id, no el objeto, y su carga no está versionada. La documentación
+ *    es explícita — «during processing, you must fetch the versioned event from the API or
+ *    fetch the resource's current state». Fiarse del nombre del evento sería fiarse de un
+ *    dato que Stripe no garantiza.
+ *
+ * Devuelve qué hizo: `paid`, `failed`, o `null` si lo dejó como estaba.
+ */
+export async function conciliarUnRetiro(
+  ref: admin.firestore.DocumentReference
+): Promise<"paid" | "failed" | null> {
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+  const w = snap.data() ?? {};
+
+  // Solo se cierran los que van en camino. Uno ya resuelto no se vuelve a tocar.
+  if (w.status !== "sent") return null;
+
+  const pagoId = String(w.outboundPaymentId ?? "");
+  if (!pagoId) return null;
+
+  const lectura = await leerPago(pagoId);
+  if (!lectura.ok) return null; // se reintenta: el cron sigue ahí de red
+
+  const estado = estadoDeStripe(lectura.estado);
+  if (estado === "sent") return null; // sigue en camino
+
+  if (estado === "paid") {
+    await ref.update({
+      status: "paid" satisfies WithdrawalStatus,
+      outboundStatus: lectura.estado,
+      paidAt: FieldValue.serverTimestamp(),
+    });
+    /*
+     * 💸 El banco lo acreditó. Es el aviso que cierra el hilo, y el que trae lo que de
+     *    verdad recibió en su moneda.
+     */
+    await avisar({
+      uid: String(w.creatorId ?? ""),
+      action: "paid",
+      withdrawalId: ref.id,
+      amountText: textoDinero(w.neto, w.currency),
+      creditedText: w.acreditado ? textoDinero(w.acreditado, w.acreditadoCurrency) : null,
+    });
+
+    logger.info("retiro_conciliado_pagado", { id: ref.id, creatorId: w.creatorId });
+    return "paid";
+  }
+
+  /**
+   * 🚨 SE CAYÓ → SE DEVUELVE EL DINERO, en transacción.
+   *
+   * Se relee el documento dentro de la transacción y solo se toca si sigue en `sent`: entre
+   * la lectura de arriba y esta escritura puede haber pasado cualquier cosa —el cron y el
+   * webhook pueden llegar a la vez— y devolver el saldo dos veces sería regalarle dinero.
+   */
+  const creatorId = String(w.creatorId ?? "");
+  if (!creatorId) return null;
+  const sRef = db.collection("users").doc(creatorId).collection("walletSummary").doc("current");
+
+  let devuelto = false;
+  await db.runTransaction(async (tx) => {
+    const [wSnap, sSnap] = await Promise.all([tx.get(ref), tx.get(sRef)]);
+    const actual = wSnap.data() ?? {};
+    if (actual.status !== "sent") return;
+    await devolverSaldo(tx, creatorId, actual, sSnap.data() ?? {}, sRef);
+    tx.update(ref, {
+      status: "failed" satisfies WithdrawalStatus,
+      outboundStatus: lectura.estado,
+      rejectionReason: `El banco no lo aceptó (${lectura.estado}). Te devolvimos tu saldo completo.`,
+      reviewedAt: FieldValue.serverTimestamp(),
+    });
+    devuelto = true;
+  });
+
+  if (!devuelto) return null;
+
+  /*
+   * 🚨 El banco lo DEVOLVIÓ, y esto es distinto de un rechazo nuestro: aquí nadie decidió
+   *    nada. Lo que el creador tiene que hacer es revisar sus datos bancarios, no
+   *    reclamarnos, y por eso la acción es `returned` y no `rejected`.
+   */
+  await avisar({
+    uid: creatorId,
+    action: "returned",
+    withdrawalId: ref.id,
+    amountText: textoDinero(w.neto, w.currency),
+    reason: `El banco no lo aceptó (${lectura.estado}).`,
+  });
+
+  logger.error("retiro_conciliado_fallido", { id: ref.id, creatorId, estadoStripe: lectura.estado });
+  return "failed";
+}
+
+/**
+ * Busca el retiro de un `OutboundPayment` y lo cierra. Lo llama el webhook.
+ *
+ * El evento trae el id del PAGO, no el de la solicitud, así que hay que buscarla. Por eso
+ * `outboundPaymentId` se guarda en el documento: es la única forma de volver del uno al otro.
+ */
+export async function conciliarPorPagoId(outboundPaymentId: string): Promise<boolean> {
+  if (!outboundPaymentId) return false;
+  const q = await db
+    .collection(WITHDRAWALS)
+    .where("outboundPaymentId", "==", outboundPaymentId)
+    .limit(1)
+    .get();
+  if (q.empty) {
+    // No es un error: puede ser un pago que no salió de un retiro, como el sondeo manual.
+    logger.info("webhook_pago_sin_retiro", { outboundPaymentId });
+    return false;
+  }
+  return (await conciliarUnRetiro(q.docs[0].ref)) !== null;
 }
 
 /**

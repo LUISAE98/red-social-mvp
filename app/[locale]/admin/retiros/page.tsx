@@ -17,6 +17,8 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { formatCurrency, convertFromAnchor } from "@/lib/currency/format";
 import { displayCurrencyForCountry } from "@/lib/currency/catalog";
+import { costeRetiro } from "@/lib/wallet/payoutFees";
+import { payoutTermsOf } from "@/lib/wallet/payoutTiers";
 import { useExchangeRates } from "@/lib/currency/rates";
 import {
   suscribirRetiros,
@@ -468,6 +470,41 @@ function Tarjeta({
    */
   const { rates } = useExchangeRates();
   const monedaCreador = displayCurrencyForCountry(r.payoutCountry);
+
+  /**
+   * 🧮 Lo que ese retiro nos cuesta a nosotros.
+   *
+   * Prefiere la cifra REAL que devolvió Stripe. Si no la hay —y hoy nunca la hay, porque
+   * `outbound_payment_quotes` da 404 en nuestra cuenta— cae al modelo de `payoutFees.ts` y lo
+   * marca como estimación. Enseñar una estimación rotulada es útil; enseñar una fila vacía no.
+   */
+  const costeDelRetiro = useMemo(() => {
+    if (r.route !== "stripe") return null;
+
+    if (r.stripeFeeTotal != null) {
+      const partes = [
+        r.stripeFeeFijo != null ? `fijo ${r.stripeFeeFijo.toFixed(2)}` : null,
+        r.stripeFeeTransfronteriza != null ? `frontera ${r.stripeFeeTransfronteriza.toFixed(2)}` : null,
+        r.stripeFeeConversion != null ? `cambio ${r.stripeFeeConversion.toFixed(2)}` : null,
+      ].filter(Boolean);
+      return {
+        real: true,
+        detalle: `${r.stripeFeeTotal.toFixed(2)} ${r.currency}${partes.length ? "  ·  " + partes.join(" · ") : ""}`,
+      };
+    }
+
+    const k = costeRetiro({
+      importe: r.neto,
+      paisDestino: r.payoutCountry,
+      monedaDestino: monedaCreador,
+      // El tramo caro es el único que va por wire. Sale de la tabla, que es la fuente.
+      wire: payoutTermsOf(r.payoutCountry)?.tier === "expensive",
+    });
+    return {
+      real: false,
+      detalle: `${k.total.toFixed(2)} ${r.currency}  ·  fijo ${k.fijo.toFixed(2)} · frontera ${k.transfronteriza.toFixed(2)} · cambio ${k.conversion.toFixed(2)}`,
+    };
+  }, [r, monedaCreador]);
   const enSuMoneda =
     monedaCreador === r.currency ? null : convertFromAnchor(r.neto, monedaCreador, rates);
   return (
@@ -549,6 +586,33 @@ function Tarjeta({
             </span>
             <span style={{ whiteSpace: "nowrap" }}>
               ≈ {formatCurrency(enSuMoneda, monedaCreador, "es-MX", { code: true })}
+            </span>
+          </div>
+        )}
+
+        {/* 🧮 LO QUE NOS COSTÓ ESE RETIRO.
+
+            Va aquí y NO en la tarjeta del creador: él recibe su 75% pase lo que pase, así
+            que enseñarle lo que Stripe nos cobró es ruido sobre un dinero que no es suyo.
+            Quien revisa sí lo necesita — y sumado mes a mes es el margen real, que hoy solo
+            existe como modelo.
+
+            ⚠️ Si no hay cifra real se enseña la MODELADA, marcada como estimación. Hoy es
+               siempre así: `outbound_payment_quotes` devuelve 404 en nuestra cuenta. */}
+        {r.route === "stripe" && costeDelRetiro && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              fontSize: 11,
+              color: "rgba(255,255,255,0.42)",
+              marginTop: -2,
+            }}
+          >
+            <span>{costeDelRetiro.real ? "Nos costó" : "Nos cuesta, estimado"}</span>
+            <span style={{ whiteSpace: "nowrap", fontFamily: "monospace" }}>
+              {costeDelRetiro.detalle}
             </span>
           </div>
         )}

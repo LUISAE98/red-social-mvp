@@ -1,6 +1,5 @@
 //muxWebhooks.ts
 
-import Mux from "@mux/mux-node";
 import { getApps, initializeApp } from "firebase-admin/app";
 import {
   FieldValue,
@@ -1108,7 +1107,7 @@ async function handleLiveStreamActive(event: MuxWebhookEvent) {
   const liveStreamId = event.data?.id as string | undefined;
   if (liveStreamId) {
     try {
-      const mux = createMuxClient();
+      const mux = await createMuxClient();
       await mux.video.liveStreams.update(liveStreamId, { reconnect_window: 0 });
       logger.info("muxWebhook live_stream.active: reconnect_window set to 0", { liveStreamId });
     } catch (err) {
@@ -1201,6 +1200,7 @@ export const muxWebhook = onRequest(
       return;
     }
 
+    const { default: Mux } = await import("@mux/mux-node");
     const mux = new Mux({
       webhookSecret: muxWebhookSecret.value(),
     });

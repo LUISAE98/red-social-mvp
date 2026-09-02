@@ -64,6 +64,13 @@ type NotificationType =
   | "live_vod_ready"
   | "session_event"
   | "kyc_update"
+  /**
+   * 💸 Todo el ciclo de un retiro, con `action` para distinguir el momento.
+   *
+   * Un solo tipo y no seis, igual que `kyc_update`: son el mismo hilo de una sola cosa, y
+   * separarlos llenaría su bandeja de seis entradas por retiro.
+   */
+  | "withdrawal_update"
   | "invite_expired"
   | "donation";
 
@@ -91,6 +98,21 @@ interface Target {
   sessionType?: string | null;
   /** donation: id de la donación individual (para el detalle por separado, futuro). */
   donationId?: string | null;
+  /** withdrawal_update: la solicitud, para poder abrirla desde el aviso. */
+  withdrawalId?: string | null;
+  /**
+   * withdrawal_update: importes ya formateados por quien emite.
+   *
+   * 🚨 Se guardan FORMATEADOS y no como número + moneda. El aviso se lee meses después y
+   *    tiene que decir lo mismo que dijo el día que se emitió: si guardáramos el número y lo
+   *    formateáramos al leerlo, un cambio de moneda de visualización reescribiría la
+   *    historia del creador.
+   */
+  amountText?: string | null;
+  /** withdrawal_update: lo acreditado en la moneda del creador, cuando ya se sabe. */
+  creditedText?: string | null;
+  /** withdrawal_update: cuándo espera llegar, en ISO. */
+  arrivalDate?: string | null;
 }
 
 function str(value: unknown): string | null {
@@ -967,6 +989,86 @@ export async function notifyKycStatus(
     type: "kyc_update",
     actor: { id: "kyc", name: "Verificación", avatarUrl: null, handle: null },
     target: { action: status },
+  });
+}
+
+/**
+ * Los momentos de un retiro que el creador tiene que conocer.
+ *
+ * 🚨 SE NOTIFICAN LOS TERMINALES Y LOS QUE ÉL PERCIBE, no cada cambio del objeto de Stripe.
+ *
+ * Queda fuera `under_review` de Stripe a propósito: el pago sigue vivo, no hay nada que él
+ * pueda hacer, y avisarle de que su dinero está «bajo revisión» genera una angustia que no
+ * resuelve nada. Tampoco se notifica cada `outboundStatus` intermedio.
+ */
+export type WithdrawalAction =
+  /** Lo pidió. Su saldo ACABA de bajar, y este aviso es el único registro permanente. */
+  | "requested"
+  /**
+   * Aceptado, sin salir todavía. **Solo Wallbit.**
+   *
+   * En Stripe el envío ocurre en la misma llamada que la aprobación, así que avisar de los
+   * dos sería mandarle dos notificaciones con un segundo de diferencia.
+   */
+  | "approved"
+  /** El dinero salió. Es el aviso que lleva la fecha estimada de llegada. */
+  | "sent"
+  /** El banco lo acreditó. Con lo que recibió en su moneda. */
+  | "paid"
+  /** Lo rechazó administración. Lleva el motivo y el saldo vuelve. */
+  | "rejected"
+  /**
+   * El banco lo devolvió. Distinto de `rejected` a propósito: aquí **nadie decidió nada**,
+   * y lo que el creador tiene que hacer es revisar sus datos bancarios, no reclamarnos.
+   */
+  | "returned"
+  /** Su saldo cruzó el mínimo por primera vez. No es un estado: es lo que provoca la acción. */
+  | "can_withdraw"
+  /**
+   * Su sello caduca pronto. Solo a mexicanos.
+   *
+   * Importa porque las puertas se revalidan AL APROBAR: con el sello caducado su retiro se
+   * queda atascado y se entera entonces, no antes.
+   */
+  | "seal_expiring";
+
+/**
+ * Avisa a un creador de algo que pasó con su dinero.
+ *
+ * El actor es neutro —«Retiros»— porque detrás no hay una persona: es el sistema, o
+ * administración actuando como plataforma. Un `groupKey` por retiro para que los seis
+ * momentos del mismo se agrupen en su bandeja en vez de apilarse sueltos.
+ */
+export async function notifyWithdrawal(params: {
+  uid: string;
+  action: WithdrawalAction;
+  withdrawalId?: string | null;
+  /** Importe principal, YA formateado. */
+  amountText?: string | null;
+  /** Lo acreditado en su moneda, ya formateado. */
+  creditedText?: string | null;
+  /** Cuándo espera llegar, ISO. */
+  arrivalDate?: string | null;
+  /** El motivo del rechazo o del fallo. Sin esto un rechazo es mudo. */
+  reason?: string | null;
+}): Promise<void> {
+  const { uid, action, withdrawalId, amountText, creditedText, arrivalDate, reason } = params;
+  if (!uid) return;
+
+  await emit({
+    recipientId: uid,
+    // Un hilo por retiro. Los dos avisos que no son de un retiro concreto van a su propio hilo.
+    groupKey: withdrawalId ? `withdrawal_${withdrawalId}` : `withdrawal_${action}`,
+    type: "withdrawal_update",
+    actor: { id: "withdrawals", name: "Retiros", avatarUrl: null, handle: null },
+    target: {
+      action,
+      withdrawalId: withdrawalId ?? null,
+      amountText: amountText ?? null,
+      creditedText: creditedText ?? null,
+      arrivalDate: arrivalDate ?? null,
+      reason: reason ?? null,
+    },
   });
 }
 

@@ -2672,6 +2672,18 @@
       "in_review": "ඔබේ අනන්‍යතා සත්‍යාපනය සමාලෝචනය වෙමින් පවතී.",
       "pending": "ඔබේ අනන්‍යතා සත්‍යාපනය පොරොත්තුවෙන් පවතී. ඉදිරියට යාමට තට්ටු කරන්න."
     },
+    "withdrawal": {
+      "requested": "We got your withdrawal request for {amount}. We set that money aside and will let you know once we review it.",
+      "approved": "We approved your withdrawal of {amount}. We are preparing the transfer to your Wallbit.",
+      "sent": "Your withdrawal of {amount} is on its way.",
+      "paid": "We deposited your withdrawal of {amount}.",
+      "rejected": "We could not process your withdrawal of {amount}. We returned your full balance.",
+      "returned": "Your bank did not accept the transfer of {amount}. We returned your full balance, please check your payout account details.",
+      "can_withdraw": "You can withdraw now. You have {amount} available.",
+      "seal_expiring": "Your digital seal expires soon. Renew it to keep withdrawing.",
+      "arrives": "Arrives around {date}.",
+      "credited": "You received {amount}."
+    },
     "donation": {
       "fromProfile": "ඔබේ පැතිකඩෙන් පරිත්‍යාග කළේය",
       "fromGroup": "{group} වෙතින් පරිත්‍යාග කළේය"

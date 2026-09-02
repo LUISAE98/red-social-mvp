@@ -5,8 +5,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { egressS3AccessKey, egressS3SecretKey } from "./livekit";
 
 if (!admin.apps.length) {
@@ -140,6 +138,10 @@ export const getRecordingDownloadUrl = onCall(
       throw new HttpsError("internal", "Credenciales de almacenamiento no configuradas.");
     }
 
+    const [{ GetObjectCommand, S3Client }, { getSignedUrl }] = await Promise.all([
+      import("@aws-sdk/client-s3"),
+      import("@aws-sdk/s3-request-presigner"),
+    ]);
     const client = new S3Client({
       region,
       endpoint,

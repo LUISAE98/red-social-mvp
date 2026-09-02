@@ -145,7 +145,7 @@ export const createGreetingSampleUpload = onCall(
     }
 
     const sampleRef = db.collection("greetingSamples").doc();
-    const mux = createMuxClient();
+    const mux = await createMuxClient();
 
     let upload: Awaited<ReturnType<typeof mux.video.uploads.create>>;
 

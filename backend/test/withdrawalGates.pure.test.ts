@@ -84,10 +84,14 @@ describe("motivoDeBloqueo", () => {
     );
   });
 
-  it("🟢 en Wallbit no se exige alta de Stripe, porque no la hay", () => {
+  it("🟢 en Wallbit no se exige alta de Stripe, pero SÍ su TAG", () => {
+    // 📅 2026-09-01: este test falló al endurecerse el gate, y falló bien. Antes bastaba con
+    //    haber completado el cuestionario; ahora hace falta el TAG, porque en Wallbit el TAG
+    //    ES la cuenta. Sin él el retiro no tiene destino.
     const e = con((x) => {
       x.condiciones.route = "wallbit";
       x.perfil.stripeAccountStatus = undefined;
+      x.perfil.wallbitTag = "luis-aguirre-2";
     });
     expect(motivoDeBloqueo(e)).toBeNull();
   });
@@ -322,5 +326,112 @@ describe("quién puede pedir un retiro", () => {
     // No se puede tratar la ausencia como sospecha o se bloquearía a quien no debe.
     expect(puedeInvocar({ uid: "creador_3", token: {} })).toBe(true);
     expect(puedeInvocar({ uid: "creador_4" })).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Las puertas AL APROBAR, no solo al solicitar.
+//
+// 🚨 Entre que el creador pide y alguien revisa pasan días: la solicitud espera en `pending`.
+//    En ese hueco su sello puede caducar o su identidad dejar de estar aprobada.
+//
+//    `reviewWithdrawal` vuelve a llamar a `motivoDeBloqueo` con el perfil de HOY antes de
+//    mandar el dinero. Lo que NO revalida es el mínimo: el saldo ya se apartó al solicitar, así
+//    que exigirlo otra vez rechazaría un retiro legítimo cuyo saldo ya está descontado.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("motivoDeBloqueo al aprobar", () => {
+  /** Como lo llama `reviewWithdrawal`: sin mínimo, con el saldo ya apartado. */
+  function alAprobar(cambio: (e: EntradaPuertas) => void): EntradaPuertas {
+    const e = creadorListo();
+    e.resumen = { lifetimeEarnedNet: 400, withdrawnNet: 0 };
+    e.condiciones = { route: "stripe", minWithdrawalUsd: 0 };
+    cambio(e);
+    return e;
+  }
+
+  it("🟢 si todo sigue en regla, se aprueba", () => {
+    expect(motivoDeBloqueo(alAprobar(() => {}))).toBeNull();
+  });
+
+  it("🚨 si el sello CADUCÓ mientras esperaba, ya no se aprueba", () => {
+    // Es el caso que esta revalidación existe para atrapar: pidió con sello vigente y para
+    // cuando alguien mira, ya no lo tiene. Pagarle sería sacar dinero de ventas que no puede
+    // documentar.
+    const e = alAprobar((x) => {
+      x.perfil.csdExpiresAt = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    });
+    expect(motivoDeBloqueo(e)).toBe("sin_sello");
+  });
+
+  it("🚨 si su identidad dejó de estar aprobada, tampoco", () => {
+    expect(motivoDeBloqueo(alAprobar((x) => (x.kyc.status = "declined")))).toBe("sin_kyc");
+  });
+
+  it("🚨 si cambió su cuenta de Stripe y ya no cuadra, tampoco", () => {
+    expect(motivoDeBloqueo(alAprobar((x) => (x.perfil.declaredAccountMatchesStripe = false)))).toBe(
+      "cuenta_no_lista"
+    );
+  });
+
+  it("🟢 el MÍNIMO no se revalida: ese saldo ya se apartó al solicitar", () => {
+    // Al pedir, `withdrawnNet` sube. Si aquí se volviera a exigir el mínimo contra el saldo
+    // restante, todo retiro que dejara al creador por debajo de 300 se rechazaría al aprobarlo.
+    const e = alAprobar((x) => (x.resumen.lifetimeEarnedNet = 1));
+    expect(motivoDeBloqueo(e)).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// El destino de la ruta de Wallbit.
+//
+// 🚨 En Wallbit el TAG ES la cuenta. `payoutAccountDeclared` solo dice que el creador mandó el
+//    cuestionario; si la respuesta llegó sin TAG, pasaría el gate, pediría su retiro y en el
+//    panel no habría a dónde transferir.
+//
+//    Es la misma forma del fallo que ya se coló dos veces en este flujo: un gate que comprueba
+//    que un paso se hizo en vez de comprobar que sirvió para algo.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("destino de cobro por ruta", () => {
+  /** Un creador de Wallbit: sin alta de Stripe, con TAG, y extranjero para no pedir sello. */
+  function wallbit(cambio: (e: EntradaPuertas) => void): EntradaPuertas {
+    const e = creadorListo();
+    e.condiciones = { route: "wallbit", minWithdrawalUsd: 300 };
+    e.perfil.stripeAccountStatus = undefined;
+    e.perfil.residency = "FOREIGN";
+    e.perfil.payoutAccountCountry = "AR";
+    e.perfil.csdStatus = undefined;
+    e.kyc.documentCountry = "AR";
+    e.perfil.wallbitTag = "luis-aguirre-2";
+    cambio(e);
+    return e;
+  }
+
+  it("🟢 con TAG, el creador de Wallbit retira", () => {
+    expect(motivoDeBloqueo(wallbit(() => {}))).toBeNull();
+  });
+
+  it("🚨 SIN TAG no retira, aunque haya completado el cuestionario", () => {
+    expect(motivoDeBloqueo(wallbit((x) => (x.perfil.wallbitTag = undefined)))).toBe(
+      "cuenta_no_lista"
+    );
+    expect(motivoDeBloqueo(wallbit((x) => (x.perfil.wallbitTag = "")))).toBe("cuenta_no_lista");
+    expect(motivoDeBloqueo(wallbit((x) => (x.perfil.wallbitTag = "   ")))).toBe("cuenta_no_lista");
+  });
+
+  it("🚨 a un creador de Wallbit NO se le pide alta de Stripe", () => {
+    // El espejo: si el gate le exigiera `stripeAccountStatus`, ninguno de los 12 países de
+    // Wallbit podría cobrar nunca, porque ahí no hay alta de Stripe que hacer.
+    const e = wallbit((x) => (x.perfil.stripeAccountStatus = "pending"));
+    expect(motivoDeBloqueo(e)).toBeNull();
+  });
+
+  it("🚨 y a uno de Stripe NO se le pide TAG", () => {
+    // El espejo del espejo: exigir TAG en la ruta de Stripe bloquearía a los 73 países que
+    // cobran por ahí.
+    const e = creadorListo();
+    e.perfil.wallbitTag = undefined;
+    expect(motivoDeBloqueo(e)).toBeNull();
   });
 });

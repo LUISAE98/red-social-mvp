@@ -2672,6 +2672,18 @@
       "in_review": "Tu verificación de identidad está en revisión.",
       "pending": "Tu verificación de identidad está pendiente. Toca para continuar."
     },
+    "withdrawal": {
+      "requested": "Recibimos tu solicitud de retiro de {amount}. Apartamos ese dinero de tu saldo y te avisamos en cuanto la revisemos.",
+      "approved": "Aprobamos tu retiro de {amount}. Estamos preparando la transferencia a tu Wallbit.",
+      "sent": "Tu retiro de {amount} va en camino.",
+      "paid": "Depositamos tu retiro de {amount}.",
+      "rejected": "No pudimos procesar tu retiro de {amount}. Te devolvimos el saldo completo.",
+      "returned": "Tu banco no aceptó la transferencia de {amount}. Te devolvimos el saldo completo, revisa los datos de tu cuenta de cobro.",
+      "can_withdraw": "Ya puedes retirar. Tienes {amount} disponibles.",
+      "seal_expiring": "Tu sello digital caduca pronto. Renuévalo para poder seguir retirando.",
+      "arrives": "Llega aproximadamente el {date}.",
+      "credited": "Recibiste {amount}."
+    },
     "donation": {
       "fromProfile": "{count, plural, one {donó} other {donaron}} desde tu perfil",
       "fromGroup": "{count, plural, one {donó} other {donaron}} desde {group}"

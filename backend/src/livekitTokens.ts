@@ -221,7 +221,7 @@ export const getLivekitToken = onCall(
     // negra en la grabación. (Con un solo participante caído la sala ni se vacía.)
     // createRoom es idempotente: si ya existe, no la altera.
     try {
-      await createRoomServiceClient().createRoom({
+      await (await createRoomServiceClient()).createRoom({
         name: roomName,
         emptyTimeout: 60,
         departureTimeout: 20,

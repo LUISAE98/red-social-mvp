@@ -222,7 +222,7 @@ export const createMuxDonationUpload = onCall<{ profileId: string }>(
         ? originHeader.trim()
         : "*";
 
-    const mux = createMuxClient();
+    const mux = await createMuxClient();
 
     let upload: Awaited<ReturnType<typeof mux.video.uploads.create>>;
 
@@ -301,7 +301,7 @@ export const createMuxGroupDonationUpload = onCall<{ groupId: string }>(
         ? originHeader.trim()
         : "*";
 
-    const mux = createMuxClient();
+    const mux = await createMuxClient();
 
     let upload: Awaited<ReturnType<typeof mux.video.uploads.create>>;
 
@@ -417,7 +417,7 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
         ? originHeader.trim()
         : "*";
 
-    const mux = createMuxClient();
+    const mux = await createMuxClient();
 
     let upload: Awaited<ReturnType<typeof mux.video.uploads.create>>;
 

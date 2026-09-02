@@ -128,6 +128,13 @@ export type CreatorTaxProfile = {
    */
   payoutAccountDeclared?: boolean;
   /**
+   * 🏷️ Su TAG de Wallbit. Solo en esa ruta, y ahí ES su cuenta: es a donde se transfiere.
+   *
+   * Sin él no hay destino, así que entra en `payoutReady` igual que la verificación de Stripe
+   * entra en la otra ruta.
+   */
+  wallbitTag?: string | null;
+  /**
    * ¿Coinciden los últimos 4 dígitos que declaró con los que Stripe reporta?
    *
    * `undefined` mientras falte alguna de las dos mitades. Solo `false` es una discrepancia
@@ -150,8 +157,20 @@ export type CreatorTaxProfile = {
 
 
 export function useCreatorTaxProfile(uid: string | null | undefined) {
-  const [profile, setProfile] = useState<CreatorTaxProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  /**
+   * ⚠️ Estado CRUDO. Lo que se usa y se devuelve son `profile` y `loading`, derivados
+   * más abajo.
+   *
+   * Guarda DE QUÉ uid es lo leído, no solo el perfil. Con un `loading` suelto había
+   * que ponerlo en true desde el cuerpo del efecto al cambiar de uid, que es el
+   * setState encadenado que la regla prohíbe. Sabiendo a quién pertenece el dato,
+   * "estoy cargando" deja de ser algo que se escribe y pasa a ser algo que se
+   * pregunta: lo leído no es de este uid todavía.
+   */
+  const [cargado, setCargado] = useState<{
+    uid: string;
+    profile: CreatorTaxProfile | null;
+  } | null>(null);
   /**
    * Identidad verificada, leída de `kyc/{uid}` — el documento que escribe el
    * webhook de Didit y que nadie más puede tocar (ver `firestore.rules`).
@@ -168,19 +187,23 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
   const ipPais = usePaisPorIp();
 
   useEffect(() => {
-    if (!uid) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    // Sin uid no se toca el estado, por el mismo motivo que el efecto del KYC de
+    // aquí abajo: escribirlo en el cuerpo del efecto encadena renders. El caso
+    // "sin sesión" se resuelve DERIVANDO `profile` y `loading`, justo tras los
+    // dos efectos.
+    if (!uid) return;
     const unsub = onSnapshot(
       doc(db, "creatorTaxProfiles", uid),
-      (snap) => {
-        setProfile(snap.exists() ? (snap.data() as CreatorTaxProfile) : null);
-        setLoading(false);
-      },
-      () => setLoading(false)
+      (snap) =>
+        setCargado({
+          uid,
+          profile: snap.exists() ? (snap.data() as CreatorTaxProfile) : null,
+        }),
+      // Si la lectura falla se da por leído SIN perfil, y no se conserva el
+      // anterior. Mismo criterio que el efecto del KYC de aquí abajo: ante una
+      // duda sobre datos fiscales, la respuesta segura es "no hay", no "lo último
+      // que vi".
+      () => setCargado({ uid, profile: null })
     );
     return () => unsub();
   }, [uid]);
@@ -205,6 +228,22 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
     );
     return () => unsub();
   }, [uid]);
+
+  /**
+   * Lo que ve quien usa el hook.
+   *
+   * Sin uid no hay nada que leer ni nada que esperar, así que `profile` es null y
+   * `loading` es false. Con uid, se está cargando mientras lo leído no sea suyo.
+   *
+   * Derivarlo cierra además una fuga que el `setProfile(null)` de antes tapaba a
+   * destiempo: al cambiar de sesión, entre que cambia el uid y el efecto vuelve a
+   * correr, el perfil FISCAL del creador anterior seguía expuesto durante un
+   * render. Ahora desaparece en el mismo render en que cambia el uid, porque lo
+   * guardado deja de coincidir.
+   */
+  const leidoParaEsteUid = !!uid && cargado?.uid === uid;
+  const profile = leidoParaEsteUid ? (cargado?.profile ?? null) : null;
+  const loading = !!uid && !leidoParaEsteUid;
 
   const hasData = !!(profile?.taxId && profile?.taxSystem && profile?.zip && profile?.legalName);
 
@@ -322,16 +361,17 @@ export function useCreatorTaxProfile(uid: string | null | undefined) {
    * Depende de su RUTA, porque no se le pide lo mismo:
    *
    * - **Stripe** — hace falta que su cuenta esté verificada en Global Payouts.
-   * - **Wallbit** — no hay alta de Stripe que hacer. Hoy devuelve `false` a propósito: el
-   *   cuestionario donde dará sus datos de Wallbit todavía no existe, y abrir el gate sin
-   *   saber a dónde mandarle el dinero sería el mismo fallo que ya arreglamos con Stripe.
-   *   🔁 Cuando exista, aquí se lee si lo completó.
+   * - **Wallbit** — no hay alta de Stripe que hacer, así que el cuestionario ES su registro
+   *   de cobro. Y no basta con que lo haya completado: hace falta su **TAG**, que es la
+   *   cuenta ahí. Sin él, abrir el gate sería prometerle un pago sin destino.
    */
   const payoutAccountReady =
     payoutTerms?.route === "wallbit"
-      ? // Para Wallbit el cuestionario ES el registro de cobro: no hay alta de Stripe que
-        // esperar. Sale de ahí porque es donde da los datos de su cuenta en dólares.
-        profile?.payoutAccountDeclared === true
+      ? // 🚨 El TAG, no solo el cuestionario. `payoutAccountDeclared` dice que lo mandó; el
+        // TAG dice que sabemos a dónde pagarle. Mismo criterio que el servidor.
+        profile?.payoutAccountDeclared === true &&
+        typeof profile?.wallbitTag === "string" &&
+        profile.wallbitTag.trim().length > 0
       : // Para Stripe hacen falta las DOS mitades: que declarara su cuenta y que Stripe la
         // verificara. Sin la declaración no hay constancia de quién dice ser el titular;
         // sin la verificación, la cuenta puede no existir.

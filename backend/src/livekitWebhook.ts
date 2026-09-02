@@ -11,11 +11,7 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
-import {
-  WebhookReceiver,
-  EgressStatus,
-  type WebhookEvent,
-} from "livekit-server-sdk";
+import type { WebhookEvent } from "livekit-server-sdk";
 import { livekitApiKey, livekitApiSecret } from "./livekit";
 import { notifySessionEvent } from "./notifications";
 import { claimWebhookEvent } from "./webhookEvents";
@@ -170,6 +166,7 @@ async function handleEgressStarted(event: WebhookEvent): Promise<void> {
 }
 
 async function handleEgressUpdated(event: WebhookEvent): Promise<void> {
+  const { EgressStatus } = await import("livekit-server-sdk");
   const egressInfo = event.egressInfo;
   if (!egressInfo) return;
 
@@ -222,6 +219,7 @@ async function notifyRecording(
 }
 
 async function handleEgressEnded(event: WebhookEvent): Promise<void> {
+  const { EgressStatus } = await import("livekit-server-sdk");
   const egressInfo = event.egressInfo;
   if (!egressInfo) return;
 
@@ -373,6 +371,7 @@ export const livekitWebhook = onRequest(
     }
 
     // ── Verificar firma HMAC ──────────────────────────────────────────────────
+    const { WebhookReceiver } = await import("livekit-server-sdk");
     const receiver = new WebhookReceiver(
       livekitApiKey.value(),
       livekitApiSecret.value()
@@ -385,7 +384,7 @@ export const livekitWebhook = onRequest(
         (req.rawBody as Buffer | undefined)?.toString("utf8") ??
         JSON.stringify(req.body);
       const authHeader = (req.headers["authorization"] as string) ?? "";
-      event = await receiver.receive(rawBody, authHeader);
+      event = (await receiver.receive(rawBody, authHeader)) as unknown as WebhookEvent;
     } catch (err: unknown) {
       logger.warn("livekit_webhook_auth_failed", { err });
       res.status(401).send("Unauthorized");
