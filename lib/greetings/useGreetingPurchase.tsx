@@ -19,6 +19,7 @@ import { useAuth } from "@/app/providers";
 import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { marcarCambioDeCuenta } from "@/lib/auth/sessionSwap";
 import { usePurchaseIdentityMode } from "./purchaseIdentity";
 import type { StoryType } from "@/lib/stories/types";
 import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
@@ -259,6 +260,10 @@ export function useGreetingPurchase({
    * compra abierta y eso lo tiene congelado.
    */
   const usarOtroCorreo = useCallback(async () => {
+    // ⚠️ Se marca ANTES de cerrar. Entre cerrar una sesion y abrir la de
+    // invitado no hay nadie, y el guardia de `RootChrome` lee eso como que la
+    // persona se fue: mandaba a /login con la pasarela abierta detras.
+    const fin = marcarCambioDeCuenta();
     try {
       await signOut(auth);
       await ensureGuestAuth();
@@ -268,6 +273,19 @@ export function useGreetingPurchase({
       setError(null);
     } catch (err) {
       console.error("[useGreetingPurchase] no se pudo cambiar de cuenta:", err);
+    } finally {
+      // ⚠️ El hueco NO se cierra en el mismo instante, y no es pereza.
+      //
+      // Firebase avisa del cambio de sesion fuera de React, asi que el pintado
+      // en el que `user` vale null puede llegar DESPUES de que esta funcion
+      // termine. Cerrando aqui mismo, ese pintado tardio se encontraria el hueco
+      // ya cerrado y mandaria a /login igual: justo el fallo que esto arregla.
+      //
+      // Se le da un respiro para que el estado asiente. Durante ese rato un
+      // cierre de sesion de verdad tardaria en sacar a /login, pero nadie cierra
+      // sesion en mitad de una compra, y equivocarse por este lado solo cuesta
+      // un par de segundos mientras que por el otro cuesta la compra entera.
+      setTimeout(fin, 2000);
     }
   }, []);
 

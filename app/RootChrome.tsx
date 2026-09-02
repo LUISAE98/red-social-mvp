@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/app/providers";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { buildCurrentPathWithSearch, getNextFromSearchParams } from "@/lib/auth-redirect";
+import { hayCambioDeCuenta } from "@/lib/auth/sessionSwap";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
@@ -113,7 +114,19 @@ const isOverlayRoute =
       // Protected route — always redirect unauthenticated users
       startAuthTransition("exiting");
       router.replace("/login");
-    } else if (wasAuthenticated && isNowUnauthenticated && !isAuthPage) {
+    } else if (
+      wasAuthenticated &&
+      isNowUnauthenticated &&
+      !isAuthPage &&
+      // ⚠️ Salvo que se esté CAMBIANDO de cuenta, no yéndose.
+      //
+      // Para pasar de una cuenta a una sesión de invitado hay que cerrar la
+      // primera antes de abrir la segunda, y en ese instante no hay nadie. Es
+      // indistinguible de un cierre de sesión desde aquí, así que "usar otro
+      // correo" en mitad de una compra echaba a la persona a /login con la
+      // pasarela abierta detrás.
+      !hayCambioDeCuenta()
+    ) {
       // User signed out while on any page (including public routes like /u/ or /groups/)
       startAuthTransition("exiting");
       router.replace("/login");
