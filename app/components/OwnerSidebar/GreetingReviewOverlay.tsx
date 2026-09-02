@@ -33,7 +33,7 @@ import {
   VideoSkipBackIcon,
   VideoSkipForwardIcon,
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
-import VibraDetectiveIcon from "@/app/components/VibraServiceIcons/VibraDetectiveIcon";
+import { VibraAvatarFallback } from "@/components/ui";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useTranslations, useLocale } from "next-intl";
@@ -705,7 +705,7 @@ export default function GreetingReviewOverlay({
    */
   const buyerLabel = buyer?.hasRealName
     ? buyer.displayName
-    : (req.buyerEmail ?? buyer?.displayName ?? tCommon("user"));
+    : (req.buyerEmail ?? tCommon("anonymousUser"));
   /** Sin foto y sin nombre no hay iniciales que sacar, solo las de un relleno. */
   const buyerSinPerfil = !buyer?.photoURL && !buyer?.hasRealName;
 
@@ -1490,7 +1490,7 @@ export default function GreetingReviewOverlay({
         />
       ) : buyerSinPerfil ? (
         // Trae su propio círculo, así que no lleva el de respaldo debajo.
-        <VibraDetectiveIcon size={38} />
+        <VibraAvatarFallback size={38} />
       ) : (
         <div style={{
           width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,0.07)",

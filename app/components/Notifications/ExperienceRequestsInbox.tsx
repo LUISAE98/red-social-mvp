@@ -13,7 +13,7 @@ import {
 import { getInitials } from "@/app/components/OwnerSidebar/OwnerSidebar.utils";
 import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
 import SessionRequestOverlay from "@/app/components/OwnerSidebar/SessionRequestOverlay";
-import VibraDetectiveIcon from "@/app/components/VibraServiceIcons/VibraDetectiveIcon";
+import { VibraAvatarFallback } from "@/components/ui";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
@@ -530,13 +530,11 @@ export default function ExperienceRequestsInbox({
                         {getInitials(buyer.displayName)}
                       </div>
                     ) : (
-                      // Sin foto Y sin nombre: no hay iniciales que sacar, solo
-                      // las de un código de relleno. El detective dice lo que
-                      // pasa de verdad, que esta persona aún no tiene perfil.
-                      //
-                      // Va solo, sin el círculo de respaldo debajo: trae el suyo,
-                      // y dos círculos concéntricos es lo que se veía mal.
-                      <VibraDetectiveIcon size={44} />
+                      // Sin foto Y sin nombre no hay iniciales que sacar, solo
+                      // las de un código de relleno. Va la marca, que a este
+                      // tamaño sí se lee. Trae su propio círculo, así que no
+                      // lleva el de respaldo debajo.
+                      <VibraAvatarFallback size={44} />
                     )}
                     <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
                       {buyer?.handle ? (
@@ -580,7 +578,7 @@ export default function ExperienceRequestsInbox({
                         >
                           {buyer?.hasRealName
                             ? buyer.displayName
-                            : (req.buyerEmail ?? buyer?.displayName ?? tCommon("user"))}
+                            : (req.buyerEmail ?? tCommon("anonymousUser"))}
                         </span>
                       )}
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 1 }}>

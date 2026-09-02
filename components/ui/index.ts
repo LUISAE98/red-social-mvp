@@ -32,6 +32,7 @@ export { default as Modal } from "./VibraResponsivePanel";
 // avatar + texto, y cards apiladas. Nada de leyendas de "Cargando…".
 export { default as ListSkeleton, CardsSkeleton } from "./ListSkeleton";
 export { default as SkeletonBlock } from "./SkeletonBlock";
+export { default as VibraAvatarFallback } from "./VibraAvatarFallback";
 
 // El glifo de "abrir menú": tres rayitas. Sustituye a los tres puntos, que
 // vivían en tres implementaciones distintas repartidas por el producto.
