@@ -109,6 +109,19 @@ export function friendlyJoinErrorMessage(err: unknown, fallback = "Ocurrió un e
   return errMsg || fallback;
 }
 
+/**
+ * ¿Este perfil tiene nombre puesto por su dueño?
+ *
+ * `buildDisplayName` siempre devuelve algo, así que desde fuera no se puede
+ * distinguir "María" de "Usuario a3f9c1". Quien necesite enseñar otra cosa
+ * cuando no hay nombre —el correo de quien encarga, por ejemplo— pregunta aquí.
+ */
+export function hasRealDisplayName(user?: Partial<UserDoc> | null): boolean {
+  if (!user) return false;
+  if (user.displayName?.trim()) return true;
+  return !!(user.firstName?.trim() || user.lastName?.trim());
+}
+
 export function buildDisplayName(user?: Partial<UserDoc> | null, uid?: string, userFallback = "Usuario") {
   const dn = user?.displayName?.trim();
   if (dn) return dn;

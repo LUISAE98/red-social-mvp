@@ -257,6 +257,34 @@ const profileUserId =
     );
     const allowCreatorStory = request.data?.allowCreatorStory === true;
 
+    // Correo de quien encarga, para que el creador sepa QUIEN se lo pide.
+    //
+    // ⚠️ Vive en el ENCARGO, no en `users/{uid}`. El documento de usuario lo lee
+    // cualquiera —el feed de reels lo consulta sin sesion siquiera—, asi que
+    // meter ahi el correo del comprador seria publicarlo a toda la plataforma.
+    // El encargo, en cambio, solo lo ven el creador y quien compro.
+    //
+    // 📌 PENDIENTE (bloque 7, completar perfil): cuando quien compra por Vibra
+    // Express complete su perfil, el nombre y la foto pasaran a mandar y esto
+    // volvera a ser lo que es, un respaldo. No quitar entonces: una cuenta
+    // recien nacida sigue llegando aqui sin nombre, y "Usuario a3f9c1" no le
+    // dice nada a nadie.
+    //
+    // Se pregunta a Auth y no al token de la llamada: en Vibra Express la cuenta
+    // se acaba de crear o de enlazar un instante antes, y el token que viaja con
+    // esta llamada puede ser el de la sesion anonima, todavia sin correo.
+    let buyerEmail: string | null = null;
+    try {
+      const buyerRecord = await admin.auth().getUser(buyerId);
+      buyerEmail = buyerRecord.email ?? null;
+    } catch (error) {
+      // Sin correo el encargo sigue adelante; solo se vera peor identificado.
+      logger.warn("createGreetingRequest: no se pudo leer el correo del comprador", {
+        buyerId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     const result = await db.runTransaction(async (tx) => {
   const now = admin.firestore.FieldValue.serverTimestamp();
   // Pagar-luego-crear: el saludo NO se crea aquí. Pre-generamos su id y
@@ -315,6 +343,7 @@ const profileUserId =
       profileUsername: profile.handle ?? null,
       creatorId,
       buyerId,
+      buyerEmail,
       type,
       toName,
       instructions,
@@ -382,6 +411,7 @@ const profileUserId =
       profileUserId: null,
       creatorId,
       buyerId,
+      buyerEmail,
       type,
       toName,
       instructions,

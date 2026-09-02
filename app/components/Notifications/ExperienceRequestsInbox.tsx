@@ -13,6 +13,7 @@ import {
 import { getInitials } from "@/app/components/OwnerSidebar/OwnerSidebar.utils";
 import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
 import SessionRequestOverlay from "@/app/components/OwnerSidebar/SessionRequestOverlay";
+import VibraDetectiveIcon from "@/app/components/VibraServiceIcons/VibraDetectiveIcon";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
@@ -524,9 +525,23 @@ export default function ExperienceRequestsInbox({
                           flexShrink: 0,
                         }}
                       />
-                    ) : (
+                    ) : buyer?.hasRealName ? (
                       <div style={{ ...styles.avatarFallback, width: 44, height: 44, fontSize: 16 }}>
-                        {getInitials(buyer?.displayName)}
+                        {getInitials(buyer.displayName)}
+                      </div>
+                    ) : (
+                      // Sin foto Y sin nombre: no hay iniciales que sacar, solo
+                      // las de un código de relleno. El detective dice lo que
+                      // pasa de verdad, que esta persona aún no tiene perfil.
+                      <div
+                        style={{
+                          ...styles.avatarFallback,
+                          width: 44,
+                          height: 44,
+                          color: "rgba(255,255,255,0.62)",
+                        }}
+                      >
+                        <VibraDetectiveIcon size={24} />
                       </div>
                     )}
                     <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
@@ -548,8 +563,30 @@ export default function ExperienceRequestsInbox({
                           {buyer.displayName}
                         </Link>
                       ) : (
-                        <span style={{ color: "#fff", fontWeight: 600, fontSize: 15, lineHeight: 1.25 }}>
-                          {buyer?.displayName ?? tCommon("user")}
+                        // Con nombre, el nombre. Sin nombre, el CORREO de quien
+                        // encarga: "Usuario a3f9c1" no le dice nada al creador,
+                        // que tiene delante un encargo pagado y ninguna forma de
+                        // saber de quién es.
+                        //
+                        // 📌 Con el completar-perfil de Vibra Express (bloque 7)
+                        // la mayoría traerá nombre y esto pasará a ser el
+                        // respaldo. No quitarlo entonces: una cuenta recién
+                        // nacida sigue llegando sin nombre.
+                        <span
+                          style={{
+                            color: "#fff",
+                            fontWeight: 600,
+                            fontSize: 15,
+                            lineHeight: 1.25,
+                            display: "block",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {buyer?.hasRealName
+                            ? buyer.displayName
+                            : (req.buyerEmail ?? buyer?.displayName ?? tCommon("user"))}
                         </span>
                       )}
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 1 }}>

@@ -33,6 +33,7 @@ import {
   VideoSkipBackIcon,
   VideoSkipForwardIcon,
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
+import VibraDetectiveIcon from "@/app/components/VibraServiceIcons/VibraDetectiveIcon";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useTranslations, useLocale } from "next-intl";
@@ -691,6 +692,22 @@ export default function GreetingReviewOverlay({
   const buyer = buyers[req.buyerId] ?? null;
   const busy = greetingBusyId === currentItem.id;
   const buyerLetter = getInitials(buyer?.displayName);
+  /**
+   * Cómo se nombra a quien encarga.
+   *
+   * Con nombre de perfil, ese. Sin él, el CORREO: "Usuario a3f9c1" no le dice
+   * nada al creador, que tiene delante un encargo pagado y ninguna forma de
+   * saber de quién es.
+   *
+   * 📌 Con el completar-perfil de Vibra Express (bloque 7) la mayoría traerá
+   * nombre y esto pasará a ser el respaldo. No quitarlo entonces: una cuenta
+   * recién nacida sigue llegando sin nombre.
+   */
+  const buyerLabel = buyer?.hasRealName
+    ? buyer.displayName
+    : (req.buyerEmail ?? buyer?.displayName ?? tCommon("user"));
+  /** Sin foto y sin nombre no hay iniciales que sacar, solo las de un relleno. */
+  const buyerSinPerfil = !buyer?.photoURL && !buyer?.hasRealName;
 
   const viewMp4Url = (viewMode || buyerViewMode) && req.muxPlaybackId
     ? `https://stream.mux.com/${req.muxPlaybackId}/high.mp4`
@@ -1477,7 +1494,7 @@ export default function GreetingReviewOverlay({
           border: "1px solid rgba(255,255,255,0.12)", display: "flex", alignItems: "center",
           justifyContent: "center", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0,
         }}>
-          {buyerLetter}
+          {buyerSinPerfil ? <VibraDetectiveIcon size={20} /> : buyerLetter}
         </div>
       )}
       {/* Sin la ganancia al lado, el nombre dispone de toda la fila y ya no hace
@@ -1493,7 +1510,7 @@ export default function GreetingReviewOverlay({
           </Link>
         ) : (
           <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.25, overflowWrap: "anywhere" }}>
-            {buyer?.displayName ?? tCommon("user")}
+            {buyerLabel}
           </span>
         )}
         <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3, marginTop: 4 }}>
@@ -1511,7 +1528,7 @@ export default function GreetingReviewOverlay({
    *  otros tres sitios siguen con el renglón de antes. */
   const buyerCardName = buyerViewMode
     ? (buyerSourceName ?? tCommon("creator"))
-    : (buyer?.displayName ?? tCommon("user"));
+    : buyerLabel;
   const buyerCardAvatar = buyerViewMode ? buyerSourceAvatar : (buyer?.photoURL ?? null);
   const buyerCardTypeLabel =
     req.type === "consejo" ? tWallet("typeLabelAdvice")
@@ -1928,7 +1945,7 @@ export default function GreetingReviewOverlay({
       onConfirm={() => { void handleReject(); }}
       title={tServices("confirmRejectTitle")}
       body={tServices("confirmRejectBody")}
-      highlight={buyer?.displayName ?? undefined}
+      highlight={buyerLabel}
       confirmLabel={tServices("confirmReject")}
       cancelLabel={tCommon("cancel")}
       tone="danger"

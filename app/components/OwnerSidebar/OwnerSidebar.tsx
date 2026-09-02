@@ -78,6 +78,7 @@ import {
   getInitials,
   friendlyJoinErrorMessage,
   buildDisplayName,
+  hasRealDisplayName,
   OWNER_SIDEBAR_FOLLOWING_LIMIT,
   normalizeOwnerSidebarNoShowStatus,
   normalizeSidebarMemberStatus,
@@ -1692,6 +1693,7 @@ const groupsForSeen = [
                 displayName: buildDisplayName(data, uid, tCommon("user")),
                 handle: data.handle ?? null,
                 photoURL: data.photoURL ?? null,
+                hasRealName: hasRealDisplayName(data),
               } satisfies UserMini,
             ] as const;
           } catch {

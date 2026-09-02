@@ -167,6 +167,17 @@ export type GreetingRequestDoc = {
    */
   paymentStatus?: string | null;
   buyerId: string;
+  /**
+   * Correo de quien encarga, para que el creador sepa quién se lo pide.
+   *
+   * Vive aquí y no en `users/{uid}` porque el documento de usuario lo lee
+   * cualquiera; el encargo solo lo ven el creador y quien compró.
+   *
+   * 📌 Cuando exista el completar-perfil de Vibra Express (bloque 7), el nombre
+   * y la foto mandarán y esto será el respaldo. No quitarlo entonces: una
+   * cuenta recién nacida sigue llegando sin nombre.
+   */
+  buyerEmail?: string | null;
   creatorId: string;
   groupId?: string | null;
   profileUserId?: string | null;
@@ -313,6 +324,14 @@ export type UserMini = {
   displayName: string;
   handle: string | null;
   photoURL: string | null;
+  /**
+   * El nombre lo puso su dueño, no es el "Usuario a3f9c1" de relleno.
+   *
+   * Hace falta porque `displayName` ya viene resuelto y desde fuera no hay forma
+   * de distinguir un nombre de verdad de un relleno: quien quiera enseñar otra
+   * cosa —el correo de quien encarga, por ejemplo— necesita saberlo.
+   */
+  hasRealName?: boolean;
 };
 
 export type FollowedProfileLite = {
