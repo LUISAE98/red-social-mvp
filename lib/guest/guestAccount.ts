@@ -98,6 +98,29 @@ export async function attachGuestAccount(
     const user = await ensureGuestAuth();
     const credential = EmailAuthProvider.credential(clean, password);
     await linkWithCredential(user, credential);
+
+    // ⚠️ Y ENSEGUIDA se vuelve a entrar con esa misma credencial.
+    //
+    // Enlazar añade la contraseña a la cuenta, pero NO cambia cómo se abrió la
+    // sesión: el token sigue diciendo `sign_in_provider: "anonymous"`. Cincuenta
+    // y una reglas de Firestore exigen una sesión que no sea anónima —con razón,
+    // es lo que impide que un anónimo reserve nombres de usuario a montones—, y
+    // todas seguían viendo un invitado. Terminar el perfil moría con «missing or
+    // insufficient permissions».
+    //
+    // Entrar de nuevo emite un token que dice `password`. Es la MISMA cuenta y
+    // el MISMO uid —ese correo ya le pertenece—, así que la compra recién hecha
+    // no se mueve de sitio. De paso dispara el aviso de cambio de sesión que el
+    // enlace no dispara, así que la app deja de creer que sigue habiendo un
+    // invitado durante el resto de la visita.
+    try {
+      await signInWithEmailAndPassword(auth, clean, password);
+    } catch (err) {
+      // La cuenta quedó creada igual; solo el token se quedó viejo. No se corta
+      // la compra por esto, pero se dice, porque explica cualquier permiso
+      // denegado que venga después.
+      console.error("[guestAccount] la cuenta se creó pero no se pudo refrescar la sesión:", err);
+    }
     // La verificación se pide, pero NO se espera ni se bloquea: quien acaba de
     // pagar tiene que poder ver lo suyo ya. Verificar importa cuando vuelva.
     void sendEmailVerification(auth.currentUser ?? user).catch(() => {});

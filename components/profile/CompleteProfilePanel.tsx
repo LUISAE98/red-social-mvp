@@ -163,8 +163,12 @@ export default function CompleteProfilePanel({
   const cRiel = claro ? "rgba(17,20,26,0.16)" : "rgba(255,255,255,0.14)";
 
   const titleStyle: React.CSSProperties = {
-    color: cTexto,
-    margin: "0 0 6px",
+    // Sobre claro va en gris, no en negro: el protagonista de esta pantalla es
+    // la confirmación de la compra, y un encabezado a plomo compite con ella.
+    color: claro ? "#6b7280" : cTexto,
+    // Sin bajada debajo, el encabezado quedaba pegado a la portada. El hueco lo
+    // pone él cuando no hay quien lo ponga por él.
+    margin: subtitle === "" ? "0 0 22px" : "0 0 6px",
     fontSize: "clamp(18px, 2vw, 20px)",
     fontWeight: 600,
     letterSpacing: "-0.02em",
