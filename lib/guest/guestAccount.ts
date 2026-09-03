@@ -9,6 +9,7 @@
 
 import {
   EmailAuthProvider,
+  createUserWithEmailAndPassword,
   linkWithCredential,
   sendEmailVerification,
   signInWithEmailAndPassword,
@@ -92,6 +93,20 @@ export async function attachGuestAccount(
   try {
     if (alreadyHasAccount) {
       await signInWithEmailAndPassword(auth, clean, password);
+      return { ok: true };
+    }
+
+    const actual = auth.currentUser;
+    // ⚠️ Ya hay una cuenta REAL abierta y se está pidiendo OTRO correo.
+    //
+    // Aquí no se puede enlazar: enlazar le pegaría el correo nuevo a la cuenta
+    // que ya está abierta, que es exactamente lo contrario de lo que se pide.
+    // Se crea la cuenta nueva y se entra con ella. No hay nada que perder por el
+    // camino: al cambiar de correo, el encargo empezado se suelta y se vuelve a
+    // crear bajo la identidad definitiva.
+    if (actual && !actual.isAnonymous && actual.email?.toLowerCase() !== clean) {
+      await createUserWithEmailAndPassword(auth, clean, password);
+      void sendEmailVerification(auth.currentUser ?? actual).catch(() => {});
       return { ok: true };
     }
 

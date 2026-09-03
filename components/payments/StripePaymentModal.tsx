@@ -1211,9 +1211,11 @@ export default function StripePaymentModal({
           {!collectAccount && accountEmail && (
             <div
               style={{
-                borderTop: "1px solid rgba(0,0,0,0.08)",
+                // ⚠️ SIN linea propia arriba: la ultima fila de metodos de pago
+                // ya trae la suya por abajo, y poner otra dibuja dos seguidas.
+                // Es el mismo fallo que ya se corrigio en el bloque del alta.
                 marginTop: 14,
-                paddingTop: 14,
+                paddingTop: 2,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",

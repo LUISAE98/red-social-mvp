@@ -17,8 +17,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import { marcarCambioDeCuenta } from "@/lib/auth/sessionSwap";
 import { usePurchaseIdentityMode } from "./purchaseIdentity";
 import type { StoryType } from "@/lib/stories/types";
@@ -73,7 +71,17 @@ export function useGreetingPurchase({
    * despues, asi que sin una identidad recuperable la compra se pierde. Un
    * boleto de live se usa al instante, y por eso ese si se cobra sin cuenta.
    */
-  const necesitaCuenta = identityMode === "guest" && (!user || !!user.isAnonymous);
+  /**
+   * Se pidió comprar a nombre de otro correo.
+   *
+   * Vive aquí, en la pantalla, y no en la sesión de Firebase: querer usar otro
+   * correo no es motivo para cerrar la sesión que hay. La identidad se resuelve
+   * al cobrar.
+   */
+  const [pedirOtraCuenta, setPedirOtraCuenta] = useState(false);
+
+  const necesitaCuenta =
+    identityMode === "guest" && (pedirOtraCuenta || !user || !!user.isAnonymous);
 
   /**
    * Con qué cuenta se está comprando en Vibra Express.
@@ -86,7 +94,9 @@ export function useGreetingPurchase({
    * Con esto la pasarela dice a nombre de quién va y deja cambiarlo.
    */
   const cuentaEnUso =
-    identityMode === "guest" && user && !user.isAnonymous ? (user.email ?? null) : null;
+    identityMode === "guest" && !pedirOtraCuenta && user && !user.isAnonymous
+      ? (user.email ?? null)
+      : null;
 
   const [formOpen, setFormOpen] = useState(false);
   const [toName, setToName] = useState("");
@@ -312,20 +322,29 @@ export function useGreetingPurchase({
    * El feed no se rearma por debajo aunque el uid cambie dos veces: hay una
    * compra abierta y eso lo tiene congelado.
    */
-  const usarOtroCorreo = useCallback(async () => {
-    // No hace falta marcar nada aquí: la compra entera ya está marcada como
-    // cambio de sesión mientras la pasarela está abierta (ver el efecto de
-    // arriba), y esto solo ocurre desde dentro de ella.
-    try {
-      await signOut(auth);
-      await ensureGuestAuth();
-      setPayRequestId(null);
-      setPayAmount(null);
-      setCorreoAlta(null);
-      setError(null);
-    } catch (err) {
-      console.error("[useGreetingPurchase] no se pudo cambiar de cuenta:", err);
-    }
+  /**
+   * Comprar a nombre de otro correo.
+   *
+   * ⚠️ NO TOCA la sesión, y ese es el punto.
+   *
+   * Antes cerraba la sesión y abría una de invitado ahí mismo, para poder
+   * enlazar otro correo después. Dos cambios de sesión en un segundo, con la
+   * pasarela abierta encima, y cada uno hace temblar todo lo que depende de
+   * quién eres: el feed se rearmaba, el panel donde vive esta compra se
+   * borraba, y la compra se iba con él. Se intentó sostener con frenos y
+   * marcas, y siempre quedaba un resquicio.
+   *
+   * Resulta que ese cambio no hacía falta AQUÍ. La identidad definitiva se
+   * resuelve al cobrar, que es cuando ya se sabe el correo y la contraseña. Así
+   * que esto solo pide los datos de nuevo; la sesión cambia UNA vez, dentro del
+   * cobro, en vez de dos veces por pulsar un botón.
+   */
+  const usarOtroCorreo = useCallback(() => {
+    setPedirOtraCuenta(true);
+    setPayRequestId(null);
+    setPayAmount(null);
+    setCorreoAlta(null);
+    setError(null);
   }, []);
 
   const close = useCallback(() => {
@@ -662,6 +681,7 @@ export function useGreetingPurchase({
       payAmount,
       creatorId,
       correoDelAviso,
+      identityMode,
       compraHecha,
       monedaDelServicio,
       cuentaEnUso,
