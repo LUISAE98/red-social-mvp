@@ -448,13 +448,19 @@ export default function ConversationPage() {
       >
         {/* El canto duro se sustituye por un fundido: el mensaje que sube se
             disuelve en vez de cortarse contra una línea de 1px. El velo lleva el
-            MISMO negro del fondo de la pantalla. */}
+            MISMO negro del fondo de la pantalla.
+
+            ⚠️ Aquí el velo va MÁS BAJO que en laptop. El fondo de esta pantalla
+            es negro puro, así que un velo negro al 86% no se leía como cristal
+            sino como una tapa: no se distinguía del fondo y el efecto se perdía.
+            A la mitad se ve pasar el mensaje, y el desenfoque sube a 22 para que
+            lo que pasa sea mancha y no texto legible a medias. */}
         <BlurFade
           side="top"
           size={headerHeight + HEADER_FADE_OVERHANG}
           fade={HEADER_FADE_LENGTH}
-          blur={16}
-          veil="rgba(0,0,0,0.86)"
+          blur={22}
+          veil="rgba(0,0,0,0.52)"
         />
         <IconButton label={tCommon("back")} size="sm" tone="bare" style={{ position: "relative", zIndex: 1, placeItems: "center" }} onClick={handleBack}>
           <svg width="21" height="21" viewBox="0 0 24 24" aria-hidden>
@@ -511,6 +517,9 @@ export default function ConversationPage() {
               fontSize: 14,
               fontWeight: 500,
               color: "#fff",
+              // El cristal deja pasar bastante de lo de detrás; esta sombra es
+              // el seguro para cuando lo de detrás es un globo morado.
+              textShadow: "0 1px 3px rgba(0,0,0,0.7)",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -524,6 +533,7 @@ export default function ConversationPage() {
                 display: "block",
                 fontSize: 11.5,
                 color: "rgba(255,255,255,0.45)",
+                textShadow: "0 1px 3px rgba(0,0,0,0.7)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",

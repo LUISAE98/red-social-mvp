@@ -259,7 +259,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
                   fade={HEAD_FADE_LENGTH}
                   blur={16}
                   // El MISMO color del fondo del panel.
-                  veil="rgba(13,13,13,0.86)"
+                  veil="rgba(13,13,13,0.68)"
                 />
                 <div className="notifPanelHead">
                   <span className="notifPanelTitle">{t("title")}</span>

@@ -234,7 +234,7 @@ export default function ChatDock({
             fade={HEADER_FADE_LENGTH}
             // El MISMO color del fondo de la pestaña. Cualquier otro se leería
             // como una banda encima en vez de como el fondo desvaneciéndose.
-            veil="rgba(11,11,13,0.86)"
+            veil="rgba(11,11,13,0.68)"
           />
         ) : null}
 

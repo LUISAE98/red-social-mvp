@@ -45,7 +45,13 @@ export type BlurFadeProps = {
    * ocurre por debajo de él. Por defecto, toda la zona.
    */
   fade?: number;
-  /** Color del velo en el borde fuerte. Debe ser el del fondo de la caja. */
+  /**
+   * Color del velo en el borde fuerte. Debe ser el del fondo de la caja.
+   *
+   * La opacidad es la perilla del efecto: por encima de ~0,8 deja de leerse como
+   * cristal y se lee como una tapa. Sobre fondos muy oscuros hay que bajarla más
+   * todavía, porque ahí el velo casi no se distingue del propio fondo.
+   */
   veil?: string;
   /**
    * Saturación del fondo difuminado. Con un velo por encima solo atraviesa una
@@ -60,7 +66,7 @@ export default function BlurFade({
   size,
   blur = 14,
   fade,
-  veil = "rgba(11,11,13,0.82)",
+  veil = "rgba(11,11,13,0.68)",
   saturate = 140,
   style,
 }: BlurFadeProps) {
