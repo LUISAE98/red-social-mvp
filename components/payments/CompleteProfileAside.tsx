@@ -16,9 +16,10 @@
 // porque son literalmente el mismo componente y el mismo hook. Cambiar un texto
 // allí lo cambia aquí.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useAuth } from "@/app/providers";
+import { onIdTokenChanged, type User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { useProfileOnboarding } from "@/lib/profile/useProfileOnboarding";
 import CompleteProfilePanel from "@/components/profile/CompleteProfilePanel";
 
@@ -26,14 +27,32 @@ export default function CompleteProfileAside({ stacked = false }: { stacked?: bo
   const t = useTranslations("completeProfile");
   const tLater = useTranslations("notifPrompt");
   const tCommon = useTranslations("common");
-  const { user } = useAuth();
-  const { ready, hasProfile, submit, panel } = useProfileOnboarding(user ?? null);
+  // ⚠️ La sesión se lee de Firebase DIRECTAMENTE, no del contexto de la app.
+  //
+  // Por dos razones, y las dos importan justo aquí. La primera es de diseño: el
+  // contexto trata a los invitados como si no hubiera nadie —es lo correcto para
+  // la interfaz, un anónimo no debe ver la app en modo sesión iniciada—, pero
+  // este panel necesita a la persona de verdad.
+  //
+  // La segunda es un fallo medido: en Vibra Express la cuenta nace ENLAZANDO
+  // credenciales sobre la sesión anónima, y eso conserva el mismo uid. Como
+  // nadie entra ni sale, `onAuthStateChanged` NO se dispara y el contexto sigue
+  // creyendo que es un invitado hasta la siguiente recarga. Por eso este panel
+  // no salía nunca: preguntaba al contexto y el contexto decía que no había
+  // nadie. `onIdTokenChanged` sí se entera, porque enlazar renueva el token.
+  const [user, setUser] = useState<User | null>(() => auth.currentUser);
+  useEffect(() => onIdTokenChanged(auth, setUser), []);
+
+  const { ready, hasProfile, submit, panel } = useProfileOnboarding(user);
   const [saltado, setSaltado] = useState(false);
   const [hecho, setHecho] = useState(false);
 
   // Quien YA tiene perfil no ve nada: no hay nada que completar. Y mientras no
   // se sabe tampoco, para no asomar un formulario que va a desaparecer solo.
-  if (!user || !ready || hasProfile || saltado) return null;
+  //
+  // Un anónimo tampoco: sin correo ni contraseña no hay cuenta que completar, y
+  // eso solo pasa en los servicios que se cobran sin alta.
+  if (!user || user.isAnonymous || !ready || hasProfile || saltado) return null;
 
   const marco: React.CSSProperties = {
     // Fondo oscuro: el formulario es el de siempre, y el de siempre está hecho
