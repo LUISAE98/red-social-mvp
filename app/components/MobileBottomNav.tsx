@@ -658,13 +658,13 @@ export default function MobileBottomNav({
              se subían. Se fueron los tres. El volumen no se pinta: tiene que
              venir del fondo, y eso es lo que hace el filtro de abajo.
 
-             La opacidad bajó de 0,92 a 0,55: al 92% la cápsula se leía como una
-             barra negra y el cristal solo se adivinaba: había que buscarlo. A
-             poco más de la mitad se ve pasar de verdad lo que hay detrás, que es
+             La opacidad bajó de 0,92 a 0,44: al 92% la cápsula se leía como una
+             barra negra y el cristal solo se adivinaba: había que buscarlo. Por
+             debajo de la mitad se ve pasar de verdad lo que hay detrás, que es
              el punto. Lo que antes hacía la opacidad —que los iconos blancos no
              se pierdan sobre una foto clara— ahora lo hace el brightness del
              filtro, que oscurece el FONDO en vez de taparlo. */
-          background: rgba(6, 6, 8, 0.55);
+          background: rgba(6, 6, 8, 0.44);
           /* Borde casi invisible. Su trabajo ya no es dibujar el canto —de eso
              se encargan las luces interiores de abajo— sino evitar que sobre un
              fondo muy claro la cápsula se quede sin límite. Al 4% cumple sin
@@ -700,7 +700,7 @@ export default function MobileBottomNav({
                forma reconocible. Es desenfoque de material, no de suavizado.
              · saturate(150%): el color hay que exagerarlo para que se note al
                atravesar la base.
-             · brightness(0.72): ESTE es el que sustituye a la opacidad que se
+             · brightness(0.82): ESTE es el que sustituye a la opacidad que se
                quitó. Oscurece lo que pasa por detrás en vez de taparlo, así que
                la cápsula sigue siendo traslúcida —se ve el movimiento y el
                color— pero un video claro ya no se come los iconos blancos.
@@ -713,8 +713,8 @@ export default function MobileBottomNav({
              iPhone. Se haría con un filtro SVG de desplazamiento dentro de
              backdrop-filter, y Safari no admite url() ahí — solo Chrome. Lo que
              hay aquí es desenfoque y color, que es todo lo que WebKit ofrece. */
-          backdrop-filter: blur(40px) saturate(150%) brightness(0.72);
-          -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.72);
+          backdrop-filter: blur(40px) saturate(150%) brightness(0.82);
+          -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.82);
           /* SIN overflow:hidden. Los globos de aviso se dibujan fuera de su
              icono (top:-5px, inset-inline-end:-8px) y en el primer y el ultimo
              elemento caerian justo sobre el borde: recortarlos los partiria por
@@ -722,7 +722,7 @@ export default function MobileBottomNav({
              curva del borde necesite recortar. */
         }
 
-        /* Sin backdrop-filter no hay nada que difuminar, y una base al 55% se
+        /* Sin backdrop-filter no hay nada que difuminar, y una base al 44% se
            vería como una barra medio transparente con el contenido CRUDO detrás
            —peor que no intentarlo—. Ahí la cápsula se cierra y se comporta como
            lo que aparenta: negra. Este respaldo es justo por eso el único sitio
