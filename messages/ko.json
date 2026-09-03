@@ -3087,7 +3087,8 @@
     "unlike": "좋아요 취소",
     "replyingTo": "{name} 님에게 답장",
     "replyToSelf": "나",
-    "cancelReply": "답장 취소"
+    "cancelReply": "답장 취소",
+    "imageFailed": "이미지를 불러오지 못했어요"
   },
   "cf": {
     "mustBeAuthenticated": "인증이 필요합니다.",

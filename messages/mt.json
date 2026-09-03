@@ -3087,7 +3087,8 @@
     "unlike": "Neħħi l-jogħġobni",
     "replyingTo": "Qed twieġeb lil {name}",
     "replyToSelf": "Int",
-    "cancelReply": "Ikkanċella r-risposta"
+    "cancelReply": "Ikkanċella r-risposta",
+    "imageFailed": "Ma setgħetx titgħabba l-istampa"
   },
   "cf": {
     "mustBeAuthenticated": "Trid tkun awtentikat.",

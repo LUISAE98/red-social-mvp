@@ -3087,7 +3087,8 @@
     "unlike": "Pašalinti patinka",
     "replyingTo": "Atsakoma {name}",
     "replyToSelf": "Tu",
-    "cancelReply": "Atšaukti atsakymą"
+    "cancelReply": "Atšaukti atsakymą",
+    "imageFailed": "Nepavyko įkelti vaizdo"
   },
   "cf": {
     "mustBeAuthenticated": "Turi būti autentifikuotas.",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconButton } from "@/components/ui";
+import { BlurFade, IconButton } from "@/components/ui";
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -37,6 +37,14 @@ import { getOtherParticipant } from "@/lib/chat/types";
  */
 /** Misma duración que la animación de navegación global de `globals.css`. */
 const NAV_ANIM_MS = 280;
+
+/**
+ * Cuánto BAJA el desenfoque de la cabecera dentro del hilo, y cuánto dura el
+ * fundido. Ahí es donde el mensaje que sube se disuelve en vez de cortarse
+ * contra una línea de 1px.
+ */
+const HEADER_FADE_OVERHANG = 26;
+const HEADER_FADE_LENGTH = 40;
 
 export default function ConversationPage() {
   const params = useParams<{ conversationId?: string | string[] }>();
@@ -75,6 +83,37 @@ export default function ConversationPage() {
   // El portal solo puede montarse en cliente. Mismo patrón (y misma excepción
   // de lint) que en el resto de páginas que detectan el montaje.
   const [mounted, setMounted] = useState(false);
+  /**
+   * Alto real de la cabecera. Va SUPERPUESTA al hilo —los mensajes tienen que
+   * pasarle por detrás para que el desenfoque tenga algo que difuminar—, así
+   * que el hilo necesita ese hueco arriba y un margen negativo que lo suba.
+   * Se mide en vivo y no se fija: aquí el relleno superior lleva el safe-area,
+   * que cambia de un aparato a otro.
+   */
+  const headerRef = useRef<HTMLElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(60);
+
+  useEffect(() => {
+    const node = headerRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver((entries) => {
+      // El BORDE, no `contentRect`: el relleno propio de la cabecera es justo
+      // lo que hay que reservar, y `contentRect` lo excluye.
+      const border = entries[0]?.borderBoxSize?.[0]?.blockSize;
+      const next = Math.ceil(border ?? node.getBoundingClientRect().height);
+      // Cero significa que está oculta, no que mida cero. Guardarlo dejaría el
+      // hueco del hilo en nada y el efecto sin tamaño hasta la siguiente medida.
+      if (next > 0) setHeaderHeight(next);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+    // ⚠️ `mounted`, no `[]`. La pantalla entera sale por un portal y hasta que
+    // no monta hay un `return null` por delante: con dependencias vacías el
+    // efecto corría UNA vez con la referencia todavía en null y no volvía a
+    // correr nunca, así que la cabecera nunca se llegaba a medir.
+  }, [mounted]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
@@ -394,16 +433,30 @@ export default function ConversationPage() {
       `}</style>
 
       <header
+        ref={headerRef}
         style={{
+          position: "relative",
+          // Por encima del hilo, que es el hermano de abajo: así los mensajes
+          // quedan DETRÁS y entran en lo que difumina el cristal.
+          zIndex: 2,
           flexShrink: 0,
           display: "flex",
           alignItems: "center",
           gap: 10,
           padding: "calc(10px + env(safe-area-inset-top, 0px)) 12px 10px",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
         }}
       >
-        <IconButton label={tCommon("back")} size="sm" tone="bare" style={{ placeItems: "center" }} onClick={handleBack}>
+        {/* El canto duro se sustituye por un fundido: el mensaje que sube se
+            disuelve en vez de cortarse contra una línea de 1px. El velo lleva el
+            MISMO negro del fondo de la pantalla. */}
+        <BlurFade
+          side="top"
+          size={headerHeight + HEADER_FADE_OVERHANG}
+          fade={HEADER_FADE_LENGTH}
+          blur={16}
+          veil="rgba(0,0,0,0.86)"
+        />
+        <IconButton label={tCommon("back")} size="sm" tone="bare" style={{ position: "relative", zIndex: 1, placeItems: "center" }} onClick={handleBack}>
           <svg width="21" height="21" viewBox="0 0 24 24" aria-hidden>
             <path
               d="M15 5L8 12L15 19"
@@ -429,6 +482,7 @@ export default function ConversationPage() {
           displayName={displayName}
           size={34}
           onClick={handleOpenProfile}
+          style={{ position: "relative", zIndex: 1 }}
         />
 
         <button
@@ -447,6 +501,8 @@ export default function ConversationPage() {
             color: "inherit",
             cursor: profile?.handle ? "pointer" : "default",
             WebkitTapHighlightColor: "transparent",
+            position: "relative",
+            zIndex: 1,
           }}
         >
           <span
@@ -495,7 +551,7 @@ export default function ConversationPage() {
               targetId: conversationId,
               targetOwnerId: otherUid,
             }}
-            buttonStyle={{ padding: "0 8px", marginInlineEnd: 6 }}
+            buttonStyle={{ padding: "0 8px", marginInlineEnd: 6, position: "relative", zIndex: 1 }}
             extraItems={({ close, itemStyle }) =>
               selfUid ? (
                 <ChatConversationMenuItems
@@ -523,12 +579,18 @@ export default function ConversationPage() {
         />
       ) : null}
 
-      <div style={{ flex: 1, minHeight: 0 }}>
+      {/* El margen negativo mete el hilo POR DEBAJO de la cabecera. Al ser
+          `flex: 1` recupera solo esos píxeles, así que la pantalla sigue
+          midiendo lo mismo y el compositor no se va por debajo del borde. */}
+      <div style={{ flex: 1, minHeight: 0, marginTop: -headerHeight }}>
         <ConversationThread
           conversationId={conversationId}
           otherUid={otherUid}
           profile={profile}
           selfUid={selfUid}
+          // Lo que le tapa la cabecera superpuesta. Sin esto, el mensaje más
+          // antiguo se quedaría escondido detrás de ella al llegar arriba.
+          topInset={headerHeight}
           safeAreaBottom
         />
       </div>

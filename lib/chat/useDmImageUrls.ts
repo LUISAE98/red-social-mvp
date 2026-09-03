@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { httpsCallable } from "firebase/functions";
 
 import { functions } from "@/lib/firebase";
@@ -49,11 +49,32 @@ function cached(path: string): string | null {
   return hit.url;
 }
 
+export type DmImageUrls = {
+  urls: Record<string, string>;
+  /**
+   * Rutas que se pidieron y NO volvieron con URL.
+   *
+   * ⚠️ Existe para que "todavía no ha llegado" y "no va a llegar" dejen de ser
+   * la misma cosa. Sin esto, quien pinta la imagen no tiene forma de saber cuál
+   * de las dos es y se queda enseñando un esqueleto para siempre.
+   *
+   * Una ruta cae aquí por dos motivos que se ven igual desde fuera: la llamada
+   * falló entera —red, cuota, función caída— o la función respondió sin ella,
+   * que es lo que pasa cuando el mensaje se borró o ya no se tiene acceso.
+   */
+  failed: ReadonlySet<string>;
+  /** Reintenta las que fallaron. Lo dispara la persona, nunca solo. */
+  retry: () => void;
+};
+
 export function useDmImageUrls(
   conversationId: string | null,
   paths: string[]
-): Record<string, string> {
+): DmImageUrls {
   const [fetched, setFetched] = useState<Record<string, string>>({});
+  const [failed, setFailed] = useState<ReadonlySet<string>>(() => new Set());
+  /** Sube al reintentar; es lo que vuelve a lanzar el efecto. */
+  const [intento, setIntento] = useState(0);
 
   // Clave estable: sin esto, un array nuevo en cada render relanzaría la llamada.
   const key = paths.slice().sort().join("|");
@@ -87,16 +108,37 @@ export function useDmImageUrls(
         for (const [path, url] of Object.entries(data.urls)) {
           cache.set(path, { url, expiresAt: data.expiresAt });
         }
-        if (!cancelled) setFetched((prev) => ({ ...prev, ...data.urls }));
+        if (cancelled) return;
+        setFetched((prev) => ({ ...prev, ...data.urls }));
+
+        // Lo que se pidió y no volvió no va a volver solo: la función ya
+        // respondió. Marcarlo es lo que permite enseñar un error en vez de un
+        // esqueleto eterno.
+        const sinUrl = missing.filter((path) => !(path in data.urls));
+        if (sinUrl.length > 0) {
+          setFailed((prev) => new Set([...prev, ...sinUrl]));
+        }
       })
       .catch((error) => {
         captureError(error, { scope: "chat", code: "dm_image_sign_failed" });
+        // Si la llamada se cae, fallan TODAS las que iban en ella.
+        if (!cancelled) setFailed((prev) => new Set([...prev, ...missing]));
       });
 
     return () => {
       cancelled = true;
     };
-  }, [conversationId, key]);
+  }, [conversationId, key, intento]);
 
-  return useMemo(() => ({ ...fromCache, ...fetched }), [fromCache, fetched]);
+  const retry = useCallback(() => {
+    // Se limpian las fallidas ANTES de subir el intento: si se dejaran puestas,
+    // la imagen seguiría en estado de error mientras se reintenta y no habría
+    // forma de ver que está pasando algo.
+    setFailed(new Set());
+    setIntento((n) => n + 1);
+  }, []);
+
+  const urls = useMemo(() => ({ ...fromCache, ...fetched }), [fromCache, fetched]);
+
+  return useMemo(() => ({ urls, failed, retry }), [urls, failed, retry]);
 }

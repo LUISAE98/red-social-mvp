@@ -3087,7 +3087,8 @@
     "unlike": "Zrušit to se mi líbí",
     "replyingTo": "Odpověď pro {name}",
     "replyToSelf": "Ty",
-    "cancelReply": "Zrušit odpověď"
+    "cancelReply": "Zrušit odpověď",
+    "imageFailed": "Obrázek se nepodařilo načíst"
   },
   "cf": {
     "mustBeAuthenticated": "Musíš být ověřený.",

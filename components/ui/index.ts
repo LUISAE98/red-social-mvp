@@ -38,3 +38,8 @@ export { default as VibraAvatarFallback } from "./VibraAvatarFallback";
 // vivían en tres implementaciones distintas repartidas por el producto.
 export { default as MenuLinesIcon } from "./MenuLinesIcon";
 export type { MenuLinesIconProps } from "./MenuLinesIcon";
+
+// Desenfoque progresivo para cabeceras y pies flotantes: el contenido se
+// disuelve al pasar por debajo, sin el canto duro de un `backdrop-filter` suelto.
+export { default as BlurFade } from "./BlurFade";
+export type { BlurFadeProps } from "./BlurFade";

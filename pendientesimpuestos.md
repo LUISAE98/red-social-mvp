@@ -189,13 +189,32 @@ para que TypeScript siga comprobando el cuerpo que se va a reactivar.
 
 ✅ **Desplegado el 2026-09-02.**
 
-⚠️ **Pendiente operativo:** correr el backfill (`scripts/backfill-importe-fiscal.ts`, primero con
-`--dry`). Hasta entonces las ventas anteriores al 2026-09-02 no entran en la factura global, y el
-proceso mensual las cuenta en `ventasSinPesos`.
+### ✅ Backfill corrido (2026-09-02)
+
+| | |
+|---|---|
+| Asientos revisados | 63 |
+| Congelados | **47** — 18 del cobro real, 29 de tabla |
+| No mexicanas, sin CFDI | 16 |
+| Imposibles | 0 |
+
+Verificado idempotente: la segunda pasada encuentra los 47 ya congelados y no toca nada. Es
+deliberado — un importe congelado **no se recalcula nunca**, porque un CFDI reexpedido tiene que
+dar el mismo número.
+
+⚠️ **Las 29 «de tabla» llevan un tipo de cambio aproximado.** No hay histórico de tasas:
+`config/exchangeRates` es un solo documento que se sobrescribe a diario, así que a una venta
+vieja se le aplica la tasa de HOY. Las 29 son de **agosto de 2026** y **ninguna tiene**
+`paymentIntent` —son pruebas anteriores a que existieran—, así que la aproximación es de unas
+cuatro semanas de deriva sobre datos que no son ventas reales. Quedan marcadas `fuente: "tabla"`
+y se pueden enumerar con `--detalle`.
+
+🔁 Si esos registros de prueba se acaban purgando, esto deja de importar. Si se quedan, conviene
+saber que su importe en un CFDI sería aproximado.
 
 ---
 
-## A1 · La global incumple el plazo de 24 horas 🔴
+## A1 · La global incumple el plazo de 24 horas ✅ HECHO (2026-09-02)
 
 El cron corre el **día 5 sobre el mes anterior** (`runCreatorMonthlyDocs.ts:194`,
 `schedule: "0 9 5 * *"`). La RMF 2026, regla **2.7.1.21**, exige el CFDI global **dentro de las 24
@@ -210,6 +229,37 @@ que se encienda `TIMBRAR`.**
   `rangoDelPeriodo` y la idempotencia `{creatorId}_{periodo}_{tipo}` dejen de razonar en meses.
 - **Va después de A2, A3 y B5.** Acelerar el ciclo antes de tener la marca y la cola multiplica
   el daño en vez de reducirlo.
+
+### ✅ Cómo quedó: la global se separó del proceso mensual
+
+Los cuatro documentos del creador **no tienen la misma cadencia**, y meterlos en el mismo cron
+era justo lo que hacía incumplir a la global:
+
+| Documento | Cadencia | Por qué |
+|---|---|---|
+| Comisión y constancia de retenciones | **Mensual** | Son periódicas por naturaleza. A diario darían mil comprobantes al mes por creador |
+| **Factura global** | **Diaria** | Su plazo son 24 h desde el cierre de las operaciones |
+
+Así que la global salió a `runGlobalInvoice.ts` con su propio cron, **a la 01:00 de Ciudad de
+México sobre el día natural anterior**. El comprobante sale dentro de la primera hora tras el
+cierre, y las 23 restantes son margen para reintentos, no para holgazanear.
+
+⚠️ **Quincenal no habría bastado.** La clave `03` de `c_Periodicidad` es válida desde 2022,
+pero la periodicidad dice **qué agrupa** el comprobante, no **cuándo se emite**. Lo que cumple
+el plazo es emitir a diario. En el cuerpo del CFDI la periodicidad pasó de `04` a **`01`**, y
+`months` sigue siendo el mes en el que cae el día, que es lo que espera el Anexo 20.
+
+| Pieza | Dónde |
+|---|---|
+| El proceso diario, su cron y el disparo manual por día | 🆕 `backend/src/facturacion/runGlobalInvoice.ts` |
+| `rangoDelPeriodo` entiende `YYYY-MM` y `YYYY-MM-DD`; nuevo `diaDe` | `backend/src/facturacion/creatorMonthlyDocs.ts` |
+| `periodicity: "01"` en el CFDI | `backend/src/facturacion/globalInvoice.ts` |
+| El proceso mensual se queda solo con comisión, retenciones y liquidación | `backend/src/facturacion/runCreatorMonthlyDocs.ts` |
+| 4 pruebas de periodos, incluidos fin de mes y bisiesto | `backend/test/importeFiscal.pure.test.ts` |
+
+🚧 **Sigue apagado.** `runGlobalInvoice.ts` tiene su propio `TIMBRAR = false`, aparte del
+mensual: son dos emisiones distintas y se pueden querer encender por separado. La global
+depende de todo el grupo A; la comisión, solo de §A0.
 
 ---
 
@@ -406,7 +456,7 @@ vender, se invierte la elección y la constancia se queda donde está hoy.
 
 # GRUPO B — Para que la global salga correcta
 
-## B5 · Cola de facturas pendientes 🟡
+## B5 · Cola de facturas pendientes ✅ HECHO (2026-09-02)
 
 Si el creador no tiene sello vigente, la petición de factura del comprador **se pierde**. No
 existe nada parecido a una cola en el repo.
@@ -418,6 +468,43 @@ existe nada parecido a una cola en el repo.
 - **Depende de:** A2, porque la exclusión se apoya en el mismo campo.
 - **Desbloquea:** A1.
 
+### ✅ Cómo quedó
+
+El ciclo son cuatro pasos:
+
+1. El comprador pide su factura y el creador no tiene sello (o no tiene organización).
+2. Las compras se **apartan** con `nominativaEnCurso.estado = "en_cola"`. Desde ese momento la
+   factura global las excluye — esta es la mitad que importa.
+3. La petición se guarda en `pendingInvoices` con **solo referencias**: el id del perfil de
+   facturación y los ids de las compras. Nunca una copia de los datos fiscales, que pueden
+   cambiar entre que la pide y que se emite; los buenos son los del momento de emitir.
+4. Cuando `csdStatus` pasa a `valid`, un disparador emite todo lo de ese creador.
+
+🚨 **Una reserva `en_cola` no se suelta** si el creador nunca sube el sello. Es deliberado:
+soltarla devolvería la venta a la factura global y volveríamos justo al problema del motivo 04.
+La presión para que suba el sello es otra —tiene la wallet bloqueada—, no la de perder la venta.
+
+**Hubo que extraer la emisión.** Timbrar vivía dentro de `generateBuyerInvoice`, y la cola
+necesitaba lo mismo. Duplicarlo era pedir que se desincronizaran, y en un CFDI eso significa dos
+facturas distintas por la misma venta según por dónde entró la petición. Ahora los dos caminos
+llaman a `emitirNominativa`, donde viven también las reservas, para que la regla de quién se
+queda una compra sea una sola.
+
+| Pieza | Dónde |
+|---|---|
+| El timbrado compartido, las reservas y el alta de cliente | 🆕 `backend/src/facturacion/emitirNominativa.ts` |
+| La cola, el disparador del sello y el reintento manual | 🆕 `backend/src/facturacion/colaDeFacturas.ts` |
+| Encolar en vez de perder la petición; mensajes según el estado | `backend/src/facturacion/generateBuyerInvoice.ts` |
+| Índice de `pendingInvoices` | `firestore.indexes.json` |
+| 7 pruebas de emulador | 🆕 `backend/test-emulator/colaDeFacturas.emulator.test.ts` |
+
+**En la interfaz**, `sin_sello` ya no dice «vuelve a intentarlo». Dice que la solicitud queda
+guardada y que la factura se emite sola, que es lo que de verdad pasa ahora.
+
+⚠️ **Lo que NO se hizo aquí:** avisar al comprador cuando su factura por fin sale. Va con §B6,
+que es donde está la notificación. Hoy le llega el correo de Facturapi con el PDF y el XML, pero
+no un aviso dentro de Vibra.
+
 ## B6 · Facturar desde «Ver detalles» más la notificación 🟡
 
 Hoy solo se factura desde el modo selección de `BuyerInvoicePanel` en `/experiencias → Entregados
@@ -427,7 +514,7 @@ pago exitoso** que lleve ahí.
 Es experiencia de usuario, pero tiene efecto fiscal: cuanta más gente pide su factura **a tiempo**,
 menos casos del procedimiento de tres pasos del motivo 04. Independiente, cabe en cualquier hueco.
 
-## B7 · Cancelación motivo 04 🟡
+## B7 · Cancelación motivo 04 ✅ HECHO (2026-09-02)
 
 Cuando alguien pide su factura nominativa de una operación **ya incluida en una global**, el
 procedimiento del SAT son tres pasos: cancelar con motivo **04** («operación nominativa
@@ -440,6 +527,52 @@ nominativa. El segundo paso necesita el sello del creador.
 - **Comparte máquina con el Bloque 6** (notas de crédito por reembolso de una compra ya
   facturada). Conviene hacerlos juntos.
 
+### ✅ Cómo quedó
+
+Un callable de administración, `cancelarGlobalPorNominativa`. **Manual a propósito**: cancelar
+y reexpedir CFDI no puede dispararse solo, es un acto irreversible sobre un documento que ya
+existe.
+
+🚨 **El orden no es negociable: cancelar y luego reexpedir.** Si se reexpidiera primero y la
+cancelación fallara, quedarían **dos globales vivas cubriendo las mismas ventas** — timbradas
+dos veces, justo lo que todo el grupo A evita. Al revés, un fallo deja el periodo con la
+global cancelada y el resto de ventas sin cubrir: está mal, pero se arregla reintentando y
+ningún CFDI dice nada falso mientras tanto. Cada paso queda registrado en
+`cancelacionesGlobales`, porque cancelar un CFDI no se puede reconstruir mirando el resultado.
+
+**El estado `liberada`, que es lo que hace que el trámite sirva de algo.** Al sacar la venta
+de la global no se deja simplemente libre: se marca `liberada`. Es la única reserva
+**asimétrica** del sistema —le cierra la puerta a la factura global y se la abre al
+comprador—, y sin ella la global del día siguiente se la volvería a llevar antes de que él
+alcanzara a pedir su factura. Se habría cancelado un CFDI para nada.
+
+| Reserva | ¿La global puede tomarla? | ¿El comprador puede? |
+|---|---|---|
+| `emitiendo` | No | No |
+| `en_cola` | No | No, ya tiene una prometida |
+| **`liberada`** | **No** | **Sí** |
+
+También se contempla la global que **solo cubría esa venta**: no se reexpide una global
+vacía, pero el registro del periodo tiene que dejar de decir que hay una global viva o
+`yaEmitido` daría el día por documentado para siempre.
+
+| Pieza | Dónde |
+|---|---|
+| Cancelar con motivo 04, reexpedir y repuntar las marcas | 🆕 `backend/src/facturacion/cancelacionGlobal.ts` |
+| `compraReclamablePorNominativa`, la excepción de `liberada` | `backend/src/facturacion/globalInvoice.ts` |
+| El candado del comprador deja pasar una liberada | `backend/src/facturacion/generateBuyerInvoice.ts` |
+| Índice de `purchases` por folio de global | `firestore.indexes.json` |
+| 3 pruebas de la asimetría | `backend/test-emulator/colaDeFacturas.emulator.test.ts` |
+
+⚠️ **Sin pantalla de administración.** Hoy es un callable; hay que invocarlo. Va con el diseño
+del panel de administración que quedó para después.
+
+⚠️ **Sin probar contra Facturapi.** La cancelación con motivo 04 no se ha ejercitado nunca
+contra la API, porque no hay ninguna global timbrada que cancelar. Es lo primero que hay que
+probar en cuanto se encienda `TIMBRAR` en sandbox.
+
+✅ **Desplegado el 2026-09-02** (función e índice).
+
 ## B8 · Recibo para comprador extranjero ⬜
 
 `generateBuyerInvoice` es MXN-only y el CFDI es solo mexicano. El comprador extranjero se queda
@@ -450,6 +583,100 @@ comprobante de liquidación del creador extranjero, y a propósito se emite est�
 timbrado, porque no depende de ninguna clave del SAT. Es el patrón a seguir.
 
 Independiente de todo lo demás.
+
+---
+
+# AUDITORÍA del 2026-09-02 🔎 — ✅ CORREGIDA
+
+> Los diez hallazgos de código quedaron arreglados el mismo día. Se conserva el detalle de cada
+> uno porque explica **por qué** el código es como es, y porque un arreglo sin su motivo se
+> deshace solo en el siguiente refactor.
+
+| # | Estado | Cómo se arregló |
+|---|---|---|
+| AUD-1 | ✅ | `CompraNormalizada` lleva `baseMxn` e `ivaMxn` del congelado y se mandan tal cual. La tasa se decide por si la venta llevó impuesto, en vez de cablear el 16% |
+| AUD-2 | ✅ | Los periodos se cortan en **hora de México** (UTC-6 fijo, sin horario de verano desde 2022). Con prueba de regresión de la venta de las 19:00 |
+| AUD-3 | ✅ | Fuera los dos respaldos de tabla. Sin importe congelado **no se factura**, se registra el error y se avisa |
+| AUD-4 | ✅ | Las compras irresolubles se cuentan; la petición se queda `pendiente` con las que faltan en vez de cerrarse perdiéndolas |
+| AUD-5 | ✅ | Una petición `fallida` **suelta sus reservas**, así la venta vuelve a la global, que es donde le toca si nadie la pide |
+| AUD-6 | ✅ | Se congela SIEMPRE que el cobro fue en pesos, sin exigir `taxCountry`. El respaldo de tabla se reserva a quien sí declaró México |
+| AUD-7 | ✅ | Una compra sin fecha se registra en el log en vez de colarse muda. No se inventa una: metería la venta en el día equivocado |
+| AUD-8 | ✅ | Las reservas `liberada` caducan a los 30 días y vuelven al circuito, con barrida en el proceso diario |
+| AUD-9 | ✅ | Timeout de 9 minutos en el disparador. **Sin `retry`** a propósito —reintentar tras timbrar emitiría dos veces— y con la barrida diaria como red |
+| AUD-10 | ✅ | Dos consultas para toda la plataforma en vez de tres por creador. Se pregunta **quién vendió**, no se recorre a todos |
+| AUD-11 | ⬜ | Sigue sin probarse contra Facturapi. No se puede hasta encender `TIMBRAR` |
+| AUD-12 | ⬜ | Las 29 ventas de prueba con tasa aproximada siguen igual. No hay histórico de tasas del que recuperarlas |
+
+---
+
+## El detalle de cada hallazgo
+
+
+Revisión del trabajo de A0, A2, A3, B5, A1 y B7 con las dos gorras puestas, la de programador y
+la de fiscalista. Doce hallazgos. **Ninguno rompe nada hoy** —`TIMBRAR` sigue apagado— pero tres
+pondrían un importe equivocado en un CFDI el día que se encienda.
+
+## 🔴 Afectan el importe de un CFDI
+
+### AUD-1 · La nominativa tira el desglose congelado y lo recalcula dividiendo
+
+`emitirNominativa.ts` hace `baseMxn = round2(totalMxn / 1.16)`. Pero §A0 congela `base` e `iva`
+**cuadrados por construcción**, y aquí se descartan para despejarlos con una división.
+
+Dos consecuencias: puede diferir un centavo del congelado, y —peor— Facturapi recalcula el IVA
+como `base × 0.16`, así que `round2(total/1.16) × 1.16` no siempre devuelve `total`. El CFDI
+puede totalizar un centavo distinto de lo que pagó el comprador.
+
+**Arreglo:** que `CompraNormalizada` lleve `baseMxn` e `ivaMxn` del congelado y se manden tal cual.
+
+### AUD-2 · El día de la factura global es UTC, no de Ciudad de México
+
+El cron corre a la 01:00 hora de México, pero `rangoDelPeriodo` acota con `Date.UTC`. Una venta
+a las 19:00 del día 14 en México son las 01:00 UTC del 15, y acaba documentada en la global
+**del 15**.
+
+No se pierde ni se duplica ninguna venta —los cubos son contiguos— pero la atribución por día va
+corrida seis o siete horas. Una global diaria debería cubrir el día natural mexicano, y un
+auditor que compare contra los registros del creador vería el desfase.
+
+### AUD-3 · Dos sitios siguen convirtiendo con la tasa de HOY al timbrar
+
+`generateBuyerInvoice` y `compraDesdeDoc` de la cola mantienen el respaldo `(gross+tax) × tasa`.
+Tenía sentido como puente para ventas anteriores al congelado, pero **el backfill ya no dejó
+ninguna** y las nuevas congelan solas. Hoy ese camino solo puede dispararse cuando el congelado
+falló, y entonces mete un importe aproximado en un CFDI real — justo lo que §A0 vino a prohibir.
+
+**Arreglo:** negarse a facturar en vez de aproximar.
+
+## 🟠 Fugas silenciosas
+
+| # | Qué | Dónde |
+|---|---|---|
+| AUD-4 | Si `compraDesdeDoc` falla para **algunas** compras, se emiten las demás y la petición se marca `emitida`. Las descartadas quedan `en_cola` **para siempre**: ni se facturan ni entran en una global | `colaDeFacturas.ts` |
+| AUD-5 | Una petición marcada `fallida` **no suelta sus reservas**. Queda el rastro en la cola, pero nada devuelve esas compras al circuito | `colaDeFacturas.ts` |
+| AUD-6 | `taxCountry: meta.taxCountry ?? ""` — si falta en la metadata de una renovación, la venta **no congela** y sin `fiscalMxn` no entra en ninguna global | `groupSubscriptionStripeSync.ts` |
+| AUD-7 | El espejo escribe `occurredAt: … ?? null`. Con `null`, la consulta por rango **nunca** devuelve esa compra | `buyerPurchases.ts` |
+| AUD-8 | `liberada` no caduca. Si el comprador no factura tras la cancelación motivo 04, la venta queda fuera de globales para siempre | `cancelacionGlobal.ts` |
+
+## 🟡 Operativos
+
+| # | Qué |
+|---|---|
+| AUD-9 | `onCsdValidoEmitirCola` usa el timeout por defecto (60 s) y hace varias llamadas a Facturapi por petición encolada. Un creador con varias lo revienta, y **sin `retry: true`** lo que quede a medias no se reintenta solo |
+| AUD-10 | El cron diario recorre **todos** los perfiles fiscales con una consulta de grupo por creador. Con mil creadores son mil consultas diarias. No está acotado |
+| AUD-11 | La cancelación motivo 04 **nunca se ha ejercitado contra Facturapi** y no tiene pantalla de administración |
+| AUD-12 | Las 29 ventas que el backfill congeló con `fuente: "tabla"` llevan tipo de cambio aproximado |
+
+## ✅ Verificado y correcto
+
+- **El despeje del tipo de cambio es válido** aunque `settlementAmount` incluya el cargo fijo y el
+  2%: una tasa es un cociente y da igual sobre qué importe se calcule.
+- El id determinista `sourceType__sourceId` **sí** coincide con el `externalReference` del intent
+  en todos los flujos revisados.
+- No quedaron restos de la global en el proceso mensual tras separarla.
+- `merge: true` sobre `globalInvoice` conserva `reservadoEn` y pisa `estado`, que es lo buscado.
+- Los índices de las tres consultas nuevas están declarados y desplegados.
+- `tsc` con `noUnusedLocals` no dejó pasar restos del refactor de `emitirNominativa`.
 
 ---
 
@@ -509,10 +736,10 @@ cobro tenga pantalla propia.
 | A2 | La global marca las ventas | A | A0 | ✅ **Hecho** |
 | A3 | Candado del doble timbrado | A | A2 | ✅ **Hecho** |
 | A5 | Constancia desde los retiros, no las ventas | A | A0 + C8 | 🔴 Abierto |
-| B5 | Cola de facturas pendientes | B | A2 | 🔴 **Siguiente** |
-| A1 | Cadencia de 24 h | A | A2, A3, B5 | 🔴 Abierto |
-| B7 | Cancelación motivo 04 | B | A2 | 🔴 Abierto |
-| B6 | Botón «Ver detalles» más notificación | B | — | 🟡 Abierto |
+| B5 | Cola de facturas pendientes | B | A2 | ✅ **Hecho** |
+| A1 | Cadencia de 24 h | A | A2, A3, B5 | ✅ **Hecho** |
+| B7 | Cancelación motivo 04 | B | A2 | ✅ **Hecho** |
+| B6 | Botón «Ver detalles» más notificación | B | — | 🟡 **Siguiente** |
 | B8 | Recibo internacional | B | — | ⬜ Abierto |
 | A4 | Clave de retención | A | Contador | 🔴 Abierto |
 | C1–C9 | Preguntas del contador | C | Contador | 🟠 Fuera de código |

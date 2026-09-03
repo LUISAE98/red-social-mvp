@@ -3087,7 +3087,8 @@
     "unlike": "ដកការចូលចិត្ត",
     "replyingTo": "កំពុងឆ្លើយតបទៅ {name}",
     "replyToSelf": "អ្នក",
-    "cancelReply": "បោះបង់ការឆ្លើយតប"
+    "cancelReply": "បោះបង់ការឆ្លើយតប",
+    "imageFailed": "មិនអាចផ្ទុករូបភាពបានទេ"
   },
   "cf": {
     "mustBeAuthenticated": "អ្នកត្រូវបានផ្ទៀងផ្ទាត់។",

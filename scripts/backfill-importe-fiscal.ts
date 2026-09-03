@@ -30,9 +30,10 @@ import {
 // es deliberado — un CFDI reexpedido tiene que dar el mismo número que el original.
 //
 // Uso:
-//   npx ts-node scripts/backfill-importe-fiscal.ts               (aplica a todas)
-//   npx ts-node scripts/backfill-importe-fiscal.ts --dry         (solo cuenta, no escribe)
-//   npx ts-node scripts/backfill-importe-fiscal.ts --creator=<uid>
+//   npx tsx scripts/backfill-importe-fiscal.ts               (aplica a todas)
+//   npx tsx scripts/backfill-importe-fiscal.ts --dry             (solo cuenta, no escribe)
+//   npx tsx scripts/backfill-importe-fiscal.ts --dry --detalle   (además enumera las de tabla)
+//   npx tsx scripts/backfill-importe-fiscal.ts --creator=<uid>
 
 const PAGE_SIZE = 400;
 const BATCH_LIMIT = 300;
@@ -59,6 +60,9 @@ function initializeAdmin() {
 
 async function main() {
   const dry = process.argv.includes("--dry");
+  // Enumera las que caerían a la tasa de tabla, que son las únicas cuyo importe es
+  // aproximado. Con pocas, se revisan a mano antes de escribir nada.
+  const detalle = process.argv.includes("--detalle");
   const creatorArg = process.argv.find((a) => a.startsWith("--creator="));
   const onlyCreator = creatorArg ? creatorArg.replace("--creator=", "").trim() : null;
   initializeAdmin();
@@ -132,6 +136,27 @@ async function main() {
       }
       if (pesos.fuente === "cobro") delCobro++;
       else deTabla++;
+
+      /**
+       * 🚨 Las de tabla, una por una si se piden.
+       *
+       * No hay histórico de tasas: `config/exchangeRates` es un solo documento que se
+       * sobrescribe a diario, así que a una venta vieja se le acaba aplicando la tasa de HOY.
+       * Para una venta de hace meses eso no es su tipo de cambio, es una aproximación — y de
+       * ella saldría el importe de un CFDI.
+       *
+       * Por eso se pueden mirar antes de escribir nada. Con pocas, se revisan a mano.
+       */
+      if (detalle && pesos.fuente === "tabla") {
+        const fecha =
+          (d.occurredAt as { toDate?: () => Date } | undefined)?.toDate?.()
+            ?.toISOString()
+            .slice(0, 10) ?? "sin fecha";
+        console.log(
+          `   · tabla  ${doc.id.slice(0, 44).padEnd(44)} ${fecha}  ` +
+            `${cobro ? "intent sin presentment MXN" : "SIN intent"}  →  ${pesos.total} MXN`
+        );
+      }
 
       congelados++;
       if (dry) continue;

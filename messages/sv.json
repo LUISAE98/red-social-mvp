@@ -3087,7 +3087,8 @@
     "unlike": "Ta bort gilla",
     "replyingTo": "Svarar {name}",
     "replyToSelf": "Du",
-    "cancelReply": "Avbryt svar"
+    "cancelReply": "Avbryt svar",
+    "imageFailed": "Bilden kunde inte laddas"
   },
   "cf": {
     "mustBeAuthenticated": "Du måste vara autentiserad.",

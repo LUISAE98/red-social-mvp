@@ -3087,7 +3087,8 @@
     "unlike": "Remove like",
     "replyingTo": "Replying to {name}",
     "replyToSelf": "You",
-    "cancelReply": "Cancel reply"
+    "cancelReply": "Cancel reply",
+    "imageFailed": "The image could not be loaded"
   },
   "cf": {
     "mustBeAuthenticated": "You must be authenticated.",

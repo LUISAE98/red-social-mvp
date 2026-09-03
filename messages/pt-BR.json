@@ -3087,7 +3087,8 @@
     "unlike": "Remover curtida",
     "replyingTo": "Respondendo a {name}",
     "replyToSelf": "Você",
-    "cancelReply": "Cancelar resposta"
+    "cancelReply": "Cancelar resposta",
+    "imageFailed": "Não foi possível carregar a imagem"
   },
   "cf": {
     "mustBeAuthenticated": "Você precisa estar autenticado.",

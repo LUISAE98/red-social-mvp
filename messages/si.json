@@ -3087,7 +3087,8 @@
     "unlike": "කැමැත්ත ඉවත් කරන්න",
     "replyingTo": "{name} හට පිළිතුරු දෙමින්",
     "replyToSelf": "ඔබ",
-    "cancelReply": "පිළිතුර අවලංගු කරන්න"
+    "cancelReply": "පිළිතුර අවලංගු කරන්න",
+    "imageFailed": "රූපය පූරණය කළ නොහැකි විය"
   },
   "cf": {
     "mustBeAuthenticated": "ඔබ සත්‍යාපනය විය යුතුයි.",

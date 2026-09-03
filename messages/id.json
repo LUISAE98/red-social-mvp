@@ -3087,7 +3087,8 @@
     "unlike": "Batalkan suka",
     "replyingTo": "Membalas {name}",
     "replyToSelf": "Kamu",
-    "cancelReply": "Batalkan balasan"
+    "cancelReply": "Batalkan balasan",
+    "imageFailed": "Gambar tidak bisa dimuat"
   },
   "cf": {
     "mustBeAuthenticated": "Kamu harus terautentikasi.",

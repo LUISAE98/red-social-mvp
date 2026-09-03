@@ -3087,7 +3087,8 @@
     "unlike": "Alisin ang gusto",
     "replyingTo": "Tumutugon kay {name}",
     "replyToSelf": "Ikaw",
-    "cancelReply": "Kanselahin ang tugon"
+    "cancelReply": "Kanselahin ang tugon",
+    "imageFailed": "Hindi ma-load ang larawan"
   },
   "cf": {
     "mustBeAuthenticated": "Kailangan mong ma-authenticate.",

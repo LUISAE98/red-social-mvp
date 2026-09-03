@@ -37,6 +37,20 @@ export function buyerStatusFromLedger(
   return "paid";
 }
 
+/**
+ * La fecha de la compra, avisando si falta.
+ *
+ * No se inventa una: poner la fecha del espejo metería la venta en el día equivocado de la
+ * factura global, que es peor que dejarla fuera y ruidosa.
+ */
+function fechaDeLaCompra(d: FirebaseFirestore.DocumentData, entryId: string): unknown {
+  const fecha = d.occurredAt ?? d.createdAt ?? null;
+  if (!fecha) {
+    logger.warn("buyer_purchase_sin_fecha", { entryId });
+  }
+  return fecha;
+}
+
 export const mirrorLedgerToBuyerPurchase = onDocumentWritten(
   { document: "users/{creatorId}/walletLedger/{entryId}", region: REGION },
   async (event) => {
@@ -79,8 +93,16 @@ export const mirrorLedgerToBuyerPurchase = onDocumentWritten(
          * lee este mismo espejo para saber qué quedó sin facturar.
          */
         fiscalMxn: d.fiscalMxn ?? null,
-        // Fecha real de la compra (para ordenar "más reciente arriba").
-        occurredAt: d.occurredAt ?? d.createdAt ?? null,
+        /**
+         * Fecha real de la compra: para ordenar «más reciente arriba» y, desde §A1, para
+         * decidir en qué factura global entra.
+         *
+         * 🚨 Sin ella la compra es INVISIBLE para la global (AUD-7): la consulta va por rango
+         *    de `occurredAt` y un `null` no cae en ningún rango, así que esa venta no se
+         *    documentaría nunca y nadie lo notaría. Se canta en el registro para poder
+         *    encontrarla, porque el asiento del ledger siempre debería traerla.
+         */
+        occurredAt: fechaDeLaCompra(d, event.params.entryId),
         createdAt: d.createdAt ?? null,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },

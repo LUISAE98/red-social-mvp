@@ -3087,7 +3087,8 @@
     "unlike": "Poista tykkäys",
     "replyingTo": "Vastaus käyttäjälle {name}",
     "replyToSelf": "Sinä",
-    "cancelReply": "Peruuta vastaus"
+    "cancelReply": "Peruuta vastaus",
+    "imageFailed": "Kuvaa ei voitu ladata"
   },
   "cf": {
     "mustBeAuthenticated": "Sinun täytyy olla todennettu.",

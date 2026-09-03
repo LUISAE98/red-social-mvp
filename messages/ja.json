@@ -3087,7 +3087,8 @@
     "unlike": "いいねを取り消す",
     "replyingTo": "{name}さんに返信",
     "replyToSelf": "自分",
-    "cancelReply": "返信をキャンセル"
+    "cancelReply": "返信をキャンセル",
+    "imageFailed": "画像を読み込めませんでした"
   },
   "cf": {
     "mustBeAuthenticated": "認証が必要です。",

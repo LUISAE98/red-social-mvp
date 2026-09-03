@@ -3087,7 +3087,8 @@
     "unlike": "Treu el m’agrada",
     "replyingTo": "Responent a {name}",
     "replyToSelf": "Tu",
-    "cancelReply": "Cancel·la la resposta"
+    "cancelReply": "Cancel·la la resposta",
+    "imageFailed": "No s'ha pogut carregar la imatge"
   },
   "cf": {
     "mustBeAuthenticated": "Has d’estar autenticat.",

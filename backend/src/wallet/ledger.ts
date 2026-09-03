@@ -395,6 +395,8 @@ async function congelarPesosDeLaVenta(params: {
   entryId: string;
   baseUsd: number;
   ivaUsd: number;
+  /** Si el respaldo de tabla puede usarse. Solo para quien declaró México. */
+  permitirTabla: boolean;
 }): Promise<ImporteFiscalMxn | null> {
   try {
     const intentSnap = await db.doc(`paymentIntents/${params.entryId}`).get();
@@ -406,6 +408,7 @@ async function congelarPesosDeLaVenta(params: {
       cobro,
     });
     if (conElCobro) return conElCobro;
+    if (!params.permitirTabla) return null;
 
     const ratesSnap = await db.doc("config/exchangeRates").get();
     const rates = (ratesSnap.data()?.rates ?? {}) as Record<string, number>;
@@ -522,20 +525,27 @@ export async function recordEarning(
    * a este comprador — no con una tabla al momento de timbrar, que daría un importe distinto
    * en cada reexpedición.
    *
-   * Solo para comprador mexicano: es el único que recibe CFDI. La venta a un extranjero es
-   * exportación y no lleva comprobante mexicano (`pendientesimpuestos.md` §B8).
+   * Pensado para el comprador mexicano, que es el único que recibe CFDI. La venta a un
+   * extranjero es exportación y no lleva comprobante mexicano (`pendientesimpuestos.md` §B8).
+   *
+   * 🚨 **No se exige `taxCountry === "MX"` para intentarlo** (AUD-6). Algunos flujos lo pierden
+   *    —una renovación de suscripción cuya metadata llegó sin país manda cadena vacía— y sin
+   *    congelar, esa venta no entra en ninguna factura global. En silencio.
+   *
+   *    Así que se intenta SIEMPRE. El despeje solo funciona si el cobro fue en pesos, que es
+   *    tanto como decir que el comprador era mexicano, y el respaldo de tabla se reserva a
+   *    quien sí declaró México. Congelar de más no hace daño: si la venta no lleva CFDI, nadie
+   *    lee ese campo.
    *
    * ⚠️ **Si no se puede, la venta sigue.** Un cobro no se rompe por no poder documentarlo
    * todavía; lo que quede sin congelar lo recoge el backfill.
    */
-  const fiscalMxn =
-    params.taxCountry === "MX"
-      ? await congelarPesosDeLaVenta({
-          entryId: deterministicEntryId(params.sourceType, params.sourceId),
-          baseUsd: gross,
-          ivaUsd: ventaFiscal.mxVatAmount,
-        })
-      : null;
+  const fiscalMxn = await congelarPesosDeLaVenta({
+    entryId: deterministicEntryId(params.sourceType, params.sourceId),
+    baseUsd: gross,
+    ivaUsd: ventaFiscal.mxVatAmount,
+    permitirTabla: params.taxCountry === "MX",
+  });
 
   await db.runTransaction(async (tx) => {
     // Todas las lecturas ANTES de cualquier escritura: es la regla de las

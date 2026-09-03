@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { IconButton } from "@/components/ui";
+import { useEffect, useRef, useState } from "react";
+import { BlurFade, IconButton } from "@/components/ui";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 
@@ -33,6 +33,16 @@ const DOCK_HEIGHT = 420;
  */
 export const DOCK_ANIM_MS = 250;
 
+/**
+ * Cuánto BAJA el desenfoque de la cabecera por debajo de ella, metiéndose en el
+ * hilo. Ahí es donde ocurre el fundido: si el efecto acabara justo en el canto
+ * de la cabecera volvería a haber una línea, que es lo que se quería quitar.
+ */
+const HEADER_FADE_OVERHANG = 26;
+
+/** Cuánto dura el desvanecido. Empieza dentro de la cabecera y acaba en el hilo. */
+const HEADER_FADE_LENGTH = 40;
+
 export default function ChatDock({
   conversationId,
   otherUid,
@@ -62,6 +72,33 @@ export default function ChatDock({
   const { conversation } = useConversationDoc(conversationId);
   // Fuera del menú: ese se desmonta al cerrarse y se llevaba el panel con él.
   const [removeOpen, setRemoveOpen] = useState(false);
+
+  /**
+   * Alto real de la cabecera. Va SUPERPUESTA al hilo —los mensajes tienen que
+   * pasarle por detrás para que el desenfoque tenga algo que difuminar—, así
+   * que el hilo necesita ese hueco arriba y la caja de abajo un margen negativo
+   * que la suba. Se mide en vivo porque el nombre puede ir a dos renglones en
+   * idiomas largos y un valor fijo dejaría el primer mensaje tapado.
+   */
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(45);
+
+  useEffect(() => {
+    const node = headerRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver((entries) => {
+      // El BORDE, no `contentRect`: la cabecera lleva relleno propio arriba y
+      // abajo y `contentRect` lo excluye.
+      const border = entries[0]?.borderBoxSize?.[0]?.blockSize;
+      const next = Math.ceil(border ?? node.getBoundingClientRect().height);
+      // Cero significa que está oculta, no que mida cero. Guardarlo dejaría el
+      // hueco del hilo en nada y el efecto sin tamaño hasta la siguiente medida.
+      if (next > 0) setHeaderHeight(next);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const router = useRouter();
   const unread = selfUid ? (conversation?.unread?.[selfUid] ?? 0) : 0;
@@ -167,149 +204,194 @@ export default function ChatDock({
       {/* Barra del título: toda ella alterna minimizar/desplegar, como en
           Facebook. Los botones de la derecha paran la propagación. */}
       <div
+        ref={headerRef}
         onClick={() => {
           if (!closing) onToggleMinimize();
         }}
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 9,
+          position: "relative",
+          // Por encima del hilo, que es el hermano de abajo: así los mensajes
+          // quedan DETRÁS y entran en lo que difumina el cristal.
+          zIndex: 2,
           padding: "8px 10px",
           cursor: "pointer",
-          background: "rgba(255,255,255,0.04)",
-          borderBottom: minimized ? "none" : "1px solid rgba(255,255,255,0.08)",
+          // Plegada no hay hilo debajo —la caja mide cero—, así que no habría
+          // nada que difuminar y el cristal se vería como un vidrio sobre nada.
+          // Ahí se queda la barra de siempre.
+          background: minimized ? "rgba(255,255,255,0.04)" : "transparent",
           userSelect: "none",
         }}
       >
-        {/* A la IZQUIERDA del avatar. Se para la propagación para que abrir el
-            menú no minimice también la pestaña. */}
-        {otherUid ? (
-          <span
-            onClick={(e) => { if (!minimized) e.stopPropagation(); }}
-            style={{ display: "inline-flex" }}
-          >
-            <ProfileMoreMenu
-              viewerUid={selfUid}
-              profileUid={otherUid}
-              // Bloquear/desbloquear NO se cablea aquí: el estado del hilo lo
-              // sincroniza `useSocialRelationship`, que es por donde pasan todos
-              // los bloqueos. Hacerlo también aquí sería escribir dos veces.
-              reportTarget={{
-                targetType: "conversation",
-                targetId: conversationId,
-                targetOwnerId: otherUid,
-              }}
-              // Área de clic holgada: sin relleno, solo el propio glifo
-              // respondía al toque, y en la pestaña del dock es diminuto.
-              buttonStyle={{ padding: "6px 9px", lineHeight: 1 }}
-              extraItems={({ close, itemStyle }) =>
-                selfUid ? (
-                  <ChatConversationMenuItems
-                    conversationId={conversationId}
-                    selfUid={selfUid}
-                    muted={(conversation?.mutedBy ?? []).includes(selfUid)}
-                    itemStyle={itemStyle}
-                    onCloseMenu={close}
-                    onRequestRemove={() => setRemoveOpen(true)}
-                  />
-                ) : null
-              }
-            />
-          </span>
+        {/* El canto duro se sustituye por un fundido: el mensaje que sube se
+            disuelve en vez de cortarse contra una línea de 1px. */}
+        {!minimized ? (
+          <BlurFade
+            side="top"
+            size={headerHeight + HEADER_FADE_OVERHANG}
+            blur={16}
+            // Arriba se queda macizo, que es donde caen el avatar y el nombre;
+            // el fundido empieza por debajo de ellos.
+            fade={HEADER_FADE_LENGTH}
+            // El MISMO color del fondo de la pestaña. Cualquier otro se leería
+            // como una banda encima en vez de como el fondo desvaneciéndose.
+            veil="rgba(11,11,13,0.86)"
+          />
         ) : null}
 
-        {/* Aviso de la pestaña minimizada: aro morado y el número de mensajes
-            sin abrir. Solo minimizada — desplegada los estás leyendo, y el
-            propio hilo los marca como leídos.
-            El contador viene del documento de la conversación, que se sigue
-            escuchando aunque la pestaña esté plegada (lo que se corta al plegar
-            es la suscripción a los MENSAJES, que es la cara). */}
-        <span
+        <div
           style={{
             position: "relative",
-            display: "inline-flex",
-            flexShrink: 0,
-            borderRadius: 999,
-            // El aro va por sombra y no por borde: un borde cambiaría el tamaño
-            // del avatar y movería toda la cabecera al aparecer.
-            boxShadow: showUnreadBadge ? "0 0 0 2px #a855f7" : "none",
-            transition: "box-shadow var(--duration-fast, 150ms) ease",
+            zIndex: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
           }}
         >
-          {/* Sin envolverlo en nada pulsable: el avatar ya trae su propio botón
-              y su propia cadena — live, historias y, si no hay ninguno, esto. */}
-          <LiveRingAvatar
-            entityId={otherUid ?? conversationId}
-            entityType="profile"
-            currentUserId={selfUid}
-            photoURL={profile?.photoURL ?? null}
-            displayName={displayName}
-            size={28}
-            onClick={handleOpenProfile}
-          />
-
-          {showUnreadBadge ? (
+          {/* A la IZQUIERDA del avatar. Se para la propagación para que abrir el
+              menú no minimice también la pestaña. */}
+          {otherUid ? (
             <span
-              className="vibra-dock-unread"
-              aria-label={tChat("unreadCount", { count: unread })}
-              style={{
-                position: "absolute",
-                top: -5,
-                insetInlineEnd: -5,
-                minWidth: 17,
-                height: 17,
-                padding: "0 4px",
-                borderRadius: 999,
-                background: "#a855f7",
-                color: "#fff",
-                fontSize: 10,
-                fontWeight: 700,
-                lineHeight: "17px",
-                textAlign: "center",
-                boxSizing: "border-box",
-                // Separa el número del avatar que tiene detrás.
-                border: "2px solid #0b0b0f",
-              }}
+              onClick={(e) => { if (!minimized) e.stopPropagation(); }}
+              style={{ display: "inline-flex" }}
             >
-              {unread > 99 ? "99+" : unread}
+              <ProfileMoreMenu
+                viewerUid={selfUid}
+                profileUid={otherUid}
+                // Bloquear/desbloquear NO se cablea aquí: el estado del hilo lo
+                // sincroniza `useSocialRelationship`, que es por donde pasan todos
+                // los bloqueos. Hacerlo también aquí sería escribir dos veces.
+                reportTarget={{
+                  targetType: "conversation",
+                  targetId: conversationId,
+                  targetOwnerId: otherUid,
+                }}
+                // Área de clic holgada: sin relleno, solo el propio glifo
+                // respondía al toque, y en la pestaña del dock es diminuto.
+                buttonStyle={{ padding: "6px 9px", lineHeight: 1 }}
+                extraItems={({ close, itemStyle }) =>
+                  selfUid ? (
+                    <ChatConversationMenuItems
+                      conversationId={conversationId}
+                      selfUid={selfUid}
+                      muted={(conversation?.mutedBy ?? []).includes(selfUid)}
+                      itemStyle={itemStyle}
+                      onCloseMenu={close}
+                      onRequestRemove={() => setRemoveOpen(true)}
+                    />
+                  ) : null
+                }
+              />
             </span>
           ) : null}
-        </span>
 
-        {/* El nombre lleva al perfil, siempre — a diferencia del avatar, que
-            primero atiende al live y a las historias. */}
-        <button
-          type="button"
-          onClick={handleOpenProfile}
-          disabled={!minimized && !profile?.handle}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            border: "none",
-            background: "transparent",
-            padding: 0,
-            textAlign: "start",
-            fontFamily: "inherit",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "#fff",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            cursor: profile?.handle ? "pointer" : "default",
-          }}
-        >
-          {displayName}
-        </button>
+          {/* Aviso de la pestaña minimizada: aro morado y el número de mensajes
+              sin abrir. Solo minimizada — desplegada los estás leyendo, y el
+              propio hilo los marca como leídos.
+              El contador viene del documento de la conversación, que se sigue
+              escuchando aunque la pestaña esté plegada (lo que se corta al plegar
+              es la suscripción a los MENSAJES, que es la cara). */}
+          <span
+            style={{
+              position: "relative",
+              display: "inline-flex",
+              flexShrink: 0,
+              borderRadius: 999,
+              // El aro va por sombra y no por borde: un borde cambiaría el tamaño
+              // del avatar y movería toda la cabecera al aparecer.
+              boxShadow: showUnreadBadge ? "0 0 0 2px #a855f7" : "none",
+              transition: "box-shadow var(--duration-fast, 150ms) ease",
+            }}
+          >
+            {/* Sin envolverlo en nada pulsable: el avatar ya trae su propio botón
+                y su propia cadena — live, historias y, si no hay ninguno, esto. */}
+            <LiveRingAvatar
+              entityId={otherUid ?? conversationId}
+              entityType="profile"
+              currentUserId={selfUid}
+              photoURL={profile?.photoURL ?? null}
+              displayName={displayName}
+              size={28}
+              onClick={handleOpenProfile}
+            />
 
-        {/* Minimizar: una raya, sin flecha. Estando minimizada NO se muestra —
-            para volver a abrir se toca la pestaña, así que un botón de
-            "expandir" sería redundante. Solo quedan avatar, nombre y tache. */}
-        {!minimized ? (
-          <IconButton label={tChat("minimizeChat")} size="sm" tone="bare" shape="square" style={{ placeItems: "center" }} onClick={(e) => { e.stopPropagation(); onToggleMinimize(); }}>
+            {showUnreadBadge ? (
+              <span
+                className="vibra-dock-unread"
+                aria-label={tChat("unreadCount", { count: unread })}
+                style={{
+                  position: "absolute",
+                  top: -5,
+                  insetInlineEnd: -5,
+                  minWidth: 17,
+                  height: 17,
+                  padding: "0 4px",
+                  borderRadius: 999,
+                  background: "#a855f7",
+                  color: "#fff",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  lineHeight: "17px",
+                  textAlign: "center",
+                  boxSizing: "border-box",
+                  // Separa el número del avatar que tiene detrás.
+                  border: "2px solid #0b0b0f",
+                }}
+              >
+                {unread > 99 ? "99+" : unread}
+              </span>
+            ) : null}
+          </span>
+
+          {/* El nombre lleva al perfil, siempre — a diferencia del avatar, que
+              primero atiende al live y a las historias. */}
+          <button
+            type="button"
+            onClick={handleOpenProfile}
+            disabled={!minimized && !profile?.handle}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              textAlign: "start",
+              fontFamily: "inherit",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#fff",
+              // El velo del cristal deja pasar algo de lo de detrás; esta sombra
+              // es el seguro para cuando lo de detrás es un globo morado.
+              textShadow: minimized ? "none" : "0 1px 3px rgba(0,0,0,0.65)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              cursor: profile?.handle ? "pointer" : "default",
+            }}
+          >
+            {displayName}
+          </button>
+
+          {/* Minimizar: una raya, sin flecha. Estando minimizada NO se muestra —
+              para volver a abrir se toca la pestaña, así que un botón de
+              "expandir" sería redundante. Solo quedan avatar, nombre y tache. */}
+          {!minimized ? (
+            <IconButton label={tChat("minimizeChat")} size="sm" tone="bare" shape="square" style={{ placeItems: "center" }} onClick={(e) => { e.stopPropagation(); onToggleMinimize(); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
+                <path
+                  d="M6 12H18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </IconButton>
+          ) : null}
+
+          <IconButton label={tCommon("close")} size="sm" tone="bare" shape="square" style={{ placeItems: "center" }} onClick={(e) => { e.stopPropagation(); onClose(); }}>
             <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
               <path
-                d="M6 12H18"
+                d="M6 6L18 18M18 6L6 18"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -317,28 +399,23 @@ export default function ChatDock({
               />
             </svg>
           </IconButton>
-        ) : null}
-
-        <IconButton label={tCommon("close")} size="sm" tone="bare" shape="square" style={{ placeItems: "center" }} onClick={(e) => { e.stopPropagation(); onClose(); }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
-            <path
-              d="M6 6L18 18M18 6L6 18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </IconButton>
+        </div>
       </div>
 
       {/* Minimizado: el hilo se queda montado pero sin suscripción ni alto. */}
       <div
         style={{
-          height: minimized ? 0 : DOCK_HEIGHT,
+          // El margen negativo mete el hilo POR DEBAJO de la cabecera, y el
+          // alto se lo devuelve: la pestaña sigue midiendo lo mismo que antes
+          // (cabecera + DOCK_HEIGHT), pero ahora los mensajes recorren también
+          // la franja de la cabecera y se ven pasar tras el cristal.
+          marginTop: minimized ? 0 : -headerHeight,
+          height: minimized ? 0 : DOCK_HEIGHT + headerHeight,
           overflow: "hidden",
+          // El margen se anima junto al alto; si no, al plegar el hilo bajaría
+          // de golpe mientras se encoge.
           transition:
-            "height var(--duration-normal, 250ms) var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1))",
+            "height var(--duration-normal, 250ms) var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1)), margin-top var(--duration-normal, 250ms) var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1))",
         }}
       >
         <ConversationThread
@@ -347,6 +424,9 @@ export default function ChatDock({
           profile={profile}
           selfUid={selfUid}
           active={!minimized}
+          // Lo que le tapa la cabecera superpuesta. Sin esto, el mensaje más
+          // antiguo se quedaría escondido detrás de ella al llegar arriba.
+          topInset={headerHeight}
           // El dock solo existe en laptop: aquí siempre hay cursor.
           pointerActions
         />

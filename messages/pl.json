@@ -3087,7 +3087,8 @@
     "unlike": "Usuń polubienie",
     "replyingTo": "Odpowiadasz {name}",
     "replyToSelf": "Ty",
-    "cancelReply": "Anuluj odpowiedź"
+    "cancelReply": "Anuluj odpowiedź",
+    "imageFailed": "Nie udało się wczytać obrazu"
   },
   "cf": {
     "mustBeAuthenticated": "Musisz być uwierzytelniony.",

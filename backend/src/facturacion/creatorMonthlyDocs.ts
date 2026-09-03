@@ -92,19 +92,63 @@ type AsientoConRetenciones = {
   };
 };
 
-/** `YYYY-MM` de una fecha, en UTC. */
-export function periodoDe(fecha: Date): string {
-  return `${fecha.getUTCFullYear()}-${String(fecha.getUTCMonth() + 1).padStart(2, "0")}`;
+/**
+ * 🇲🇽 Huso horario del centro de México, en horas detrás de UTC.
+ *
+ * ⚠️ **Es un desfase FIJO a propósito.** México eliminó el horario de verano en 2022 (Ley de
+ * los Husos Horarios), así que el centro del país es UTC-6 todo el año. Sin el ajuste, los
+ * periodos se cortaban en medianoche UTC — las 18:00 de aquí — y una venta de la tarde acababa
+ * documentada en el día siguiente (AUD-2).
+ *
+ * 🔁 Si México reinstaurara el horario de verano, esto deja de valer y hay que usar una
+ * biblioteca de husos.
+ */
+const HORAS_TRAS_UTC_MX = 6;
+
+/** Las partes de una fecha civil mexicana. */
+function partesEnMexico(fecha: Date): { a: number; m: number; d: number } {
+  const local = new Date(fecha.getTime() - HORAS_TRAS_UTC_MX * 3_600_000);
+  return { a: local.getUTCFullYear(), m: local.getUTCMonth() + 1, d: local.getUTCDate() };
 }
 
-/** Primer y último instante de un periodo `YYYY-MM`. */
+/** El instante en que empieza un día civil mexicano. */
+function inicioDeDiaMx(a: number, m: number, d: number): Date {
+  return new Date(Date.UTC(a, m - 1, d, HORAS_TRAS_UTC_MX, 0, 0));
+}
+
+/** `YYYY-MM` de una fecha, en hora de México. */
+export function periodoDe(fecha: Date): string {
+  const { a, m } = partesEnMexico(fecha);
+  return `${a}-${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * Primer y último instante de un periodo.
+ *
+ * Entiende dos formas, y la longitud decide cuál:
+ *
+ * - `YYYY-MM` — un mes natural. Es lo de la comisión y la constancia de retenciones, que son
+ *   periódicas por naturaleza y se agregan por mes.
+ * - `YYYY-MM-DD` — un día. Es lo de la **factura global**, que desde §A1 se emite a diario
+ *   para caber en el plazo de 24 horas de la RMF 2026 (regla 2.7.1.21).
+ *
+ * 🇲🇽 Los cortes son en **hora de México**, no UTC. Un periodo fiscal mexicano se mide con el
+ * calendario mexicano; cortar en medianoche UTC metía las ventas de la tarde en el día
+ * siguiente (AUD-2).
+ */
 export function rangoDelPeriodo(periodo: string): { desde: Date; hasta: Date } {
-  const [a, m] = periodo.split("-").map(Number);
+  const [a, m, d] = periodo.split("-").map(Number);
   if (!a || !m) throw new Error(`Periodo inválido: ${periodo}`);
-  return {
-    desde: new Date(Date.UTC(a, m - 1, 1, 0, 0, 0)),
-    hasta: new Date(Date.UTC(a, m, 1, 0, 0, 0)),
-  };
+  if (d) {
+    return { desde: inicioDeDiaMx(a, m, d), hasta: inicioDeDiaMx(a, m, d + 1) };
+  }
+  return { desde: inicioDeDiaMx(a, m, 1), hasta: inicioDeDiaMx(a, m + 1, 1) };
+}
+
+/** `YYYY-MM-DD` de una fecha, en hora de México. El periodo de una factura global. */
+export function diaDe(fecha: Date): string {
+  const { a, m, d } = partesEnMexico(fecha);
+  return `${a}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 /**
@@ -212,6 +256,19 @@ export async function asientosDelMes(
 }
 
 type FacturapiDoc = { id: string; uuid?: string; total?: number };
+
+/**
+ * Resumen mínimo que acompaña a un documento registrado.
+ *
+ * Se declara aquí, y no se importa `ResumenGlobal` de `globalInvoice.ts`, porque ese módulo ya
+ * importa de este: traerlo de vuelta crearía un ciclo.
+ */
+export type ResumenDeDocumento = {
+  creatorId: string;
+  periodo: string;
+  ventas: number;
+  base: number;
+};
 
 /**
  * 🚧 La constancia de retenciones no se emite hasta §A5 de `pendientesimpuestos.md`.
@@ -376,7 +433,16 @@ export async function registrarDocumento(params: {
   tipo: "comision" | "retenciones" | "liquidacion" | "global";
   facturapiId: string | null;
   uuid: string | null;
-  acumulado: AcumuladoMensual;
+  /**
+   * Lo que resume el documento. No es lo mismo en los cuatro:
+   *
+   * - Comisión, retenciones y liquidación llevan el `AcumuladoMensual` del creador.
+   * - La factura GLOBAL lleva su propio resumen del día (§A1), que agrupa ventas de
+   *   compradores distintos y no tiene comisión ni retenciones que contar.
+   *
+   * Se guarda tal cual para poder explicar un comprobante viejo sin recalcular nada.
+   */
+  acumulado: AcumuladoMensual | ResumenDeDocumento;
 }): Promise<void> {
   const id = `${params.creatorId}_${params.periodo}_${params.tipo}`;
   await db

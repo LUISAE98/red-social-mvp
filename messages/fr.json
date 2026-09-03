@@ -3087,7 +3087,8 @@
     "unlike": "Retirer le j’aime",
     "replyingTo": "Réponse à {name}",
     "replyToSelf": "Vous",
-    "cancelReply": "Annuler la réponse"
+    "cancelReply": "Annuler la réponse",
+    "imageFailed": "Impossible de charger l'image"
   },
   "cf": {
     "mustBeAuthenticated": "Tu dois être authentifié.",

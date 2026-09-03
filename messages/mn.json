@@ -3087,7 +3087,8 @@
     "unlike": "Таалагдсаныг болиулах",
     "replyingTo": "{name}-д хариу бичиж байна",
     "replyToSelf": "Та",
-    "cancelReply": "Хариуг цуцлах"
+    "cancelReply": "Хариуг цуцлах",
+    "imageFailed": "Зургийг ачаалж чадсангүй"
   },
   "cf": {
     "mustBeAuthenticated": "Та баталгаажсан байх шаардлагатай.",

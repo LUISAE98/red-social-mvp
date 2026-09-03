@@ -3087,7 +3087,8 @@
     "unlike": "Buang suka",
     "replyingTo": "Membalas {name}",
     "replyToSelf": "Anda",
-    "cancelReply": "Batalkan balasan"
+    "cancelReply": "Batalkan balasan",
+    "imageFailed": "Imej tidak dapat dimuatkan"
   },
   "cf": {
     "mustBeAuthenticated": "Anda perlu disahkan.",

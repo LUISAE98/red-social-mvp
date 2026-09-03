@@ -331,6 +331,7 @@ export default function ConversationThread({
   profile,
   selfUid,
   active = true,
+  topInset = 0,
   safeAreaBottom = false,
   pointerActions = false,
   onConversationCreated,
@@ -343,6 +344,13 @@ export default function ConversationThread({
   selfUid: string | null;
   /** false cuando el hilo está minimizado: corta las suscripciones. */
   active?: boolean;
+  /**
+   * Hueco que hay que reservar ARRIBA porque quien monta el hilo le puso una
+   * cabecera superpuesta. Mismo trato que el compositor, que va superpuesto
+   * abajo: los mensajes pasan por detrás y el relleno impide que el primero se
+   * quede escondido al llegar arriba del todo.
+   */
+  topInset?: number;
   /**
    * Reserva el safe-area inferior bajo el compositor. Solo lo quiere la pantalla
    * completa de celular; en la pestaña anclada de laptop no hay barra de sistema
@@ -878,7 +886,27 @@ export default function ConversationThread({
     return paths;
   }, [messages]);
 
-  const signedUrls = useDmImageUrls(conversationId, imagePaths);
+  const {
+    urls: signedUrls,
+    failed: failedImagePaths,
+    retry: retryImageUrls,
+  } = useDmImageUrls(conversationId, imagePaths);
+
+  /**
+   * Miniaturas que el navegador NO pudo pintar, por ruta.
+   *
+   * Es distinto de `failedImagePaths`, que son las que ni siquiera consiguieron
+   * URL. Aquí la URL llegó pero la descarga falló — caducada, red caída, archivo
+   * ya borrado. Las dos acaban en el mismo aviso, pero se detectan en sitios
+   * distintos y hay que llevar la cuenta por separado.
+   */
+  const [brokenImages, setBrokenImages] = useState<Record<string, true>>({});
+
+  /** Vuelve a intentar TODAS: se pide otra firma y se limpia lo roto. */
+  const reintentarImagenes = useCallback(() => {
+    setBrokenImages({});
+    retryImageUrls();
+  }, [retryImageUrls]);
 
   /**
    * Cuál de MIS mensajes lleva las palomitas de leído.
@@ -909,6 +937,21 @@ export default function ConversationThread({
       return image.thumbnailUrl ?? signedUrls[image.thumbnailPath] ?? null;
     }
     return image.url ?? signedUrls[image.path] ?? null;
+  }
+
+  /**
+   * ¿Esta imagen ya no va a poder verse?
+   *
+   * ⚠️ Lo importante es lo que NO cuenta como rota: que todavía no tenga URL.
+   * Mientras la firma está en vuelo eso es normal y toca esperar con el
+   * esqueleto. Solo es un fallo cuando la firma ya respondió sin ella
+   * (`failedImagePaths`) o cuando la descarga se cayó con la URL en la mano
+   * (`brokenImages`). Confundir las dos cosas es justo lo que dejaba el
+   * esqueleto girando para siempre.
+   */
+  function imagenRota(image: ChatImage): boolean {
+    if (brokenImages[image.thumbnailPath]) return true;
+    return !imageUrl(image, "thumb") && failedImagePaths.has(image.thumbnailPath);
   }
 
   /**
@@ -1607,7 +1650,44 @@ export default function ConversationThread({
                 llegaba y entonces aparecía de golpe, empujando el hilo. Ahora la
                 caja ya está reservada con la proporción real y lo único que pasa
                 al llegar es que la foto se funde encima. */}
-            {!message.isDeleted && message.image ? (
+            {!message.isDeleted && message.image && imagenRota(message.image) ? (
+              /* No se pudo pintar. Antes esto era el esqueleto girando para
+                 siempre, sin decir nada: un fallo temporal y uno permanente se
+                 veían igual, y en ninguno de los dos casos había forma de
+                 reintentar. Ahora el hueco explica qué pasó y ofrece la salida. */
+              <div
+                style={{
+                  ...imageBox(message.image),
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  padding: 12,
+                  boxSizing: "border-box",
+                  background: "rgba(255,255,255,0.06)",
+                  color: "rgba(255,255,255,0.6)",
+                  fontSize: 12,
+                  lineHeight: 1.35,
+                  textAlign: "center",
+                }}
+              >
+                <span>{tChat("imageFailed")}</span>
+                <TextButton
+                  tone="brand"
+                  size="sm"
+                  onClick={(e) => {
+                    // Igual que la miniatura: no debe desplegar el mensaje.
+                    e.stopPropagation();
+                    reintentarImagenes();
+                  }}
+                >
+                  {/* `retry` ya existía para el reenvío de un mensaje fallido.
+                      Es la misma palabra y la misma acción, así que se reusa. */}
+                  {tChat("retry")}
+                </TextButton>
+              </div>
+            ) : !message.isDeleted && message.image ? (
               <button
                 type="button"
                 onClick={(e) => {
@@ -1652,6 +1732,13 @@ export default function ConversationThread({
                     const path = message.image?.thumbnailPath;
                     if (path) setLoadedImages((prev) => ({ ...prev, [path]: true }));
                     if (stickToBottomRef.current) scrollToBottom(false);
+                  }}
+                  // La URL llegó pero la descarga falló: caducada, red caída o
+                  // archivo ya borrado. Sin esto, el esqueleto se quedaba
+                  // girando eternamente.
+                  onError={() => {
+                    const path = message.image?.thumbnailPath;
+                    if (path) setBrokenImages((prev) => ({ ...prev, [path]: true }));
                   }}
                   style={{
                     position: "absolute",
@@ -2509,7 +2596,7 @@ export default function ConversationThread({
           // sin él, el último mensaje quedaría escondido debajo. Se mide en
           // vivo porque el compositor cambia de alto (campo que crece, aviso de
           // error, botones de solicitud).
-          padding: `10px 14px ${composerHeight + 10}px`,
+          padding: `${topInset + 10}px 14px ${composerHeight + 10}px`,
         }}
       >
         {renderBody()}

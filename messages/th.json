@@ -3087,7 +3087,8 @@
     "unlike": "เลิกถูกใจ",
     "replyingTo": "กำลังตอบกลับ {name}",
     "replyToSelf": "คุณ",
-    "cancelReply": "ยกเลิกการตอบกลับ"
+    "cancelReply": "ยกเลิกการตอบกลับ",
+    "imageFailed": "โหลดรูปภาพไม่ได้"
   },
   "cf": {
     "mustBeAuthenticated": "คุณต้องผ่านการยืนยันตัวตน",

@@ -3087,7 +3087,8 @@
     "unlike": "Elimină aprecierea",
     "replyingTo": "Răspuns către {name}",
     "replyToSelf": "Tu",
-    "cancelReply": "Anulează răspunsul"
+    "cancelReply": "Anulează răspunsul",
+    "imageFailed": "Imaginea nu a putut fi încărcată"
   },
   "cf": {
     "mustBeAuthenticated": "Trebuie să fii autentificat.",

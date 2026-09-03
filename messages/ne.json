@@ -3087,7 +3087,8 @@
     "unlike": "लाइक हटाउनुहोस्",
     "replyingTo": "{name} लाई जवाफ दिँदै",
     "replyToSelf": "तपाईं",
-    "cancelReply": "जवाफ रद्द गर्नुहोस्"
+    "cancelReply": "जवाफ रद्द गर्नुहोस्",
+    "imageFailed": "तस्बिर लोड गर्न सकिएन"
   },
   "cf": {
     "mustBeAuthenticated": "तपाईं प्रमाणित हुनुपर्छ।",

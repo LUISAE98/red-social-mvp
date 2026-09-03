@@ -3087,7 +3087,8 @@
     "unlike": "Vind ik niet meer leuk",
     "replyingTo": "Antwoord aan {name}",
     "replyToSelf": "Jij",
-    "cancelReply": "Antwoord annuleren"
+    "cancelReply": "Antwoord annuleren",
+    "imageFailed": "De afbeelding kon niet worden geladen"
   },
   "cf": {
     "mustBeAuthenticated": "Je moet geverifieerd zijn.",

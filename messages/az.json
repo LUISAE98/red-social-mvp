@@ -3087,7 +3087,8 @@
     "unlike": "Bəyənməni götür",
     "replyingTo": "{name} adlı şəxsə cavab verilir",
     "replyToSelf": "Sən",
-    "cancelReply": "Cavabı ləğv et"
+    "cancelReply": "Cavabı ləğv et",
+    "imageFailed": "Şəkil yüklənmədi"
   },
   "cf": {
     "mustBeAuthenticated": "Kimliyin doğrulanmalıdır.",

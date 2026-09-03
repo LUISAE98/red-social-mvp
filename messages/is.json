@@ -3087,7 +3087,8 @@
     "unlike": "Fjarlægja líkar við",
     "replyingTo": "Svarar {name}",
     "replyToSelf": "Þú",
-    "cancelReply": "Hætta við svar"
+    "cancelReply": "Hætta við svar",
+    "imageFailed": "Ekki tókst að hlaða myndina"
   },
   "cf": {
     "mustBeAuthenticated": "Þú þarft að vera auðkenndur.",

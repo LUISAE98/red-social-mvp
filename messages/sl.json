@@ -3087,7 +3087,8 @@
     "unlike": "Odstrani všeček",
     "replyingTo": "Odgovor uporabniku {name}",
     "replyToSelf": "Ti",
-    "cancelReply": "Prekliči odgovor"
+    "cancelReply": "Prekliči odgovor",
+    "imageFailed": "Slike ni bilo mogoče naložiti"
   },
   "cf": {
     "mustBeAuthenticated": "Biti moraš overjen.",

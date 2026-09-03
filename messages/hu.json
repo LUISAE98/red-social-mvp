@@ -3087,7 +3087,8 @@
     "unlike": "Tetszik visszavonása",
     "replyingTo": "Válasz neki: {name}",
     "replyToSelf": "Te",
-    "cancelReply": "Válasz megszakítása"
+    "cancelReply": "Válasz megszakítása",
+    "imageFailed": "A kép nem töltődött be"
   },
   "cf": {
     "mustBeAuthenticated": "Hitelesítve kell lenned.",

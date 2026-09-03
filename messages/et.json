@@ -3087,7 +3087,8 @@
     "unlike": "Eemalda meeldimine",
     "replyingTo": "Vastan kasutajale {name}",
     "replyToSelf": "Sina",
-    "cancelReply": "Tühista vastamine"
+    "cancelReply": "Tühista vastamine",
+    "imageFailed": "Pilti ei õnnestunud laadida"
   },
   "cf": {
     "mustBeAuthenticated": "Pead olema autenditud.",

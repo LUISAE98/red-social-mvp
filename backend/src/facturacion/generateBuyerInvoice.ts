@@ -21,17 +21,23 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import {
-  facturapiFetch,
   facturapiDownload,
   facturapiTestKey,
   facturapiUserKey,
   type FacturapiAuth,
 } from "./facturapiClient";
 import { getOrganizationTestKey } from "./facturapiOrganizations";
-import { productForType } from "./satProductCatalog";
 import { FORMA_PAGO } from "./formaDePago";
 import { leerImporteFiscal } from "./importeFiscal";
-import { compraLibre } from "./globalInvoice";
+import {
+  emitirNominativa,
+  facturapiErrorMessage,
+  liberarReservaNominativa,
+  reservarParaNominativa,
+  type CompraNormalizada,
+  type FacturaEmitida,
+} from "./emitirNominativa";
+import { encolarFactura } from "./colaDeFacturas";
 import { consumeQuota } from "../quotas";
 
 if (admin.apps.length === 0) {
@@ -40,31 +46,11 @@ if (admin.apps.length === 0) {
 const db = admin.firestore();
 const REGION = "us-central1";
 
-// Tasa de IVA de México (el CFDI es solo para México). El comprador pagó base+IVA.
-const IVA_RATE = 0.16;
-
 /** Un CFDI con más conceptos que esto no es una factura, es un error. */
 const MAX_COMPRAS_POR_FACTURA = 50;
 
 /** Tope de creadores distintos en una sola petición: cada uno cuesta una factura. */
 const MAX_CREADORES_POR_PETICION = 10;
-
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
-
-function facturapiErrorMessage(raw: string): string {
-  try {
-    const j = JSON.parse(raw) as { message?: string };
-    if (j?.message) return j.message;
-  } catch {
-    // no-op
-  }
-  return raw.slice(0, 200);
-}
-
-type FacturapiInvoice = { id: string; uuid?: string; total?: number; verification_url?: string };
-type FacturapiCustomer = { id?: string };
 
 /** Motivo por el que el grupo de un creador no se pudo facturar. */
 type MotivoNoFacturable =
@@ -73,100 +59,6 @@ type MotivoNoFacturable =
   | "error_timbrado"
   /** La factura global se le adelantó mientras se preparaba esta. Ver §A3 y §B7. */
   | "ya_en_global";
-
-type CompraNormalizada = {
-  id: string;
-  creatorId: string;
-  totalMxn: number;
-  type: string;
-};
-
-/**
- * Da de alta al comprador como cliente en la organización de un creador, o reutiliza el alta
- * previa. Los clientes de Facturapi son POR ORGANIZACIÓN: el que existe en la org de Vibra no
- * sirve para timbrar en la del creador.
- */
-async function asegurarClienteEnOrg(params: {
-  buyerId: string;
-  billingProfileId: string;
-  creatorId: string;
-  orgKey: string;
-  perfil: Record<string, unknown>;
-}): Promise<string> {
-  const { buyerId, billingProfileId, creatorId, orgKey, perfil } = params;
-  const ref = db.doc(`users/${buyerId}/billingProfiles/${billingProfileId}`);
-  const porCreador = (perfil.facturapiCustomerByCreator ?? {}) as Record<string, string>;
-  const previo = String(porCreador[creatorId] ?? "").trim();
-  if (previo) return previo;
-
-  const email = String(perfil.email ?? "").trim();
-  const body: Record<string, unknown> = {
-    legal_name: String(perfil.legalName ?? ""),
-    tax_id: String(perfil.taxId ?? ""),
-    tax_system: String(perfil.taxSystem ?? ""),
-    address: { zip: String(perfil.zip ?? "") },
-    ...(email ? { email } : {}),
-  };
-  const auth: FacturapiAuth = { orgKey };
-  const res = await facturapiFetch<FacturapiCustomer>("/customers", { method: "POST", body, auth });
-  if (!res.ok || !res.data?.id) {
-    throw new Error(`alta de cliente falló: ${facturapiErrorMessage(res.ok ? "" : res.error)}`);
-  }
-  const customerId = res.data.id;
-  await ref.set(
-    { facturapiCustomerByCreator: { ...porCreador, [creatorId]: customerId } },
-    { merge: true }
-  );
-  return customerId;
-}
-
-/**
- * Aparta las compras para la factura nominativa, antes de timbrarla.
- *
- * 🚨 Es la otra mitad del candado de §A3. El primer filtro, al leer las compras, mira que
- * estén libres; pero entre esa lectura y el timbrado pasan varias llamadas de red —alta de
- * cliente en Facturapi, lectura del perfil fiscal— y en ese hueco el proceso mensual puede
- * meter la compra en la factura global. Sin esta reserva, la venta acabaría en los dos
- * comprobantes, porque los dos caminos timbraban primero y marcaban después.
- *
- * Devuelve las rutas realmente apartadas. Si no salen todas, no se timbra nada de ese creador.
- */
-async function reservarParaNominativa(paths: string[]): Promise<string[]> {
-  return db.runTransaction(async (tx) => {
-    const refs = paths.map((p) => db.doc(p));
-    const snaps = await Promise.all(refs.map((r) => tx.get(r)));
-    const ok: string[] = [];
-    snaps.forEach((snap, n) => {
-      if (!compraLibre(snap.data())) return;
-      tx.set(
-        refs[n],
-        { nominativaEnCurso: { reservadoEn: admin.firestore.FieldValue.serverTimestamp() } },
-        { merge: true }
-      );
-      ok.push(paths[n]);
-    });
-    return ok;
-  });
-}
-
-/**
- * Suelta la reserva. Se llama cuando el timbrado falla o cuando no se consiguieron todas.
- *
- * Sin esto, un fallo dejaría la compra apartada para siempre: ni el comprador podría reintentar
- * ni la global la recogería, y nadie lo notaría hasta que alguien reclamara su factura.
- */
-async function liberarReservaNominativa(paths: string[]): Promise<void> {
-  if (paths.length === 0) return;
-  const batch = db.batch();
-  for (const p of paths) {
-    batch.set(
-      db.doc(p),
-      { nominativaEnCurso: admin.firestore.FieldValue.delete() },
-      { merge: true }
-    );
-  }
-  await batch.commit();
-}
 
 export const generateBuyerInvoice = onCall(
   { region: REGION, cors: true, secrets: [facturapiTestKey, facturapiUserKey] },
@@ -198,11 +90,6 @@ export const generateBuyerInvoice = onCall(
     if (!profSnap.exists) throw new HttpsError("not-found", "Perfil de facturación no encontrado.");
     const prof = profSnap.data() ?? {};
     const usoCfdi = String(prof.usoCfdi ?? "G03").trim();
-
-    // 2) Tasa de cambio (para el fallback USD→MXN).
-    const ratesSnap = await db.doc("config/exchangeRates").get();
-    const rates = (ratesSnap.data()?.rates ?? {}) as Record<string, number>;
-    const rMxn = Number(rates.MXN);
 
     // 3) Leer y validar las compras, y AGRUPARLAS POR CREADOR.
     const porCreador = new Map<string, CompraNormalizada[]>();
@@ -243,12 +130,29 @@ export const generateBuyerInvoice = onCall(
             : "Una de estas compras ya quedó incluida en la factura global del creador. Todavía puedes tener tu factura, pero hay que emitirla a mano, escríbenos y la preparamos."
         );
       }
-      // Otra petición de factura va por delante con esta compra.
+      /**
+       * Otra petición de factura va por delante con esta compra. Los dos casos se cuentan
+       * distinto porque el comprador puede hacer cosas muy distintas con cada respuesta.
+       *
+       * `emitiendo` dura segundos y se arregla esperando. `en_cola` puede durar semanas y no
+       * depende de él: es el creador quien tiene que subir su sello. Decirle «dale un momento»
+       * en ese caso lo dejaría recargando la pantalla para siempre.
+       */
       if (p.nominativaEnCurso) {
-        throw new HttpsError(
-          "failed-precondition",
-          "Ya hay una factura de esta compra en camino, dale un momento."
-        );
+        const estado = (p.nominativaEnCurso as { estado?: string }).estado;
+        /**
+         * 🔓 `liberada` NO bloquea. Es una compra que se sacó de una factura global cancelando
+         *    con motivo 04 (§B7) **para que este comprador la facture**. Rechazarla aquí haría
+         *    inútil todo ese trámite.
+         */
+        if (estado !== "liberada") {
+          throw new HttpsError(
+            "failed-precondition",
+            estado === "en_cola"
+              ? "Tu factura de esta compra ya está guardada, esperando a que el creador suba su sello digital. Se emite sola en cuanto lo haga."
+              : "Ya hay una factura de esta compra en camino, dale un momento."
+          );
+        }
       }
 
       const creatorId = String(p.creatorId ?? "").trim();
@@ -268,36 +172,39 @@ export const generateBuyerInvoice = onCall(
         formaPago = guardada || FORMA_PAGO.POR_DEFINIR;
       }
       /**
-       * 💱 Los PESOS de esta compra.
+       * 💱 Los PESOS de esta compra, TAL CUAL se congelaron el día de la venta.
        *
-       * Salen del importe congelado el día de la venta (`fiscalMxn`), con el tipo de cambio que
-       * de verdad se le aplicó a este comprador. Reexpedir la factura dentro de dos años da el
-       * mismo número.
+       * Con el tipo de cambio que de verdad se le aplicó a este comprador, así que reexpedir la
+       * factura dentro de dos años da el mismo número.
        *
-       * 🚨 La rama anterior leía `intent.settlementCurrency === "MXN"` y **nunca se cumplía**:
-       * `settlementCurrency` es siempre `"USD"` desde el corte a la denominación en dólares
-       * (`tax/composeCharge.ts`). Era código muerto de cuando la denominación era en pesos, y
-       * todas las facturas caían al respaldo de la tabla sin que se notara.
+       * 🚨 SIN CONGELADO NO SE FACTURA, y no se aproxima (AUD-3).
        *
-       * El respaldo se queda **solo para las ventas anteriores al congelado**, hasta que el
-       * backfill las alcance. Ver `pendientesimpuestos.md` §A0.
+       *    Aquí había un respaldo que convertía con la tasa de HOY. Tenía sentido como puente
+       *    para las ventas anteriores al congelado, pero el backfill ya no dejó ninguna y las
+       *    nuevas congelan solas. Hoy ese camino solo puede dispararse cuando el congelado
+       *    falló — y entonces metería un importe aproximado en un CFDI de verdad, que es
+       *    exactamente lo que §A0 vino a prohibir.
+       *
+       *    Negarse es más ruidoso y más correcto: una factura que no sale se arregla; una
+       *    factura timbrada por el importe equivocado, no.
        */
       const congelado = leerImporteFiscal(p.fiscalMxn);
-      let totalMxn: number;
-      if (congelado) {
-        totalMxn = congelado.total;
-      } else {
-        const grossUsd = Number(p.grossAmount) || 0;
-        const taxUsd = Number(p.taxAmount) || 0;
-        if (!Number.isFinite(rMxn) || rMxn <= 0) {
-          throw new HttpsError("failed-precondition", "No hay tasa de cambio disponible para facturar esta compra.");
-        }
-        totalMxn = round2((grossUsd + taxUsd) * rMxn);
+      if (!congelado) {
+        logger.error("generateBuyerInvoice sin_importe_congelado", { uid, purchaseId: pid, creatorId });
+        throw new HttpsError(
+          "failed-precondition",
+          "No podemos facturar una de estas compras ahora mismo, escríbenos y lo resolvemos."
+        );
       }
-      if (!(totalMxn > 0)) throw new HttpsError("failed-precondition", "Monto inválido para facturar.");
 
       const lista = porCreador.get(creatorId) ?? [];
-      lista.push({ id: pid, creatorId, totalMxn, type: String(p.type ?? "") });
+      lista.push({
+        id: pid,
+        creatorId,
+        baseMxn: congelado.base,
+        ivaMxn: congelado.iva,
+        type: String(p.type ?? ""),
+      });
       porCreador.set(creatorId, lista);
     }
 
@@ -314,13 +221,7 @@ export const generateBuyerInvoice = onCall(
     }
 
     // 4) Una factura por creador.
-    const emitidas: Array<{
-      creatorId: string;
-      invoiceId: string;
-      uuid: string | null;
-      total: number | null;
-      purchaseIds: string[];
-    }> = [];
+    const emitidas: FacturaEmitida[] = [];
     const noFacturables: Array<{ creatorId: string; motivo: MotivoNoFacturable; detalle?: string }> = [];
 
     for (const [creatorId, compras] of porCreador) {
@@ -329,12 +230,26 @@ export const generateBuyerInvoice = onCall(
       const fiscal = fiscalSnap.exists ? fiscalSnap.data() ?? {} : {};
       const orgId = String(fiscal.facturapiOrgId ?? "").trim();
       const csdStatus = String(fiscal.csdStatus ?? "none");
-      if (!orgId) {
-        noFacturables.push({ creatorId, motivo: "sin_datos_fiscales" });
-        continue;
-      }
-      if (csdStatus !== "valid") {
-        noFacturables.push({ creatorId, motivo: "sin_sello" });
+      /**
+       * 🕓 Sin emisor posible → A LA COLA, no a la basura (`pendientesimpuestos.md` §B5).
+       *
+       * Antes esto solo se reportaba y la petición se perdía. Peor: la venta seguía contando
+       * como no facturada, así que entraba en la factura global, y cuando el creador subía su
+       * sello ya no se le podía emitir sin cancelar la global con motivo 04.
+       *
+       * Encolar APARTA las compras, y con eso la global deja de verlas.
+       */
+      if (!orgId || csdStatus !== "valid") {
+        const motivo = !orgId ? "sin_datos_fiscales" : "sin_sello";
+        const encolada = await encolarFactura({
+          buyerId: uid,
+          creatorId,
+          billingProfileId,
+          purchaseIds: compras.map((c) => c.id),
+          motivo,
+        });
+        // Si no se pudo apartar ninguna, es que se las llevó la global mientras tanto.
+        noFacturables.push({ creatorId, motivo: encolada ? motivo : "ya_en_global" });
         continue;
       }
 
@@ -350,7 +265,7 @@ export const generateBuyerInvoice = onCall(
        * facturando compras de cinco creadores distintos.
        */
       const paths = compras.map((c) => `users/${uid}/purchases/${c.id}`);
-      const reservadas = await reservarParaNominativa(paths);
+      const reservadas = await reservarParaNominativa(paths, "emitiendo");
       if (reservadas.length !== paths.length) {
         // Lo poco que se haya apartado se suelta: nadie va a timbrarlo en esta pasada.
         await liberarReservaNominativa(reservadas);
@@ -359,111 +274,17 @@ export const generateBuyerInvoice = onCall(
       }
 
       try {
-        const orgKey = await getOrganizationTestKey(orgId);
-        const auth: FacturapiAuth = { orgKey };
-        const customerId = await asegurarClienteEnOrg({
+        const inv = await emitirNominativa({
           buyerId: uid,
-          billingProfileId,
           creatorId,
-          orgKey,
+          orgId,
+          compras,
+          billingProfileId,
           perfil: prof,
+          usoCfdi,
+          formaPago: formaPago ?? FORMA_PAGO.POR_DEFINIR,
         });
-
-        const items = compras.map((c) => {
-          // El total ya incluye IVA; la base (precio del concepto) = total / 1.16.
-          const baseMxn = round2(c.totalMxn / (1 + IVA_RATE));
-          const prod = productForType(c.type);
-          return {
-            quantity: 1,
-            product: {
-              description: prod.description,
-              product_key: prod.productKey,
-              unit_key: prod.unitKey,
-              price: baseMxn, // sin IVA; Facturapi calcula el 16% encima
-              tax_included: false,
-              taxes: [{ type: "IVA", rate: IVA_RATE, factor: "Tasa" }],
-            },
-          };
-        });
-
-        const res = await facturapiFetch<FacturapiInvoice>("/invoices", {
-          method: "POST",
-          body: {
-            customer: customerId,
-            items,
-            use: usoCfdi,
-            /**
-             * 🧾 Cómo pagó de verdad, no una suposición.
-             *
-             * Lo guardó el webhook al confirmarse el pago, que es el único momento en que
-             * se sabe. Si falta —una compra anterior al 2026-08-29, o un cargo que llegó
-             * sin expandir— va `99`, «por definir»: decir que no consta es cierto, decir
-             * «tarjeta de crédito» sin saberlo no.
-             */
-            payment_form: formaPago,
-            payment_method: "PUE", // Pago en una sola exhibición
-            currency: "MXN",
-          },
-          auth,
-        });
-        if (!res.ok) throw new Error(facturapiErrorMessage(res.error));
-        const inv = res.data;
-
-        // Correo al comprador. Si falla NO se tira: la factura ya está timbrada.
-        const email = String(prof.email ?? "").trim();
-        let emailSentTo: string | null = null;
-        if (email) {
-          const mailRes = await facturapiFetch(`/invoices/${inv.id}/email`, {
-            method: "POST",
-            body: { email: [email] },
-            auth,
-          });
-          if (mailRes.ok) emailSentTo = email;
-          else logger.warn("generateBuyerInvoice email_failed", { invoiceId: inv.id, error: String(mailRes.error).slice(0, 200) });
-        }
-
-        const usados = compras.map((c) => c.id);
-        const now = admin.firestore.FieldValue.serverTimestamp();
-        await db.collection("users").doc(uid).collection("invoices").doc(inv.id).set({
-          buyerId: uid,
-          // Quién EMITE: el creador. Vibra solo timbra por su cuenta.
-          issuerCreatorId: creatorId,
-          facturapiOrgId: orgId,
-          facturapiInvoiceId: inv.id,
-          uuid: inv.uuid ?? null,
-          total: typeof inv.total === "number" ? inv.total : null,
-          currency: "MXN",
-          status: "valid",
-          purchaseIds: usados,
-          billingProfileId,
-          verificationUrl: inv.verification_url ?? null,
-          sentTo: emailSentTo,
-          createdAt: now,
-        });
-
-        // Confirmada: la reserva se convierte en la marca definitiva y se limpia.
-        const batch = db.batch();
-        for (const pid of usados) {
-          batch.set(
-            db.doc(`users/${uid}/purchases/${pid}`),
-            {
-              invoiced: true,
-              invoiceId: inv.id,
-              invoiceUuid: inv.uuid ?? null,
-              nominativaEnCurso: admin.firestore.FieldValue.delete(),
-            },
-            { merge: true }
-          );
-        }
-        await batch.commit();
-
-        emitidas.push({
-          creatorId,
-          invoiceId: inv.id,
-          uuid: inv.uuid ?? null,
-          total: typeof inv.total === "number" ? inv.total : null,
-          purchaseIds: usados,
-        });
+        emitidas.push(inv);
       } catch (err) {
         // Un creador que falla no tumba a los demás: se reporta y se sigue.
         const detalle = err instanceof Error ? err.message : String(err);

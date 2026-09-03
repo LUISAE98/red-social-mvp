@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { TextButton } from "@/components/ui";
+import { BlurFade, TextButton } from "@/components/ui";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/app/providers";
 import { useNotifications } from "@/lib/hooks/useNotifications";
@@ -20,6 +20,14 @@ import ExperienceRequestsInbox from "./ExperienceRequestsInbox";
 interface NotificationBellProps {
   active?: boolean;
 }
+
+/**
+ * Cuánto BAJA el cristal de la cabecera dentro de la lista, y cuánto dura el
+ * fundido. Ahí es donde la notificación que sube se disuelve en vez de cortarse
+ * contra una línea de 1px.
+ */
+const HEAD_FADE_OVERHANG = 26;
+const HEAD_FADE_LENGTH = 40;
 
 interface PanelPos {
   top: number;
@@ -67,6 +75,32 @@ export default function NotificationBell({ active }: NotificationBellProps) {
   const [pos, setPos] = useState<PanelPos>({ top: 64, right: 16 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Alto del bloque de arriba (título + subnav, cuando lo hay). Va SUPERPUESTO
+   * a la lista —las notificaciones tienen que pasarle por detrás para que el
+   * desenfoque tenga algo que difuminar—, así que la lista necesita ese hueco
+   * arriba. Se mide en vivo porque el subnav aparece y desaparece.
+   */
+  const topRef = useRef<HTMLDivElement>(null);
+  const [topHeight, setTopHeight] = useState(48);
+
+  useEffect(() => {
+    const node = topRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver((entries) => {
+      const border = entries[0]?.borderBoxSize?.[0]?.blockSize;
+      const next = Math.ceil(border ?? node.getBoundingClientRect().height);
+      // Cero significa que está oculta, no que mida cero. Guardarlo dejaría el
+      // hueco del hilo en nada y el efecto sin tamaño hasta la siguiente medida.
+      if (next > 0) setTopHeight(next);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+    // El panel se monta y se desmonta al abrir y cerrar, así que el nodo es
+    // otro cada vez y hay que volver a observarlo.
+  }, [open]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
@@ -209,25 +243,42 @@ export default function NotificationBell({ active }: NotificationBellProps) {
               style={{
                 top: pos.top,
                 insetInlineEnd: pos.right,
+                // El hueco que hay que reservarle a la capa de arriba, que ya no
+                // ocupa sitio en el flujo.
+                ["--notif-top" as string]: `${topHeight}px`,
                 ...(detailOpen ? { display: "none" } : {}),
               }}
             >
-              <div className="notifPanelHead">
-                <span className="notifPanelTitle">{t("title")}</span>
-                {unreadCount > 0 ? (
-                  <TextButton tone="brand" className="notifMarkAll" onClick={() => markAllRead()}>
-                    {t("markAllRead")}
-                  </TextButton>
+              {/* Título y subnav flotan SOBRE la lista, y el canto duro entre
+                  ellos se sustituye por un fundido: la notificación que sube se
+                  disuelve en vez de cortarse contra una línea de 1px. */}
+              <div className="notifPanelTop" ref={topRef}>
+                <BlurFade
+                  side="top"
+                  size={topHeight + HEAD_FADE_OVERHANG}
+                  fade={HEAD_FADE_LENGTH}
+                  blur={16}
+                  // El MISMO color del fondo del panel.
+                  veil="rgba(13,13,13,0.86)"
+                />
+                <div className="notifPanelHead">
+                  <span className="notifPanelTitle">{t("title")}</span>
+                  {unreadCount > 0 ? (
+                    <TextButton tone="brand" className="notifMarkAll" onClick={() => markAllRead()}>
+                      {t("markAllRead")}
+                    </TextButton>
+                  ) : null}
+                </div>
+                {showSubnav ? (
+                  <NotificationTabs
+                    activeTab={activeTab}
+                    onChange={changeTab}
+                    compact
+                    counts={{ social: badgeCount, experiences: experienceCount }}
+                  />
                 ) : null}
               </div>
-              {showSubnav ? (
-                <NotificationTabs
-                  activeTab={activeTab}
-                  onChange={changeTab}
-                  compact
-                  counts={{ social: badgeCount, experiences: experienceCount }}
-                />
-              ) : null}
+
               <div className="notifPanelScroll">
                 <div
                   className="notifPanelSlide"
@@ -306,12 +357,32 @@ export default function NotificationBell({ active }: NotificationBellProps) {
           overflow: hidden;
           z-index: 100000;
         }
+        /* Fuera del flujo y por encima de la lista: es lo que permite que las
+           notificaciones le pasen por detrás. El hueco lo repone el relleno
+           superior del scroll. */
+        .notifPanelTop {
+          position: absolute;
+          top: 0;
+          inset-inline-start: 0;
+          inset-inline-end: 0;
+          z-index: 2;
+        }
         .notifPanelHead {
+          position: relative;
+          /* Por encima del cristal, que va detrás con z-index 0. */
+          z-index: 1;
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 14px 16px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        /* El subnav es compartido con la página /notifications, donde su raya sí
+           hace falta. Aquí la sustituye el fundido, así que se quita SOLO dentro
+           del panel. La barra selectora blanca se queda: eso no es un canto. */
+        .notifPanel :global(.ntabs) {
+          position: relative;
+          z-index: 1;
+          border-bottom: none;
         }
         .notifPanelTitle {
           font-size: 16px;
@@ -323,7 +394,11 @@ export default function NotificationBell({ active }: NotificationBellProps) {
           text-decoration: underline;
         }
         .notifPanelScroll {
-          max-height: min(60vh, 460px);
+          /* El hueco de la capa flotante, y otro tanto de alto para que el panel
+             siga midiendo lo mismo y se sigan viendo tantas notificaciones como
+             antes. */
+          padding-top: var(--notif-top, 0px);
+          max-height: calc(min(60vh, 460px) + var(--notif-top, 0px));
           overflow-y: auto;
           overflow-x: hidden;
         }

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import {
-  ventasSinFacturarDelMes,
+  ventasSinFacturarDelPeriodo,
   reservarVentasParaGlobal,
   confirmarVentasEnGlobal,
   ventasAtascadas,
@@ -50,7 +50,7 @@ async function sembrarVenta(
     ...(opts.congelada === false
       ? {}
       : { fiscalMxn: { total: base + iva, base, iva, tipoCambio: 18.5, fuente: "cobro" } }),
-    occurredAt: admin.firestore.Timestamp.fromDate(new Date(Date.UTC(2026, 6, 15))),
+    occurredAt: admin.firestore.Timestamp.fromDate(new Date(Date.UTC(2026, 6, 15, 18, 0, 0))),
   });
   return `users/${buyerId}/purchases/${id}`;
 }
@@ -61,7 +61,7 @@ describe("qué entra en la factura global", () => {
     await sembrarVenta(creatorId);
     await sembrarVenta(creatorId);
 
-    const { ventas } = await ventasSinFacturarDelMes(creatorId, PERIODO);
+    const { ventas } = await ventasSinFacturarDelPeriodo(creatorId, PERIODO);
     expect(ventas).toHaveLength(2);
 
     const g = agruparGlobal(creatorId, PERIODO, ventas);
@@ -75,7 +75,7 @@ describe("qué entra en la factura global", () => {
     await sembrarVenta(creatorId);
     await sembrarVenta(creatorId, { invoiced: true });
 
-    const { ventas } = await ventasSinFacturarDelMes(creatorId, PERIODO);
+    const { ventas } = await ventasSinFacturarDelPeriodo(creatorId, PERIODO);
     expect(ventas).toHaveLength(1);
   });
 
@@ -84,7 +84,7 @@ describe("qué entra en la factura global", () => {
     await sembrarVenta(creatorId);
     await sembrarVenta(creatorId, { congelada: false });
 
-    const { ventas, sinCongelar } = await ventasSinFacturarDelMes(creatorId, PERIODO);
+    const { ventas, sinCongelar } = await ventasSinFacturarDelPeriodo(creatorId, PERIODO);
     expect(ventas).toHaveLength(1);
     expect(sinCongelar).toBe(1);
   });
@@ -96,7 +96,7 @@ describe("la marca de la global", () => {
     const creatorId = newCreator();
     const path = await sembrarVenta(creatorId);
 
-    const antes = await ventasSinFacturarDelMes(creatorId, PERIODO);
+    const antes = await ventasSinFacturarDelPeriodo(creatorId, PERIODO);
     expect(antes.ventas).toHaveLength(1);
 
     await reservarVentasParaGlobal([path], PERIODO);
@@ -107,7 +107,7 @@ describe("la marca de la global", () => {
       uuid: "UUID-1",
     });
 
-    const despues = await ventasSinFacturarDelMes(creatorId, PERIODO);
+    const despues = await ventasSinFacturarDelPeriodo(creatorId, PERIODO);
     expect(despues.ventas).toHaveLength(0);
   });
 
@@ -138,7 +138,7 @@ describe("la marca de la global", () => {
 
     await reservarVentasParaGlobal([path], PERIODO);
 
-    const { ventas } = await ventasSinFacturarDelMes(creatorId, PERIODO);
+    const { ventas } = await ventasSinFacturarDelPeriodo(creatorId, PERIODO);
     expect(ventas).toHaveLength(0);
   });
 
@@ -205,7 +205,7 @@ describe("la marca de la global", () => {
       { merge: true }
     );
 
-    const { ventas } = await ventasSinFacturarDelMes(creatorId, PERIODO);
+    const { ventas } = await ventasSinFacturarDelPeriodo(creatorId, PERIODO);
     expect(ventas).toHaveLength(1);
     expect(ventas[0].path).not.toBe(path);
   });

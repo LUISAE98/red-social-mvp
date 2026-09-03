@@ -3087,7 +3087,8 @@
     "unlike": "Noņemt patīk",
     "replyingTo": "Atbilde lietotājam {name}",
     "replyToSelf": "Tu",
-    "cancelReply": "Atcelt atbildi"
+    "cancelReply": "Atcelt atbildi",
+    "imageFailed": "Neizdevās ielādēt attēlu"
   },
   "cf": {
     "mustBeAuthenticated": "Tev jābūt autentificētam.",

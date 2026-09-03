@@ -3087,7 +3087,8 @@
     "unlike": "Bỏ thích",
     "replyingTo": "Đang trả lời {name}",
     "replyToSelf": "Bạn",
-    "cancelReply": "Hủy trả lời"
+    "cancelReply": "Hủy trả lời",
+    "imageFailed": "Không thể tải ảnh"
   },
   "cf": {
     "mustBeAuthenticated": "Bạn cần được xác thực.",

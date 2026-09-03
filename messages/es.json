@@ -3087,7 +3087,8 @@
     "unlike": "Quitar me gusta",
     "replyingTo": "Respondiendo a {name}",
     "replyToSelf": "Tú",
-    "cancelReply": "Cancelar respuesta"
+    "cancelReply": "Cancelar respuesta",
+    "imageFailed": "No se pudo cargar la imagen"
   },
   "cf": {
     "mustBeAuthenticated": "Debes estar autenticado.",

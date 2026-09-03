@@ -3087,7 +3087,8 @@
     "unlike": "Beğenmekten vazgeç",
     "replyingTo": "{name} yanıtlanıyor",
     "replyToSelf": "Sen",
-    "cancelReply": "Yanıtı iptal et"
+    "cancelReply": "Yanıtı iptal et",
+    "imageFailed": "Görsel yüklenemedi"
   },
   "cf": {
     "mustBeAuthenticated": "Kimliğin doğrulanmalı.",

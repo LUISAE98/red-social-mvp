@@ -101,7 +101,7 @@ export function agruparGlobal(
  * corto es un problema que se arregla con el backfill; timbrar un importe falso, no. Se
  * devuelven aparte para que el proceso lo cante en vez de callárselo.
  */
-export async function ventasSinFacturarDelMes(
+export async function ventasSinFacturarDelPeriodo(
   creatorId: string,
   periodo: string
 ): Promise<{ ventas: VentaSinFacturar[]; sinCongelar: number }> {
@@ -165,7 +165,7 @@ export async function ventasSinFacturarDelMes(
  *
  * La salida es reservar primero con estado `emitiendo`, timbrar, y confirmar después:
  *
- * 1. `reservar()` — la venta queda apartada. `ventasSinFacturarDelMes` ya la excluye, así que no
+ * 1. `reservar()` — la venta queda apartada. `ventasSinFacturarDelPeriodo` ya la excluye, así que no
  *    puede colarse en otra global aunque todo lo demás se caiga.
  * 2. Se timbra.
  * 3. `confirmar()` — se le pega el folio y el UUID.
@@ -201,6 +201,24 @@ export function compraLibre(x: Record<string, unknown> | undefined): boolean {
   if (x.nominativaEnCurso) return false;
   if (x.globalInvoice) return false;
   return true;
+}
+
+/**
+ * ¿Puede el COMPRADOR reclamar esta compra para su factura nominativa?
+ *
+ * Es casi lo mismo que `compraLibre`, con una excepción que solo vale para este lado:
+ * `liberada`. Una compra liberada es la que se sacó de una global cancelando con motivo 04
+ * (§B7), precisamente para que este comprador pueda facturarla.
+ *
+ * 🚨 Sigue estando cerrada para la factura global. Si no, la global del día siguiente se la
+ * llevaría antes de que él alcanzara a pedir su factura — se habría cancelado un CFDI para
+ * nada, y de forma bastante cruel.
+ */
+export function compraReclamablePorNominativa(x: Record<string, unknown> | undefined): boolean {
+  if (compraLibre(x)) return true;
+  if (!x || x.invoiced === true || x.globalInvoice) return false;
+  const n = x.nominativaEnCurso as { estado?: string } | undefined;
+  return n?.estado === "liberada";
 }
 
 /**
@@ -284,6 +302,67 @@ export async function confirmarVentasEnGlobal(params: {
 }
 
 /**
+ * Suelta las reservas `liberada` que ya caducaron (AUD-8).
+ *
+ * Una venta se marca `liberada` al sacarla de una global cancelando con motivo 04, para que el
+ * comprador pueda facturarla. Pero si nunca la factura, esa marca la dejaba **fuera de toda
+ * global para siempre** — y la venta seguiría necesitando comprobante.
+ *
+ * Pasado el plazo se suelta y vuelve al circuito normal: si el comprador no la quiso nominativa,
+ * le toca ir a la global, que es donde le corresponde a lo que nadie pide facturado.
+ */
+const DIAS_LIBERADA = 30;
+
+export async function soltarLiberadasCaducadas(): Promise<number> {
+  // Una sola consulta para toda la plataforma, no una por creador (AUD-10).
+  const corte = admin.firestore.Timestamp.fromMillis(
+    Date.now() - DIAS_LIBERADA * 24 * 3_600_000
+  );
+  const snap = await db
+    .collectionGroup("purchases")
+    .where("nominativaEnCurso.estado", "==", "liberada")
+    .where("nominativaEnCurso.reservadoEn", "<", corte)
+    .get();
+  if (snap.empty) return 0;
+
+  const batch = db.batch();
+  for (const d of snap.docs) {
+    batch.set(
+      d.ref,
+      { nominativaEnCurso: admin.firestore.FieldValue.delete() },
+      { merge: true }
+    );
+  }
+  await batch.commit();
+  logger.info("liberadas_caducadas", { ventas: snap.size });
+  return snap.size;
+}
+
+/**
+ * Qué creadores vendieron en un periodo.
+ *
+ * 🚨 UNA consulta para toda la plataforma, no una por creador (AUD-10). El proceso diario
+ * recorría los `creatorTaxProfiles` enteros y lanzaba una consulta de grupo por cada uno: con
+ * mil creadores, mil consultas al día para emitir un puñado de facturas. Ahora se pregunta al
+ * revés — quién vendió ese día — y solo se trabaja sobre esos.
+ */
+export async function creadoresQueVendieron(periodo: string): Promise<Set<string>> {
+  const { desde, hasta } = rangoDelPeriodo(periodo);
+  const snap = await db
+    .collectionGroup("purchases")
+    .where("occurredAt", ">=", admin.firestore.Timestamp.fromDate(desde))
+    .where("occurredAt", "<", admin.firestore.Timestamp.fromDate(hasta))
+    .get();
+  const out = new Set<string>();
+  for (const d of snap.docs) {
+    if (d.get("status") !== "paid") continue;
+    const c = String(d.get("creatorId") ?? "").trim();
+    if (c) out.add(c);
+  }
+  return out;
+}
+
+/**
  * Ventas que se quedaron en `emitiendo`: se reservaron y nadie las confirmó.
  *
  * Son las víctimas de un fallo a media emisión. No se timbran dos veces —quedan excluidas de
@@ -348,9 +427,18 @@ export async function emitirFacturaGlobal(
       payment_form: "04",
       payment_method: "PUE",
       currency: "MXN",
-      // Periodicidad mensual del comprobante global.
+      /**
+       * 📅 Periodicidad DIARIA desde §A1 (2026-09-02).
+       *
+       * Era `04`, mensual, y el proceso corría el día 5 sobre el mes anterior — unos 35 días
+       * de retraso sobre un plazo de **24 horas** (RMF 2026, regla 2.7.1.21). Incumplía por
+       * definición en cuanto se encendiera el timbrado.
+       *
+       * ⚠️ `months` sigue siendo el MES en el que cae el día, no el día. Con `Periodicidad=01`
+       * el Anexo 20 espera igualmente el mes y el año; el día concreto lo dan las operaciones.
+       */
       global: {
-        periodicity: "04", // Mensual
+        periodicity: "01", // Diaria
         months: String(desde.getUTCMonth() + 1).padStart(2, "0"),
         year: desde.getUTCFullYear(),
       },

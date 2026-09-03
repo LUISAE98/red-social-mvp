@@ -3087,7 +3087,8 @@
     "unlike": "Fjern synes godt om",
     "replyingTo": "Svarer {name}",
     "replyToSelf": "Dig",
-    "cancelReply": "Annullér svar"
+    "cancelReply": "Annullér svar",
+    "imageFailed": "Billedet kunne ikke indlæses"
   },
   "cf": {
     "mustBeAuthenticated": "Du skal være godkendt.",

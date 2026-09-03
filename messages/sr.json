@@ -3087,7 +3087,8 @@
     "unlike": "Ukloni sviđanje",
     "replyingTo": "Odgovor korisniku {name}",
     "replyToSelf": "Ti",
-    "cancelReply": "Odustani od odgovora"
+    "cancelReply": "Odustani od odgovora",
+    "imageFailed": "Слика није могла да се учита"
   },
   "cf": {
     "mustBeAuthenticated": "Moraš biti autentifikovan.",

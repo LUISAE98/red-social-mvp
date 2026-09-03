@@ -3087,7 +3087,8 @@
     "unlike": "Αφαίρεση",
     "replyingTo": "Απάντηση σε {name}",
     "replyToSelf": "Εσύ",
-    "cancelReply": "Ακύρωση απάντησης"
+    "cancelReply": "Ακύρωση απάντησης",
+    "imageFailed": "Δεν φορτώθηκε η εικόνα"
   },
   "cf": {
     "mustBeAuthenticated": "Πρέπει να είσαι πιστοποιημένος.",

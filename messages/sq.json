@@ -3087,7 +3087,8 @@
     "unlike": "Hiq pëlqimin",
     "replyingTo": "Duke iu përgjigjur {name}",
     "replyToSelf": "Ti",
-    "cancelReply": "Anulo përgjigjen"
+    "cancelReply": "Anulo përgjigjen",
+    "imageFailed": "Imazhi nuk mund të ngarkohej"
   },
   "cf": {
     "mustBeAuthenticated": "Duhet të jesh i vërtetuar.",

@@ -583,6 +583,18 @@ export { saveBuyerBillingProfile, deleteBuyerBillingProfile } from "./facturacio
 
 // Facturación — Bloque 2: emisión del CFDI Vibra → comprador (org de Vibra).
 export { generateBuyerInvoice, downloadBuyerInvoice } from "./facturacion/generateBuyerInvoice";
+// ✂️ Sacar una venta de una global ya timbrada, motivo 04. Ver pendientesimpuestos.md §B7.
+export { cancelarGlobalPorNominativa } from "./facturacion/cancelacionGlobal";
+// 📅 Factura global DIARIA, por el plazo de 24 h. Ver pendientesimpuestos.md §A1.
+export {
+  globalInvoiceDailyCron,
+  runGlobalInvoiceDay,
+} from "./facturacion/runGlobalInvoice";
+// 🕓 Cola de facturas que esperan al sello del creador. Ver pendientesimpuestos.md §B5.
+export {
+  onCsdValidoEmitirCola,
+  reintentarColaDeFacturas,
+} from "./facturacion/colaDeFacturas";
 
 // TODOS los servicios (saludo/consejo, sesión/tiempo contigo, donación perfil/live,
 // ticket/premium/VOD, súper comentario, suscripción a comunidad) cobran por STRIPE.

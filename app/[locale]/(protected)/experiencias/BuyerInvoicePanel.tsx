@@ -88,7 +88,14 @@ function motivoOmitida(motivo: FacturaOmitida["motivo"]): string {
   if (motivo === "ya_en_global") {
     return "esta compra ya entró en su factura global del periodo. Tu factura sigue en pie, pero hay que emitirla a mano, escríbenos y la preparamos.";
   }
-  return "todavía no tiene sus datos de facturación al día. Sus conceptos siguen disponibles para facturar cuando los complete.";
+  /**
+   * 🕓 `sin_sello` y `sin_datos_fiscales` ya NO son un «vuelve luego».
+   *
+   * Desde §B5 la petición se guarda y se emite sola cuando el creador completa lo suyo, así que
+   * el comprador no tiene que hacer nada ni volver a intentarlo. Decirle que sus conceptos
+   * «siguen disponibles» le pedía trabajo que ya no le toca.
+   */
+  return "todavía no tiene sus datos de facturación al día. Guardamos tu solicitud y tu factura se emite sola en cuanto los complete, no tienes que hacer nada.";
 }
 
 export default function BuyerInvoicePanel({ open, onClose, uid, concepts, formatMoney, onConfirm }: Props) {

@@ -3087,7 +3087,8 @@
     "unlike": "Gefällt mir nicht mehr",
     "replyingTo": "Antwort an {name}",
     "replyToSelf": "Du",
-    "cancelReply": "Antwort abbrechen"
+    "cancelReply": "Antwort abbrechen",
+    "imageFailed": "Bild konnte nicht geladen werden"
   },
   "cf": {
     "mustBeAuthenticated": "Du musst authentifiziert sein.",

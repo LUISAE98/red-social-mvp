@@ -3087,7 +3087,8 @@
     "unlike": "Премахни харесването",
     "replyingTo": "Отговор до {name}",
     "replyToSelf": "Ти",
-    "cancelReply": "Отказ на отговора"
+    "cancelReply": "Отказ на отговора",
+    "imageFailed": "Изображението не се зареди"
   },
   "cf": {
     "mustBeAuthenticated": "Трябва да си удостоверен.",

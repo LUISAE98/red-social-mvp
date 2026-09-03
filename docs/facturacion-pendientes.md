@@ -110,12 +110,16 @@ calcula y registra el acumulado, pero **no timbra nada**.
   (retenciones y operaciones), construidos desde los asientos, no desde las constancias.
 - 🔴 Falta la **clave de retención correcta**, ver `pendientesimpuestos.md` §A4.
 
-### Bloque 7 — Factura global (parcial)
+### Bloque 7 — Factura global ✅
 - `globalInvoice.ts`: agrupa por tipo de servicio y emite **a nombre del creador**, en su
   organización y con su sello.
 - **Sin sello no se emite** y se cuenta aparte (`globalesSinSello`); la wallet se lo exige.
-- 🔴 Faltan la cadencia (24 h), la marca de las ventas cubiertas y el candado contra el doble
-  timbrado. Ver `pendientesimpuestos.md` §A.
+- ✅ **Diaria** desde el 2026-09-02 (`runGlobalInvoice.ts`), por el plazo de 24 h de la RMF.
+  Marca cada venta que cubre, y ninguna venta puede acabar en dos comprobantes: los dos
+  caminos —global y nominativa— apartan en transacción antes de timbrar.
+- ✅ Si un comprador llega tarde, se puede sacar su venta cancelando con motivo 04 (§B7).
+- ✅ Si el creador no tiene sello, la petición del comprador se guarda en cola y la global
+  excluye esa venta (§B5).
 
 ---
 
@@ -125,8 +129,8 @@ Los detalles, el orden y las dependencias están en **`pendientesimpuestos.md`**
 
 | Grupo | Qué es | Bloquea |
 |---|---|---|
-| **A** | Cadencia de 24 h, marca de ventas en la global, candado del doble timbrado, clave de retención | Encender `TIMBRAR` |
-| **B** | Cola de facturas pendientes, botón desde «Ver detalles» + notificación, cancelación motivo 04, recibo internacional | Que la global salga correcta |
+| **A** | ✅ A0 moneda · A1 cadencia diaria · A2 marca · A3 exclusión mutua. 🟠 Quedan A4 (clave de retención) y A5 (constancia desde los retiros) | Encender `TIMBRAR` |
+| **B** | ✅ B5 cola · B7 cancelación motivo 04. 🟡 Quedan B6 (botón y notificación) y B8 (recibo internacional) | Que la global salga correcta |
 | **C** | Siete preguntas abiertas del contador | Fuera de código |
 | **D** | Cutover a producción (`sk_live`, CSD real, `apikeys/live`) | Al final |
 | **E** | Elegir el país de la cuenta de cobro desde la interfaz | Menor, hoy mitigado por el KYC |
@@ -147,7 +151,7 @@ grupo A, porque comparte máquina con la cancelación motivo 04 (§B7).
 | 3 Flujo de retiro | ✅ Cerrado 2026-09-01 | — |
 | 4 Comprobantes Vibra→creador | ✅ Construido, sin timbrar | `TIMBRAR` |
 | 5 Retenciones | ✅ Calculadas y aplicadas | 🔴 clave de retención (A4) |
-| 7 Factura global | 🟡 Parcial | 🔴 grupo A |
-| 6 Notas de crédito | ⬜ | Grupo A |
-| 8 Recibo internacional | ⬜ | — (§B8) |
+| 7 Factura global | ✅ **Diaria**, marca sus ventas, sin doble timbrado | 🟠 A4 y A5 |
+| 6 Notas de crédito | ⬜ | Comparte máquina con §B7, ya construida |
+| 8 Recibo internacional | ⬜ | — (§B8). Es del comprador extranjero; el creador extranjero ya tiene `payoutStatements` |
 | 9 Cutover producción | ⬜ | Grupo A + contador |

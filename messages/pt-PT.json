@@ -3087,7 +3087,8 @@
     "unlike": "Remover gosto",
     "replyingTo": "A responder a {name}",
     "replyToSelf": "Tu",
-    "cancelReply": "Cancelar resposta"
+    "cancelReply": "Cancelar resposta",
+    "imageFailed": "Não foi possível carregar a imagem"
   },
   "cf": {
     "mustBeAuthenticated": "Tem de estar autenticado.",

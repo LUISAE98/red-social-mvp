@@ -3087,7 +3087,8 @@
     "unlike": "Bain an maith liom",
     "replyingTo": "Ag freagairt do {name}",
     "replyToSelf": "Tusa",
-    "cancelReply": "Cealaigh an freagra"
+    "cancelReply": "Cealaigh an freagra",
+    "imageFailed": "Níorbh fhéidir an íomhá a lódáil"
   },
   "cf": {
     "mustBeAuthenticated": "Caithfidh tú a bheith fíordheimhnithe.",

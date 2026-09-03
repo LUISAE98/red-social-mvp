@@ -3087,7 +3087,8 @@
     "unlike": "Fjern lik",
     "replyingTo": "Svarer {name}",
     "replyToSelf": "Deg",
-    "cancelReply": "Annuller svar"
+    "cancelReply": "Annuller svar",
+    "imageFailed": "Bildet kunne ikke lastes"
   },
   "cf": {
     "mustBeAuthenticated": "Du må være autentisert.",

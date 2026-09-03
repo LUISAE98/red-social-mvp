@@ -14,6 +14,8 @@ import {
   importeFiscalDeLaVenta,
   leerImporteFiscal,
 } from "../src/facturacion/importeFiscal";
+import { rangoDelPeriodo } from "../src/facturacion/creatorMonthlyDocs";
+import { diaAnterior } from "../src/facturacion/runGlobalInvoice";
 
 describe("tipo de cambio despejado del cobro", () => {
   it("sale de lo que se le cargó a la tarjeta, no de una tabla", () => {
@@ -151,5 +153,52 @@ describe("lectura de lo congelado", () => {
     const congelado = convertirAPesos({ baseUsd: 100, ivaUsd: 16, tipoCambio: 18.5, fuente: "cobro" });
     const leido = leerImporteFiscal({ ...congelado, congeladoEn: "cualquier cosa" });
     expect(leido).toEqual(congelado);
+  });
+});
+
+describe("periodos en hora de México (§A1, AUD-2)", () => {
+  // 🇲🇽 Un periodo fiscal mexicano se mide con el calendario mexicano. Antes se cortaba en
+  // medianoche UTC —las 18:00 de aquí— y las ventas de la tarde acababan documentadas en el día
+  // siguiente. México no tiene horario de verano desde 2022, así que el desfase es fijo, UTC-6.
+
+  it("🚨 una venta de las 19:00 en México pertenece a ESE día, no al siguiente", () => {
+    // Es el caso que destapó AUD-2. 19:00 del 14 en México son las 01:00 UTC del 15.
+    const venta = new Date("2026-09-15T01:00:00.000Z");
+    const dia14 = rangoDelPeriodo("2026-09-14");
+    const dia15 = rangoDelPeriodo("2026-09-15");
+
+    expect(venta >= dia14.desde && venta < dia14.hasta).toBe(true);
+    expect(venta >= dia15.desde && venta < dia15.hasta).toBe(false);
+  });
+
+  it("el día va de las 06:00 UTC a las 06:00 UTC del siguiente", () => {
+    const { desde, hasta } = rangoDelPeriodo("2026-09-15");
+    expect(desde.toISOString()).toBe("2026-09-15T06:00:00.000Z");
+    expect(hasta.toISOString()).toBe("2026-09-16T06:00:00.000Z");
+  });
+
+  it("🚨 el último día del mes no se desborda al mes siguiente", () => {
+    const { desde, hasta } = rangoDelPeriodo("2026-08-31");
+    expect(desde.toISOString()).toBe("2026-08-31T06:00:00.000Z");
+    expect(hasta.toISOString()).toBe("2026-09-01T06:00:00.000Z");
+  });
+
+  it("un `YYYY-MM` acota el mes mexicano entero, para la comisión y la constancia", () => {
+    const { desde, hasta } = rangoDelPeriodo("2026-02");
+    expect(desde.toISOString()).toBe("2026-02-01T06:00:00.000Z");
+    expect(hasta.toISOString()).toBe("2026-03-01T06:00:00.000Z");
+  });
+
+  it("los días son contiguos: ninguna venta se pierde ni se cuenta dos veces", () => {
+    expect(rangoDelPeriodo("2026-09-14").hasta.getTime()).toBe(
+      rangoDelPeriodo("2026-09-15").desde.getTime()
+    );
+  });
+
+  it("el cron de la 01:00 de México pide el día que acaba de cerrar", () => {
+    // 01:00 hora de México = 07:00 UTC. Le toca el día anterior completo.
+    expect(diaAnterior(new Date("2026-09-01T07:00:00.000Z"))).toBe("2026-08-31");
+    expect(diaAnterior(new Date("2026-01-01T07:00:00.000Z"))).toBe("2025-12-31");
+    expect(diaAnterior(new Date("2028-03-01T07:00:00.000Z"))).toBe("2028-02-29"); // bisiesto
   });
 });

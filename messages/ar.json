@@ -3087,7 +3087,8 @@
     "unlike": "إزالة الإعجاب",
     "replyingTo": "جارٍ الرد على {name}",
     "replyToSelf": "أنت",
-    "cancelReply": "إلغاء الرد"
+    "cancelReply": "إلغاء الرد",
+    "imageFailed": "تعذّر تحميل الصورة"
   },
   "cf": {
     "mustBeAuthenticated": "يجب أن تكون مصادقًا.",
