@@ -277,8 +277,19 @@ export function useGreetingPurchase({
     return () => console.warn("[compra] pasarela DESMONTADA o cerrada");
   }, [payOpen]);
 
+  // ⚠️ UNA sola condición, no dos.
+  //
+  // Con `[formOpen, payOpen]` como dependencias, pasar del formulario a la
+  // pasarela re-ejecutaba este efecto: primero soltaba el freno y luego lo
+  // volvía a poner. En ese hueco el freno valía CERO, y quien lo escucha
+  // —el feed— se rearmaba justo ahí, borraba el panel donde vive la compra y se
+  // la llevaba por delante. El freno tiene que ser continuo mientras la compra
+  // esté abierta; con un solo booleano, el efecto no se re-ejecuta al pasar de
+  // una parte a la otra.
+  const compraAbierta = formOpen || payOpen;
+
   useEffect(() => {
-    if (!formOpen && !payOpen) return;
+    if (!compraAbierta) return;
     const soltarFeed = frenarReelFeed();
     const finCambio = marcarCambioDeCuenta();
     return () => {
@@ -288,7 +299,7 @@ export function useGreetingPurchase({
       // paraguas, que es exactamente el fallo que esto arregla.
       setTimeout(finCambio, 2000);
     };
-  }, [formOpen, payOpen]);
+  }, [compraAbierta]);
 
   /**
    * Volver a ser invitado para comprar a nombre de otro correo.

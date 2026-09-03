@@ -343,6 +343,13 @@ export function useReelFeed(uid: string | null | undefined, esAnonimo = false) {
   // peor se sienten en un feed. Los nuevos esperan a la siguiente tanda, que es
   // cuando la lista crece por abajo de todas formas.
   useEffect(() => {
+    // ⚠️ Esto también toca la lista, así que también se frena.
+    //
+    // Retirar un live cambia el arreglo de paneles, y cambiar el arreglo puede
+    // borrar el panel donde vive una compra abierta. Frenar solo la carga
+    // dejaba esta puerta abierta: al cambiar de sesión, la suscripción se
+    // rehacía y escribía por su cuenta.
+    if (frenado) return;
     return subscribeReelLives({ uid: viewerUid }, (lives) => {
       livesRef.current = lives;
       const enCurso = new Set(lives.map((l) => l.key));
@@ -354,7 +361,7 @@ export function useReelFeed(uid: string | null | undefined, esAnonimo = false) {
         return next.length === prev.items.length ? prev : { ...prev, items: next };
       });
     });
-  }, [viewerUid]);
+  }, [viewerUid, frenado]);
 
   /**
    * Pide más hasta CONSEGUIR algo nuevo, no hasta pedir una vez.
