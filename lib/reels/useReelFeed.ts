@@ -440,10 +440,21 @@ export function useReelFeed(uid: string | null | undefined, esAnonimo = false) {
   // Se puede dejar en pantalla porque un feed de invitado no lleva nada de
   // nadie: no sigue a ningún creador, no tiene gusto aprendido ni historial. Lo
   // que se ve es descubrimiento público, y sigue siéndolo un segundo después.
+  //
+  // ⚠️ Y con una compra abierta, TAMPOCO se descarta, sea quien sea.
+  //
+  // Congelar la recarga no bastaba: aunque el feed no se rearmara, este cálculo
+  // seguía dando el estado vacío en cuanto el uid dejaba de coincidir, y eso
+  // solo ya devolvía la superficie al esqueleto. "Usar otro correo" cierra una
+  // sesión y abre otra, así que el uid cambia dos veces en un segundo y con la
+  // pasarela abierta encima: se veía como si la página se recargara y se perdía
+  // el saludo en el que iba.
+  //
+  // Mientras hay una compra en marcha, lo que está en pantalla se queda.
   const current =
     state.uid === viewerUid
       ? state
-      : state.ready && state.anonimo
+      : state.ready && (state.anonimo || frenado)
         ? { ...state, uid: viewerUid }
         : EMPTY;
   // `stories` se mantiene para quien solo entiende de historias, como el rail

@@ -359,6 +359,14 @@ export default function StripePaymentModal({
    * o la moneda que le pasan. Se limpia al cerrar.
    */
   const cobroEnCursoRef = useRef(false);
+  /**
+   * El bloque de correo y contraseña, para poder llevar la vista hasta él.
+   *
+   * Aparece a mitad de la pasarela cuando alguien pulsa «usar otro correo», y
+   * nace DEBAJO de todos los métodos de pago. Sin acercarlo, la pantalla se
+   * queda donde estaba y parece que el botón no hizo nada.
+   */
+  const cuentaRef = useRef<HTMLDivElement | null>(null);
   const stripeRef = useRef<StripeLike | null>(null);
   const numberElRef = useRef<StripeElement | null>(null);
   const onPaidRef = useRef(onPaid);
@@ -369,6 +377,23 @@ export default function StripePaymentModal({
     createIntentRef.current = createIntent;
     onCloseRef.current = onClose;
   }, [onPaid, createIntent, onClose]);
+
+  // Al aparecer el alta a mitad de la pasarela, se baja hasta ella.
+  //
+  // Solo cuando APARECE, no al abrir con ella ya puesta: ahí lo correcto es
+  // empezar por arriba, donde están los métodos de pago.
+  const habiaCuentaRef = useRef(collectAccount);
+  useEffect(() => {
+    const aparece = collectAccount && !habiaCuentaRef.current;
+    habiaCuentaRef.current = collectAccount;
+    if (!aparece) return;
+    // Un fotograma de margen: el bloque acaba de entrar en el árbol y todavía no
+    // tiene sitio en la página.
+    const raf = requestAnimationFrame(() => {
+      cuentaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [collectAccount]);
 
   // Cierre automático del panel de éxito cuando se pide (supercomentario / donación).
   useEffect(() => {
@@ -1083,7 +1108,7 @@ export default function StripePaymentModal({
           {collectAccount && (
             // ⚠️ SIN linea propia arriba: la ultima fila de metodos de pago ya
             // trae la suya por abajo, y poner otra dibujaba dos seguidas.
-            <div style={{ display: "grid", gap: 8, paddingTop: 16 }}>
+            <div ref={cuentaRef} style={{ display: "grid", gap: 8, paddingTop: 16 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: "#3a3f4a" }}>
                 {tExpress("title")}
               </span>
