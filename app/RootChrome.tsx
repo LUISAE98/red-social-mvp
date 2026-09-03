@@ -190,6 +190,11 @@ const isOverlayRoute =
     // efectos de arriba siguen usando el `user` real para redirigir.
     const renderUser = hydrated ? user : null;
     if (authTransitionMode === "exiting") {
+      // ⚠️ Esto DESMONTA la app entera. Cualquier cosa abierta —una pasarela a
+      // medio cobrar, por ejemplo— muere aquí y vuelve desde cero cuando la
+      // transición acaba. Se dice, porque desde fuera es indistinguible de una
+      // recarga y no había forma de saber que había pasado por aquí.
+      console.warn("[RootChrome] desmontando la app: transición de salida");
   // Lo que la persona VE durante el cierre de sesión es el splash de marca, que
   // `startAuthTransition` enciende (ver lib/splash.ts) y que va muy por encima
   // de esto en z-index. Este negro se queda de respaldo por si el nodo del

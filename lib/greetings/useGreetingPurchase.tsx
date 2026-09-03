@@ -268,6 +268,15 @@ export function useGreetingPurchase({
   // Marcarlo por botón ya se intentó y se quedó corto: faltaban caminos. El
   // paraguas cubre la compra entera, que es la unidad que de verdad importa.
   // Nadie cierra sesión a propósito mientras paga.
+  // Rastro de vida de la compra. Con esto, una sola prueba dice si la pasarela
+  // se CERRÓ (alguien puso `payOpen` en falso) o si se DESMONTÓ con el trozo de
+  // árbol donde vive, que son fallos distintos y hasta ahora se veían igual.
+  useEffect(() => {
+    if (!payOpen) return;
+    console.info("[compra] pasarela abierta");
+    return () => console.warn("[compra] pasarela DESMONTADA o cerrada");
+  }, [payOpen]);
+
   useEffect(() => {
     if (!formOpen && !payOpen) return;
     const soltarFeed = frenarReelFeed();
