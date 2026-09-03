@@ -376,7 +376,7 @@ pasar.
 
 ---
 
-## A4 · La clave de retención es la equivocada 🔴 — *contador*
+## A4 · La clave de retención es la equivocada ✅ HECHO (2026-09-02)
 
 El código manda `key: "14"` (`creatorMonthlyDocs.ts:264`), que en `c_ClaveRetenc` es **«dividendos
 o utilidades distribuidas»**. Vibra no reparte dividendos: retiene ISR e IVA por vender a través
@@ -392,6 +392,65 @@ hospedaje y comercio de bienes, no para servicios de creadores.
 
 - **Hacer:** pregunta al contador y, según la respuesta, mandar el complemento completo.
 - **Independiente del resto del grupo A**, pero bloquea `TIMBRAR` por su cuenta.
+
+### ✅ Investigado y resuelto (2026-09-02)
+
+**La clave es la `26`, y no era discutible.** La regla de validación del SAT dice que si
+`CveRetenc` es distinto de 26 el complemento no debe existir — y a la inversa, con la 26 el
+complemento es obligatorio. Clave y complemento son inseparables.
+
+**Y la duda de fondo era infundada, culpa mía.** Yo había dicho que el complemento «está
+redactado para transporte, comida, hospedaje y comercio de bienes». El catálogo
+`c_TipoDeServ` vigente tiene siete claves:
+
+| Clave | Descripción |
+|---|---|
+| 01 | Servicio de transporte terrestre de pasajeros |
+| 02 | Entrega de alimentos preparados |
+| 03 | Entrega de bienes (distintos de alimentos preparados) |
+| 04 | Hospedaje |
+| 05 | Comercio de bienes |
+| **06** | **Otro tipo de servicios** ← Vibra |
+| 11 | Juegos con apuestas y sorteos *(nueva, 01-01-2026)* |
+
+Hay un cajón general y Vibra encaja sin forzar nada.
+
+### 🚨 El hallazgo que cambió el alcance
+
+**El complemento NO es un documento de totales: exige un nodo por CADA servicio**, con su
+`FechaServ`, su `PrecioServSinIva`, sus impuestos trasladados y la comisión que la plataforma
+cobró por esa operación. Un creador con quinientas ventas al mes produce un complemento con
+quinientos nodos.
+
+Eso obligó a sacar el detalle operación por operación, no solo el acumulado.
+
+### 🚨 Y otro que apunta a §A5
+
+**`c_Periodicidad` de este complemento solo admite `01` semanal y `02` mensual.** La
+constancia **no puede ser por retiro**: tiene que ser un documento de periodo.
+
+Peor todavía para el diseño de §A5: el complemento pide la **fecha del SERVICIO** en cada
+nodo, así que está construido suponiendo que la plataforma retiene conforme presta cada
+servicio — no cuando le paga al creador. Nuestro modelo, que difiere la retención al retiro,
+no encaja de forma natural. Hay que resolverlo ahí.
+
+### De paso, la tasa estaba bien
+
+La LIF 2026 subió el ISR de plataformas del **1% al 2.5%** para enajenación de bienes y
+prestación de servicios, que es nuestra fracción. El motor **ya usa 2.5%**, con el comentario
+que explica que la tasa vive en la Ley de Ingresos y no en el 113-A. Nada que tocar.
+
+| Pieza | Dónde |
+|---|---|
+| Las claves, el armado y el cuadre de totales contra el detalle | 🆕 `backend/src/facturacion/complementoPlataformas.ts` |
+| `serviciosDelPeriodo`, el detalle sacado de los asientos; clave `26`; totales en pesos | `backend/src/facturacion/creatorMonthlyDocs.ts` |
+| 12 pruebas | 🆕 `backend/test/complementoPlataformas.pure.test.ts` |
+
+🔁 **Por confirmar en el primer timbrado de sandbox:** el nombre del tipo de complemento en
+Facturapi (`plataformas_tecnologicas`). Si fuera otro, falla ruidosamente y es una línea.
+
+🚧 **Sigue bloqueada por §A5.** `CONSTANCIA_BLOQUEADA` no se quita: A4 arregla la FORMA del
+documento, A5 decide de dónde salen los números.
 
 ---
 
@@ -741,7 +800,7 @@ cobro tenga pantalla propia.
 | B7 | Cancelación motivo 04 | B | A2 | ✅ **Hecho** |
 | B6 | Botón «Ver detalles» más notificación | B | — | 🟡 **Siguiente** |
 | B8 | Recibo internacional | B | — | ⬜ Abierto |
-| A4 | Clave de retención | A | Contador | 🔴 Abierto |
+| A4 | Clave de retención y su complemento | A | — | ✅ **Hecho** |
 | C1–C9 | Preguntas del contador | C | Contador | 🟠 Fuera de código |
 | E1 | País de cobro en la interfaz | E | — | ⚪ Mitigado |
 | D | Cutover a producción | D | Grupo A y contador | ⬜ Al final |

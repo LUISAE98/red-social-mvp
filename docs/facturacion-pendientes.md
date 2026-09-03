@@ -108,7 +108,10 @@ calcula y registra el acumulado, pero **no timbra nada**.
   desglose visible en la wallet.
 - `informativaMensual.ts`: los datos de las **dos declaraciones informativas** al SAT
   (retenciones y operaciones), construidos desde los asientos, no desde las constancias.
-- 🔴 Falta la **clave de retención correcta**, ver `pendientesimpuestos.md` §A4.
+- ✅ **Clave de retención resuelta (2026-09-02):** es la `26` con el complemento «Servicios de
+  Plataformas Tecnológicas», tipo de servicio `06`. ⚠️ El complemento exige un nodo por cada
+  operación, no solo totales. Ver `pendientesimpuestos.md` §A4.
+- 🔴 Falta §A5: la constancia se arma desde las VENTAS y la retención ocurre en el RETIRO.
 
 ### Bloque 7 — Factura global ✅
 - `globalInvoice.ts`: agrupa por tipo de servicio y emite **a nombre del creador**, en su
@@ -129,7 +132,7 @@ Los detalles, el orden y las dependencias están en **`pendientesimpuestos.md`**
 
 | Grupo | Qué es | Bloquea |
 |---|---|---|
-| **A** | ✅ A0 moneda · A1 cadencia diaria · A2 marca · A3 exclusión mutua. 🟠 Quedan A4 (clave de retención) y A5 (constancia desde los retiros) | Encender `TIMBRAR` |
+| **A** | ✅ A0 moneda · A1 cadencia diaria · A2 marca · A3 exclusión mutua · A4 clave 26 y complemento. 🟠 Queda **A5** (constancia desde los retiros) | Encender `TIMBRAR` |
 | **B** | ✅ B5 cola · B7 cancelación motivo 04. 🟡 Quedan B6 (botón y notificación) y B8 (recibo internacional) | Que la global salga correcta |
 | **C** | Siete preguntas abiertas del contador | Fuera de código |
 | **D** | Cutover a producción (`sk_live`, CSD real, `apikeys/live`) | Al final |
@@ -150,7 +153,7 @@ grupo A, porque comparte máquina con la cancelación motivo 04 (§B7).
 | 2 Factura comprador | ✅ Hecho (modo prueba) | — |
 | 3 Flujo de retiro | ✅ Cerrado 2026-09-01 | — |
 | 4 Comprobantes Vibra→creador | ✅ Construido, sin timbrar | `TIMBRAR` |
-| 5 Retenciones | ✅ Calculadas y aplicadas | 🔴 clave de retención (A4) |
+| 5 Retenciones | ✅ Calculadas y aplicadas; clave y complemento correctos | 🔴 A5 |
 | 7 Factura global | ✅ **Diaria**, marca sus ventas, sin doble timbrado | 🟠 A4 y A5 |
 | 6 Notas de crédito | ⬜ | Comparte máquina con §B7, ya construida |
 | 8 Recibo internacional | ⬜ | — (§B8). Es del comprador extranjero; el creador extranjero ya tiene `payoutStatements` |

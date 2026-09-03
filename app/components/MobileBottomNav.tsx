@@ -640,8 +640,15 @@ export default function MobileBottomNav({
              efecto secundario era justo el que no se quería: superponer blanco
              sobre negro da GRIS, y la cápsula se alejaba del negro cuanto más
              se subían. Se fueron los tres. El volumen no se pinta: tiene que
-             venir del fondo, y eso es lo que hace el filtro de abajo. */
-          background: rgba(6, 6, 8, 0.92);
+             venir del fondo, y eso es lo que hace el filtro de abajo.
+
+             La opacidad bajó de 0,92 a 0,55: al 92% la cápsula se leía como una
+             barra negra y el cristal solo se adivinaba: había que buscarlo. A
+             poco más de la mitad se ve pasar de verdad lo que hay detrás, que es
+             el punto. Lo que antes hacía la opacidad —que los iconos blancos no
+             se pierdan sobre una foto clara— ahora lo hace el brightness del
+             filtro, que oscurece el FONDO en vez de taparlo. */
+          background: rgba(6, 6, 8, 0.55);
           /* Borde casi invisible. Su trabajo ya no es dibujar el canto —de eso
              se encargan las luces interiores de abajo— sino evitar que sobre un
              fondo muy claro la cápsula se quede sin límite. Al 4% cumple sin
@@ -673,21 +680,22 @@ export default function MobileBottomNav({
             0 38px 76px rgba(0, 0, 0, 0.66);
           /* El efecto óptico, subido de intensidad.
 
-             · blur(72px): el fondo llega en manchas grandes, sin una sola
+             · blur(40px): el fondo llega en manchas grandes, sin una sola
                forma reconocible. Es desenfoque de material, no de suavizado.
-             · saturate(260%): con la base al 80% solo pasa una quinta parte de
-               lo de detrás, así que el color hay que exagerarlo para que se
-               note al atravesarla. Es LO QUE MÁS SE NOTA de todo.
-             · contrast(120%) y brightness(120%): separan las manchas y las
-               levantan lo justo para que atraviesen una base ya bastante
-               cerrada.
+             · saturate(150%): el color hay que exagerarlo para que se note al
+               atravesar la base.
+             · brightness(0.62): ESTE es el que sustituye a la opacidad que se
+               quitó. Oscurece lo que pasa por detrás en vez de taparlo, así que
+               la cápsula sigue siendo traslúcida —se ve el movimiento y el
+               color— pero un video claro ya no se come los iconos blancos.
+               Tapar da negro; oscurecer da cristal ahumado.
 
              🚨 DEFORMAR el fondo, como la lupa de iOS, NO se puede desde CSS en
              iPhone. Se haría con un filtro SVG de desplazamiento dentro de
              backdrop-filter, y Safari no admite url() ahí — solo Chrome. Lo que
              hay aquí es desenfoque y color, que es todo lo que WebKit ofrece. */
-          backdrop-filter: blur(40px) saturate(150%);
-          -webkit-backdrop-filter: blur(40px) saturate(150%);
+          backdrop-filter: blur(40px) saturate(150%) brightness(0.62);
+          -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.62);
           /* SIN overflow:hidden. Los globos de aviso se dibujan fuera de su
              icono (top:-5px, inset-inline-end:-8px) y en el primer y el ultimo
              elemento caerian justo sobre el borde: recortarlos los partiria por
@@ -695,10 +703,11 @@ export default function MobileBottomNav({
              curva del borde necesite recortar. */
         }
 
-        /* Sin backdrop-filter no hay nada que difuminar, y una base al 80% se
-           vería como una barra medio transparente con el contenido crudo detrás
+        /* Sin backdrop-filter no hay nada que difuminar, y una base al 55% se
+           vería como una barra medio transparente con el contenido CRUDO detrás
            —peor que no intentarlo—. Ahí la cápsula se cierra y se comporta como
-           lo que aparenta: negra. */
+           lo que aparenta: negra. Este respaldo es justo por eso el único sitio
+           donde la opacidad NO baja. */
         @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
           .navShell {
             background: rgba(6, 6, 8, 0.96);
