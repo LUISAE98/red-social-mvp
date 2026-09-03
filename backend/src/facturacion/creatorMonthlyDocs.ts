@@ -25,6 +25,11 @@ import { logger } from "firebase-functions";
 import { facturapiFetch } from "./facturapiClient";
 import { requiereCfdiRetenciones } from "../tax/fiscalEngine";
 import { leerImporteFiscal } from "./importeFiscal";
+import {
+  armarComplemento,
+  CVE_RETENC_PLATAFORMAS,
+  type ServicioDelComplemento,
+} from "./complementoPlataformas";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -216,6 +221,40 @@ export function acumularMes(
   return acc;
 }
 
+/**
+ * Convierte los asientos de un periodo en el detalle que exige el complemento.
+ *
+ * Un nodo por operación, con su fecha y sus pesos congelados. Se saltan las ventas que no
+ * tengan importe congelado: sin él no hay pesos que declarar, y aproximar en un CFDI es lo que
+ * §A0 vino a prohibir. Que falte una es visible en `ventasSinPesos` del acumulado.
+ *
+ * Función PURA sobre los asientos, para poder probarla sin Firestore.
+ */
+export function serviciosDelPeriodo(asientos: AsientoConRetenciones[]): ServicioDelComplemento[] {
+  const out: ServicioDelComplemento[] = [];
+  for (const a of asientos) {
+    if (a.status !== "earned") continue;
+    const r = a.retenciones;
+    if (!r) continue;
+    const pesos = leerImporteFiscal(a.fiscalMxn);
+    if (!pesos) continue;
+
+    const cuando = a.occurredAt ?? a.createdAt;
+    const fecha = cuando?.toDate?.();
+    if (!fecha) continue; // sin fecha no hay `FechaServ`, que es obligatorio
+
+    out.push({
+      fecha: diaDe(fecha),
+      precioSinIva: pesos.base,
+      ivaTrasladado: pesos.iva,
+      // La comisión de ESA venta, en pesos, con el tipo de cambio congelado de ESA venta.
+      comision: round2((r.comision ?? 0) * pesos.tipoCambio),
+      ivaComision: round2((r.ivaComision ?? 0) * pesos.tipoCambio),
+    });
+  }
+  return out;
+}
+
 /** Qué documentos toca emitir para un acumulado. */
 export function documentosDelMes(acc: AcumuladoMensual): {
   comision: boolean;
@@ -362,7 +401,9 @@ export async function emitirCfdiComision(
  */
 export async function emitirCfdiRetenciones(
   acc: AcumuladoMensual,
-  customerId: string
+  customerId: string,
+  /** El detalle operación por operación, que el complemento exige. */
+  servicios: ServicioDelComplemento[]
 ): Promise<FacturapiDoc> {
   if (CONSTANCIA_BLOQUEADA) {
     throw new Error(
@@ -372,48 +413,62 @@ export async function emitirCfdiRetenciones(
   const { desde, hasta } = rangoDelPeriodo(acc.periodo);
   const totalRetenido = round2(acc.isrRetenido + acc.ivaRetenido);
 
+  /**
+   * 🚨 El complemento exige un nodo POR SERVICIO, no solo totales.
+   *
+   * Si el periodo no trae detalle no se timbra: un complemento sin sus nodos `Servicios` no
+   * es válido, y mandarlo vacío sería gastar un folio en algo que el SAT va a rechazar.
+   */
+  if (servicios.length === 0) {
+    throw new Error(
+      `constancia sin detalle de servicios (creador ${acc.creatorId}, ${acc.periodo})`
+    );
+  }
+  const complemento = armarComplemento(servicios, {
+    iva: acc.ivaRetenido,
+    isr: acc.isrRetenido,
+  });
+
   const res = await facturapiFetch<FacturapiDoc>("/retentions", {
     method: "POST",
     body: {
       customer: customerId,
       /**
-       * 🔴 CLAVE DE RETENCIÓN — MUY PROBABLEMENTE EQUIVOCADA.
+       * ✅ CLAVE `26` — «Servicios de Plataformas Tecnológicas» (§A4, 2026-09-02).
        *
-       * La `14` del catálogo `c_ClaveRetenc` es **«dividendos o utilidades distribuidas»**.
-       * Vibra no reparte dividendos a sus creadores: le retiene ISR e IVA por venderle a
-       * través de la plataforma. No es lo mismo ni de lejos.
+       * Era `14`, «dividendos o utilidades distribuidas», que no describe nada de lo que pasa
+       * aquí: Vibra no reparte dividendos, le retiene ISR e IVA al creador por vender a través
+       * de la plataforma.
        *
-       * La que usan los ejemplos del complemento **Servicios Plataformas Tecnológicas** es
-       * la **`26`**, que es el que corresponde a este régimen.
-       *
-       * ⚠️ **NO se cambia sola.** Con `26` el SAT espera además el complemento entero
-       * —`Periodicidad`, `NumServ`, `TipoDeServ`, `MontToServSIva`— que hoy no se manda.
-       * Cambiar solo la clave produciría un CFDI que no timbra, o peor, uno que timbra mal.
-       *
-       * Y hay una pregunta de fondo antes: el complemento está redactado para transporte,
-       * comida a domicilio, hospedaje y comercio de bienes. Que aplique a servicios de
-       * creadores es justo lo que tiene que decidir el contador.
-       *
-       * Hoy no molesta porque `TIMBRAR` está en falso. El día que se active, sí.
+       * 🚨 La clave y el complemento son INSEPARABLES. La regla de validación del SAT dice que
+       *    si `CveRetenc` es distinto de 26 el complemento no debe existir — y a la inversa,
+       *    con la 26 el complemento es obligatorio. Por eso los dos cambios van juntos y no se
+       *    puede tocar solo el número.
        */
-      key: "14",
+      key: CVE_RETENC_PLATAFORMAS,
       period: {
         month_from: desde.getUTCMonth() + 1,
         month_to: hasta.getUTCMonth() || 12,
         year: desde.getUTCFullYear(),
       },
       totals: {
-        total_base: acc.base,
+        // 💱 En PESOS, no en los dólares del ledger. Ver §A0.
+        total_base: acc.baseMxn,
         total_retained: totalRetenido,
         taxes: [
           ...(acc.isrRetenido > 0
-            ? [{ base: acc.base, type: "ISR", amount: acc.isrRetenido }]
+            ? [{ base: acc.baseMxn, type: "ISR", amount: acc.isrRetenido }]
             : []),
           ...(acc.ivaRetenido > 0
-            ? [{ base: acc.base, type: "IVA", amount: acc.ivaRetenido }]
+            ? [{ base: acc.baseMxn, type: "IVA", amount: acc.ivaRetenido }]
             : []),
         ],
       },
+      /**
+       * 🔁 FACTURAPI: el nombre del tipo de complemento está por confirmar contra su API. Si
+       * fuera otro, el primer intento en sandbox falla ruidosamente y es una línea.
+       */
+      complements: [{ type: "plataformas_tecnologicas", data: complemento }],
     },
     auth: "secret",
   });

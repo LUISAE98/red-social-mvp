@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { IconButton } from "@/components/ui";
+import { BlurFade, IconButton } from "@/components/ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
@@ -168,6 +168,30 @@ const isWalletPage = pathname.startsWith("/wallet");
 // El reel ocupa la pantalla entera y trae sus propios controles arriba: un
 // header encima le robaría espacio y taparía la barra de progreso.
 const isReelsPage = pathname === "/reels" || pathname.startsWith("/reels/");
+
+/**
+ * Alto de la franja de cristal del safe-area. Su alto real lo decide el CSS
+ * —el hueco del notch más un pico de fundido—, pero BlurFade necesita el número
+ * para repartir sus máscaras, así que se mide.
+ */
+const safeGlassRef = useRef<HTMLDivElement | null>(null);
+const [safeGlassHeight, setSafeGlassHeight] = useState(0);
+
+useEffect(() => {
+  const node = safeGlassRef.current;
+  if (!node || typeof ResizeObserver === "undefined") return;
+
+  const observer = new ResizeObserver((entries) => {
+    const border = entries[0]?.borderBoxSize?.[0]?.blockSize;
+    const next = Math.ceil(border ?? node.getBoundingClientRect().height);
+    // Cero es que no se pinta (laptop), no que mida cero.
+    if (next > 0) setSafeGlassHeight(next);
+  });
+  observer.observe(node);
+  return () => observer.disconnect();
+  // La franja solo existe en home y wallet, así que el nodo es otro al entrar y
+  // al salir de esas rutas.
+}, [isHomePage, isWalletPage, isReelsPage]);
 const [isEmbed, setIsEmbed] = useState(false);
 
 useLayoutEffect(() => {
@@ -405,6 +429,20 @@ const contentAreaClassName = isEmbed
   pointer-events: none;
   background: transparent;
   transition: opacity 220ms ease;
+}
+
+/* Justo POR DEBAJO de la franja negra (70), para que esta lo tape mientras el
+   header se ve y lo destape al desvanecerse. En laptop no se pinta: alli no hay
+   notch y el header no se esconde asi. */
+.safeAreaGlass {
+  display: none;
+  position: fixed;
+  top: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 22px);
+  z-index: 69;
+  pointer-events: none;
 }
 
 .header {
@@ -982,6 +1020,10 @@ const contentAreaClassName = isEmbed
   background: #000000;
 }
 
+.safeAreaGlass {
+  display: block;
+}
+
 .safeAreaHidden {
   opacity: 0;
 }
@@ -1143,6 +1185,29 @@ const contentAreaClassName = isEmbed
 
       <MobileHeaderCtx.Provider value={{ ...headerData, setMobileHeader: setHeaderData }}>
       <div className="layout">
+{/* Cristal del safe-area. Va SIEMPRE puesto y SIEMPRE opaco; quien se
+    desvanece es la franja negra de encima, y al irse lo destapa.
+
+    ⚠️ Es a propósito que no lleve transición de opacidad propia. Un ancestro
+    con `opacity` menor que 1 abre un "backdrop root" nuevo, y entonces el
+    desenfoque deja de ver la página de detrás y no difumina NADA. Por eso el
+    cruce lo hace la franja negra, que es HERMANA y va por encima. */}
+{!isReelsPage && (isHomePage || isWalletPage) ? (
+  <div ref={safeGlassRef} className="safeAreaGlass">
+    {safeGlassHeight > 0 ? (
+      <BlurFade
+        side="top"
+        size={safeGlassHeight}
+        // La mayor parte se queda maciza, para que el reloj y la batería se
+        // sigan leyendo; el fundido es el pico que sobresale por debajo.
+        fade={34}
+        blur={22}
+        veil="rgba(0,0,0,0.55)"
+      />
+    ) : null}
+  </div>
+) : null}
+
 {!isReelsPage && (
 <div
   ref={safeAreaRef}

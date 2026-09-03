@@ -102,6 +102,27 @@ export default function NotificationBell({ active }: NotificationBellProps) {
     // otro cada vez y hay que volver a observarlo.
   }, [open]);
 
+  /**
+   * Alto del pie ("Ver todas"). Mismo trato que el bloque de arriba: flota
+   * SOBRE la lista para que las notificaciones se le disuelvan por debajo, y
+   * el hueco se lo repone el relleno inferior del scroll.
+   */
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const [bottomHeight, setBottomHeight] = useState(41);
+
+  useEffect(() => {
+    const node = bottomRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver((entries) => {
+      const border = entries[0]?.borderBoxSize?.[0]?.blockSize;
+      const next = Math.ceil(border ?? node.getBoundingClientRect().height);
+      if (next > 0) setBottomHeight(next);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [open]);
+
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
@@ -246,6 +267,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
                 // El hueco que hay que reservarle a la capa de arriba, que ya no
                 // ocupa sitio en el flujo.
                 ["--notif-top" as string]: `${topHeight}px`,
+                ["--notif-bottom" as string]: `${bottomHeight}px`,
                 ...(detailOpen ? { display: "none" } : {}),
               }}
             >
@@ -309,9 +331,21 @@ export default function NotificationBell({ active }: NotificationBellProps) {
                   )}
                 </div>
               </div>
-              <Link href="/notifications" className="notifViewAll" onClick={() => setOpen(false)}>
-                {t("viewAll")}
-              </Link>
+              {/* Mismo fundido que arriba, pero del revés: la última
+                  notificación se disuelve al bajar en vez de cortarse contra la
+                  raya del pie. */}
+              <div className="notifPanelBottom" ref={bottomRef}>
+                <BlurFade
+                  side="bottom"
+                  size={bottomHeight + HEAD_FADE_OVERHANG}
+                  fade={HEAD_FADE_LENGTH}
+                  blur={16}
+                  veil="rgba(13,13,13,0.68)"
+                />
+                <Link href="/notifications" className="notifViewAll" onClick={() => setOpen(false)}>
+                  {t("viewAll")}
+                </Link>
+              </div>
             </div>,
             document.body
           )
@@ -367,6 +401,14 @@ export default function NotificationBell({ active }: NotificationBellProps) {
           inset-inline-end: 0;
           z-index: 2;
         }
+        /* Igual que el de arriba, anclado abajo. */
+        .notifPanelBottom {
+          position: absolute;
+          bottom: 0;
+          inset-inline-start: 0;
+          inset-inline-end: 0;
+          z-index: 2;
+        }
         .notifPanelHead {
           position: relative;
           /* Por encima del cristal, que va detrás con z-index 0. */
@@ -394,11 +436,14 @@ export default function NotificationBell({ active }: NotificationBellProps) {
           text-decoration: underline;
         }
         .notifPanelScroll {
-          /* El hueco de la capa flotante, y otro tanto de alto para que el panel
-             siga midiendo lo mismo y se sigan viendo tantas notificaciones como
-             antes. */
+          /* El hueco de las dos capas flotantes, y otro tanto de alto para que
+             el panel siga midiendo lo mismo y se sigan viendo tantas
+             notificaciones como antes. */
           padding-top: var(--notif-top, 0px);
-          max-height: calc(min(60vh, 460px) + var(--notif-top, 0px));
+          padding-bottom: var(--notif-bottom, 0px);
+          max-height: calc(
+            min(60vh, 460px) + var(--notif-top, 0px) + var(--notif-bottom, 0px)
+          );
           overflow-y: auto;
           overflow-x: hidden;
         }
@@ -409,6 +454,9 @@ export default function NotificationBell({ active }: NotificationBellProps) {
           font-size: 14px;
         }
         .notifPanel :global(.notifViewAll) {
+          position: relative;
+          /* Por encima del cristal, que va detrás con z-index 0. */
+          z-index: 1;
           display: block;
           padding: 12px;
           text-align: center;
@@ -416,7 +464,6 @@ export default function NotificationBell({ active }: NotificationBellProps) {
           font-weight: 600;
           color: #fff;
           text-decoration: none;
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
         }
         .notifPanel :global(.notifViewAll:hover) {
           background: rgba(255, 255, 255, 0.05);

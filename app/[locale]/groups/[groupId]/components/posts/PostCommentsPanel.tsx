@@ -7,7 +7,7 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { TextButton } from "@/components/ui";
+import { BlurFade, TextButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useVisualViewport } from "@/lib/hooks/useVisualViewport";
 import { createPortal } from "react-dom";
@@ -101,6 +101,14 @@ type PostCommentsPanelProps = {
 
 const fontStack =
   'inherit';
+
+/**
+ * La cabecera de la hoja de celular mide 56 fijos, así que aquí no hace falta
+ * medir nada: el cristal baja 26 más dentro de la lista y el fundido dura 40.
+ */
+const SHEET_HEADER_H = 56;
+const SHEET_FADE_OVERHANG = 26;
+const SHEET_FADE_LENGTH = 40;
 
 export default function PostCommentsPanel({
   open,
@@ -774,22 +782,40 @@ export default function PostCommentsPanel({
               onPointerUp={handlePanelPointerUp}
               onPointerCancel={handlePanelPointerUp}
               style={{
-                height: 56,
+                position: "relative",
+                // Por encima de la lista, que es la hermana de abajo: así los
+                // comentarios quedan DETRÁS y entran en lo que difumina el
+                // cristal.
+                zIndex: 2,
+                height: SHEET_HEADER_H,
                 display: "grid",
                 gridTemplateColumns: "72px 1fr 72px",
                 alignItems: "center",
                 padding: "0 12px",
-                borderBottom: "1px solid rgba(255,255,255,0.07)",
                 flexShrink: 0,
                 touchAction: "none",
                 userSelect: "none",
                 WebkitUserSelect: "none",
               }}
             >
+              {/* El canto duro se sustituye por un fundido: el comentario que
+                  sube se disuelve en vez de cortarse contra una línea de 1px.
+                  El velo lleva el MISMO color del fondo de la hoja. */}
+              <BlurFade
+                side="top"
+                size={SHEET_HEADER_H + SHEET_FADE_OVERHANG}
+                fade={SHEET_FADE_LENGTH}
+                blur={22}
+                veil="rgba(8,9,11,0.6)"
+              />
+
               <div aria-hidden="true" />
 
               <h3
                 style={{
+                  position: "relative",
+                  // Por encima del cristal, que va detrás con z-index 0.
+                  zIndex: 1,
                   margin: 0,
                   textAlign: "center",
                   fontSize: 17,
@@ -807,6 +833,8 @@ export default function PostCommentsPanel({
                 onClick={onClose}
                 aria-label={tPosts("closeComments")}
                 style={{
+                  position: "relative",
+                  zIndex: 1,
                   width: 40,
                   height: 40,
                   border: "none",
@@ -835,7 +863,11 @@ export default function PostCommentsPanel({
                 // sección topa su maxHeight y esta lista scrollea (shrink + overflow).
                 flex: "0 1 auto",
                 overflowY: "auto",
-                padding: "12px 14px 8px",
+                // El margen negativo mete la lista POR DEBAJO de la cabecera y
+                // el relleno superior le devuelve el hueco, así que la hoja
+                // sigue midiendo exactamente lo mismo que antes.
+                marginTop: -SHEET_HEADER_H,
+                padding: `${SHEET_HEADER_H + 12}px 14px 8px`,
                 display: "grid",
                 gap: 12,
                 alignContent: "start",

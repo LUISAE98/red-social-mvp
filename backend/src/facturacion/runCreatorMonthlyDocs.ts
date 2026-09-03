@@ -30,6 +30,7 @@ import {
   emitirCfdiRetenciones,
   periodoDe,
   registrarDocumento,
+  serviciosDelPeriodo,
   yaEmitido,
 } from "./creatorMonthlyDocs";
 import { armarComprobante, guardarComprobante } from "./comprobanteLiquidacion";
@@ -124,7 +125,8 @@ export async function procesarPeriodo(periodo: string): Promise<{
           const doc =
             tipo === "comision"
               ? await emitirCfdiComision(acc, customerId)
-              : await emitirCfdiRetenciones(acc, customerId);
+              : // La constancia lleva un nodo por operación, no solo totales (§A4).
+                await emitirCfdiRetenciones(acc, customerId, serviciosDelPeriodo(asientos));
           facturapiId = doc.id;
           uuid = doc.uuid ?? null;
         }
