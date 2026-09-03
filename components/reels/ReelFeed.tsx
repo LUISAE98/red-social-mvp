@@ -10,13 +10,18 @@
 // Solo se montan la historia activa y sus vecinas. Las demás son un hueco vacío
 // de la misma altura, para que la barra de scroll y las posiciones no se muevan.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type { StoryDoc } from "@/lib/stories/types";
 import type { ReelItem, ReelLivePost } from "@/lib/reels/reelItems";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
 import ReelStorySlide from "./ReelStorySlide";
 import ReelLiveSlide from "./ReelLiveSlide";
+import {
+  isReelFeedHeld,
+  isReelFeedHeldServer,
+  subscribeToReelFeedHold,
+} from "@/lib/reels/reelFeedRefresh";
 
 /** Cuántas historias se montan a cada lado de la activa. */
 const WINDOW = 1;
@@ -128,6 +133,27 @@ export default function ReelFeed({
   }, []);
 
   const [activeIndex, setActiveIndex] = useState(0);
+
+  /**
+   * ⚠️ ESTE FEED DESMONTA PANELES A PROPÓSITO (ver `mounted`, más abajo): solo
+   * sobreviven el activo y sus dos vecinos. Es lo que mantiene el reel ligero.
+   *
+   * Pero la compra —el formulario y la pasarela— vive DENTRO de un panel. Así
+   * que cualquier cosa que mueva el índice mientras alguien paga le borra la
+   * compra de debajo, y el cobro sigue su camino sin nadie a quien contárselo.
+   *
+   * Mientras hay una compra abierta, la ventana de paneles montados se queda
+   * donde está. La lista tampoco se mueve —el mismo freno la congela—, así que
+   * el panel de quien está pagando no puede desaparecer.
+   */
+  const frenado = useSyncExternalStore(
+    subscribeToReelFeedHold,
+    isReelFeedHeld,
+    isReelFeedHeldServer,
+  );
+  const indiceCongeladoRef = useRef(activeIndex);
+  if (!frenado) indiceCongeladoRef.current = activeIndex;
+  const indiceVentana = frenado ? indiceCongeladoRef.current : activeIndex;
   const [muted, setMuted] = useState(
     () => typeof window !== "undefined" && getMutePreference(),
   );
@@ -261,7 +287,7 @@ export default function ReelFeed({
 
       <div className="scroller" ref={scrollerRef} onScroll={handleScroll}>
         {items.map((item, i) => {
-          const mounted = Math.abs(i - activeIndex) <= WINDOW;
+          const mounted = Math.abs(i - indiceVentana) <= WINDOW;
           const safeBottom = navH !== null ? `${Math.round(navH)}px` : navClearance;
           return (
             <div className="slide" key={item.key} onContextMenu={(e) => e.preventDefault()}>

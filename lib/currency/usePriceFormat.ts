@@ -8,7 +8,7 @@
 //
 // Nunca se usa para cálculos de dinero: solo para MOSTRAR.
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useLocale } from "next-intl";
 import { useCurrency } from "@/app/components/CurrencyProvider";
 import { useExchangeRates } from "./rates";
@@ -286,20 +286,46 @@ export function usePriceFormat(): PriceFormatter {
     [currency, rates]
   );
 
-  return {
-    format,
-    formatWithTax,
-    buyerCountry,
-    taxRate: taxRateForCountry(buyerCountry),
-    currency,
-    locale,
-    ratesSource: rates.source,
-    toAnchor,
-    fromAnchor,
-    buyerLocalToUsd,
-    formatPlain,
-    formatAnchor,
-    resolveStoredPrice,
-    toDisplayForInput,
-  };
+  // ⚠️ MEMORIZADO. Devolver un objeto recién hecho en cada pintado anulaba la
+  // memorización de todo el que lo usa: cualquier `useMemo` o `useEffect` que lo
+  // tuviera entre sus dependencias se recalculaba SIEMPRE. En el reel eso se
+  // notaba —el servicio se re-derivaba en cada pintado y su diagnóstico salía en
+  // bucle por la consola—, y en general es la clase de fuga que acaba en un
+  // "Maximum update depth exceeded" difícil de rastrear.
+  //
+  // Las funciones de dentro ya venían de `useCallback`; lo único que faltaba era
+  // no tirar la caja que las contiene.
+  return useMemo(
+    () => ({
+      format,
+      formatWithTax,
+      buyerCountry,
+      taxRate: taxRateForCountry(buyerCountry),
+      currency,
+      locale,
+      ratesSource: rates.source,
+      toAnchor,
+      fromAnchor,
+      buyerLocalToUsd,
+      formatPlain,
+      formatAnchor,
+      resolveStoredPrice,
+      toDisplayForInput,
+    }),
+    [
+      format,
+      formatWithTax,
+      buyerCountry,
+      currency,
+      locale,
+      rates.source,
+      toAnchor,
+      fromAnchor,
+      buyerLocalToUsd,
+      formatPlain,
+      formatAnchor,
+      resolveStoredPrice,
+      toDisplayForInput,
+    ],
+  );
 }
