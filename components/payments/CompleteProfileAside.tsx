@@ -43,16 +43,18 @@ export default function CompleteProfileAside({ stacked = false }: { stacked?: bo
   const [user, setUser] = useState<User | null>(() => auth.currentUser);
   useEffect(() => onIdTokenChanged(auth, setUser), []);
 
-  const { ready, hasProfile, submit, panel } = useProfileOnboarding(user);
+  const { ready, perfilCompleto, submit, panel } = useProfileOnboarding(user);
   const [saltado, setSaltado] = useState(false);
   const [hecho, setHecho] = useState(false);
 
-  // Quien YA tiene perfil no ve nada: no hay nada que completar. Y mientras no
-  // se sabe tampoco, para no asomar un formulario que va a desaparecer solo.
+  // Solo sale si de verdad falta algo: en el primer registro, o cuando ya hay
+  // cuenta pero le falta la foto o la portada. A quien lo tiene todo no se le
+  // molesta, y mientras no se sabe tampoco, para no asomar un formulario que va
+  // a desaparecer solo.
   //
   // Un anónimo tampoco: sin correo ni contraseña no hay cuenta que completar, y
   // eso solo pasa en los servicios que se cobran sin alta.
-  if (!user || user.isAnonymous || !ready || hasProfile || saltado) return null;
+  if (!user || user.isAnonymous || !ready || perfilCompleto || saltado) return null;
 
   const marco: React.CSSProperties = {
     // Blanco, como el resto de la pasarela. El formulario es el mismo de

@@ -25,6 +25,8 @@ export function useProfileOnboarding(user: User | null) {
 
   // ¿El usuario ya tiene doc? (Google nuevo = no → crear; existente = actualizar.)
   const [hasProfile, setHasProfile] = useState(false);
+  /** El perfil existe pero le falta foto o portada. */
+  const [faltanImagenes, setFaltanImagenes] = useState(false);
   const [ready, setReady] = useState(false);
 
   const [handle, setHandle] = useState("");
@@ -62,9 +64,17 @@ export function useProfileOnboarding(user: User | null) {
         const snap = await getDoc(doc(db, "users", user.uid));
         if (cancelled) return;
         if (snap.exists()) {
-          const data = snap.data() as { bio?: string };
+          const data = snap.data() as {
+            bio?: string;
+            photoURL?: string | null;
+            coverUrl?: string | null;
+          };
           setHasProfile(true);
           setBio((prev) => prev || data.bio || "");
+          // Un perfil puede existir y aun así estar a medias. La identidad
+          // —usuario, nombre, apellido— la pone siempre quien lo crea, así que
+          // lo único que puede faltar de verdad son las imágenes.
+          setFaltanImagenes(!data.photoURL || !data.coverUrl);
         } else {
           setHasProfile(false);
           const displayName = user.displayName?.trim() || "";
@@ -176,6 +186,14 @@ export function useProfileOnboarding(user: User | null) {
   return {
     ready,
     hasProfile,
+    /**
+     * No queda nada que pedirle a esta persona.
+     *
+     * Tiene perfil Y tiene sus dos imágenes. Quien ofrezca completar el perfil
+     * fuera del alta —tras una compra, por ejemplo— se calla cuando esto es
+     * cierto: insistirle a quien ya lo tiene todo es ruido.
+     */
+    perfilCompleto: hasProfile && !faltanImagenes,
     submit,
     // Props listas para <CompleteProfilePanel/> (menos onSubmit/onCancel, que
     // los pone quien lo monta según su flujo).

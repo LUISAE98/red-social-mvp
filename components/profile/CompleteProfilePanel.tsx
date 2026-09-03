@@ -248,7 +248,7 @@ export default function CompleteProfilePanel({
 
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 13 }}>
             {/* Portada + foto de perfil (mismo acomodo/estilo que crear cuenta). */}
-            <div style={{ position: "relative", width: "100%", marginBottom: 66 }}>
+            <div style={{ position: "relative", width: "100%", marginBottom: 78 }}>
               <button
                 type="button"
                 onClick={() => coverInputRef.current?.click()}
@@ -278,7 +278,7 @@ export default function CompleteProfilePanel({
                       <circle cx="9" cy="10" r="1.6" />
                       <path d="m4 17 4.5-4.5a2 2 0 0 1 2.8 0L16 17M14 14l1.5-1.5a2 2 0 0 1 2.8 0L21 15" />
                     </svg>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: "#fff" }}>{t("coverAdd")}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: claro ? "#6b7280" : "#fff" }}>{t("coverAdd")}</span>
                   </span>
                 )}
               </button>
@@ -290,12 +290,12 @@ export default function CompleteProfilePanel({
                 style={{
                   position: "absolute",
                   left: "50%",
-                  top: 66,
+                  top: 80,
                   transform: "translateX(-50%)",
                   width: 84,
                   height: 84,
                   borderRadius: "50%",
-                  border: "3px solid #0a0710",
+                  border: claro ? "3px solid #fff" : "3px solid #0a0710",
                   background: "#d9d9de",
                   overflow: "hidden",
                   cursor: "pointer",
@@ -326,8 +326,9 @@ export default function CompleteProfilePanel({
                   position: "absolute",
                   insetInlineStart: 0,
                   insetInlineEnd: 0,
-                  top: 156,
+                  top: 170,
                   justifyContent: "center",
+                  color: claro ? "#6b7280" : undefined,
                 }}
               >
                 {avatarPreview ? t("photoChange") : t("photoAdd")}
