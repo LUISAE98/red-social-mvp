@@ -66,7 +66,15 @@ export type FacturaEmitida = {
 /** Un creador cuyas compras NO se pudieron facturar, y por qué. */
 export type FacturaOmitida = {
   creatorId: string;
-  motivo: "sin_sello" | "sin_datos_fiscales" | "error_timbrado";
+  motivo:
+    | "sin_sello"
+    | "sin_datos_fiscales"
+    | "error_timbrado"
+    /**
+     * La factura global del creador se adelantó a esta. No es culpa de sus datos fiscales, y
+     * decirle eso al comprador lo manda a esperar algo que nunca va a pasar.
+     */
+    | "ya_en_global";
   detalle?: string;
 };
 

@@ -152,9 +152,9 @@ describe("comprobantes mensuales / qué documentos tocan", () => {
 describe("factura global / agrupación", () => {
   it("agrupa por TIPO de servicio, no una línea por venta", () => {
     const r = agruparGlobal("c1", "2026-08", [
-      { type: "greeting", base: 100, tax: 16 },
-      { type: "greeting", base: 50, tax: 8 },
-      { type: "premium_post", base: 30, tax: 4.8 },
+      { type: "greeting", base: 100, tax: 16, path: "users/b/purchases/greeting_100" },
+      { type: "greeting", base: 50, tax: 8, path: "users/b/purchases/greeting_50" },
+      { type: "premium_post", base: 30, tax: 4.8, path: "users/b/purchases/premium_post_30" },
     ]);
     expect(r.ventas).toBe(3);
     expect(Object.keys(r.porTipo)).toHaveLength(2);
@@ -165,7 +165,7 @@ describe("factura global / agrupación", () => {
   });
 
   it("ignora ventas sin base", () => {
-    const r = agruparGlobal("c1", "2026-08", [{ type: "greeting", base: 0, tax: 0 }]);
+    const r = agruparGlobal("c1", "2026-08", [{ type: "greeting", base: 0, tax: 0, path: "users/b/purchases/greeting_0" }]);
     expect(r.ventas).toBe(0);
   });
 

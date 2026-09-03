@@ -74,6 +74,23 @@ const SECTION_LABEL: React.CSSProperties = {
   fontSize: 11, fontWeight: 550, color: "rgba(254,254,254,0.4)", letterSpacing: 0.65, marginBottom: 10,
 };
 
+/**
+ * Por qué faltó la factura de un creador, contado para quien la esperaba.
+ *
+ * 🚨 `ya_en_global` NO es un problema de los datos del creador, y darle ese mensaje mandaría al
+ * comprador a esperar algo que nunca va a pasar. Su factura sigue siendo suya, pero hay que
+ * emitirla a mano porque cancelar y reexpedir la global es un trámite (motivo 04 del SAT).
+ */
+function motivoOmitida(motivo: FacturaOmitida["motivo"]): string {
+  if (motivo === "error_timbrado") {
+    return "no se pudo timbrar en este momento. Vuelve a intentarlo más tarde.";
+  }
+  if (motivo === "ya_en_global") {
+    return "esta compra ya entró en su factura global del periodo. Tu factura sigue en pie, pero hay que emitirla a mano, escríbenos y la preparamos.";
+  }
+  return "todavía no tiene sus datos de facturación al día. Sus conceptos siguen disponibles para facturar cuando los complete.";
+}
+
 export default function BuyerInvoicePanel({ open, onClose, uid, concepts, formatMoney, onConfirm }: Props) {
   const tWallet = useTranslations("wallet");
   const tCommon = useTranslations("common");
@@ -369,9 +386,7 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
                     <div key={s.creatorId} style={{ fontSize: 12, color: "rgba(255,255,255,0.72)", lineHeight: 1.5 }}>
                       <span style={{ color: "#fff", fontWeight: 500 }}>{nombreDeCreador(s.creatorId)}</span>
                       {" — "}
-                      {s.motivo === "error_timbrado"
-                        ? "no se pudo timbrar en este momento. Vuelve a intentarlo más tarde."
-                        : "todavía no tiene sus datos de facturación al día. Sus conceptos siguen disponibles para facturar cuando los complete."}
+                      {motivoOmitida(s.motivo)}
                     </div>
                   ))}
                 </div>

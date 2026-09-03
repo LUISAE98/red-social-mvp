@@ -45,11 +45,14 @@ PISTA DE CÓDIGO (una cosa a la vez):
 - 🔶 Todo el sistema de pagos actual es **Mercado Pago** → se migra a Stripe.
 
 ## Decisiones pendientes (no bloquean arrancar, sí antes de producción)
-- **D1** — ¿Quién absorbe el ~5% de Stripe? (**25%** de Vibra / comprador / creador). Afecta el ledger.
-  ⚠️ La comisión ya no es el 23% que decía esta línea: es **25%**, o **30%** en los países de
-  ruta cara. Sale de `lib/wallet/payoutTiers.ts`, no de este documento.
+- ✅ **D1 — RESUELTA.** Del cobro, **Vibra absorbe la comisión de tarjeta completa** (2.9% en
+  tarjeta de EE. UU., 4.4% internacional); el comprador cubre los **0.40 USD fijos** y el **2%
+  de conversión**, que no es margen sino coste y riesgo de cambio comprometidos. Del retiro, el
+  creador paga el coste transfronterizo. Comisión **25%**, o **30%** en países de ruta cara, de
+  `lib/wallet/payoutTiers.ts`. Tablas completas en `docs/stripe-integracion.md` §4-bis.
 - **D2** — Reservas/holds de Stripe (preguntar en reunión).
-- **D3** — Retenciones ISR/IVA (mexicano y extranjero) → **fiscalista**.
+- 🟡 **D3** — Retenciones ISR/IVA. **Calculadas y aplicadas al retirar** desde el 2026-08-26; lo
+  que queda del fiscalista son las siete preguntas del grupo C de `pendientesimpuestos.md`.
 - **D4** — KYC internacional: ¿el creador extranjero necesita **LLC US + EIN** o basta banco US (Wallbit/Takenos)? → probar.
 - **D5** — Edad mínima: cláusula en T&C (no verificación técnica).
 
@@ -120,11 +123,13 @@ PISTA DE CÓDIGO (una cosa a la vez):
 ---
 
 # BLOQUE B — Wallet / payouts
-> Se apoya en A (S5/S6). Ajustes al ledger para el modelo Stripe.
-- Conciliar ledger interno ↔ balance Stripe (transfer + payout).
-- Reflejar comisión Stripe según **D1** (quién la absorbe).
-- Estado de retiros en finanzas (pestaña ya preparada) + revisión humana.
-- Mínimo de retiro $2,000 + frecuencia (1–2/mes).
+> ✅ **Cerrado el 2026-09-01.** El flujo de retiro completo (Stripe Global Payouts) está
+> implementado, probado y desplegado. Queda solo probar la ruta de Wallbit de punta a punta.
+- ✅ Conciliación ledger interno ↔ Stripe (`conciliarRetirosEnCamino`, webhook v2 de payouts).
+- ✅ Estado de retiros en finanzas + revisión humana, con devolución de saldo al rechazar.
+- ✅ Mínimo de retiro **300 USD** (500 en la ruta de wire) — ver `docs/payout-tiers.md`, no $2,000 MXN.
+- ✅ Las ocho notificaciones del ciclo del retiro.
+- ⬜ Probar Wallbit de punta a punta (falta un creador con identificación de alguno de sus 12 países).
 
 ---
 
@@ -138,11 +143,11 @@ PISTA DE CÓDIGO (una cosa a la vez):
 ---
 
 # BLOQUE D — Facturación
-> Detalle completo en `docs/facturacion-pendientes.md`.
-- ✅ Bloque 2 (comprador) hecho.
-- ⏸️ Bloque 3 (creador manual + retiro), 4 (creador auto/self-billing — llave de org ya resuelta), 5 (retenciones) → dependen de A + fiscalista.
-- 🔒 Bloque 6 (notas de crédito), 7 (factura global) → después.
-- 🌎 Bloque 8 (recibo internacional) → creador/comprador extranjero.
+> Estado en `docs/facturacion-pendientes.md`. **Pendientes en orden de ejecución: `pendientesimpuestos.md` (raíz).**
+- ✅ Bloque 2 (comprador), 3 (flujo de retiro, cerrado 2026-09-01), 4 (comprobantes Vibra→creador, construidos sin timbrar), 5 (retenciones calculadas y aplicadas al retirar).
+- 🟡 Bloque 7 (factura global) — emite y respeta el sello, pero le faltan la cadencia de 24 h y la marca de las ventas cubiertas.
+- 🔴 **Antes de encender `TIMBRAR`**: grupo A de `pendientesimpuestos.md` (24 h, marca, candado del doble timbrado, clave de retención).
+- ⬜ Bloque 6 (notas de crédito), 8 (recibo internacional) → después del grupo A.
 
 ---
 

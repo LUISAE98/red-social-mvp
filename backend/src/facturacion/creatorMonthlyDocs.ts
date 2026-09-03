@@ -24,6 +24,7 @@ import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import { facturapiFetch } from "./facturapiClient";
 import { requiereCfdiRetenciones } from "../tax/fiscalEngine";
+import { leerImporteFiscal } from "./importeFiscal";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -59,11 +60,26 @@ export type AcumuladoMensual = {
   mxVatVenta: number;
   /** Residencia con la que se calcularon. Decide qué documentos tocan. */
   residency: "MX" | "FOREIGN";
+  /**
+   * 💱 Los mismos importes, en PESOS.
+   *
+   * Cada venta trae su propio tipo de cambio congelado del día en que ocurrió, así que aquí
+   * no se convierte nada: se suman pesos ya convertidos. Es lo que permite que un CFDI que
+   * cubre un mes entero no dependa de una sola tasa — que sería falsa para casi todos los días
+   * que abarca.
+   */
+  baseMxn: number;
+  comisionMxn: number;
+  ivaComisionMxn: number;
+  /** Ventas del mes que aún no tienen pesos congelados. Las recoge el backfill. */
+  ventasSinPesos: number;
 };
 
 type AsientoConRetenciones = {
   status?: string;
   grossAmount?: number;
+  /** Los pesos de la venta, congelados el día que ocurrió. Ver facturacion/importeFiscal.ts. */
+  fiscalMxn?: unknown;
   occurredAt?: admin.firestore.Timestamp | null;
   createdAt?: admin.firestore.Timestamp | null;
   retenciones?: {
@@ -115,6 +131,10 @@ export function acumularMes(
     ivaRetenido: 0,
     mxVatVenta: 0,
     residency: "MX",
+    baseMxn: 0,
+    comisionMxn: 0,
+    ivaComisionMxn: 0,
+    ventasSinPesos: 0,
   };
 
   for (const a of asientos) {
@@ -128,6 +148,22 @@ export function acumularMes(
     acc.isrRetenido = round2(acc.isrRetenido + (r.isrRetenido ?? 0));
     acc.ivaRetenido = round2(acc.ivaRetenido + (r.ivaRetenido ?? 0));
     acc.mxVatVenta = round2(acc.mxVatVenta + (r.mxVatVenta ?? 0));
+
+    /**
+     * 💱 Los pesos de esta venta. El tipo de cambio es el suyo, congelado el día que ocurrió.
+     *
+     * 🚨 Una venta sin congelar NO se convierte aquí con una tasa de hoy: se cuenta aparte.
+     *    Meterle la tasa de otro día a una venta vieja es exactamente el error que este
+     *    bloque vino a arreglar.
+     */
+    const pesos = leerImporteFiscal(a.fiscalMxn);
+    if (pesos) {
+      acc.baseMxn = round2(acc.baseMxn + pesos.base);
+      acc.comisionMxn = round2(acc.comisionMxn + (r.comision ?? 0) * pesos.tipoCambio);
+      acc.ivaComisionMxn = round2(acc.ivaComisionMxn + (r.ivaComision ?? 0) * pesos.tipoCambio);
+    } else {
+      acc.ventasSinPesos += 1;
+    }
     // La residencia viene congelada en el asiento. Si un creador cambió de residencia a mitad
     // de mes, manda la de la última venta: el mes se documenta con una sola.
     if (r.residency) acc.residency = r.residency;
@@ -178,17 +214,44 @@ export async function asientosDelMes(
 type FacturapiDoc = { id: string; uuid?: string; total?: number };
 
 /**
+ * 🚧 La constancia de retenciones no se emite hasta §A5 de `pendientesimpuestos.md`.
+ *
+ * Se anota como `boolean` y no como literal a propósito: con `true` literal, TypeScript da por
+ * muerto todo el cuerpo de la función y deja de comprobarlo, que es justo lo que no se quiere de
+ * un código que se va a reactivar.
+ */
+const CONSTANCIA_BLOQUEADA: boolean = true;
+
+/**
  * Emite el CFDI de la COMISIÓN del mes. Emisor Vibra, receptor el creador.
  *
  * El impuesto va **por encima** de la comisión, nunca dentro: `tax_included: false`. Si fuera
  * dentro, la comisión efectiva de Vibra caería del 25% al 21.55% y absorbería un impuesto que
  * no puede acreditar.
+ *
+ * 💱 **Va en PESOS** (`comisionMxn`), no en los dólares del ledger. Antes mandaba `acc.comision`
+ * —dólares— con `currency: "MXN"`, y una comisión de 100 USD se habría timbrado como $100 MXN.
+ *
+ * Y no lleva `TipoCambio` en dólares porque **no tenemos fuente del FIX de Banxico**:
+ * `config/exchangeRates` sale de una API pública gratuita, no del DOF. Cada venta ya trajo su
+ * tipo de cambio real del cobro, así que aquí solo se suman pesos. Ver `pendientesimpuestos.md`
+ * §A0.
  */
 export async function emitirCfdiComision(
   acc: AcumuladoMensual,
   customerId: string
 ): Promise<FacturapiDoc> {
   const llevaImpuesto = acc.ivaComision > 0;
+  /**
+   * 🚨 Sin pesos no se timbra. Si alguna venta del mes no tiene su importe congelado, la
+   *    comisión en pesos está incompleta y el CFDI saldría corto. Corto es tan falso como
+   *    largo, y el backfill existe justo para que esto no pase.
+   */
+  if (acc.ventasSinPesos > 0) {
+    throw new Error(
+      `comisión sin pesos congelados: ${acc.ventasSinPesos} de ${acc.ventas} ventas de ${acc.periodo}`
+    );
+  }
   const res = await facturapiFetch<FacturapiDoc>("/invoices", {
     method: "POST",
     body: {
@@ -201,7 +264,7 @@ export async function emitirCfdiComision(
             // 🔁 FISCALISTA: clave de producto/servicio de la comisión de intermediación.
             product_key: "80141600",
             unit_key: "E48",
-            price: acc.comision,
+            price: acc.comisionMxn,
             tax_included: false,
             taxes: llevaImpuesto
               ? [{ type: "IVA", rate: 0.16, factor: "Tasa" }]
@@ -229,11 +292,26 @@ export async function emitirCfdiComision(
  *
  * ⚠️ El receptor puede ser EXTRANJERO. Es el caso del creador de fuera que vende a comprador
  * mexicano: se le retiene el 100% del IVA y hay que entregarle su constancia.
+ *
+ * 🚧 **BLOQUEADO hasta §A5.** Los importes que recibe salen de las VENTAS del mes, pero la
+ * retención ocurre en el RETIRO: el ledger solo las acumula como pendientes al vender y las
+ * materializa al pagar. Tal cual está, esta constancia documentaría una retención que quizá no
+ * ha ocurrido, y en dólares etiquetados como pesos.
+ *
+ * La solución elegida es armarla desde los retiros del periodo, con el tipo de cambio del
+ * retiro —que la solicitud ya guarda—, a la espera de que el contador confirme cuándo se causa
+ * la retención (§C8). Hasta entonces **no se emite**: mejor un mes sin constancia que una
+ * constancia falsa, que el creador usa para acreditar y el SAT cruza con la informativa.
  */
 export async function emitirCfdiRetenciones(
   acc: AcumuladoMensual,
   customerId: string
 ): Promise<FacturapiDoc> {
+  if (CONSTANCIA_BLOQUEADA) {
+    throw new Error(
+      `constancia de retenciones bloqueada hasta pendientesimpuestos.md §A5 (creador ${acc.creatorId}, ${acc.periodo})`
+    );
+  }
   const { desde, hasta } = rangoDelPeriodo(acc.periodo);
   const totalRetenido = round2(acc.isrRetenido + acc.ivaRetenido);
 
@@ -311,6 +389,13 @@ export async function registrarDocumento(params: {
         tipo: params.tipo,
         facturapiId: params.facturapiId,
         uuid: params.uuid,
+        /**
+         * 🚧 ¿Se timbró de verdad, o solo se calculó con `TIMBRAR` apagado?
+         *
+         * Sin esta distinción el registro miente: decía «emitido» de un mes en el que no se
+         * mandó nada al SAT. Un CFDI existe cuando tiene folio.
+         */
+        timbrado: params.facturapiId !== null,
         acumulado: params.acumulado,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       },
@@ -319,7 +404,19 @@ export async function registrarDocumento(params: {
   logger.info("creator_monthly_doc", { id, uuid: params.uuid });
 }
 
-/** ¿Ya se emitió este documento para ese creador y mes? */
+/**
+ * ¿Ya se emitió este documento para ese creador y mes?
+ *
+ * 🚨 «Emitido» significa **timbrado**, no «registrado».
+ *
+ * Antes bastaba con que el registro existiera, y el proceso lo escribe también con `TIMBRAR`
+ * apagado. Cada pasada en falso daba el mes por hecho, así que **el día que se encendiera el
+ * interruptor, todos los meses ya «procesados» se habrían saltado para siempre** — meses enteros
+ * de ventas sin documentar y sin forma de notarlo.
+ *
+ * El comprobante de liquidación es la excepción: no es un CFDI, no se timbra, y para él existir
+ * sí es haberse emitido.
+ */
 export async function yaEmitido(
   creatorId: string,
   periodo: string,
@@ -329,5 +426,7 @@ export async function yaEmitido(
     .collection("creatorMonthlyDocs")
     .doc(`${creatorId}_${periodo}_${tipo}`)
     .get();
-  return snap.exists;
+  if (!snap.exists) return false;
+  if (tipo === "liquidacion") return true;
+  return snap.get("timbrado") === true;
 }

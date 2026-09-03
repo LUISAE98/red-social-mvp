@@ -23,6 +23,7 @@ import { facturapiFetch, type FacturapiAuth } from "./facturapiClient";
 import { getOrganizationTestKey } from "./facturapiOrganizations";
 import { productForType } from "./satProductCatalog";
 import { rangoDelPeriodo } from "./creatorMonthlyDocs";
+import { leerImporteFiscal } from "./importeFiscal";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -33,11 +34,23 @@ function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-/** Una venta que quedó sin facturar en el mes. */
+/**
+ * Una venta que quedó sin facturar en el mes.
+ *
+ * 💱 `base` y `tax` van en **PESOS**, no en dólares: son los importes congelados el día de la
+ * venta (`fiscalMxn`). El ledger vive en USD, pero un CFDI mexicano no.
+ */
 export type VentaSinFacturar = {
   type: string;
   base: number;
   tax: number;
+  /**
+   * Ruta del documento de la compra, para poder MARCARLA cuando la global la cubra.
+   *
+   * Va la ruta y no la referencia de Firestore para que `agruparGlobal` siga siendo pura y
+   * comprobable sin base de datos.
+   */
+  path: string;
 };
 
 export type ResumenGlobal = {
@@ -82,11 +95,16 @@ export function agruparGlobal(
  *
  * Se leen del espejo de compras del comprador, que es donde vive `invoiced`. El ledger del
  * creador no sabe si el comprador pidió factura: eso pasa del lado de quien compra.
+ *
+ * 🚨 **Una venta sin pesos congelados NO entra en la global.** Antes se sumaban sus dólares
+ * como si fueran pesos, y una global de 100 USD se habría timbrado como $100 MXN. Quedarse
+ * corto es un problema que se arregla con el backfill; timbrar un importe falso, no. Se
+ * devuelven aparte para que el proceso lo cante en vez de callárselo.
  */
 export async function ventasSinFacturarDelMes(
   creatorId: string,
   periodo: string
-): Promise<VentaSinFacturar[]> {
+): Promise<{ ventas: VentaSinFacturar[]; sinCongelar: number }> {
   const { desde, hasta } = rangoDelPeriodo(periodo);
   const snap = await db
     .collectionGroup("purchases")
@@ -96,17 +114,188 @@ export async function ventasSinFacturarDelMes(
     .get();
 
   const out: VentaSinFacturar[] = [];
+  let sinCongelar = 0;
   for (const d of snap.docs) {
     const x = d.data();
     if (x.status !== "paid") continue;
-    if (x.invoiced === true) continue; // ya la pidió el comprador
+    /**
+     * 🚨 Solo lo que está LIBRE.
+     *
+     * Deja fuera lo que ya facturó el comprador, lo que tiene una nominativa en curso, y lo
+     * apartado por otra global **sea cual sea su estado**, incluido `emitiendo`. Una venta a
+     * medio marcar es una venta que quizá ya se timbró; meterla en la global del mes siguiente
+     * sería timbrarla dos veces, con el sello del creador en ambas. Mejor atascada y visible en
+     * el informe que colada.
+     *
+     * Esto es el primer filtro, el barato. El de verdad es la relectura en transacción de
+     * `reservarVentasParaGlobal`, porque entre esta consulta y la reserva puede pasar de todo.
+     */
+    if (!compraLibre(x)) continue;
+
+    const pesos = leerImporteFiscal(x.fiscalMxn);
+    if (!pesos) {
+      // Venta anterior al congelado, o comprador no mexicano. Ni una ni otra pueden entrar
+      // con los dólares del ledger disfrazados de pesos.
+      sinCongelar++;
+      continue;
+    }
     out.push({
       type: String(x.type ?? ""),
-      base: Number(x.grossAmount) || 0,
-      tax: Number(x.taxAmount) || 0,
+      base: pesos.base,
+      tax: pesos.iva,
+      path: d.ref.path,
     });
   }
-  return out;
+  return { ventas: out, sinCongelar };
+}
+
+/**
+ * Marca cada venta con la global que la cubrió, en DOS FASES.
+ *
+ * ⚠️ POR QUÉ DOS FASES Y NO UNA
+ *
+ * Timbrar y marcar no pueden ser atómicos: el timbrado es una llamada a Facturapi y las marcas
+ * son cientos de documentos, muy por encima del límite de una transacción de Firestore. Así que
+ * hay que elegir qué se rompe si falla a la mitad, y las dos opciones ingenuas son malas:
+ *
+ * - **Timbrar y luego marcar**: si el marcado falla a medias, las ventas sin marcar entran en la
+ *   global del mes siguiente. Pero la primera global YA las incluyó ⇒ **timbradas dos veces**.
+ * - **Marcar y luego timbrar**: si el timbrado falla, las ventas quedan marcadas y no vuelven a
+ *   entrar en ninguna global ⇒ **nunca documentadas**.
+ *
+ * La salida es reservar primero con estado `emitiendo`, timbrar, y confirmar después:
+ *
+ * 1. `reservar()` — la venta queda apartada. `ventasSinFacturarDelMes` ya la excluye, así que no
+ *    puede colarse en otra global aunque todo lo demás se caiga.
+ * 2. Se timbra.
+ * 3. `confirmar()` — se le pega el folio y el UUID.
+ *
+ * Lo que se rompa en medio deja ventas en `emitiendo`, que **no se timbran dos veces** y salen
+ * contadas en el informe del proceso para revisarlas a mano. Es el estado feo pero seguro.
+ */
+const LOTE = 400;
+
+async function marcarEnLotes(
+  paths: string[],
+  valor: Record<string, unknown>
+): Promise<void> {
+  for (let i = 0; i < paths.length; i += LOTE) {
+    const batch = db.batch();
+    for (const p of paths.slice(i, i + LOTE)) {
+      batch.set(db.doc(p), { globalInvoice: valor }, { merge: true });
+    }
+    await batch.commit();
+  }
+}
+
+/**
+ * ¿Esta compra está libre para que la reclame un comprobante?
+ *
+ * Libre es no tener ya una factura nominativa, ni una en curso, ni estar apartada por otra
+ * global. Lo comparten los dos caminos —la global y `generateBuyerInvoice`— porque la regla es
+ * una sola: **una compra la documenta un comprobante y solo uno**.
+ */
+export function compraLibre(x: Record<string, unknown> | undefined): boolean {
+  if (!x) return false;
+  if (x.invoiced === true) return false;
+  if (x.nominativaEnCurso) return false;
+  if (x.globalInvoice) return false;
+  return true;
+}
+
+/**
+ * Fase 1: aparta las ventas antes de timbrar, **en transacción**.
+ *
+ * 🚨 POR QUÉ TRANSACCIÓN Y POR QUÉ DEVUELVE LO QUE CONSIGUIÓ
+ *
+ * Entre que el proceso lee las ventas del mes y llega aquí, un comprador puede haber pedido su
+ * factura nominativa de una de ellas. Con una escritura ciega, esa venta acabaría en los dos
+ * comprobantes — el mismo doble timbrado que este bloque vino a impedir, solo que por la puerta
+ * de al lado.
+ *
+ * Así que se relee dentro de la transacción y se salta lo que ya no está libre. Devuelve las
+ * rutas que **de verdad** quedaron apartadas, y el importe de la global se calcula sobre esas,
+ * no sobre las que se leyeron al principio.
+ *
+ * Se salta en silencio en vez de fallar: el comprador ya tiene su factura, que es el resultado
+ * correcto. Al proceso mensual solo le toca no contarla dos veces.
+ */
+export async function reservarVentasParaGlobal(
+  paths: string[],
+  periodo: string
+): Promise<string[]> {
+  const reservadas: string[] = [];
+  // Trozos holgados: una transacción admite 500 operaciones y aquí cada ruta gasta lectura y
+  // escritura.
+  const TROZO = 200;
+  for (let i = 0; i < paths.length; i += TROZO) {
+    const trozo = paths.slice(i, i + TROZO);
+    const logradas = await db.runTransaction(async (tx) => {
+      const refs = trozo.map((p) => db.doc(p));
+      const snaps = await Promise.all(refs.map((r) => tx.get(r)));
+      const ok: string[] = [];
+      snaps.forEach((snap, n) => {
+        if (!compraLibre(snap.data())) return;
+        tx.set(
+          refs[n],
+          {
+            globalInvoice: {
+              periodo,
+              estado: "emitiendo",
+              reservadoEn: admin.firestore.FieldValue.serverTimestamp(),
+            },
+          },
+          { merge: true }
+        );
+        ok.push(trozo[n]);
+      });
+      return ok;
+    });
+    reservadas.push(...logradas);
+  }
+
+  logger.info("global_invoice_reservadas", {
+    periodo,
+    pedidas: paths.length,
+    reservadas: reservadas.length,
+  });
+  return reservadas;
+}
+
+/** Fase 3: les pega el folio de la global que ya se timbró. */
+export async function confirmarVentasEnGlobal(params: {
+  paths: string[];
+  periodo: string;
+  facturapiId: string | null;
+  uuid: string | null;
+}): Promise<void> {
+  await marcarEnLotes(params.paths, {
+    periodo: params.periodo,
+    estado: "emitida",
+    facturapiId: params.facturapiId,
+    uuid: params.uuid,
+    confirmadoEn: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  logger.info("global_invoice_confirmadas", {
+    periodo: params.periodo,
+    ventas: params.paths.length,
+    uuid: params.uuid,
+  });
+}
+
+/**
+ * Ventas que se quedaron en `emitiendo`: se reservaron y nadie las confirmó.
+ *
+ * Son las víctimas de un fallo a media emisión. No se timbran dos veces —quedan excluidas de
+ * cualquier global futura— pero **puede que no estén documentadas**, así que hay que mirarlas.
+ */
+export async function ventasAtascadas(creatorId: string): Promise<number> {
+  const snap = await db
+    .collectionGroup("purchases")
+    .where("creatorId", "==", creatorId)
+    .where("globalInvoice.estado", "==", "emitiendo")
+    .get();
+  return snap.size;
 }
 
 type FacturapiDoc = { id: string; uuid?: string };

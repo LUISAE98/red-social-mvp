@@ -4,6 +4,7 @@
 > que Vibra habilita. Una ficha por país. Nada se programa sin su ficha aquí.
 >
 > Marco legal completo: `docs/legal/fiscal-iva-isr-plataforma.md`.
+> Pendientes por construir, en orden de ejecución: **`pendientesimpuestos.md`** (raíz del repo).
 > Tabla de cobro (código): `backend/src/tax/config.ts` (autoritativa) + `lib/tax/config.ts` (espejo display).
 >
 > ⚠️ **Actualizado 2026-08-26.** Dos cambios de fondo posteriores a la redacción original:

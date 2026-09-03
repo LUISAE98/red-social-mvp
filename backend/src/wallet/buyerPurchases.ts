@@ -73,6 +73,12 @@ export const mirrorLedgerToBuyerPurchase = onDocumentWritten(
         liveId: d.liveId ?? null,
         postId: d.postId ?? null,
         taxAmount: typeof d.taxAmount === "number" ? d.taxAmount : 0,
+        /**
+         * 🧾 Los pesos congelados de la venta. Viaja al espejo porque es desde AQUÍ desde donde
+         * se factura: `generateBuyerInvoice` lee las compras del comprador, y la factura global
+         * lee este mismo espejo para saber qué quedó sin facturar.
+         */
+        fiscalMxn: d.fiscalMxn ?? null,
         // Fecha real de la compra (para ordenar "más reciente arriba").
         occurredAt: d.occurredAt ?? d.createdAt ?? null,
         createdAt: d.createdAt ?? null,

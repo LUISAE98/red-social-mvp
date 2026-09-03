@@ -177,11 +177,20 @@ Backend:
 
 Cloud Functions:
 
-* backend/src/index.ts
+* `backend/src/indexCompat.ts` — URLs HTTP externas y todos los schedules; conserva la
+  codebase histórica `backend` para no recrear URLs ni jobs.
+* `backend/src/indexPayments.ts` — pagos, wallet, retiros, KYC y facturación.
+* `backend/src/indexMedia.ts` — experiencias, video y live.
+* `backend/src/indexSocial.ts` — comunidades, publicaciones, feeds y moderación.
+* `backend/src/indexAccounts.ts` — cuenta, perfil, sesiones y mensajes privados.
 
-firebase.json utiliza backend como source oficial.
+El código TypeScript compartido sigue viviendo únicamente en `backend/src/`. Los directorios
+`backend-codebases/*` son paquetes delgados de despliegue generados desde esa fuente por
+`scripts/build-function-codebase.js`; no duplicar lógica de negocio dentro de ellos.
 
-No crear una segunda estructura de Cloud Functions.
+`firebase.json` declara las cinco codebases. Nunca mover fuera de `backend` una función
+`onRequest` registrada externamente ni una función `onSchedule` sin un plan explícito para
+preservar su URL o su Cloud Scheduler job.
 
 ---
 
@@ -196,7 +205,8 @@ Columna vertebral del backend. Cuatro servicios:
 * **Firestore** — base de datos principal (perfiles, posts, wallet/ledger, sesiones, grupos).
 * **Storage** — archivos e imágenes.
 * **Auth** — autenticación principal.
-* **Cloud Functions** — backend en `backend/src/index.ts` (source oficial según `firebase.json`).
+* **Cloud Functions** — fuente compartida en `backend/src/` y cinco entrypoints por dominio
+  declarados en `firebase.json`; `indexCompat.ts` conserva URLs externas y schedules.
 
 ## LiveKit
 

@@ -11,6 +11,9 @@
 > **Consecuencia útil:** las secciones §1 a §11 y los Anexos, escritos bajo el modelo intermediario
 > original, **vuelven a ser pertinentes**. Se conservan y se revalidan, salvo las marcas puntuales.
 >
+> 📋 **Lo que falta por construir, en orden de ejecución: `pendientesimpuestos.md` (raíz del repo).**
+> Este documento dice qué DEBE pasar; aquél, qué falta y en qué orden.
+>
 > **Entidad:** Vibra On, LLC. **Procesadora:** Stripe. **Denominación:** USD.
 > **Reparto:** 75% creador / 25% Vibra sobre el precio base, con el impuesto de la comisión por encima.
 >
@@ -320,7 +323,10 @@ grupos necesitan una condición especial:
 | ✅ **Quién emite la factura global** | **DECIDIDO (Luis, 2026-08-26): la emite VIBRA por cuenta del creador**, con el sello digital que él sube. La alternativa —que cada creador emitiera la suya cada mes— no escala y deja expuesto a quien se olvide. **Corolario: el sello se necesita desde la primera venta**, no antes del primer retiro. |
 | 🟡 **Claves del SAT** | **Dos de tres decididas (2026-08-29).** ✅ La clave de PRODUCTO de la venta pasó de `81112100` («Servicios de internet», que describía mal lo que se vende) a tres según lo que recibe el comprador: `90131602` entretenimiento grabado, `90131500` actuaciones en vivo, `43233419` plataformas de multimedia. ✅ La de la COMISIÓN se queda en `80141600`. 🔴 La de RETENCIÓN sigue abierta, ver la fila de abajo. |
 | 🔴 **Clave de retención** | ⬜ **Pendiente de contador.** El código manda `14`, que en `c_ClaveRetenc` es **«dividendos o utilidades distribuidas»** — Vibra no reparte dividendos. La del complemento *Servicios Plataformas Tecnológicas* es la **`26`**, pero con ella el SAT espera el complemento entero (`Periodicidad`, `NumServ`, `TipoDeServ`, `MontToServSIva`) que hoy no se manda. Y antes hay una pregunta de fondo: ese complemento está redactado para transporte, comida, hospedaje y comercio de bienes, no para servicios de creadores. **Sin urgencia mientras `TIMBRAR` esté en falso.** |
-| 🚧 **Dónde elige el creador el país de su cuenta de cobro** | ⬜ El backend ya lo guarda (`setCreatorPayoutAccountCountry`) y el motor ya lo aplica —fuera de México sube la retención al 100%—, pero **no hay sitio en la interfaz donde elegirlo**. Va con el alta de Stripe, que es donde el creador da sus datos de depósito. Mientras no exista, el campo queda vacío y el motor asume México. |
+| ⚪ **Dónde elige el creador el país de su cuenta de cobro** | 🟡 **Mitigado (2026-09-01).** El backend lo guarda (`setCreatorPayoutAccountCountry`) y el motor lo aplica —fuera de México sube la retención al 100%—, pero **sigue sin haber sitio en la interfaz donde elegirlo**. Ya no cae en vacío: el cuestionario de alta de cobro usa el **país del documento del KYC** como respaldo (`payoutAccountQuestionnaire.ts:115`), que en la práctica acierta. Ver `pendientesimpuestos.md` §E1. |
+| 🔴 **Los CFDI del proceso mensual llevan USD etiquetado como MXN** | ⬜ **Encontrado el 2026-09-02.** El ledger es USD y los tres emisores (global, comisión, retenciones) declaran `MXN` sin convertir. `generateBuyerInvoice` sí convierte y es el patrón. **Bloquea encender `TIMBRAR`.** Ver `pendientesimpuestos.md` §A0. |
+| ✅ **Moneda de cada comprobante** | **DECIDIDO (2026-09-02).** Venta al comprador en **MXN con los pesos realmente cobrados** (el comprador mexicano pagó en pesos, y una global agrupa ventas de días distintos con un solo `TipoCambio` posible). Comisión de Vibra en **USD con `TipoCambio`**, FIX del día hábil anterior (Art. 20 CFF), porque sí está denominada en dólares. Constancia de retenciones en **MXN al tipo de cambio del RETIRO**. |
+| 🔴 **¿Cuándo se causa la retención: al vender o al pagar?** | ⬜ **Pendiente de contador (C8).** El art. 113-A habla de retener sobre los **pagos** que efectúa la plataforma, y el diseño ya retiene **al retirar** — pero la constancia se arma hoy desde las **ventas del mes**, y documentaría una retención que aún no ocurrió. Ver `pendientesimpuestos.md` §A5. |
 
 > 🚨 **Cambiar la clave de producto NO cambia el impuesto.** Las cuatro claves implicadas
 > están marcadas «IVA trasladado: Opcional» en el catálogo y ninguna arrastra complemento,

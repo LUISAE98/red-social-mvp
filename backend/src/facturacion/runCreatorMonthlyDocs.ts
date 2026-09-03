@@ -27,7 +27,10 @@ import {
 } from "./creatorMonthlyDocs";
 import {
   agruparGlobal,
+  confirmarVentasEnGlobal,
   emitirFacturaGlobal,
+  reservarVentasParaGlobal,
+  ventasAtascadas,
   ventasSinFacturarDelMes,
 } from "./globalInvoice";
 import { armarComprobante, guardarComprobante } from "./comprobanteLiquidacion";
@@ -68,6 +71,12 @@ export async function procesarPeriodo(periodo: string): Promise<{
   timbrado: boolean;
   globales: number;
   globalesSinSello: number;
+  /** Ventas excluidas de la global por no tener sus pesos congelados. Las recoge el backfill. */
+  ventasSinPesos: number;
+  /** Globales que se habrían emitido si `TIMBRAR` estuviera encendido. */
+  globalesSimuladas: number;
+  /** Ventas apartadas por una global que nunca se confirmó. Hay que mirarlas a mano. */
+  ventasAtascadas: number;
 }> {
   // Solo creadores con perfil fiscal: sin él no hay a quién emitirle.
   const perfiles = await db.collection("creatorTaxProfiles").get();
@@ -82,6 +91,9 @@ export async function procesarPeriodo(periodo: string): Promise<{
     timbrado: TIMBRAR,
     globales: 0,
     globalesSinSello: 0,
+    ventasSinPesos: 0,
+    globalesSimuladas: 0,
+    ventasAtascadas: 0,
   };
 
   for (const p of perfiles.docs) {
@@ -143,7 +155,17 @@ export async function procesarPeriodo(periodo: string): Promise<{
       // los cuatro documentos del mes en el que Vibra no es la emisora.
       if (!(await yaEmitido(creatorId, periodo, "global"))) {
         const sinFacturar = await ventasSinFacturarDelMes(creatorId, periodo);
-        const global = agruparGlobal(creatorId, periodo, sinFacturar);
+        if (sinFacturar.sinCongelar > 0) {
+          // No se cuelan con los dólares del ledger disfrazados de pesos. Se dice en voz alta
+          // porque significa que al backfill le faltan ventas por alcanzar.
+          r.ventasSinPesos += sinFacturar.sinCongelar;
+          logger.warn("global_invoice_ventas_sin_pesos", {
+            creatorId,
+            periodo,
+            ventas: sinFacturar.sinCongelar,
+          });
+        }
+        const global = agruparGlobal(creatorId, periodo, sinFacturar.ventas);
         if (global.ventas > 0) {
           const orgId = String(p.get("facturapiOrgId") ?? "").trim();
           const selloValido = p.get("csdStatus") === "valid";
@@ -152,24 +174,80 @@ export async function procesarPeriodo(periodo: string): Promise<{
             // aparte porque NO es un error del proceso: es un creador que debe subirlo.
             r.globalesSinSello++;
             logger.warn("global_invoice_sin_sello", { creatorId, periodo, ventas: global.ventas });
+          } else if (!TIMBRAR) {
+            /**
+             * 🚧 Apagado: se calcula y se cuenta, pero **no se marca ni se registra nada**.
+             *
+             * Antes sí registraba el documento con `facturapiId: null`, y como `yaEmitido` solo
+             * miraba si el registro existía, el periodo quedaba dado por hecho. El día que se
+             * encendiera `TIMBRAR`, todos los meses «procesados» en falso se habrían saltado
+             * para siempre, sin timbrar jamás. Marcar las ventas tendría el mismo defecto: se
+             * quedarían apartadas por una factura que no existe.
+             */
+            r.globalesSimuladas++;
           } else {
-            let facturapiId: string | null = null;
-            let uuid: string | null = null;
-            if (TIMBRAR) {
-              const doc = await emitirFacturaGlobal(global, orgId, String(p.get("zip") ?? ""));
-              facturapiId = doc.id;
-              uuid = doc.uuid ?? null;
-            }
-            await registrarDocumento({
+            const paths = sinFacturar.ventas.map((v) => v.path);
+
+            // Fase 1 — apartar. Desde aquí no pueden colarse en otra global.
+            const reservadas = await reservarVentasParaGlobal(paths, periodo);
+
+            /**
+             * 🚨 El importe se calcula sobre lo que SE APARTÓ, no sobre lo que se leyó.
+             *
+             * Entre la consulta del mes y la reserva, un comprador puede haber pedido la
+             * nominativa de una de estas ventas. La reserva se la salta, y si el total se
+             * quedara con el de antes, la global cobraría por una venta que ya tiene su propia
+             * factura — timbrada dos veces por la puerta de al lado.
+             */
+            const apartadas = new Set(reservadas);
+            const definitivo = agruparGlobal(
               creatorId,
               periodo,
-              tipo: "global",
-              facturapiId,
-              uuid,
-              acumulado: acc,
-            });
-            r.globales++;
+              sinFacturar.ventas.filter((v) => apartadas.has(v.path))
+            );
+
+            if (definitivo.ventas === 0) {
+              // Se las llevaron todas los compradores con sus nominativas. No hay global que
+              // emitir este mes, y no hay nada apartado que soltar.
+              logger.info("global_invoice_sin_ventas_tras_reserva", { creatorId, periodo });
+            } else {
+              // Fase 2 — timbrar.
+              const doc = await emitirFacturaGlobal(definitivo, orgId, String(p.get("zip") ?? ""));
+              const facturapiId = doc.id;
+              const uuid = doc.uuid ?? null;
+
+              /**
+               * Fase 3 — confirmar **solo lo que se apartó**, no lo que se leyó al principio.
+               *
+               * Marcar `paths` pondría «cubierta por la global» a una venta que la reserva se
+               * saltó porque el comprador ya la estaba facturando. Quedaría con las dos marcas
+               * y sin forma de saber cuál manda.
+               *
+               * Va antes de registrar el documento: si se cae aquí, el mes se reintenta y no
+               * encuentra ventas que meter, en vez de darse por hecho con ventas sueltas que
+               * otra global recogería.
+               */
+              await confirmarVentasEnGlobal({ paths: reservadas, periodo, facturapiId, uuid });
+
+              await registrarDocumento({
+                creatorId,
+                periodo,
+                tipo: "global",
+                facturapiId,
+                uuid,
+                acumulado: acc,
+              });
+              r.globales++;
+            }
           }
+        }
+
+        // Lo que se quedó a medias en alguna emisión anterior. No se timbra dos veces, pero
+        // puede estar sin documentar.
+        const atascadas = await ventasAtascadas(creatorId);
+        if (atascadas > 0) {
+          r.ventasAtascadas += atascadas;
+          logger.warn("global_invoice_ventas_atascadas", { creatorId, ventas: atascadas });
         }
       }
     } catch (err) {

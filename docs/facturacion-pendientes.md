@@ -1,6 +1,7 @@
 # Facturación — Estado y pendientes de integración
 
-> Última actualización: 2026-07-30. Fuente de verdad del avance de facturación (CFDI 4.0, Facturapi).
+> Última actualización: 2026-09-02. Fuente de verdad del ESTADO de la facturación (CFDI 4.0, Facturapi).
+> La lista de PENDIENTES, en orden de ejecución, vive en `pendientesimpuestos.md` (raíz del repo).
 > ⚠️ **MODELO ACTUALIZADO 2026-08-26: INTERMEDIACIÓN.** Vibra ya no vende: intermedia y cobra por cuenta
 > del creador. **Todo lo que este documento diga sobre vendedor directo está superado.** Detalle fiscal
 > vigente en `docs/legal/fiscal-iva-isr-plataforma.md` §0.
@@ -55,11 +56,20 @@
 
 ---
 
-## Dependencia principal
+## Estado real — 2026-09-02
 
-**La pasarela es Stripe** (decidido; migración completa MP → Stripe, ver arriba). Lo que aún falta para destrabar la facturación del creador es: **(1) integrar Stripe** (cobros + Connect + payouts) y **(2) definir el modelo de retenciones ISR/IVA con un fiscalista** (Stripe NO lo hace). De eso dependen el monto/IVA/retenciones de la factura del creador.
+**La pasarela ya no es la dependencia.** Stripe está integrado (cobros, Global Payouts, webhooks,
+suscripciones) y el flujo de retiro está cerrado y probado. El modelo fiscal está decidido
+(intermediación, 2026-08-26) y el motor lo aplica. Lo que queda de facturación es **código propio
+y decisiones de contador**, no espera de terceros.
 
-Modo actual: **Facturapi en PRUEBA (`sk_test`)** → todo lo que se timbra es de prueba, **aún no fiscal**.
+Modo actual: **Facturapi en PRUEBA (`sk_test`)** → todo lo que se timbra es de prueba, **aún no
+fiscal**. Y el proceso mensual arranca con `const TIMBRAR = false` en `runCreatorMonthlyDocs.ts`:
+calcula y registra el acumulado, pero **no timbra nada**.
+
+> 🔴 **La lista viva de pendientes de impuestos, en orden de ejecución, vive en
+> `pendientesimpuestos.md` (raíz del repo).** Este documento describe el ESTADO; aquél dice
+> qué se hace primero y por qué.
 
 ---
 
@@ -67,68 +77,64 @@ Modo actual: **Facturapi en PRUEBA (`sk_test`)** → todo lo que se timbra es de
 
 ### Bloque 1 — Datos fiscales
 - Perfiles fiscales del **comprador** (varios, tipo "tarjetas guardadas": `users/{uid}/billingProfiles`) con validación de RFC contra el SAT vía Facturapi.
-- Perfil fiscal del **creador** (`creatorTaxProfiles`) + subida de **CSD** (lazy, al primer retiro; el CSD vive en Facturapi, nunca en Firestore).
+- Perfil fiscal del **creador** (`creatorTaxProfiles`) + subida de **CSD**. ⚠️ Ya **no** es lazy al primer retiro: bajo intermediación el sello se necesita **desde la primera venta**, porque la factura global la emite Vibra con él. El CSD vive en Facturapi, nunca en Firestore.
 
-### Bloque 2 — Factura del comprador (Vibra → comprador)
+### Bloque 2 — Factura del comprador
 - Selección de movimientos en `/experiencias → Entregados → Todo` + panel `BuyerInvoicePanel`.
-- Timbrado del CFDI en la **org de Vibra** con **MXN real** cobrado (del `settlementAmount` del `paymentIntents/{id}`; fallback FX si no hay intent).
-- **Envío por correo** (PDF+XML) al correo capturado + **descarga de PDF**.
-- Marca `invoiced: true` en la compra ("· Facturado"), no re-facturable, sale del modo selección al terminar.
-- Backend: `generateBuyerInvoice`, `downloadBuyerInvoice`. Marcadores `🔁 FISCALISTA` (ClaveProdServ `81112100`, ClaveUnidad `E48`, forma `04`, método `PUE`) en `satProductCatalog.ts` — confirmar con contador.
+- Timbrado del CFDI con **MXN real** cobrado (del `settlementAmount` del `paymentIntents/{id}`; fallback FX si no hay intent).
+- **Envío por correo** (PDF+XML) + **descarga de PDF**. Marca `invoiced: true`, no re-facturable.
+- Backend: `generateBuyerInvoice`, `downloadBuyerInvoice`.
 
-### Bloque 4 — Desbloqueo técnico (self-billing)
-- Confirmado que Facturapi **sí entrega la API key por organización**: `GET /organizations/{id}/apikeys/test` (con la USER key) → `sk_test_...`. El 401 previo era por ruta equivocada.
-- Con esa llave se podrá timbrar el CFDI del creador dentro de su org. **Falta la emisión** (ver abajo).
+### Bloque 3 — Flujo de retiro
+- **Cerrado y desplegado** (2026-09-01). `requestWithdrawal` / `reviewWithdrawal`, estados
+  `pending → approved → sent → paid` (más `rejected` / `failed`), conciliación contra Stripe,
+  webhook de eventos v2, devolución de saldo al rechazar, y las ocho notificaciones al creador.
+- Las **puertas** del retiro (`motivoDeBloqueo`) exigen KYC, cuenta de cobro y —al mexicano—
+  **sello digital vigente**, revalidadas también al aprobar.
+- ⚠️ El plan original de este bloque (que el creador subiera PDF+XML de su propia factura a la
+  solicitud) **quedó superado por el modelo de intermediación**: el creador ya no le factura a
+  Vibra, es Vibra quien le factura a él su comisión.
 
----
+### Bloque 4 — Comprobantes de Vibra al creador
+- `creatorMonthlyDocs.ts`: **CFDI de comisión** (25% + impuesto) y **CFDI de retenciones**
+  (constancia), mensuales, agregados por creador. Emisor Vibra, receptor el creador.
+- `comprobanteLiquidacion.ts`: **comprobante de liquidación** para el creador extranjero, que no
+  es CFDI y por eso se genera **esté o no encendido el timbrado**.
+- Llave por organización de Facturapi resuelta (`GET /organizations/{id}/apikeys/test`).
 
-## ⏸️ PENDIENTE — esperan la PASARELA + modelo fiscal
+### Bloque 5 — Retenciones
+- Cálculo de **ISR/IVA retenidos** según residencia y país de la cuenta de cobro, en
+  `backend/src/tax/fiscalEngine.ts`, aplicado **al retirar** (decisión de 2026-08-26), con el
+  desglose visible en la wallet.
+- `informativaMensual.ts`: los datos de las **dos declaraciones informativas** al SAT
+  (retenciones y operaciones), construidos desde los asientos, no desde las constancias.
+- 🔴 Falta la **clave de retención correcta**, ver `pendientesimpuestos.md` §A4.
 
-### Bloque 3 — Factura del creador MANUAL + flujo de retiro
-- Cablear **"pedir retiro"** (hoy `withdrawalRequests` es solo un tipo; ningún callable la crea).
-- El creador sube **PDF + XML** → se **adjunta a la solicitud de retiro** (Storage) → **auto-validación del XML** (receptor = RFC de Vibra, total = base+IVA, UUID timbrado) → revisión humana en la pestaña de retiros de finanzas.
-- Depende del modelo fiscal (monto/IVA/retenciones) para saber contra qué validar el total.
-
-### Bloque 4 — Factura del creador AUTOMÁTICA (self-billing) — EMISIÓN
-- Sacar/guardar la API key de la org del creador (ya sabemos cómo) y **timbrar** el CFDI del creador (receptor = Vibra) dentro de su org.
-- Adjuntarlo a la solicitud de retiro.
-- Depende del modelo fiscal (mismo monto/IVA/retenciones que el 3).
-
-### Bloque 5 — Retenciones + CFDI de retención
-- Cálculo de **ISR/IVA retenidos** al creador (50%/100% IVA + ISR según residencia y monto) en el ledger.
-- Emisión del **CFDI de retenciones**.
-- Es el corazón fiscal; **requiere la pasarela + fiscalista**.
-
----
-
-## 🔒 PENDIENTE — dependen de que 3/4/5 estén hechos
-
-### Bloque 6 — Reembolsos post-factura → Nota de crédito
-- Si una compra **ya facturada** se reembolsa: emitir **nota de crédito (CFDI de egreso)** o cancelar el CFDI.
-- No se puede cerrar hasta tener la emisión (2 ya está; pero el flujo de retención/creador también genera CFDIs que podrían requerir nota de crédito).
-
-### Bloque 7 — Factura global (público en general)
-- CFDI **global mensual** por lo NO facturado nominalmente + **plazo de facturación** (reglas SAT: mismo mes / fecha límite).
-- Depende de tener cerrado el ciclo de emisión nominal.
+### Bloque 7 — Factura global (parcial)
+- `globalInvoice.ts`: agrupa por tipo de servicio y emite **a nombre del creador**, en su
+  organización y con su sello.
+- **Sin sello no se emite** y se cuenta aparte (`globalesSinSello`); la wallet se lo exige.
+- 🔴 Faltan la cadencia (24 h), la marca de las ventas cubiertas y el candado contra el doble
+  timbrado. Ver `pendientesimpuestos.md` §A.
 
 ---
 
-## 🌎 PENDIENTE — depende de PAGOS INTERNACIONALES
+## 🔴 PENDIENTE
 
-### Bloque 8 — Recibo internacional (no-MX)
-- Comprador/creador **extranjero** → **recibo** (comprobante de pago, NO CFDI, porque el CFDI es solo mexicano).
-- **Hoy no hay pagos internacionales** → no existen compras extranjeras que "recibar", y la regla de **quién ve CFDI vs recibo** depende del modelo internacional (¿por país detectado por IP?, ¿por tener RFC mexicano?). Por eso, igual que 6 y 7, **no es cleanly construible todavía**.
-- Cuando exista la pasarela internacional: gate del flujo de CFDI a mexicanos + generar el recibo (proof of payment) con el monto en la moneda del comprador.
+Los detalles, el orden y las dependencias están en **`pendientesimpuestos.md`**. Resumen:
 
----
+| Grupo | Qué es | Bloquea |
+|---|---|---|
+| **A** | Cadencia de 24 h, marca de ventas en la global, candado del doble timbrado, clave de retención | Encender `TIMBRAR` |
+| **B** | Cola de facturas pendientes, botón desde «Ver detalles» + notificación, cancelación motivo 04, recibo internacional | Que la global salga correcta |
+| **C** | Siete preguntas abiertas del contador | Fuera de código |
+| **D** | Cutover a producción (`sk_live`, CSD real, `apikeys/live`) | Al final |
+| **E** | Elegir el país de la cuenta de cobro desde la interfaz | Menor, hoy mitigado por el KYC |
 
-## 🚀 PRODUCCIÓN
-
-### Bloque 9 — Cutover
-- Cambiar secreto a **`sk_live`** (agregar `FACTURAPI_LIVE_KEY`).
-- Subir el **CSD real de Vibra** a su org (hoy usa RFC de prueba `EIRG710515LI9`; cambiar a la entidad definitiva — marcador `🔁` en `WithdrawFiscalPanel.VIBRA_RECEPTOR`).
-- Usar `apikeys/live` para las orgs de creadores (la live solo se entrega al renovar).
-- Validación real contra el SAT (en `sk_test` casi todo pasa).
+### Bloque 6 — Notas de crédito
+Sigue pendiente y **ya no está bloqueado por 3/4/5**: si una compra ya facturada se reembolsa, hay
+que emitir nota de crédito (CFDI de egreso) o cancelar el CFDI. Entra en la cola después del
+grupo A, porque comparte máquina con la cancelación motivo 04 (§B7).
 
 ---
 
@@ -138,11 +144,10 @@ Modo actual: **Facturapi en PRUEBA (`sk_test`)** → todo lo que se timbra es de
 |---|---|---|
 | 1 Datos fiscales | ✅ Hecho | — |
 | 2 Factura comprador | ✅ Hecho (modo prueba) | — |
-| 4 (llave org) | ✅ Desbloqueado | — |
-| 3 Creador manual + retiro | ⏸️ | Pasarela + modelo fiscal |
-| 4 Creador auto (emisión) | ⏸️ | Pasarela + modelo fiscal |
-| 5 Retenciones | ⏸️ | Pasarela + fiscalista |
-| 6 Notas de crédito | 🔒 | Bloques 3/4/5 |
-| 7 Factura global | 🔒 | Ciclo de emisión |
-| 8 Recibo internacional | 🌎 | Pagos internacionales |
-| 9 Cutover producción | 🚀 | — (al final) |
+| 3 Flujo de retiro | ✅ Cerrado 2026-09-01 | — |
+| 4 Comprobantes Vibra→creador | ✅ Construido, sin timbrar | `TIMBRAR` |
+| 5 Retenciones | ✅ Calculadas y aplicadas | 🔴 clave de retención (A4) |
+| 7 Factura global | 🟡 Parcial | 🔴 grupo A |
+| 6 Notas de crédito | ⬜ | Grupo A |
+| 8 Recibo internacional | ⬜ | — (§B8) |
+| 9 Cutover producción | ⬜ | Grupo A + contador |

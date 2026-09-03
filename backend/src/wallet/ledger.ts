@@ -29,6 +29,12 @@ import {
   PAYOUT_TERMS_PROVISIONAL,
   type PayoutTerms,
 } from "./payoutTiers";
+import {
+  importeFiscalDeLaVenta,
+  type DatosDelCobro,
+  type ImporteFiscalMxn,
+} from "../facturacion/importeFiscal";
+import { logger } from "firebase-functions";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -375,6 +381,50 @@ async function perfilFiscalDe(creatorId: string): Promise<PerfilFiscalCreador> {
 }
 
 /**
+ * Busca el cobro de esta venta y despeja de él los pesos.
+ *
+ * El `paymentIntents/{id}` comparte el id determinista del asiento (`sourceType__sourceId`), así
+ * que no hace falta guardar ninguna referencia cruzada: se sabe dónde está.
+ *
+ * La tabla de tasas solo se lee si el cobro no sirvió —pago íntegro con saldo, o una venta que
+ * nunca pasó por Stripe—, para no añadir una lectura a cada venta normal.
+ *
+ * Nunca lanza: un fallo aquí no puede tumbar el registro de una venta cobrada.
+ */
+async function congelarPesosDeLaVenta(params: {
+  entryId: string;
+  baseUsd: number;
+  ivaUsd: number;
+}): Promise<ImporteFiscalMxn | null> {
+  try {
+    const intentSnap = await db.doc(`paymentIntents/${params.entryId}`).get();
+    const cobro = intentSnap.exists ? (intentSnap.data() as DatosDelCobro) : null;
+
+    const conElCobro = importeFiscalDeLaVenta({
+      baseUsd: params.baseUsd,
+      ivaUsd: params.ivaUsd,
+      cobro,
+    });
+    if (conElCobro) return conElCobro;
+
+    const ratesSnap = await db.doc("config/exchangeRates").get();
+    const rates = (ratesSnap.data()?.rates ?? {}) as Record<string, number>;
+    return importeFiscalDeLaVenta({
+      baseUsd: params.baseUsd,
+      ivaUsd: params.ivaUsd,
+      cobro,
+      tasaDeTabla: Number(rates.MXN),
+    });
+  } catch (err) {
+    logger.warn("fiscal_mxn_no_congelado", {
+      entryId: params.entryId,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
+/**
  * Registra una venta pagada en el libro mayor. Idempotente por (sourceType, sourceId).
  */
 export async function recordEarning(
@@ -464,6 +514,29 @@ export async function recordEarning(
     commissionRate: terms.commissionRate,
   });
 
+  /**
+   * 🧾 Los PESOS de esta venta, congelados hoy y para siempre.
+   *
+   * El CFDI es un documento mexicano y va en pesos, pero el ledger vive en dólares. La
+   * conversión ocurre **una sola vez, aquí**, con el tipo de cambio que de verdad se le aplicó
+   * a este comprador — no con una tabla al momento de timbrar, que daría un importe distinto
+   * en cada reexpedición.
+   *
+   * Solo para comprador mexicano: es el único que recibe CFDI. La venta a un extranjero es
+   * exportación y no lleva comprobante mexicano (`pendientesimpuestos.md` §B8).
+   *
+   * ⚠️ **Si no se puede, la venta sigue.** Un cobro no se rompe por no poder documentarlo
+   * todavía; lo que quede sin congelar lo recoge el backfill.
+   */
+  const fiscalMxn =
+    params.taxCountry === "MX"
+      ? await congelarPesosDeLaVenta({
+          entryId: deterministicEntryId(params.sourceType, params.sourceId),
+          baseUsd: gross,
+          ivaUsd: ventaFiscal.mxVatAmount,
+        })
+      : null;
+
   await db.runTransaction(async (tx) => {
     // Todas las lecturas ANTES de cualquier escritura: es la regla de las
     // transacciones de Firestore.
@@ -528,6 +601,14 @@ export async function recordEarning(
         hasTaxId: perfil.hasTaxId,
         payoutAccountCountry: perfil.payoutAccountCountry ?? null,
       },
+      /**
+       * 🧾 Los PESOS de esta venta, congelados. `null` si no se pudo, o si el comprador no es
+       * mexicano y por tanto no habrá CFDI.
+       *
+       * Es lo que suman la factura global y el CFDI de comisión, así que de aquí sale el
+       * importe de un documento fiscal: no se toca nunca más. Ver `facturacion/importeFiscal.ts`.
+       */
+      fiscalMxn: fiscalMxn ? { ...fiscalMxn, congeladoEn: now } : null,
       currency: SETTLEMENT_CURRENCY,
       sourceType: params.sourceType,
       sourceId: params.sourceId,

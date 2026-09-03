@@ -1,0 +1,17 @@
+{
+  "name": "vibra-functions-social",
+  "private": true,
+  "main": "lib/indexSocial.js",
+  "engines": { "node": "22" },
+  "scripts": { "build": "node ../../scripts/build-function-codebase.js social" },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1071.0",
+    "@aws-sdk/s3-request-presigner": "^3.1071.0",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@mux/mux-node": "^14.0.1",
+    "busboy": "^1.6.0",
+    "firebase-admin": "^13.6.0",
+    "firebase-functions": "^7.0.0",
+    "livekit-server-sdk": "^2.15.4"
+  }
+}

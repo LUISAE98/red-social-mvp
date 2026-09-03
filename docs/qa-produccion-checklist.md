@@ -472,9 +472,16 @@
 18.6 Perfil fiscal del creador (`creatorTaxProfile`), subida de CSD (`uploadCreatorCsd`)
 18.7 Catálogo de productos SAT (`satProductCatalog`) — clave correcta por tipo de servicio
 18.8 `facturapiHealthcheck`
-18.9 🟠 `invoiceHooks.ts:43-44` — Bloques 2 y 3 sin implementar: CFDI de venta Vibra→comprador y CFDI de proveedor creador→Vibra (self-billing). **Decidir si son bloqueantes para producción**
+18.9 🟠 `invoiceHooks.ts` — los `TODO` de Bloques 2 y 3 quedaron **superados por el modelo de intermediación**: la venta la emite Vibra por cuenta del creador y el self-billing del creador a Vibra desapareció. Limpiar los comentarios.
 18.10 Descarga del PDF/XML; reenvío por correo
 18.11 Cancelación de factura
+18.12 🔴 **Antes de encender `TIMBRAR`** (`runCreatorMonthlyDocs.ts:48`): el grupo A de
+`pendientesimpuestos.md` — moneda del CFDI (hoy manda USD etiquetado MXN), cadencia de 24 h de la
+global, marca de las ventas cubiertas, candado del doble timbrado y clave de retención. **Timbrar
+es irreversible.**
+18.13 🟡 Factura global: verificar que un creador **sin sello** no la genera y que el mes se
+cuenta aparte (`globalesSinSello`), no como error.
+18.14 ⬜ Comprador extranjero: hoy no recibe **ningún** comprobante. Ver `pendientesimpuestos.md` §B8.
 
 ---
 
