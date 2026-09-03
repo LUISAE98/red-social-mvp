@@ -40,6 +40,7 @@ export default function CompleteProfilePanel({
   cancelLabel,
   title,
   subtitle,
+  tone = "dark",
 }: {
   showIdentity: boolean;
   handle: string;
@@ -73,6 +74,16 @@ export default function CompleteProfilePanel({
   title?: string;
   /** Bajada. Se puede apagar con cadena vacía donde ya lo explica el entorno. */
   subtitle?: string;
+  /**
+   * Sobre qué fondo se dibuja.
+   *
+   * ⚠️ Es un cambio de COLORES, no de estructura ni de textos. El formulario
+   * nació para el fondo oscuro del alta, y sobre blanco su texto blanco y sus
+   * campos translúcidos no se ven. Sin esto, quien lo quisiera en claro tendría
+   * que copiarlo, y una copia deja de heredar los cambios: es justo lo que este
+   * componente existe para evitar.
+   */
+  tone?: "dark" | "light";
 }) {
   const t = useTranslations("completeProfile");
   // El aviso de error sale por el toast de Vibra, no como caja bajo el formulario.
@@ -141,7 +152,18 @@ export default function CompleteProfilePanel({
     closeCrop();
   }
 
+  // Los ÚNICOS valores que cambian entre fondo claro y oscuro. Todo lo demás
+  // —estructura, textos, tamaños, el degradado del botón— es el mismo.
+  const claro = tone === "light";
+  const cTexto = claro ? "#2b2f38" : "#fff";
+  const cEtiqueta = claro ? "rgba(43,47,56,0.86)" : "rgba(255,255,255,0.88)";
+  const cCampo = claro ? "rgba(17,20,26,0.055)" : "rgba(255,255,255,0.11)";
+  const cSuave = claro ? "rgba(17,20,26,0.035)" : "rgba(255,255,255,0.035)";
+  const cApagado = claro ? "rgba(43,47,56,0.58)" : "rgba(255,255,255,0.6)";
+  const cRiel = claro ? "rgba(17,20,26,0.16)" : "rgba(255,255,255,0.14)";
+
   const titleStyle: React.CSSProperties = {
+    color: cTexto,
     margin: "0 0 6px",
     fontSize: "clamp(18px, 2vw, 20px)",
     fontWeight: 600,
@@ -162,18 +184,18 @@ export default function CompleteProfilePanel({
   const labelTextStyle: React.CSSProperties = {
     fontSize: 10.5,
     fontWeight: 500,
-    color: "rgba(255,255,255,0.88)",
+    color: cEtiqueta,
     lineHeight: 1.15,
   };
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
     boxSizing: "border-box",
-    background: "rgba(255,255,255,0.11)",
+    background: cCampo,
     border: "none",
     borderRadius: 12,
     padding: "10px 12px",
-    color: "#fff",
+    color: cTexto,
     fontSize: 13,
     fontFamily: fontStack,
     lineHeight: 1.5,
@@ -202,7 +224,8 @@ export default function CompleteProfilePanel({
 
   const secondaryButtonStyle: React.CSSProperties = {
     ...primaryButtonStyle,
-    background: "rgba(255,255,255,0.08)",
+    background: claro ? "rgba(17,20,26,0.07)" : "rgba(255,255,255,0.08)",
+    color: cTexto,
     backgroundImage: "none",
     boxShadow: "none",
   };
@@ -232,7 +255,7 @@ export default function CompleteProfilePanel({
                   height: 110,
                   borderRadius: 12,
                   border: "none",
-                  background: "rgba(255,255,255,0.11)",
+                  background: cCampo,
                   overflow: "hidden",
                   cursor: "pointer",
                   padding: 0,
@@ -370,12 +393,12 @@ export default function CompleteProfilePanel({
                   padding: "9px 11px",
                   borderRadius: 10,
                   border: "none",
-                  background: "rgba(255,255,255,0.035)",
+                  background: cSuave,
                 }}
               >
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ ...labelTextStyle, fontWeight: 600 }}>{t("notifLabel")}</div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", lineHeight: 1.3, marginTop: 2 }}>
+                  <div style={{ fontSize: 10, color: cApagado, lineHeight: 1.3, marginTop: 2 }}>
                     {t("notifHint")}
                   </div>
                 </div>
@@ -395,7 +418,7 @@ export default function CompleteProfilePanel({
                     border: "none",
                     background: notifOn
                       ? "linear-gradient(100deg, #a855f7, #4f46ff)"
-                      : "rgba(255,255,255,0.14)",
+                      : cRiel,
                     cursor: "pointer",
                     padding: 0,
                     flexShrink: 0,

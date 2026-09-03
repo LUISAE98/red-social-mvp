@@ -145,7 +145,17 @@ export default function ImageCropperModal({
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 999999,
+        // ⚠️ AL TOPE, y no es exageración.
+        //
+        // Esto se abre SIEMPRE desde encima de otra cosa —un formulario, un
+        // panel, una pasarela— y mientras recorta no puede haber nada por
+        // delante. Con 999999 se abría DETRÁS de la pasarela de pago, que va al
+        // máximo, y desde fuera parecía que el botón de la foto no hacía nada y
+        // que la imagen no se subía nunca. Se abría; no se veía.
+        //
+        // Empatar con el máximo basta porque el desempate lo gana quien se monta
+        // después, y el recortador siempre se monta después de lo que lo abre.
+        zIndex: 2147483647,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

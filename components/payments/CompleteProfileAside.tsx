@@ -55,30 +55,28 @@ export default function CompleteProfileAside({ stacked = false }: { stacked?: bo
   if (!user || user.isAnonymous || !ready || hasProfile || saltado) return null;
 
   const marco: React.CSSProperties = {
-    // Fondo oscuro: el formulario es el de siempre, y el de siempre está hecho
-    // para fondo oscuro (campos translúcidos, texto claro). Cambiarle los
-    // colores aquí lo convertiría en una copia, que es justo lo que no se hace.
-    background: "linear-gradient(180deg, #16161c, #0e0e12)",
-    color: "#fff",
-    padding: stacked ? "20px 18px 26px" : "24px 22px 26px",
-    // En escritorio es la columna de la derecha, con su propio desplazamiento si
-    // el formulario no cabe. En celular va debajo, dentro del de la hoja.
+    // Blanco, como el resto de la pasarela. El formulario es el mismo de
+    // siempre; lo que cambia son sus colores, y eso lo resuelve él con `tone`
+    // en vez de obligarnos a copiarlo.
+    background: "#fff",
+    // Aire de sobra. Apretado se leía como un formulario metido con calzador, y
+    // este es el momento en que se le pide algo a alguien que acaba de pagar.
+    padding: stacked ? "22px 22px 28px" : "30px 34px 32px",
     ...(stacked
-      ? { borderTop: "1px solid rgba(255,255,255,0.10)" }
+      ? { borderTop: "1px solid #eaecef" }
       : {
-          width: 330,
+          // Ancho de verdad: los campos de nombre y apellido van en dos
+          // columnas y en 330 px salían estrangulados.
+          width: 460,
           flexShrink: 0,
-          borderInlineStart: "1px solid rgba(255,255,255,0.10)",
-          overflowY: "auto" as const,
+          borderInlineStart: "1px solid #eaecef",
         }),
   };
 
   if (hecho) {
     return (
       <div style={{ ...marco, display: "grid", placeItems: "center", minHeight: stacked ? 0 : 200 }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.86)" }}>
-          {tCommon("done")}
-        </span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "#2b2f38" }}>{tCommon("done")}</span>
       </div>
     );
   }
@@ -98,6 +96,9 @@ export default function CompleteProfileAside({ stacked = false }: { stacked?: bo
         // La bajada de siempre dice «para terminar de crear tu cuenta», y aquí
         // la cuenta ya está creada: se pagó con ella hace un segundo.
         subtitle=""
+        // Sobre blanco. Cambia SOLO los colores; los campos, los textos y el
+        // orden siguen siendo los mismos que en el alta.
+        tone="light"
       />
     </div>
   );
