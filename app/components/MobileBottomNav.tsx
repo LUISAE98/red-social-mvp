@@ -607,18 +607,34 @@ export default function MobileBottomNav({
              medida dejando el clearance del contenido corto. */
           padding: 0 12px calc(18px + var(--vb-safe-bottom, 0px));
           box-sizing: border-box;
-          /* SIN transform 3D aquí. Un translateZ forma una RAIZ DE BACKDROP, y
-             entonces el desenfoque de la píldora no tiene nada que difuminar:
-             el fondo translúcido se veía plano, sin cristal. La promoción a
-             capa la sigue dando el propio transform de la píldora, que se anima
-             al encoger. */
+          /* 🚨 AQUÍ NO VA NADA QUE FORME UNA RAÍZ DE BACKDROP.
+             ==============================================
+             Este contenedor es el padre de la píldora, y la píldora difumina lo
+             que le pasa por detrás. Cualquier cosa aquí que abra una raíz de
+             backdrop deja ese desenfoque SIN NADA QUE DIFUMINAR: la cápsula no
+             se ve "poco borrosa", se ve como un vidrio limpio, con el contenido
+             de detrás nítido y legible a través de ella.
+
+             Ya cayeron dos:
+               · un translateZ, que se quitó en su día;
+               · view-transition-name: mobile-nav, que se mudó a .navShell (ver
+                 abajo) porque volvía a matarlo exactamente igual.
+
+             La lista completa de disparadores es transform, opacity menor que 1,
+             filter, mask, mix-blend-mode, will-change de cualquiera de ellos y
+             view-transition-name. La promoción a capa ya la da el propio
+             transform de la píldora, que se anima al encoger. */
           pointer-events: none;
-          view-transition-name: mobile-nav;
         }
 
         /* La píldora flotante. No toca ningún canto: se apoya sobre el contenido,
            que se ve difuminado por detrás. */
         .navShell {
+          /* Aquí sí puede estar: una raíz de backdrop afecta a los DESCENDIENTES
+             del elemento que la abre, no al elemento mismo. La píldora sigue
+             midiendo su backdrop contra la página, que es lo que se quiere, y la
+             transición de vista sigue animando lo único que se ve de verdad. */
+          view-transition-name: mobile-nav;
           width: 100%;
           pointer-events: auto;
           box-sizing: border-box;
@@ -684,18 +700,21 @@ export default function MobileBottomNav({
                forma reconocible. Es desenfoque de material, no de suavizado.
              · saturate(150%): el color hay que exagerarlo para que se note al
                atravesar la base.
-             · brightness(0.62): ESTE es el que sustituye a la opacidad que se
+             · brightness(0.72): ESTE es el que sustituye a la opacidad que se
                quitó. Oscurece lo que pasa por detrás en vez de taparlo, así que
                la cápsula sigue siendo traslúcida —se ve el movimiento y el
                color— pero un video claro ya no se come los iconos blancos.
                Tapar da negro; oscurecer da cristal ahumado.
+               No hace falta apretarlo más: con el desenfoque de 40px lo de
+               detrás llega ya como manchas, y una mancha no compite con un
+               icono como sí lo hace una forma reconocible.
 
              🚨 DEFORMAR el fondo, como la lupa de iOS, NO se puede desde CSS en
              iPhone. Se haría con un filtro SVG de desplazamiento dentro de
              backdrop-filter, y Safari no admite url() ahí — solo Chrome. Lo que
              hay aquí es desenfoque y color, que es todo lo que WebKit ofrece. */
-          backdrop-filter: blur(40px) saturate(150%) brightness(0.62);
-          -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.62);
+          backdrop-filter: blur(40px) saturate(150%) brightness(0.72);
+          -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.72);
           /* SIN overflow:hidden. Los globos de aviso se dibujan fuera de su
              icono (top:-5px, inset-inline-end:-8px) y en el primer y el ultimo
              elemento caerian justo sobre el borde: recortarlos los partiria por
