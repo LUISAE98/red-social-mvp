@@ -255,9 +255,30 @@ export function useGreetingPurchase({
   // tenia cuenta cambia el uid a mitad del cobro; el feed se rearmaba, la lista
   // de paneles cambiaba, y el panel que desaparecia se llevaba por delante esta
   // misma pasarela y su pantalla verde. Se cobraba y no se veia la confirmacion.
+  //
+  // Y con ellos abiertos, CUALQUIER cambio de sesión es parte de la compra.
+  //
+  // ⚠️ Aquí se cambia de sesión más veces de las que parece: al dar de alta se
+  // enlaza y se vuelve a entrar; con un correo que ya existía se entra directo;
+  // y «usar otro correo» cierra una sesión y abre otra. Cada una de esas es,
+  // vista desde el guardián de rutas, alguien que acaba de irse — y su reacción
+  // es mandar a /login, que desde fuera se ve como que la página se recarga
+  // sola y se lleva la compra por delante.
+  //
+  // Marcarlo por botón ya se intentó y se quedó corto: faltaban caminos. El
+  // paraguas cubre la compra entera, que es la unidad que de verdad importa.
+  // Nadie cierra sesión a propósito mientras paga.
   useEffect(() => {
     if (!formOpen && !payOpen) return;
-    return frenarReelFeed();
+    const soltarFeed = frenarReelFeed();
+    const finCambio = marcarCambioDeCuenta();
+    return () => {
+      soltarFeed();
+      // El aviso de sesión llega fuera de React y puede caer un instante DESPUÉS
+      // de cerrar. Soltar en el mismo momento dejaba ese aviso tardío sin
+      // paraguas, que es exactamente el fallo que esto arregla.
+      setTimeout(finCambio, 2000);
+    };
   }, [formOpen, payOpen]);
 
   /**
@@ -272,10 +293,9 @@ export function useGreetingPurchase({
    * compra abierta y eso lo tiene congelado.
    */
   const usarOtroCorreo = useCallback(async () => {
-    // ⚠️ Se marca ANTES de cerrar. Entre cerrar una sesion y abrir la de
-    // invitado no hay nadie, y el guardia de `RootChrome` lee eso como que la
-    // persona se fue: mandaba a /login con la pasarela abierta detras.
-    const fin = marcarCambioDeCuenta();
+    // No hace falta marcar nada aquí: la compra entera ya está marcada como
+    // cambio de sesión mientras la pasarela está abierta (ver el efecto de
+    // arriba), y esto solo ocurre desde dentro de ella.
     try {
       await signOut(auth);
       await ensureGuestAuth();
@@ -285,19 +305,6 @@ export function useGreetingPurchase({
       setError(null);
     } catch (err) {
       console.error("[useGreetingPurchase] no se pudo cambiar de cuenta:", err);
-    } finally {
-      // ⚠️ El hueco NO se cierra en el mismo instante, y no es pereza.
-      //
-      // Firebase avisa del cambio de sesion fuera de React, asi que el pintado
-      // en el que `user` vale null puede llegar DESPUES de que esta funcion
-      // termine. Cerrando aqui mismo, ese pintado tardio se encontraria el hueco
-      // ya cerrado y mandaria a /login igual: justo el fallo que esto arregla.
-      //
-      // Se le da un respiro para que el estado asiente. Durante ese rato un
-      // cierre de sesion de verdad tardaria en sacar a /login, pero nadie cierra
-      // sesion en mitad de una compra, y equivocarse por este lado solo cuesta
-      // un par de segundos mientras que por el otro cuesta la compra entera.
-      setTimeout(fin, 2000);
     }
   }, []);
 

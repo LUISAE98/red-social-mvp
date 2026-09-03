@@ -36,6 +36,9 @@ export function useSessionRegistry(user: User | null) {
     let unsubscribeRevoked: (() => void) | null = null;
 
     async function handleRevoked() {
+      // Esto hace una navegación DURA, así que se dice antes: desde fuera es
+      // indistinguible de que la página se recargue sola.
+      console.warn("[useSessionRegistry] sesión revocada, saliendo a /login", { uid });
       // Olvidamos el id local para que un futuro login en este dispositivo
       // genere una sesión nueva y no reutilice un doc revocado.
       clearStoredSessionId();

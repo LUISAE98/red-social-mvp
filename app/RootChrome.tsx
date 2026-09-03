@@ -110,8 +110,9 @@ const isOverlayRoute =
 
     prevUserRef.current = user;
 
-    if (!user && !isPublicRoute && !isAdminRoute) {
+    if (!user && !isPublicRoute && !isAdminRoute && !hayCambioDeCuenta()) {
       // Protected route — always redirect unauthenticated users
+      console.warn("[RootChrome] a /login: ruta protegida sin sesion", { pathname });
       startAuthTransition("exiting");
       router.replace("/login");
     } else if (
@@ -128,6 +129,7 @@ const isOverlayRoute =
       !hayCambioDeCuenta()
     ) {
       // User signed out while on any page (including public routes like /u/ or /groups/)
+      console.warn("[RootChrome] a /login: la sesion se cerro", { pathname });
       startAuthTransition("exiting");
       router.replace("/login");
     } else if (user && isAuthPage && hasProfile === true) {
@@ -141,6 +143,7 @@ const isOverlayRoute =
       // navegando por la app autenticado y sin perfil, sin nada que lo empujara
       // a terminar. `hasProfile` solo vale `false` tras una lectura correcta —
       // los errores lo dejan en `null`—, así que esto no dispara por red caída.
+      console.warn("[RootChrome] a /login: hay sesion pero no hay perfil", { pathname });
       startAuthTransition("exiting");
       router.replace("/login");
     }
