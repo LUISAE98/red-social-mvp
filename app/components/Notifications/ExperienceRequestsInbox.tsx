@@ -534,11 +534,16 @@ export default function ExperienceRequestsInbox({
                 gap: 10,
                 ...(cardImage
                   ? {
-                      backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.74) 55%, rgba(0,0,0,0.90) 100%), url('${cardImage}')`,
-                      // Degradado EXACTO al tamaño de la tarjeta (no escalado por
-                      // "cover"), para que cubra el borde inferior por completo.
-                      backgroundSize: "100% calc(100% + 2px), cover",
-                      backgroundPosition: "center",
+                      // Velo PLANO, el mismo que las listas de la wallet. El de
+                      // antes era un degradado que iba de 0.55 arriba a 0.90
+                      // abajo: el borde inferior de la foto quedaba mucho más
+                      // apagado que el resto y la imagen se leía sucia. Con una
+                      // sola opacidad la foto se ve pareja de arriba abajo.
+                      //
+                      // El apaño de `backgroundSize` sobra con esto: existía
+                      // para que el extremo oscuro del degradado cayera justo en
+                      // el borde. Sin degradado no hay extremo que cuadrar.
+                      background: `linear-gradient(rgba(8,8,10,0.78), rgba(8,8,10,0.78)), url('${cardImage}') center / cover no-repeat`,
                     }
                   : { background: "rgba(255,255,255,0.03)" }),
               };
@@ -680,13 +685,8 @@ export default function ExperienceRequestsInbox({
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.74) 55%, rgba(0,0,0,0.90) 100%), url('${cardImage}')`,
-                // Tamaño por capa: el degradado cubre EXACTO la tarjeta (100% 100%)
-                // para que su borde inferior oscuro caiga justo en el borde; la
-                // imagen va en cover. Con "cover" a secas, el degradado se
-                // escalaba de más y dejaba una línea clara abajo.
-                backgroundSize: "100% calc(100% + 2px), cover",
-                backgroundPosition: "center",
+                // Mismo velo plano que la fila de saludo/consejo y que la wallet.
+                background: `linear-gradient(rgba(8,8,10,0.78), rgba(8,8,10,0.78)), url('${cardImage}') center / cover no-repeat`,
               };
               return (
                 <div key={`${r.kind}-${r.id}`} style={cardStyle}>
