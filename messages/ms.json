@@ -280,7 +280,11 @@
     "send": "Hantar",
     "start": "Mula",
     "showPassword": "Tunjukkan kata laluan",
-    "hidePassword": "Sembunyikan kata laluan"
+    "hidePassword": "Sembunyikan kata laluan",
+    "imageTooLarge": "Imej tidak boleh melebihi 150 MB.",
+    "imageUnreadable": "Imej ini tidak dapat dibuka, mungkin rosak atau tidak lengkap. Cuba simpan semula sebagai JPG atau PNG.",
+    "imageFormatUnsupported": "Format ini tidak boleh digunakan di sini. Cuba JPG, PNG, WebP atau AVIF.",
+    "imageProcessFailed": "Imej tidak dapat diproses, cuba lagi."
   },
   "groups": {
     "title": "Komuniti",

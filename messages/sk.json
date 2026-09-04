@@ -280,7 +280,11 @@
     "send": "Odoslať",
     "start": "Začať",
     "showPassword": "Zobraziť heslo",
-    "hidePassword": "Skryť heslo"
+    "hidePassword": "Skryť heslo",
+    "imageTooLarge": "Obrázok nesmie mať viac ako 150 MB.",
+    "imageUnreadable": "Tento obrázok sa nepodarilo otvoriť, môže byť poškodený alebo neúplný. Skús ho uložiť znova ako JPG alebo PNG.",
+    "imageFormatUnsupported": "Tento formát sa tu nedá použiť. Skús JPG, PNG, WebP alebo AVIF.",
+    "imageProcessFailed": "Obrázok sa nepodarilo spracovať, skús to znova."
   },
   "groups": {
     "title": "Komunity",

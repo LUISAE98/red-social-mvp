@@ -280,7 +280,11 @@
     "send": "ផ្ញើ",
     "start": "ចាប់ផ្តើម",
     "showPassword": "បង្ហាញពាក្យសម្ងាត់",
-    "hidePassword": "លាក់ពាក្យសម្ងាត់"
+    "hidePassword": "លាក់ពាក្យសម្ងាត់",
+    "imageTooLarge": "រូបភាពមិនអាចធំជាង 150 MB បានទេ។",
+    "imageUnreadable": "មិនអាចបើករូបភាពនេះបានទេ វាអាចខូច ឬមិនពេញលេញ។ សាកល្បងរក្សាទុកជា JPG ឬ PNG ម្តងទៀត។",
+    "imageFormatUnsupported": "មិនអាចប្រើទម្រង់នេះនៅទីនេះបានទេ។ សាកល្បង JPG, PNG, WebP ឬ AVIF។",
+    "imageProcessFailed": "មិនអាចដំណើរការរូបភាពបានទេ សូមព្យាយាមម្តងទៀត។"
   },
   "groups": {
     "title": "សហគមន៍",

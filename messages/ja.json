@@ -280,7 +280,11 @@
     "send": "送信",
     "start": "始める",
     "showPassword": "パスワードを表示",
-    "hidePassword": "パスワードを隠す"
+    "hidePassword": "パスワードを隠す",
+    "imageTooLarge": "画像のサイズは150 MBまでです。",
+    "imageUnreadable": "この画像を開けませんでした。破損しているか、不完全な可能性があります。JPGまたはPNGとして保存し直してみてください。",
+    "imageFormatUnsupported": "この形式はここでは使えません。JPG、PNG、WebP、AVIFをお試しください。",
+    "imageProcessFailed": "画像を処理できませんでした。もう一度お試しください。"
   },
   "groups": {
     "title": "コミュニティ",

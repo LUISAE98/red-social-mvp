@@ -280,7 +280,11 @@
     "send": "Senda",
     "start": "Byrja",
     "showPassword": "Sýna lykilorð",
-    "hidePassword": "Fela lykilorð"
+    "hidePassword": "Fela lykilorð",
+    "imageTooLarge": "Myndin má ekki vera stærri en 150 MB.",
+    "imageUnreadable": "Ekki tókst að opna þessa mynd, hún gæti verið skemmd eða ófullgerð. Prófaðu að vista hana aftur sem JPG eða PNG.",
+    "imageFormatUnsupported": "Þetta snið er ekki hægt að nota hér. Prófaðu JPG, PNG, WebP eða AVIF.",
+    "imageProcessFailed": "Ekki tókst að vinna myndina, reyndu aftur."
   },
   "groups": {
     "title": "Samfélög",

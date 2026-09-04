@@ -280,7 +280,11 @@
     "send": "Lähetä",
     "start": "Aloita",
     "showPassword": "Näytä salasana",
-    "hidePassword": "Piilota salasana"
+    "hidePassword": "Piilota salasana",
+    "imageTooLarge": "Kuva ei voi olla yli 150 Mt.",
+    "imageUnreadable": "Kuvaa ei voitu avata, se voi olla vioittunut tai keskeneräinen. Tallenna se uudelleen JPG- tai PNG-muotoon.",
+    "imageFormatUnsupported": "Tätä muotoa ei voi käyttää täällä. Kokeile JPG, PNG, WebP tai AVIF.",
+    "imageProcessFailed": "Kuvan käsittely ei onnistunut, yritä uudelleen."
   },
   "groups": {
     "title": "Yhteisöt",

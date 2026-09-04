@@ -280,7 +280,11 @@
     "send": "Send",
     "start": "Start",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "imageTooLarge": "The image can't be larger than 150 MB.",
+    "imageUnreadable": "This image couldn't be opened, it may be damaged or incomplete. Try saving it again as JPG or PNG.",
+    "imageFormatUnsupported": "This format can't be used here. Try JPG, PNG, WebP or AVIF.",
+    "imageProcessFailed": "The image couldn't be processed, please try again."
   },
   "groups": {
     "title": "Communities",

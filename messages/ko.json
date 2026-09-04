@@ -280,7 +280,11 @@
     "send": "보내기",
     "start": "시작",
     "showPassword": "비밀번호 표시",
-    "hidePassword": "비밀번호 숨기기"
+    "hidePassword": "비밀번호 숨기기",
+    "imageTooLarge": "이미지는 150 MB를 넘을 수 없어요.",
+    "imageUnreadable": "이 이미지를 열지 못했어요. 손상되었거나 일부만 저장된 파일일 수 있어요. JPG나 PNG로 다시 저장해 보세요.",
+    "imageFormatUnsupported": "이 형식은 여기서 사용할 수 없어요. JPG, PNG, WebP, AVIF를 사용해 보세요.",
+    "imageProcessFailed": "이미지를 처리하지 못했어요. 다시 시도해 주세요."
   },
   "groups": {
     "title": "커뮤니티",

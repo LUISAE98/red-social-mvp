@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
+import { useCfError } from "@/lib/i18n/cfError";
 import { capitalizeFirst, intlLocale } from "@/i18n/locales";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useScreenReady } from "@/lib/useScreenReady";
@@ -282,6 +283,7 @@ export default function ProfileClient() {
 
   const locale = useLocale();
   const tCommon = useTranslations("common");
+  const cfError = useCfError();
   const tServices = useTranslations("services");
   const priceFmt = usePriceFormat();
 
@@ -1372,7 +1374,9 @@ useEffect(() => {
         setCroppedAreaPixels(null);
         setCropOpen(true);
       } catch (e: unknown) {
-        showProfileToast((e instanceof Error ? e.message : null) ?? tCommon("imageReadError"), "error");
+        // `cfError` y no `.message`: los avisos de `image-normalizer` se
+        // lanzan en español y este mapa es quien los traduce.
+        showProfileToast((e instanceof Error ? cfError(e) : null) ?? tCommon("imageReadError"), "error");
       }
     },
     [isOwner]

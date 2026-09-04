@@ -280,7 +280,11 @@
     "send": "Pošlji",
     "start": "Začni",
     "showPassword": "Pokaži geslo",
-    "hidePassword": "Skrij geslo"
+    "hidePassword": "Skrij geslo",
+    "imageTooLarge": "Slika ne sme biti večja od 150 MB.",
+    "imageUnreadable": "Te slike ni bilo mogoče odpreti, morda je poškodovana ali nepopolna. Poskusi jo znova shraniti kot JPG ali PNG.",
+    "imageFormatUnsupported": "Tega formata tukaj ni mogoče uporabiti. Poskusi JPG, PNG, WebP ali AVIF.",
+    "imageProcessFailed": "Slike ni bilo mogoče obdelati, poskusi znova."
   },
   "groups": {
     "title": "Skupnosti",

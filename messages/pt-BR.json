@@ -280,7 +280,11 @@
     "send": "Enviar",
     "start": "Começar",
     "showPassword": "Mostrar senha",
-    "hidePassword": "Ocultar senha"
+    "hidePassword": "Ocultar senha",
+    "imageTooLarge": "A imagem não pode ter mais de 150 MB.",
+    "imageUnreadable": "Não foi possível abrir esta imagem, ela pode estar danificada ou incompleta. Tente salvá-la de novo como JPG ou PNG.",
+    "imageFormatUnsupported": "Este formato não pode ser usado aqui. Tente JPG, PNG, WebP ou AVIF.",
+    "imageProcessFailed": "Não foi possível processar a imagem, tente de novo."
   },
   "groups": {
     "title": "Comunidades",

@@ -280,7 +280,11 @@
     "send": "傳送",
     "start": "開始",
     "showPassword": "顯示密碼",
-    "hidePassword": "隱藏密碼"
+    "hidePassword": "隱藏密碼",
+    "imageTooLarge": "圖片不能超過 150 MB。",
+    "imageUnreadable": "無法開啟這張圖片，可能已損毀或不完整。請試著重新存成 JPG 或 PNG。",
+    "imageFormatUnsupported": "這裡不能使用這種格式。請試試 JPG、PNG、WebP 或 AVIF。",
+    "imageProcessFailed": "無法處理圖片，請再試一次。"
   },
   "groups": {
     "title": "社群",

@@ -280,7 +280,11 @@
     "send": "Sūtīt",
     "start": "Sākt",
     "showPassword": "Rādīt paroli",
-    "hidePassword": "Paslēpt paroli"
+    "hidePassword": "Paslēpt paroli",
+    "imageTooLarge": "Attēls nedrīkst būt lielāks par 150 MB.",
+    "imageUnreadable": "Šo attēlu neizdevās atvērt, tas var būt bojāts vai nepilnīgs. Mēģini to saglabāt vēlreiz kā JPG vai PNG.",
+    "imageFormatUnsupported": "Šo formātu šeit nevar izmantot. Izmēģini JPG, PNG, WebP vai AVIF.",
+    "imageProcessFailed": "Attēlu neizdevās apstrādāt, mēģini vēlreiz."
   },
   "groups": {
     "title": "Kopienas",

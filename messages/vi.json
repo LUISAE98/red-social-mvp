@@ -280,7 +280,11 @@
     "send": "Gửi",
     "start": "Bắt đầu",
     "showPassword": "Hiện mật khẩu",
-    "hidePassword": "Ẩn mật khẩu"
+    "hidePassword": "Ẩn mật khẩu",
+    "imageTooLarge": "Ảnh không được lớn hơn 150 MB.",
+    "imageUnreadable": "Không mở được ảnh này, có thể ảnh bị hỏng hoặc chưa tải xong. Hãy thử lưu lại thành JPG hoặc PNG.",
+    "imageFormatUnsupported": "Không dùng được định dạng này ở đây. Hãy thử JPG, PNG, WebP hoặc AVIF.",
+    "imageProcessFailed": "Không xử lý được ảnh, hãy thử lại."
   },
   "groups": {
     "title": "Cộng đồng",

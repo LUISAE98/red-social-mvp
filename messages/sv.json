@@ -280,7 +280,11 @@
     "send": "Skicka",
     "start": "Börja",
     "showPassword": "Visa lösenord",
-    "hidePassword": "Dölj lösenord"
+    "hidePassword": "Dölj lösenord",
+    "imageTooLarge": "Bilden får inte vara större än 150 MB.",
+    "imageUnreadable": "Den här bilden kunde inte öppnas, den kan vara skadad eller ofullständig. Prova att spara om den som JPG eller PNG.",
+    "imageFormatUnsupported": "Det här formatet går inte att använda här. Prova JPG, PNG, WebP eller AVIF.",
+    "imageProcessFailed": "Bilden kunde inte bearbetas, försök igen."
   },
   "groups": {
     "title": "Communities",

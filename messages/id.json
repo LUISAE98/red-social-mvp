@@ -280,7 +280,11 @@
     "send": "Kirim",
     "start": "Mulai",
     "showPassword": "Tampilkan kata sandi",
-    "hidePassword": "Sembunyikan kata sandi"
+    "hidePassword": "Sembunyikan kata sandi",
+    "imageTooLarge": "Gambar tidak boleh lebih dari 150 MB.",
+    "imageUnreadable": "Gambar ini tidak bisa dibuka, mungkin rusak atau tidak lengkap. Coba simpan lagi sebagai JPG atau PNG.",
+    "imageFormatUnsupported": "Format ini tidak bisa dipakai di sini. Coba JPG, PNG, WebP, atau AVIF.",
+    "imageProcessFailed": "Gambar tidak bisa diproses, coba lagi."
   },
   "groups": {
     "title": "Komunitas",

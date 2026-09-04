@@ -280,7 +280,11 @@
     "send": "යවන්න",
     "start": "අරඹන්න",
     "showPassword": "මුරපදය පෙන්වන්න",
-    "hidePassword": "මුරපදය සඟවන්න"
+    "hidePassword": "මුරපදය සඟවන්න",
+    "imageTooLarge": "රූපය 150 MB ට වඩා විශාල විය නොහැක.",
+    "imageUnreadable": "මෙම රූපය විවෘත කළ නොහැකි විය, එය හානි වී හෝ අසම්පූර්ණ විය හැක. එය නැවත JPG හෝ PNG ලෙස සුරකින්න.",
+    "imageFormatUnsupported": "මෙම ආකෘතිය මෙහි භාවිත කළ නොහැක. JPG, PNG, WebP හෝ AVIF උත්සාහ කරන්න.",
+    "imageProcessFailed": "රූපය සැකසිය නොහැකි විය, නැවත උත්සාහ කරන්න."
   },
   "groups": {
     "title": "ප්‍රජාවන්",

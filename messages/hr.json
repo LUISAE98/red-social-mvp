@@ -280,7 +280,11 @@
     "send": "Pošalji",
     "start": "Počni",
     "showPassword": "Prikaži lozinku",
-    "hidePassword": "Sakrij lozinku"
+    "hidePassword": "Sakrij lozinku",
+    "imageTooLarge": "Slika ne smije biti veća od 150 MB.",
+    "imageUnreadable": "Ovu sliku nije bilo moguće otvoriti, možda je oštećena ili nepotpuna. Pokušaj je ponovno spremiti kao JPG ili PNG.",
+    "imageFormatUnsupported": "Ovaj se format ovdje ne može koristiti. Pokušaj s JPG, PNG, WebP ili AVIF.",
+    "imageProcessFailed": "Sliku nije bilo moguće obraditi, pokušaj ponovno."
   },
   "groups": {
     "title": "Zajednice",

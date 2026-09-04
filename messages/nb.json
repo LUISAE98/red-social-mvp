@@ -280,7 +280,11 @@
     "send": "Send",
     "start": "Start",
     "showPassword": "Vis passord",
-    "hidePassword": "Skjul passord"
+    "hidePassword": "Skjul passord",
+    "imageTooLarge": "Bildet kan ikke være større enn 150 MB.",
+    "imageUnreadable": "Bildet kunne ikke åpnes, det kan være skadet eller ufullstendig. Prøv å lagre det på nytt som JPG eller PNG.",
+    "imageFormatUnsupported": "Dette formatet kan ikke brukes her. Prøv JPG, PNG, WebP eller AVIF.",
+    "imageProcessFailed": "Bildet kunne ikke behandles, prøv igjen."
   },
   "groups": {
     "title": "Communities",

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useCfError } from "@/lib/i18n/cfError";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import {
@@ -52,6 +53,7 @@ export default function GroupPostComposer({
 }: GroupPostComposerProps) {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
+  const cfError = useCfError();
   const tPosts = useTranslations("posts");
   const tLive = useTranslations("live");
   const isEditMode = !!editPost;
@@ -778,7 +780,9 @@ export default function GroupPostComposer({
         fileInputRef.current.value = "";
       }
     } catch (error: unknown) {
-      setLocalError((error instanceof Error ? error.message : null) ?? tGroups("couldNotPublish"));
+      // `cfError` y no `.message`: los avisos de `image-normalizer` se lanzan
+      // en español y es este mapa el que los traduce a los 47 idiomas.
+      setLocalError((error instanceof Error ? cfError(error) : null) ?? tGroups("couldNotPublish"));
     } finally {
       setCreating(false);
     }

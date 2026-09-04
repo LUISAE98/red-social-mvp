@@ -280,7 +280,11 @@
     "send": "Küldés",
     "start": "Kezdés",
     "showPassword": "Jelszó megjelenítése",
-    "hidePassword": "Jelszó elrejtése"
+    "hidePassword": "Jelszó elrejtése",
+    "imageTooLarge": "A kép nem lehet nagyobb 150 MB-nál.",
+    "imageUnreadable": "Ezt a képet nem sikerült megnyitni, lehet, hogy sérült vagy hiányos. Próbáld meg újra elmenteni JPG vagy PNG formátumban.",
+    "imageFormatUnsupported": "Ez a formátum itt nem használható. Próbáld JPG, PNG, WebP vagy AVIF formátummal.",
+    "imageProcessFailed": "A képet nem sikerült feldolgozni, próbáld újra."
   },
   "groups": {
     "title": "Közösségek",

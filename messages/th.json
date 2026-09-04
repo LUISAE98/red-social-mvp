@@ -280,7 +280,11 @@
     "send": "ส่ง",
     "start": "เริ่ม",
     "showPassword": "แสดงรหัสผ่าน",
-    "hidePassword": "ซ่อนรหัสผ่าน"
+    "hidePassword": "ซ่อนรหัสผ่าน",
+    "imageTooLarge": "รูปภาพต้องมีขนาดไม่เกิน 150 MB",
+    "imageUnreadable": "เปิดรูปนี้ไม่ได้ อาจเสียหายหรือไม่สมบูรณ์ ลองบันทึกใหม่เป็น JPG หรือ PNG",
+    "imageFormatUnsupported": "ใช้รูปแบบไฟล์นี้ที่นี่ไม่ได้ ลองใช้ JPG, PNG, WebP หรือ AVIF",
+    "imageProcessFailed": "ประมวลผลรูปภาพไม่ได้ ลองอีกครั้ง"
   },
   "groups": {
     "title": "ชุมชน",

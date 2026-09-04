@@ -280,7 +280,11 @@
     "send": "إرسال",
     "start": "ابدأ",
     "showPassword": "إظهار كلمة المرور",
-    "hidePassword": "إخفاء كلمة المرور"
+    "hidePassword": "إخفاء كلمة المرور",
+    "imageTooLarge": "لا يمكن أن يتجاوز حجم الصورة 150 ميغابايت.",
+    "imageUnreadable": "تعذّر فتح هذه الصورة، قد تكون تالفة أو غير مكتملة. جرّب حفظها من جديد بصيغة JPG أو PNG.",
+    "imageFormatUnsupported": "لا يمكن استخدام هذه الصيغة هنا. جرّب JPG أو PNG أو WebP أو AVIF.",
+    "imageProcessFailed": "تعذّرت معالجة الصورة، حاول مرة أخرى."
   },
   "groups": {
     "title": "المجتمعات",

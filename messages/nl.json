@@ -280,7 +280,11 @@
     "send": "Verzenden",
     "start": "Beginnen",
     "showPassword": "Wachtwoord tonen",
-    "hidePassword": "Wachtwoord verbergen"
+    "hidePassword": "Wachtwoord verbergen",
+    "imageTooLarge": "De afbeelding mag niet groter zijn dan 150 MB.",
+    "imageUnreadable": "Deze afbeelding kon niet worden geopend, mogelijk is die beschadigd of onvolledig. Sla hem opnieuw op als JPG of PNG.",
+    "imageFormatUnsupported": "Dit formaat kan hier niet worden gebruikt. Probeer JPG, PNG, WebP of AVIF.",
+    "imageProcessFailed": "De afbeelding kon niet worden verwerkt, probeer het opnieuw."
   },
   "groups": {
     "title": "Community's",

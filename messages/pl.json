@@ -280,7 +280,11 @@
     "send": "Wyślij",
     "start": "Zacznij",
     "showPassword": "Pokaż hasło",
-    "hidePassword": "Ukryj hasło"
+    "hidePassword": "Ukryj hasło",
+    "imageTooLarge": "Obraz nie może ważyć więcej niż 150 MB.",
+    "imageUnreadable": "Nie udało się otworzyć tego obrazu, może być uszkodzony lub niekompletny. Spróbuj zapisać go ponownie jako JPG lub PNG.",
+    "imageFormatUnsupported": "Tego formatu nie można tu użyć. Spróbuj JPG, PNG, WebP lub AVIF.",
+    "imageProcessFailed": "Nie udało się przetworzyć obrazu, spróbuj ponownie."
   },
   "groups": {
     "title": "Społeczności",

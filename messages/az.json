@@ -280,7 +280,11 @@
     "send": "Göndər",
     "start": "Başla",
     "showPassword": "Parolu göstər",
-    "hidePassword": "Parolu gizlət"
+    "hidePassword": "Parolu gizlət",
+    "imageTooLarge": "Şəkil 150 MB-dan böyük ola bilməz.",
+    "imageUnreadable": "Bu şəkli açmaq mümkün olmadı, zədələnmiş və ya natamam ola bilər. Onu yenidən JPG və ya PNG kimi saxlamağa çalış.",
+    "imageFormatUnsupported": "Bu format burada istifadə edilə bilməz. JPG, PNG, WebP və ya AVIF yoxla.",
+    "imageProcessFailed": "Şəkli emal etmək mümkün olmadı, yenidən cəhd et."
   },
   "groups": {
     "title": "İcmalar",

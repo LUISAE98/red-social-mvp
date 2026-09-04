@@ -280,7 +280,11 @@
     "send": "Dërgo",
     "start": "Fillo",
     "showPassword": "Shfaq fjalëkalimin",
-    "hidePassword": "Fshih fjalëkalimin"
+    "hidePassword": "Fshih fjalëkalimin",
+    "imageTooLarge": "Imazhi nuk mund të jetë më i madh se 150 MB.",
+    "imageUnreadable": "Ky imazh nuk mund të hapej, mund të jetë i dëmtuar ose i paplotë. Provo ta ruash përsëri si JPG ose PNG.",
+    "imageFormatUnsupported": "Ky format nuk mund të përdoret këtu. Provo JPG, PNG, WebP ose AVIF.",
+    "imageProcessFailed": "Imazhi nuk mund të përpunohej, provo përsëri."
   },
   "groups": {
     "title": "Komunitete",

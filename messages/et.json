@@ -280,7 +280,11 @@
     "send": "Saada",
     "start": "Alusta",
     "showPassword": "Näita parooli",
-    "hidePassword": "Peida parool"
+    "hidePassword": "Peida parool",
+    "imageTooLarge": "Pilt ei tohi olla suurem kui 150 MB.",
+    "imageUnreadable": "Seda pilti ei õnnestunud avada, see võib olla rikutud või poolik. Proovi see uuesti salvestada JPG- või PNG-vormingus.",
+    "imageFormatUnsupported": "Seda vormingut ei saa siin kasutada. Proovi JPG, PNG, WebP või AVIF.",
+    "imageProcessFailed": "Pildi töötlemine ebaõnnestus, proovi uuesti."
   },
   "groups": {
     "title": "Kogukonnad",

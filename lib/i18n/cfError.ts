@@ -10,6 +10,15 @@ import { mensajeSeguro } from "@/lib/errors/mensajeSeguro";
 // Las llaves con prefijo `common:` viven en el grupo compartido y no en `cf`:
 // son textos que ya decía otra pantalla y que ahora tienen una sola redacción.
 const MSG_TO_KEY: Record<string, string> = {
+  // Imágenes al subirlas. Estos NO vienen del backend: los lanza
+  // `lib/uploads/image-normalizer.ts` en el propio navegador, y entran aquí
+  // porque el sitio donde se pintan ya usaba este mapa. Las cadenas de allí son
+  // la llave: si se tocan, hay que tocarlas aquí también.
+  "la imagen no puede pesar más de 150 mb.": "common:imageTooLarge",
+  "no se pudo abrir esta imagen.": "common:imageUnreadable",
+  "este formato de imagen no se puede usar.": "common:imageFormatUnsupported",
+  "no se pudo procesar la imagen.": "common:imageProcessFailed",
+
   // authentication
   "debes iniciar sesión.": "common:mustBeSignedIn",
   "debes iniciar sesión": "common:mustBeSignedIn",

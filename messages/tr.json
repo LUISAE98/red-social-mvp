@@ -280,7 +280,11 @@
     "send": "Gönder",
     "start": "Başla",
     "showPassword": "Parolayı göster",
-    "hidePassword": "Parolayı gizle"
+    "hidePassword": "Parolayı gizle",
+    "imageTooLarge": "Görsel 150 MB'tan büyük olamaz.",
+    "imageUnreadable": "Bu görsel açılamadı, bozuk veya eksik olabilir. JPG ya da PNG olarak yeniden kaydetmeyi dene.",
+    "imageFormatUnsupported": "Bu biçim burada kullanılamaz. JPG, PNG, WebP veya AVIF dene.",
+    "imageProcessFailed": "Görsel işlenemedi, tekrar dene."
   },
   "groups": {
     "title": "Topluluklar",

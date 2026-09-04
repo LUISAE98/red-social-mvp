@@ -6,6 +6,7 @@ import Image from "next/image";
 import { TextButton } from "@/components/ui";
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useCfError } from "@/lib/i18n/cfError";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SafeCropper from "@/components/media/SafeCropper";
 import { useAuth } from "@/app/providers";
@@ -178,6 +179,7 @@ function ToggleSwitch({
 function NewGroupPageContent() {
 const tCommon = useTranslations("common");
 const tGroups = useTranslations("groups");
+const cfError = useCfError();
 const tProfile = useTranslations("profile");
 const { resolveStoredPrice, currency: displayCurrency, formatAnchor } = usePriceFormat();
 const router = useRouter();
@@ -408,7 +410,9 @@ async function onPickAvatar(file: File | null) {
     setCroppedAreaPixels(null);
     setCropOpen(true);
   } catch (e: unknown) {
-    setError((e instanceof Error ? e.message : null) ?? tGroups("avatarReadError"));
+    // `cfError` y no `.message`: los avisos de `image-normalizer` se lanzan
+    // en español y este mapa es quien los traduce.
+    setError((e instanceof Error ? cfError(e) : null) ?? tGroups("avatarReadError"));
   }
 }
 
@@ -432,7 +436,7 @@ async function onPickCover(file: File | null) {
     setCroppedAreaPixels(null);
     setCropOpen(true);
   } catch (e: unknown) {
-    setError((e instanceof Error ? e.message : null) ?? tGroups("coverReadError"));
+    setError((e instanceof Error ? cfError(e) : null) ?? tGroups("coverReadError"));
   }
 }
 

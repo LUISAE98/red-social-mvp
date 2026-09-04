@@ -11,6 +11,24 @@ export type NormalizedImageThumbnail = {
 
 const DEFAULT_MAX_IMAGE_SIZE_BYTES = 150 * 1024 * 1024;
 
+/**
+ * Los avisos, en un solo sitio.
+ *
+ * 🚨 ESTAS CADENAS SON TAMBIÉN LA LLAVE DE `lib/i18n/cfError.ts`. Es ahí donde
+ * se traducen a los 47 idiomas, buscando el mensaje en minúsculas. Cambiar una
+ * aquí sin cambiarla allí deja el aviso en español para todo el mundo.
+ *
+ * Ninguno lleva dos puntos ni menciona el iPhone. El de antes decía "No se pudo
+ * convertir la imagen del iPhone" a cualquiera, incluido quien subía desde un
+ * escritorio con Chrome.
+ */
+const MENSAJES = {
+  demasiadoGrande: "La imagen no puede pesar más de 150 MB.",
+  ilegible: "No se pudo abrir esta imagen.",
+  formatoNoAdmitido: "Este formato de imagen no se puede usar.",
+  procesoFallido: "No se pudo procesar la imagen.",
+} as const;
+
 const OUTPUT_MAX_WIDTH = 2000;
 const OUTPUT_MAX_HEIGHT = 2000;
 const OUTPUT_QUALITY = 0.82;
@@ -19,20 +37,91 @@ const THUMBNAIL_MAX_WIDTH = 720;
 const THUMBNAIL_MAX_HEIGHT = 720;
 const THUMBNAIL_QUALITY = 0.72;
 
-const WEB_SAFE_IMAGE_TYPES = new Set([
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-  "image/gif",
+/**
+ * Formato REAL del archivo, leído de sus primeros bytes.
+ *
+ * 🚨 NO SE MIRA NI LA EXTENSIÓN NI EL `type` DEL FICHERO. Los dos mienten, y de
+ * ahí salía el fallo: una imagen descargada de una web se guarda como `.jpg`
+ * siendo AVIF o WebP por dentro, el navegador la reportaba como `image/jpeg`, se
+ * daba por buena y luego `<img>` no podía decodificarla. El aviso que salía era
+ * "El navegador no pudo leer esta imagen", que no decía nada útil ni tenía
+ * arreglo posible por parte de quien subía.
+ *
+ * Los primeros bytes no mienten: son la firma del formato.
+ */
+type FormatoDeImagen =
+  | "jpeg"
+  | "png"
+  | "gif"
+  | "webp"
+  | "bmp"
+  | "avif"
+  | "heic"
+  | "tiff"
+  | "desconocido";
+
+/** Formatos que los navegadores actuales decodifican sin ayuda. */
+const DECODIFICA_EL_NAVEGADOR = new Set<FormatoDeImagen>([
+  "jpeg",
+  "png",
+  "gif",
+  "webp",
+  "bmp",
+  "avif",
 ]);
 
-const HEIC_IMAGE_TYPES = new Set([
-  "image/heic",
-  "image/heif",
-  "image/heic-sequence",
-  "image/heif-sequence",
+function texto(bytes: Uint8Array, desde: number, hasta: number): string {
+  return String.fromCharCode(...bytes.slice(desde, hasta));
+}
+
+function empiezaPor(bytes: Uint8Array, firma: number[]): boolean {
+  return firma.every((b, i) => bytes[i] === b);
+}
+
+/**
+ * Marcas de la caja `ftyp`, que comparten AVIF y HEIC.
+ *
+ * Las dos familias usan el mismo contenedor (ISO-BMFF) y solo se distinguen por
+ * la marca principal. Importa mucho separarlas: AVIF lo decodifica el navegador
+ * solo, y HEIC necesita pasar por el conversor.
+ */
+const MARCAS_AVIF = new Set(["avif", "avis"]);
+const MARCAS_HEIC = new Set([
+  "heic", "heix", "heim", "heis", "hevc", "hevx", "hevm", "hevs", "mif1", "msf1",
 ]);
+
+async function detectarFormato(file: File): Promise<FormatoDeImagen> {
+  let bytes: Uint8Array;
+  try {
+    bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  } catch {
+    // El archivo no se puede leer siquiera. Pasa con los marcadores de nube
+    // (OneDrive, iCloud) que aún no se han descargado de verdad.
+    return "desconocido";
+  }
+
+  if (bytes.length < 12) return "desconocido";
+
+  if (empiezaPor(bytes, [0xff, 0xd8, 0xff])) return "jpeg";
+  if (empiezaPor(bytes, [0x89, 0x50, 0x4e, 0x47])) return "png";
+  if (texto(bytes, 0, 4) === "GIF8") return "gif";
+  if (texto(bytes, 0, 4) === "RIFF" && texto(bytes, 8, 12) === "WEBP") return "webp";
+  if (empiezaPor(bytes, [0x42, 0x4d])) return "bmp";
+  if (
+    empiezaPor(bytes, [0x49, 0x49, 0x2a, 0x00]) ||
+    empiezaPor(bytes, [0x4d, 0x4d, 0x00, 0x2a])
+  ) {
+    return "tiff";
+  }
+
+  if (texto(bytes, 4, 8) === "ftyp") {
+    const marca = texto(bytes, 8, 12).toLowerCase();
+    if (MARCAS_AVIF.has(marca)) return "avif";
+    if (MARCAS_HEIC.has(marca)) return "heic";
+  }
+
+  return "desconocido";
+}
 
 function getSafeBaseName(fileName: string): string {
   const withoutExtension = fileName.replace(/\.[^/.]+$/, "");
@@ -46,38 +135,9 @@ function getSafeBaseName(fileName: string): string {
   return safe || "image";
 }
 
-function isHeicLikeFile(file: File): boolean {
-  const type = (file.type || "").toLowerCase();
-  const name = (file.name || "").toLowerCase();
-
-  return (
-    HEIC_IMAGE_TYPES.has(type) ||
-    type.includes("heic") ||
-    type.includes("heif") ||
-    name.endsWith(".heic") ||
-    name.endsWith(".heif") ||
-    name.includes("heic") ||
-    name.includes("heif")
-  );
-}
-
-function isWebSafeImage(file: File): boolean {
-  const type = (file.type || "").toLowerCase();
-  const name = (file.name || "").toLowerCase();
-
-  return (
-    WEB_SAFE_IMAGE_TYPES.has(type) ||
-    name.endsWith(".jpg") ||
-    name.endsWith(".jpeg") ||
-    name.endsWith(".png") ||
-    name.endsWith(".webp") ||
-    name.endsWith(".gif")
-  );
-}
-
 function assertMaxSize(file: File, maxSizeBytes: number) {
   if (file.size > maxSizeBytes) {
-    throw new Error("La imagen no puede pesar más de 150 MB.");
+    throw new Error(MENSAJES.demasiadoGrande);
   }
 }
 
@@ -107,7 +167,7 @@ function loadImageFromFile(file: File): Promise<HTMLImageElement> {
 
     image.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error("El navegador no pudo leer esta imagen."));
+      reject(new Error(MENSAJES.ilegible));
     };
 
     image.src = objectUrl;
@@ -129,7 +189,7 @@ async function compressImageToJpeg(
   const sourceHeight = image.naturalHeight || image.height;
 
   if (!sourceWidth || !sourceHeight) {
-    throw new Error("No se pudo leer el tamaño de la imagen.");
+    throw new Error(MENSAJES.ilegible);
   }
 
   const outputSize = getOutputSize(
@@ -146,7 +206,7 @@ async function compressImageToJpeg(
   const ctx = canvas.getContext("2d");
 
   if (!ctx) {
-    throw new Error("No se pudo preparar la imagen.");
+    throw new Error(MENSAJES.procesoFallido);
   }
 
   ctx.drawImage(image, 0, 0, outputSize.width, outputSize.height);
@@ -155,7 +215,7 @@ async function compressImageToJpeg(
     canvas.toBlob(
       (result) => {
         if (!result) {
-          reject(new Error("No se pudo comprimir la imagen."));
+          reject(new Error(MENSAJES.procesoFallido));
           return;
         }
 
@@ -180,7 +240,7 @@ async function convertHeicToJpeg(file: File): Promise<File> {
 
   try {
     if (typeof window === "undefined") {
-      throw new Error("La conversión HEIC solo está disponible en navegador.");
+      throw new Error(MENSAJES.procesoFallido);
     }
 
     const { default: heic2any } = await import("heic2any");
@@ -241,43 +301,56 @@ export async function normalizeImageFile(
   const originalType = file.type || "application/octet-stream";
   const originalName = file.name || "image";
 
-  if (isHeicLikeFile(file)) {
-    const convertedFile = await convertHeicToJpeg(file);
+  const formato = await detectarFormato(file);
 
+  // TIFF no lo decodifica ningún navegador, así que se dice claro y aquí en vez
+  // de dejar que falle tres funciones más abajo con un aviso que no ayuda.
+  if (formato === "tiff") {
+    throw new Error(MENSAJES.formatoNoAdmitido);
+  }
+
+  if (formato === "heic") {
     return {
-      file: convertedFile,
+      file: await convertHeicToJpeg(file),
       wasConverted: true,
       originalType,
       originalName,
     };
   }
 
-  if (isWebSafeImage(file)) {
-    const compressedFile = await compressImageToJpeg(file);
-
+  if (DECODIFICA_EL_NAVEGADOR.has(formato)) {
     return {
-      file: compressedFile,
-      wasConverted: false,
+      // AVIF y WebP entran por aquí aunque el archivo se llame `.jpg`: lo que
+      // manda es la firma, no el nombre. Ese desajuste era el fallo original.
+      file: await compressImageToJpeg(file),
+      // Se marca como convertido si el original no era ya un JPEG, que es lo
+      // que sale del compresor.
+      wasConverted: formato !== "jpeg",
       originalType,
       originalName,
     };
   }
 
+  // Formato sin identificar. Se intenta igual, por si es algo que el navegador
+  // sabe abrir y nosotros no reconocemos —o un HEIC con una marca rara—, pero
+  // ya sin prometer nada.
   try {
-    const convertedFile = await convertHeicToJpeg(file);
-
     return {
-      file: convertedFile,
+      file: await compressImageToJpeg(file),
       wasConverted: true,
       originalType,
       originalName,
     };
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : null;
-    throw new Error(
-      msg
-        ? `No se pudo convertir la imagen del iPhone: ${msg}`
-        : "No se pudo convertir la imagen del iPhone."
-    );
+  } catch {
+    try {
+      return {
+        file: await convertHeicToJpeg(file),
+        wasConverted: true,
+        originalType,
+        originalName,
+      };
+    } catch {
+      throw new Error(MENSAJES.formatoNoAdmitido);
+    }
   }
 }

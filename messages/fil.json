@@ -280,7 +280,11 @@
     "send": "Ipadala",
     "start": "Simulan",
     "showPassword": "Ipakita ang password",
-    "hidePassword": "Itago ang password"
+    "hidePassword": "Itago ang password",
+    "imageTooLarge": "Hindi puwedeng lumampas sa 150 MB ang larawan.",
+    "imageUnreadable": "Hindi mabuksan ang larawang ito, baka sira o kulang ito. Subukang i-save ulit bilang JPG o PNG.",
+    "imageFormatUnsupported": "Hindi puwedeng gamitin dito ang format na ito. Subukan ang JPG, PNG, WebP, o AVIF.",
+    "imageProcessFailed": "Hindi ma-proseso ang larawan, subukan ulit."
   },
   "groups": {
     "title": "Mga komunidad",

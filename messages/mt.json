@@ -280,7 +280,11 @@
     "send": "Ibgħat",
     "start": "Ibda",
     "showPassword": "Uri l-password",
-    "hidePassword": "Aħbi l-password"
+    "hidePassword": "Aħbi l-password",
+    "imageTooLarge": "L-immaġni ma tistax tkun akbar minn 150 MB.",
+    "imageUnreadable": "Din l-immaġni ma setgħetx tinfetaħ, jista' jkun li hija bil-ħsara jew mhux kompluta. Ipprova ssalvaha mill-ġdid bħala JPG jew PNG.",
+    "imageFormatUnsupported": "Dan il-format ma jistax jintuża hawn. Ipprova JPG, PNG, WebP jew AVIF.",
+    "imageProcessFailed": "L-immaġni ma setgħetx tiġi pproċessata, erġa' pprova."
   },
   "groups": {
     "title": "Komunitajiet",

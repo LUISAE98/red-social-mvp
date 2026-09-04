@@ -280,7 +280,11 @@
     "send": "Envia",
     "start": "Comença",
     "showPassword": "Mostra la contrasenya",
-    "hidePassword": "Amaga la contrasenya"
+    "hidePassword": "Amaga la contrasenya",
+    "imageTooLarge": "La imatge no pot pesar més de 150 MB.",
+    "imageUnreadable": "No s'ha pogut obrir aquesta imatge, pot estar malmesa o incompleta. Prova a desar-la de nou com a JPG o PNG.",
+    "imageFormatUnsupported": "Aquest format no es pot fer servir aquí. Prova amb JPG, PNG, WebP o AVIF.",
+    "imageProcessFailed": "No s'ha pogut processar la imatge, torna-ho a provar."
   },
   "groups": {
     "title": "Comunitats",
