@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
-import { IconButton } from "@/components/ui";
+import { GlassEdge, IconButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
@@ -190,6 +190,12 @@ export default function ScheduleCalendarOverlay({
   // Se mantiene montado durante la animación de SALIDA para que el cierre no sea
   // "de golpe" (usa la keyframe vibraScheduleCalOut ya definida).
   const [rendered, setRendered] = useState(open);
+  /**
+   * Hueco de la cabecera flotante. GlassEdge se mide sola y lo avisa; el cuerpo
+   * lo repone con relleno para que el primer mes no quede escondido detrás.
+   */
+  const [topInset, setTopInset] = useState(0);
+
   const [closing, setClosing] = useState(false);
   const renderedRef = useRef(open);
   const closeTimerRef = useRef<number | null>(null);
@@ -336,6 +342,8 @@ export default function ScheduleCalendarOverlay({
         }
 
         .scheduleOverlayPanel {
+          /* Ancla de la cabecera flotante, que va en position: absolute. */
+          position: relative;
           width: min(720px, 100%);
           max-height: min(88vh, 680px);
           display: flex;
@@ -354,7 +362,6 @@ export default function ScheduleCalendarOverlay({
           grid-template-columns: 48px 1fr 48px;
           align-items: center;
           padding: 0 12px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
           flex-shrink: 0;
         }
 
@@ -372,8 +379,10 @@ export default function ScheduleCalendarOverlay({
           flex: 1;
           overflow-y: auto;
           min-height: 0;
-          max-height: calc(min(88vh, 680px) - 56px);
-          padding: 18px 20px 20px;
+          /* La cabecera ya no ocupa sitio en el flujo, asi que el cuerpo puede
+             usar el alto entero del panel; el hueco lo repone su relleno. */
+          max-height: min(88vh, 680px);
+          padding: calc(18px + var(--sched-top, 0px)) 20px 20px;
           display: grid;
           gap: 16px;
           align-content: start;
@@ -666,7 +675,11 @@ export default function ScheduleCalendarOverlay({
         <section
           className={`scheduleOverlayPanel${closing ? " is-closing" : ""}`}
           onClick={(event) => event.stopPropagation()}
+          style={{ ["--sched-top" as string]: `${topInset}px` } as React.CSSProperties}
         >
+          {/* La cabecera flota sobre el calendario: los meses se disuelven al
+              pasarle por detrás en vez de cortarse contra una línea. */}
+          <GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)">
           <header className="scheduleOverlayHeader">
             <div aria-hidden="true" />
             <h3 className="scheduleOverlayTitle">{resolvedTitle}</h3>
@@ -678,6 +691,7 @@ export default function ScheduleCalendarOverlay({
               </svg>
             </IconButton>
           </header>
+          </GlassEdge>
 
           <div className="scheduleOverlayBody">
             {topContent && <div>{topContent}</div>}

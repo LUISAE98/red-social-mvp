@@ -258,7 +258,36 @@ export default function ConversationPage() {
    * siga corrido hay que seguir calzando el área visible, haya teclado o no.
    */
   const viewportCorrido = viewport != null && viewport.offsetTop > 0;
-  const calzarAreaVisible = (keyboardOpen || viewportCorrido) && viewport != null;
+
+  /**
+   * ⚠️ Desplazar la pantalla hacia abajo SOLO con el teclado abierto de verdad.
+   *
+   * Esto es lo que abría el chat a media pantalla, con el feed asomando arriba.
+   * `viewportCorrido` también encendía el calzado, y calzar escribe
+   * `top: offsetTop`: si esa lectura venía de cuando el teclado estaba abierto
+   * —iOS no siempre avisa de que se fue, y con el fondo bloqueado tampoco tiene
+   * dónde devolver el viewport—, el chat se dibujaba empezando a media altura y
+   * ahí se quedaba.
+   *
+   * El propio archivo ya tenía la respuesta unas líneas más arriba, para el
+   * teclado: si el campo no tiene el foco, no hay teclado, diga lo que diga una
+   * geometría rezagada. Faltaba aplicarlo también aquí.
+   */
+  const calzarConTeclado = keyboardOpen && viewport != null;
+
+  /**
+   * Sin teclado, el viewport corrido se compensa ALARGANDO, nunca bajando.
+   *
+   * El motivo de calzar sin teclado sigue siendo válido: con el fondo bloqueado,
+   * iOS mueve el viewport visual y un `position: fixed` —anclado al de layout—
+   * termina por debajo de lo que se ve, y sale la franja. Pero para eso basta con
+   * que el borde de ABAJO caiga donde acaba el área visible; el de arriba no
+   * tiene por qué moverse nunca.
+   *
+   * Y si la lectura estaba rezagada, `offsetTop + height` suma la pantalla
+   * entera, así que el peor caso pasa a ser el correcto: pantalla completa.
+   */
+  const calzarSinTeclado = !calzarConTeclado && viewportCorrido && viewport != null;
 
   /**
    * Lector de geometría en pantalla. Ver más abajo.
@@ -524,7 +553,7 @@ export default function ConversationPage() {
    * se puede desplazar y `window.scrollY` se queda en su valor de entrada pase lo
    * que pase: aquí dentro esto casi nunca tiene nada que hacer. Lo que iOS mueve
    * en ese caso es el viewport VISUAL, y eso no se corrige desplazando el
-   * documento sino calzando la pantalla al área visible (`calzarAreaVisible`).
+   * documento sino calzando la pantalla al área visible (`calzarConTeclado` y
    * Este efecto cubre el otro escenario, el de que el documento sí se haya
    * movido, y sobre todo la salida (ver el efecto de desmontaje de abajo).
    */
@@ -582,6 +611,24 @@ export default function ConversationPage() {
       resettleVisualViewport(baseScrollRef.current);
     };
   }, []);
+
+  /**
+   * Y también CON la pantalla abierta, no solo al salir.
+   *
+   * Si el viewport se queda corrido sin teclado —lo típico al entrar al chat
+   * justo después de cerrar uno en otra pantalla—, compensarlo estirando el alto
+   * evita que se vea mal, pero el desfase sigue ahí y arrastra a todo lo demás.
+   * Este es el momento de deshacerlo de verdad, con la misma herramienta que ya
+   * usa la salida.
+   *
+   * ⚠️ Solo sin foco. `resettleVisualViewport` suelta el foco del campo de texto
+   * para forzar el reasiento, y hacerlo mientras alguien escribe le cerraría el
+   * teclado en la cara.
+   */
+  useEffect(() => {
+    if (!mounted || composerFocused || !viewportCorrido) return;
+    resettleVisualViewport(baseScrollRef.current);
+  }, [mounted, composerFocused, viewportCorrido]);
 
   /**
    * Salir: la pantalla se va deslizando a la derecha y la página de destino
@@ -650,15 +697,26 @@ export default function ConversationPage() {
             }
           : null),
         position: "fixed",
-        // Con teclado, el área visible exacta. Sin teclado, `inset: 0` y ni un
-        // número: es la diferencia entre que al cerrarlo vuelva al borde o se
-        // quede una franja negra abajo.
-        ...(calzarAreaVisible && viewport
+        // Con teclado, el área visible exacta. Sin teclado pero con el viewport
+        // corrido, desde arriba del todo hasta donde acaba lo que se ve. Y si no,
+        // `inset: 0` y ni un número: es la diferencia entre que al cerrar el
+        // teclado vuelva al borde o se quede una franja negra abajo.
+        ...(calzarConTeclado && viewport
           ? {
               top: viewport.offsetTop,
               insetInlineStart: 0,
               insetInlineEnd: 0,
               height: viewport.height,
+              bottom: "auto" as const,
+            }
+          : calzarSinTeclado && viewport
+          ? {
+              // `top: 0` SIEMPRE. Bajar el borde de arriba sin teclado es lo que
+              // dejaba el chat a media pantalla.
+              top: 0,
+              insetInlineStart: 0,
+              insetInlineEnd: 0,
+              height: viewport.offsetTop + viewport.height,
               bottom: "auto" as const,
             }
           : {
@@ -768,7 +826,7 @@ export default function ConversationPage() {
             }`,
             `teclado ${keyboardPx}`,
             `foco ${composerFocused ? "sí" : "no"}`,
-            `calza ${calzarAreaVisible ? "sí" : "no"}`,
+            `calza ${calzarConTeclado ? "teclado" : calzarSinTeclado ? "alto" : "no"}`,
           ].join("\n")}
         </div>
       ) : null}

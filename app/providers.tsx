@@ -124,11 +124,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user || user.isAnonymous) return;
     let cancelado = false;
-    void import("@/lib/push/fcm").then(({ resyncPushToken }) => {
-      if (!cancelado) void resyncPushToken(user.uid);
+    let dejarDeEscuchar: (() => void) | null = null;
+
+    void import("@/lib/push/fcm").then(({ resyncPushToken, escucharPushEnPrimerPlano }) => {
+      if (cancelado) return;
+      void resyncPushToken(user.uid);
+      /**
+       * ⚠️ Y hay que escuchar los que llegan CON LA APP DELANTE.
+       *
+       * Con una ventana visible, Firebase no deja que el service worker pinte el
+       * aviso: se lo pasa a la página. Sin nadie escuchando ahí, ese aviso se
+       * perdía entero — de ahí que llegaran "a veces sí y a veces no", según
+       * tuvieras Vibra a la vista o no.
+       */
+      dejarDeEscuchar = escucharPushEnPrimerPlano();
     });
+
     return () => {
       cancelado = true;
+      dejarDeEscuchar?.();
     };
   }, [user]);
 

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { IconButton } from "@/components/ui";
+import { GlassEdge, IconButton } from "@/components/ui";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
@@ -92,6 +92,13 @@ export default function SessionRequestOverlay({
   }
 
   // Form state
+  /**
+   * Hueco de las barras flotantes. GlassEdge se mide sola y lo avisa; el
+   * scroller lo repone con relleno para que nada quede escondido detrás.
+   */
+  const [topInset, setTopInset] = useState(0);
+  const [footInset, setFootInset] = useState(0);
+
   const [acceptExpanded, setAcceptExpanded] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -880,7 +887,6 @@ export default function SessionRequestOverlay({
         gridTemplateColumns: isMobile ? "72px 1fr 72px" : "48px 1fr 48px",
         alignItems: "center",
         padding: "0 12px",
-        borderBottom: "1px solid rgba(255,255,255,0.10)",
         flexShrink: 0,
         touchAction: isMobile ? "none" : undefined,
         userSelect: "none",
@@ -937,18 +943,23 @@ export default function SessionRequestOverlay({
           >
             <div className="sro-bg-img" style={{ backgroundImage: `url('${bgImage}')` }} />
             <div className="sro-bg-grad" />
-            {/* Handle pill */}
-            <div className="sro-z2" style={{ display: "flex", justifyContent: "center", padding: "10px 0 0" }}>
-              <div style={{ width: 36, height: 4, borderRadius: 999, background: "rgba(255,255,255,0.18)" }} />
-            </div>
-            <div className="sro-z2" style={{ flexShrink: 0 }}>{headerNode}</div>
-            <div className="sro-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "22px 18px 24px" }}>
+            {/* Agarradera y cabecera flotan juntas: el fundido tiene que ocurrir
+                al final de las dos, no entre ellas. */}
+            <GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)" zIndex={4}>
+              <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 0" }}>
+                <div style={{ width: 36, height: 4, borderRadius: 999, background: "rgba(255,255,255,0.18)" }} />
+              </div>
+              {headerNode}
+            </GlassEdge>
+            <div className="sro-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: `${topInset + 22}px 18px ${footInset + 24}px` }}>
               {bodyContent}
             </div>
             {footerNode && (
-              <div className="sro-z2" style={{ flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.08)", padding: "12px 18px 28px" }}>
-                {footerNode}
-              </div>
+              <GlassEdge side="bottom" onHeight={setFootInset} veil="rgba(10,10,10,0.68)" zIndex={4}>
+                <div style={{ padding: "12px 18px 28px" }}>
+                  {footerNode}
+                </div>
+              </GlassEdge>
             )}
           </div>
         </div>
@@ -979,14 +990,18 @@ export default function SessionRequestOverlay({
           >
             <div className="sro-bg-img" style={{ backgroundImage: `url('${bgImage}')` }} />
             <div className="sro-bg-grad" />
-            <div className="sro-z2" style={{ flexShrink: 0 }}>{headerNode}</div>
-            <div ref={bodyScrollRef} className="sro-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "22px 20px 20px" }}>
+            <GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)" zIndex={4}>
+              {headerNode}
+            </GlassEdge>
+            <div ref={bodyScrollRef} className="sro-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: `${topInset + 22}px 20px ${footInset + 20}px` }}>
               {bodyContent}
             </div>
             {footerNode && (
-              <div className="sro-z2" style={{ flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.08)", padding: "12px 20px 16px" }}>
-                {footerNode}
-              </div>
+              <GlassEdge side="bottom" onHeight={setFootInset} veil="rgba(10,10,10,0.68)" zIndex={4}>
+                <div style={{ padding: "12px 20px 16px" }}>
+                  {footerNode}
+                </div>
+              </GlassEdge>
             )}
           </section>
         </div>

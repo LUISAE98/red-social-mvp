@@ -61,7 +61,11 @@ export default function GlassEdge({
   // en cada render, y ponerla en las dependencias reengancharía el observador
   // en cada uno.
   const onHeightRef = useRef(onHeight);
-  onHeightRef.current = onHeight;
+  // En un efecto, no en el cuerpo del render: tocar una referencia mientras se
+  // renderiza es justo lo que prohibe la regla de hooks.
+  useEffect(() => {
+    onHeightRef.current = onHeight;
+  }, [onHeight]);
 
   useEffect(() => {
     const node = ref.current;

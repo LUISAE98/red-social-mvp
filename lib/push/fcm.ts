@@ -9,6 +9,7 @@ import {
   getToken,
   deleteToken,
   isSupported,
+  onMessage,
 } from "firebase/messaging";
 import { doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { app, db } from "@/lib/firebase";
@@ -180,6 +181,93 @@ export async function resyncPushToken(uid: string): Promise<void> {
   } catch {
     // Que no se pueda refrescar el token no puede tumbar el arranque de la app.
   }
+}
+
+/**
+ * Muestra los avisos que llegan CON LA APP DELANTE.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🚨 Esto es lo que hacía que "a veces sí y a veces no".
+ *
+ * El SDK de Firebase mira, en cada push, si hay alguna ventana VISIBLE de este
+ * dominio. Si la hay, NO llama a `onBackgroundMessage` —o sea, el service worker
+ * no pinta nada— y en su lugar reenvía el mensaje a la página por `onMessage`.
+ * Como no había ningún `onMessage` en toda la app, ese aviso se perdía entero:
+ * ni notificación del sistema, ni nada dentro de la app.
+ *
+ * O sea que la regla real era: si tenías Vibra a la vista, no te enterabas; si
+ * la tenías cerrada o en segundo plano, sí. Desde fuera eso se ve exactamente
+ * como "el sistema de notificaciones es inestable".
+ *
+ * ⚠️ Y había un segundo daño, peor porque es acumulativo: los navegadores
+ * vigilan que cada push acabe enseñando algo. Chrome da un margen de pushes
+ * silenciosos y, al pasarse, puede CANCELAR la suscripción del sitio; iOS es
+ * más estricto todavía. Un push que no pinta nada no solo se pierde: gasta ese
+ * margen, y al agotarse dejan de llegar todos.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * Se pinta con el MISMO service worker, así que el aviso se ve igual, colapsa
+ * por `tag` igual y al tocarlo funciona el mismo `notificationclick` de siempre.
+ *
+ * Lo único que se calla es el aviso de lo que ya estás mirando: si el destino
+ * del aviso es la pantalla en la que estás, sobra.
+ *
+ * Devuelve la función para dejar de escuchar.
+ */
+export function escucharPushEnPrimerPlano(): () => void {
+  if (typeof window === "undefined") return () => {};
+  if (currentPushPermission() !== "granted") return () => {};
+
+  let cancelado = false;
+  let parar: (() => void) | null = null;
+
+  void (async () => {
+    if (!(await isPushSupported())) return;
+    if (cancelado) return;
+
+    try {
+      const messaging = getMessaging(app);
+      const unsubscribe = onMessage(messaging, (payload) => {
+        const d = (payload.data ?? {}) as Record<string, string | undefined>;
+        const link = d.link || "/";
+
+        // Ya estás en esa pantalla: avisarte de lo que tienes delante sobra.
+        // El enlace no lleva prefijo de idioma y la ruta sí, de ahí el `endsWith`.
+        if (link !== "/" && window.location.pathname.endsWith(link)) return;
+
+        void navigator.serviceWorker
+          .getRegistration(SW_SCOPE)
+          .then((registration) => {
+            if (!registration) return;
+            const tag = d.tag || undefined;
+            return registration.showNotification(d.title || "Vibra", {
+              body: d.body || "",
+              icon: d.icon || "/favicons/android-chrome-192x192.png?v=3",
+              badge: d.badge || "/favicons/android-chrome-192x192.png?v=3",
+              tag,
+              data: { link },
+              // Mismo criterio que en el SW: colapsa por hilo, pero vuelve a
+              // sonar. Sin esto, el segundo aviso del mismo hilo entra mudo.
+              ...(tag ? { renotify: true } : {}),
+            } as NotificationOptions);
+          })
+          .catch(() => {
+            // Sin registro o sin permiso del sistema: no hay nada que hacer, y
+            // desde luego no vale la pena romper la app por un aviso.
+          });
+      });
+
+      if (cancelado) unsubscribe();
+      else parar = unsubscribe;
+    } catch {
+      // Navegador sin soporte real: se sigue sin avisos en primer plano.
+    }
+  })();
+
+  return () => {
+    cancelado = true;
+    parar?.();
+  };
 }
 
 /** Revoca el token de este dispositivo y borra su doc en Firestore. */

@@ -8,7 +8,7 @@
 // El perfil las re-exporta desde su parts; la comunidad las importa directo.
 
 import React, { useEffect, useState } from "react";
-import { IconButton } from "@/components/ui";
+import { GlassEdge, IconButton } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
@@ -269,6 +269,13 @@ export function OverlayModal({
   // Entrada/salida animada: se mantiene montado 180ms para que la salida
   // complete antes de desmontar (spec Panel base, vibra_style.md).
   const [rendered, setRendered] = useState(open);
+  /**
+   * Hueco de las barras flotantes. GlassEdge se mide sola y lo avisa; el
+   * scroller lo repone con relleno.
+   */
+  const [topInset, setTopInset] = useState(0);
+  const [footInset, setFootInset] = useState(0);
+
   const [closing, setClosing] = useState(false);
   useEffect(() => {
     if (open) {
@@ -404,7 +411,10 @@ export function OverlayModal({
               : "vibraServicePanelIn 180ms ease-out",
           }}
         >
-          {/* Header: [vacío | título centrado | X] */}
+          {/* Header: [vacío | título centrado | X].
+              Flota sobre el contenido: lo que sube se disuelve por detrás en vez
+              de cortarse contra la línea que había aquí. */}
+          <GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)">
           <div
             style={{
               height: 56,
@@ -412,7 +422,6 @@ export function OverlayModal({
               gridTemplateColumns: "48px 1fr 48px",
               alignItems: "center",
               padding: "0 12px",
-              borderBottom: "1px solid rgba(255,255,255,0.12)",
               flexShrink: 0,
               position: "relative",
             }}
@@ -462,6 +471,7 @@ export function OverlayModal({
               </div>
             )}
           </div>
+          </GlassEdge>
 
           {/* Área de contenido con scroll */}
           <div
@@ -470,7 +480,7 @@ export function OverlayModal({
               flex: 1,
               overflowY: "auto",
               minHeight: 0,
-              padding: "18px 20px 8px",
+              padding: `${topInset + 18}px 20px ${footInset + 8}px`,
             }}
           >
             <div style={{ display: "grid", gap: 12 }}>{children}</div>
@@ -478,10 +488,10 @@ export function OverlayModal({
 
           {/* Footer: botón de acción principal (a lo ancho) */}
           {!hideFooter && (
+          <GlassEdge side="bottom" onHeight={setFootInset} veil="rgba(10,10,10,0.68)">
           <div
             style={{
               padding: "14px 20px 18px",
-              borderTop: "1px solid rgba(255,255,255,0.12)",
               flexShrink: 0,
             }}
           >
@@ -525,6 +535,7 @@ export function OverlayModal({
               )}
             </button>
           </div>
+          </GlassEdge>
           )}
         </section>
       </div>

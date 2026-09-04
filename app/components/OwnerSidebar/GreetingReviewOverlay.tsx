@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { IconButton } from "@/components/ui";
+import { GlassEdge, IconButton } from "@/components/ui";
 import { Switch } from "@/components/services/config/serviceConfigKit";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import ConfirmPanel from "@/components/ui/ConfirmPanel";
@@ -163,6 +163,12 @@ export default function GreetingReviewOverlay({
   const [viewState, setViewState] = useState<ViewState>(viewMode ? "camera" : "review");
   const [recordPhase, setRecordPhase] = useState<RecordPhase>("preview");
   const [isMobile, setIsMobile] = useState(false);
+  /**
+   * Hueco de la cabecera flotante. GlassEdge se mide sola y lo avisa; el
+   * scroller lo repone con relleno. Se mide y no se fija: en celular la cabecera
+   * lleva agarradera, título y la fila del comprador, y su alto cambia.
+   */
+  const [topInset, setTopInset] = useState(0);
   // Panel de datos plegado/desplegado. La cámara NO se toca al plegarlo: sigue
   // grabando. Queda una pestaña con la flecha para volver a abrirlo a media
   // grabación, por si el creador necesita releer la petición.
@@ -3771,16 +3777,18 @@ export default function GreetingReviewOverlay({
           <style>{REVIEW_BG_CSS}</style>
           {reviewBgImage && <div className="grv-bg-img" style={{ backgroundImage: `url('${reviewBgImage}')` }} />}
           {reviewBgImage && <div className="grv-bg-grad" />}
-          {/* Draggable header — handle + título + buyer row */}
+          {/* Draggable header — handle + título + buyer row.
+              Flota sobre el contenido: lo que sube se disuelve por detrás en vez
+              de cortarse contra la línea que había aquí. */}
+          <GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)" zIndex={4}>
           <div
-            className="grv-z2"
             onTouchStart={handleReviewTouchStart}
             onTouchMove={handleReviewTouchMove}
             onTouchEnd={handleReviewTouchEnd}
             style={{ padding: "10px 18px 14px", userSelect: "none", touchAction: "none", display: "flex", flexDirection: "column", gap: 14, flexShrink: 0 }}
           >
             <div style={{ width: 36, height: 4, borderRadius: 999, background: "rgba(255,255,255,0.18)", margin: "0 auto" }} />
-            <div style={{ display: "grid", gridTemplateColumns: "72px 1fr 72px", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 10, marginBottom: 4 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "72px 1fr 72px", alignItems: "center", paddingBottom: 10, marginBottom: 4 }}>
               <div aria-hidden="true" />
               <span style={{ color: "#fff", fontWeight: 500, fontSize: 17, letterSpacing: "-0.02em", textAlign: "center" }}>
                 {titleText}
@@ -3796,9 +3804,10 @@ export default function GreetingReviewOverlay({
               </div>
             </div>
           </div>
+          </GlassEdge>
 
           {/* Scrollable content + actions inline */}
-          <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "0 18px", paddingBottom: "calc(20px + var(--vb-safe-bottom, 0px))" }}>
+          <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "0 18px", paddingTop: topInset, paddingBottom: "calc(20px + var(--vb-safe-bottom, 0px))" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14, ...slideStyle }}>
               {infoSection}
               {readOnly ? (
@@ -3889,15 +3898,17 @@ export default function GreetingReviewOverlay({
           {reviewBgImage && <div className="grv-bg-img" style={{ backgroundImage: `url('${reviewBgImage}')` }} />}
           {reviewBgImage && <div className="grv-bg-grad" />}
           {/* Header */}
-          <div className="grv-z2" style={{ height: 56, display: "grid", gridTemplateColumns: "48px 1fr 48px", alignItems: "center", padding: "0 12px", borderBottom: "1px solid rgba(255,255,255,0.10)", flexShrink: 0 }}>
+          <GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)" zIndex={4}>
+          <div style={{ height: 56, display: "grid", gridTemplateColumns: "48px 1fr 48px", alignItems: "center", padding: "0 12px", flexShrink: 0 }}>
             <div aria-hidden="true" />
             <span style={{ color: "#fff", fontWeight: 500, fontSize: 17, letterSpacing: "-0.02em", textAlign: "center" }}>
               {titleText}
             </span>
             <button type="button" onClick={handleClose} aria-label={tCommon("closeAriaLabel")} style={{ border: "none", background: "none", color: "rgba(255,255,255,0.86)", cursor: "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4, width: 40, height: 40, fontSize: 28, fontWeight: 300, lineHeight: 1, fontFamily: fontStack }}>×</button>
           </div>
+          </GlassEdge>
 
-          <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 20px", display: "grid", gap: 16, alignContent: "start", ...slideStyle }}>
+          <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: `${topInset + 18}px 20px 20px`, display: "grid", gap: 16, alignContent: "start", ...slideStyle }}>
             {/* La ganancia va a la DERECHA, a la altura del avatar, igual que en sesión
                 exclusiva y tiempo contigo. Antes colgaba debajo y alineada a la izquierda. */}
             <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>

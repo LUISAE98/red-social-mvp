@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { IconButton } from "@/components/ui";
+import { GlassEdge, IconButton } from "@/components/ui";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { formatDateLong, formatDateTimeLong, formatWeekdayTime } from "@/lib/i18n/dateTime";
@@ -189,6 +189,13 @@ export default function BuyerSessionRequestOverlay({
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [closing, setClosing] = useState(false);
+  /**
+   * Hueco que dejan las barras flotantes (GlassEdge se mide sola y lo avisa).
+   * El scroller lo repone con relleno para que nada quede escondido detrás.
+   */
+  const [topInset, setTopInset] = useState(0);
+  const [footInset, setFootInset] = useState(0);
+
   const [panelOffsetY, setPanelOffsetY] = useState(0);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
@@ -650,6 +657,7 @@ export default function BuyerSessionRequestOverlay({
                 background: "linear-gradient(to bottom, #0a0a0a 0%, #0a0a0a 52%, rgba(10,10,10,0.9) 68%, rgba(10,10,10,0.6) 84%, rgba(10,10,10,0.28) 100%)",
               }} />
               <div style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+                <GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)">
                 <header
                   onPointerDown={handlePanelPointerDown}
                   onPointerMove={handlePanelPointerMove}
@@ -658,7 +666,6 @@ export default function BuyerSessionRequestOverlay({
                   style={{
                     ...headerStyle,
                     gridTemplateColumns: "72px 1fr 72px",
-                    borderBottom: "1px solid rgba(255,255,255,0.07)",
                     touchAction: "none", userSelect: "none", WebkitUserSelect: "none",
                   }}
                 >
@@ -672,7 +679,8 @@ export default function BuyerSessionRequestOverlay({
                     placeItems: "center", fontSize: 32, fontWeight: 300, lineHeight: 1, justifySelf: "end",
                   }}>×</button>
                 </header>
-                <div className="vibra-panel-mobile-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "12px 14px 8px" }}>
+                </GlassEdge>
+                <div className="vibra-panel-mobile-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: `${topInset + 12}px 14px 8px` }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     {creatorRow}
                     {infoFields}
@@ -727,7 +735,8 @@ export default function BuyerSessionRequestOverlay({
           background: "linear-gradient(to bottom, #0a0a0a 50%, rgba(10,10,10,0.85) 68%, rgba(10,10,10,0.4) 85%, transparent 100%)",
         }} />
         <div style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-          <header style={{ ...headerStyle, gridTemplateColumns: "48px 1fr 48px", borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
+          <GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)">
+          <header style={{ ...headerStyle, gridTemplateColumns: "48px 1fr 48px" }}>
             <div aria-hidden="true" />
             <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
               {serviceTitle}
@@ -738,8 +747,9 @@ export default function BuyerSessionRequestOverlay({
               </svg>
             </IconButton>
           </header>
+          </GlassEdge>
 
-          <div className="vibra-panel-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 8px" }}>
+          <div className="vibra-panel-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: `${topInset + 18}px 20px ${footInset + 8}px` }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {creatorRow}
               {infoFields}
@@ -748,9 +758,11 @@ export default function BuyerSessionRequestOverlay({
           </div>
 
           {footerContent && (
-            <div style={{ padding: "14px 20px 18px", borderTop: "1px solid rgba(255,255,255,0.12)" }}>
+            <GlassEdge side="bottom" onHeight={setFootInset} veil="rgba(10,10,10,0.68)">
+              <div style={{ padding: "14px 20px 18px" }}>
               {footerContent}
-            </div>
+              </div>
+            </GlassEdge>
           )}
         </div>
       </section>

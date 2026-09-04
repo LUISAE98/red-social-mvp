@@ -3056,12 +3056,24 @@ export default function ConversationThread({
           display: grid;
           place-items: center;
           cursor: pointer;
-          transition: background var(--duration-fast, 150ms) ease,
+          transition: transform var(--duration-fast, 150ms) ease,
             color var(--duration-fast, 150ms) ease;
         }
+        /* Sin pastilla gris al pasar el cursor. Un icono suelto sobre el fondo
+           del chat no necesita una caja detrás para decir que se puede pulsar:
+           ya lo dice que APAREZCA al pasar por el mensaje. El aviso de que estás
+           justo encima lo dan el blanco pleno y un pelo de tamaño. */
         .vibra-msg-action:hover {
-          background: rgba(255, 255, 255, 0.1);
           color: #fff;
+          transform: scale(1.12);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vibra-msg-action {
+            transition: color var(--duration-fast, 150ms) ease;
+          }
+          .vibra-msg-action:hover {
+            transform: none;
+          }
         }
 
       `}</style>
