@@ -29,7 +29,6 @@ import {
   VibraNavigationIconsStyles,
 } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import InviteLinkModal from "./InviteLinkModal";
-import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
 import ScheduleCalendarOverlay from "@/app/(protected)/wallet/components/ScheduleCalendarOverlay";
 import { WalletServiceRow } from "@/app/(protected)/wallet/components/WalletUi";
 

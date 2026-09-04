@@ -360,6 +360,21 @@ export default function MobileBottomNav({
   const tecladoAbierto = useKeyboardOpen();
 
   // ── Nav scale (shrink on scroll-down / idle) ───────────────────────────────
+  /**
+   * TEMPORAL — prueba de aislamiento del cristal. Se activa con ?glassdebug=1.
+   *
+   * Pinta cuatro muestras DENTRO de .wrap, o sea en la misma posición del árbol
+   * que la píldora, cada una con una decoración más que la anterior. La primera
+   * que se vea nítida es la que rompe el backdrop-filter en ese navegador.
+   *
+   * 🗑️ Borrar en cuanto se sepa la respuesta: esto y el bloque .glassProbe*.
+   */
+  const [glassDebug, setGlassDebug] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGlassDebug(new URLSearchParams(window.location.search).has("glassdebug"));
+  }, []);
+
   const [navScale, setNavScale] = useState(1);
   const [poppingKey, setPoppingKey] = useState<string | null>(null);
   /**
@@ -617,8 +632,20 @@ export default function MobileBottomNav({
 
              Ya cayeron dos:
                · un translateZ, que se quitó en su día;
-               · view-transition-name: mobile-nav, que se mudó a .navShell (ver
-                 abajo) porque volvía a matarlo exactamente igual.
+               · view-transition-name: mobile-nav, que se BORRÓ. Primero se probó
+                 moverlo a .navShell y en iPhone bastó, pero en Android no: en
+                 Chromium esa propiedad promociona a capa el elemento que la
+                 lleva, y ahí el backdrop-filter de ESE MISMO elemento se queda
+                 sin fondo que leer. WebKit la trataba de forma más benigna, y de
+                 ahí que el mismo código se viera bien en un teléfono y como un
+                 vidrio limpio en el otro.
+
+                 No se perdió nada al borrarla: en todo el repositorio no hay ni
+                 un startViewTransition() ni una regla @view-transition, así que
+                 el nombre no llegaba a animar nunca nada. Era peso muerto que
+                 solo servía para romper el cristal. Si algún día se quieren
+                 transiciones de vista de verdad, el nombre NO puede volver aquí
+                 ni a .navShell: tendrá que ir en un elemento que no difumine.
 
              La lista completa de disparadores es transform, opacity menor que 1,
              filter, mask, mix-blend-mode, will-change de cualquiera de ellos y
@@ -630,11 +657,6 @@ export default function MobileBottomNav({
         /* La píldora flotante. No toca ningún canto: se apoya sobre el contenido,
            que se ve difuminado por detrás. */
         .navShell {
-          /* Aquí sí puede estar: una raíz de backdrop afecta a los DESCENDIENTES
-             del elemento que la abre, no al elemento mismo. La píldora sigue
-             midiendo su backdrop contra la página, que es lo que se quiere, y la
-             transición de vista sigue animando lo único que se ve de verdad. */
-          view-transition-name: mobile-nav;
           width: 100%;
           pointer-events: auto;
           box-sizing: border-box;
@@ -748,20 +770,27 @@ export default function MobileBottomNav({
           align-items: center;
           /* Sin fondo propio: el de la píldora es el que se ve. El safe-area ya
              lo reserva el contenedor. */
-          padding: 7px 6px;
+          padding: calc(7px * var(--nav-scale, 1)) calc(6px * var(--nav-scale, 1));
           background: transparent;
           box-sizing: border-box;
           /* Ancla de la burbuja, que va en posición absoluta dentro. */
           position: relative;
-          transform: translateZ(0);
-          -webkit-transform: translateZ(0);
+          /* Esto y el alto de .item son el encogimiento entero de la píldora.
+             Mismos tiempos y curva que tenia el scale al que sustituyen. */
+          transition: padding 350ms cubic-bezier(0.4, 0, 0.2, 1);
+          /* SIN translateZ(0). Estaba aquí para forzar capa, pero es un
+             DESCENDIENTE del cristal y en Chromium un descendiente compuesto
+             obliga a la cápsula a pintarse en su propia superficie, que es otra
+             forma de quedarse sin fondo que difuminar. La animación ya no lo
+             necesita: ahora anima relleno y alto, no transform. */
         }
 
 
         .item {
           position: relative;
           z-index: 1;
-          height: 74px;
+          height: calc(74px * var(--nav-scale, 1));
+          transition: height 350ms cubic-bezier(0.4, 0, 0.2, 1);
           display: grid;
           place-items: center;
           text-decoration: none;
@@ -925,6 +954,11 @@ export default function MobileBottomNav({
         }
 
         @media (prefers-reduced-motion: reduce) {
+          .nav,
+          .item {
+            transition: none;
+          }
+
           .vibraFlash { animation-duration: 1ms; }
         }
 
@@ -950,6 +984,55 @@ export default function MobileBottomNav({
 
         .shaking {
           animation: navShake 0.36s ease-out both;
+        }
+
+        /* TEMPORAL — ver la nota de glassDebug en el cuerpo del componente.
+           Cada muestra suma UNA decoracion sobre la anterior. Todas llevan el
+           mismo backdrop-filter que la pildora. 🗑️ Borrar con ella. */
+        .glassProbes {
+          display: flex;
+          gap: 6px;
+          margin-bottom: 10px;
+          pointer-events: none;
+        }
+        .glassProbe {
+          flex: 1;
+          height: 54px;
+          display: grid;
+          place-items: center;
+          font-size: 10px;
+          font-weight: 700;
+          color: #fff;
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+          backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
+          -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
+        }
+        /* A: solo el filtro y un tinte. Nada mas. */
+        .probeA {
+          background: rgba(6, 6, 8, 0.4);
+        }
+        /* B: + el radio de pildora. */
+        .probeB {
+          background: rgba(6, 6, 8, 0.4);
+          border-radius: 999px;
+        }
+        /* C: + las sombras interiores. */
+        .probeC {
+          background: rgba(6, 6, 8, 0.4);
+          border-radius: 999px;
+          box-shadow:
+            inset 0 2px 3px -2px rgba(255, 255, 255, 0.38),
+            inset 0 -16px 26px -16px rgba(0, 0, 0, 0.45);
+        }
+        /* D: + el borde y las sombras exteriores. La receta entera. */
+        .probeD {
+          background: rgba(6, 6, 8, 0.4);
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.04);
+          box-shadow:
+            inset 0 2px 3px -2px rgba(255, 255, 255, 0.38),
+            inset 0 -16px 26px -16px rgba(0, 0, 0, 0.45),
+            0 18px 36px rgba(0, 0, 0, 0.56);
         }
 
         @media (max-width: 768px) {
@@ -1003,13 +1086,36 @@ export default function MobileBottomNav({
             en vertical no se notaba; una píldora sí: los extremos redondeados se
             vuelven óvalos y el borde cambia de grosor. Escalando por igual, encoge
             entera y conserva su forma. */}
+        {glassDebug ? (
+          <div className="glassProbes">
+            <div className="glassProbe probeA">A plano</div>
+            <div className="glassProbe probeB">B radio</div>
+            <div className="glassProbe probeC">C sombra</div>
+            <div className="glassProbe probeD">D todo</div>
+          </div>
+        ) : null}
+
         <div
           className="navShell"
           style={{
-            transform: `scale(${navScale})`,
-            transformOrigin: "bottom center",
-            transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
-          }}
+            // 🚨 AQUÍ NO PUEDE HABER UN `transform`, y por eso el encogimiento
+            // no se hace con `scale`.
+            //
+            // En Chromium cualquier transform —`scale(1)` incluido, que NO es un
+            // no-op— promociona el elemento a su propia capa, y ahí el
+            // backdrop-filter de ESE MISMO elemento se queda sin fondo que leer:
+            // la cápsula se ve como un vidrio limpio, con el contenido de detrás
+            // nítido. WebKit lo aguanta, de ahí que el mismo código se viera
+            // bien en iPhone y roto en Android.
+            //
+            // Lo que se publica es el factor, y quien encoge de verdad es el
+            // contenido de dentro: el relleno de .nav y el alto de .item, en
+            // `calc()`. Son propiedades de layout, animan solas en los dos
+            // navegadores y no promocionan nada. Como el encogido es del 7%,
+            // que los iconos y las etiquetas no mengüen con él no se nota — y
+            // de paso el texto no pierde nitidez a media animación.
+            ["--nav-scale" as string]: navScale,
+          } as React.CSSProperties}
         >
           <div
             className="nav"

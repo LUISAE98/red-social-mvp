@@ -6,7 +6,10 @@
 "use client";
 
 import Image from "next/image";
-import Hls from "hls.js";
+// Solo el TIPO. Ver la nota en GroupPostCard.tsx: la librería son ~154 KB
+// comprimidos y este archivo viaja con cada tarjeta del feed, así que se trae
+// dentro del efecto y únicamente para los `.m3u8`.
+import type HlsType from "hls.js";
 import {
   forwardRef,
   useEffect,
@@ -559,7 +562,7 @@ export const MediaGridVideoItem = forwardRef<MediaGridVideoItemHandle, MediaGrid
   ) {
     const feedSlotRef = useRef<HTMLDivElement | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
-    const localHlsRef = useRef<Hls | null>(null);
+    const localHlsRef = useRef<HlsType | null>(null);
     const [metadataLoaded, setMetadataLoaded] = useState(false);
     const [remainingSeconds, setRemainingSeconds] = useState<number | null>(
       typeof duration === "number" && duration > 0 ? Math.ceil(duration) : null
@@ -637,15 +640,29 @@ export const MediaGridVideoItem = forwardRef<MediaGridVideoItemHandle, MediaGrid
       localHlsRef.current?.destroy();
       localHlsRef.current = null;
       video.muted = true;
-      if (src.includes(".m3u8") && Hls.isSupported()) {
-        const hls = new Hls({ enableWorker: true, startLevel: -1, maxBufferLength: 30 });
-        localHlsRef.current = hls;
-        hls.loadSource(src);
-        hls.attachMedia(video);
+
+      // `cancelado` porque la librería llega de forma asíncrona: sin él, un
+      // cambio rápido de `src` adjuntaría un reproductor ya obsoleto.
+      let cancelado = false;
+
+      if (src.includes(".m3u8")) {
+        import("hls.js").then(({ default: Hls }) => {
+          if (cancelado) return;
+          if (!Hls.isSupported()) {
+            video.src = src;
+            return;
+          }
+          const hls = new Hls({ enableWorker: true, startLevel: -1, maxBufferLength: 30 });
+          localHlsRef.current = hls;
+          hls.loadSource(src);
+          hls.attachMedia(video);
+        });
       } else {
         video.src = src;
       }
+
       return () => {
+        cancelado = true;
         localHlsRef.current?.destroy();
         localHlsRef.current = null;
         video.removeAttribute("src");

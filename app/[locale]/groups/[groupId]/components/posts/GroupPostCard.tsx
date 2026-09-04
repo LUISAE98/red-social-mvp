@@ -8,8 +8,13 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import Image from "next/image";
 import { intlLocale } from "@/i18n/locales";
-import Hls from "hls.js";
+// Solo el TIPO: hls.js son ~154 KB comprimidos y esta tarjeta se pinta en cada
+// publicación del feed, así que la librería se trae bajo demanda dentro del
+// efecto —y únicamente para los `.m3u8`, que son los que la necesitan—. Un
+// `import type` se borra al compilar y no arrastra nada.
+import type HlsType from "hls.js";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import {
@@ -27,16 +32,49 @@ import { createPortal } from "react-dom";
 import type { Comment, CommentImage, CommentMention, CommentReply, Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
-import LiveInlinePlayer from "@/app/components/LiveInlinePlayer/LiveInlinePlayer";
-import LiveViewerModal from "@/app/components/LiveViewerModal/LiveViewerModal";
-import LiveCreatorPanel from "@/app/components/LiveChat/LiveCreatorPanel";
+/**
+ * Los tres reproductores de directo van bajo demanda, y arrastran con ellos los
+ * ~154 KB de hls.js.
+ *
+ * Ninguno se pinta en una publicación normal: el reproductor en línea solo sale
+ * si la publicación ES un directo, y el visor y el panel del creador están
+ * detrás de `liveViewerOpen` / `liveCreatorOpen`. Antes viajaban en el paquete
+ * de CADA tarjeta del feed.
+ *
+ * `ssr: false` porque los tres son reproductores de video: sin navegador no hay
+ * nada que renderizar, y el servidor no puede adelantar trabajo aquí.
+ */
+/**
+ * Paneles pesados de la tarjeta, bajo demanda.
+ *
+ * Los cinco reciben `open` y arrancan cerrados: no pintan nada hasta que
+ * alguien los abre, pero hasta ahora viajaban enteros en el paquete de CADA
+ * publicación del feed. StripePaymentModal se llevaba además el SDK de Stripe,
+ * y PostImageViewer son casi 2 800 líneas.
+ *
+ * Con ssr:false porque los cinco son superficies de interacción del navegador;
+ * el servidor no tiene nada que adelantar.
+ */
+const PostImageViewer = dynamic(() => import("./PostImageViewer"), { ssr: false });
+const StripePaymentModal = dynamic(() => import("@/components/payments/StripePaymentModal"), { ssr: false });
+const LiveComposerModal = dynamic(() => import("@/app/components/LiveComposer/LiveComposerModal"), { ssr: false });
+const LiveStreamSetup = dynamic(() => import("@/app/components/LiveStreamSetup/LiveStreamSetup"), { ssr: false });
+
+const LiveInlinePlayer = dynamic(
+  () => import("@/app/components/LiveInlinePlayer/LiveInlinePlayer"),
+  { ssr: false }
+);
+const LiveViewerModal = dynamic(
+  () => import("@/app/components/LiveViewerModal/LiveViewerModal"),
+  { ssr: false }
+);
+const LiveCreatorPanel = dynamic(
+  () => import("@/app/components/LiveChat/LiveCreatorPanel"),
+  { ssr: false }
+);
 import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
-import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
-import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
 import PostCommentsPanel from "./PostCommentsPanel";
 import GroupPostComposer, { type GroupPostComposerSubmitPayload } from "./GroupPostComposer";
-import PostImageViewer from "./PostImageViewer";
-import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import { createLiveAccessStripeIntent, createPremiumPostStripeIntent } from "@/lib/stripe/stripePayments";
 import { FIXED_SERVICE_FEE_USD, SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
@@ -491,7 +529,7 @@ useEffect(() => {
   const savePendingRef = useRef<boolean | null>(null);
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const feedHlsRef = useRef<Hls | null>(null);
+  const feedHlsRef = useRef<HlsType | null>(null);
 
   /**
    * ¿El usuario quitó el silencio a mano en este video?
@@ -2437,17 +2475,35 @@ const rootVideoShellAspectRatio =
 
     const isHls = videoPlaybackUrl.includes(".m3u8");
 
-    if (isHls && Hls.isSupported()) {
+    if (!isHls) {
+      // Safari native HLS or direct MP4: no hace falta traer la librería.
+      video.src = videoPlaybackUrl;
+      return () => {
+        video.removeAttribute("src");
+        video.load();
+      };
+    }
+
+    // A partir de aquí sí es HLS. La descarga de la librería es asíncrona, así
+    // que el efecto puede haberse limpiado antes de que llegue: `cancelado`
+    // evita adjuntar un reproductor a un video que ya no está en pantalla.
+    let cancelado = false;
+
+    import("hls.js").then(({ default: Hls }) => {
+      if (cancelado) return;
+      if (!Hls.isSupported()) {
+        video.src = videoPlaybackUrl;
+        return;
+      }
+
       const hls = new Hls({ enableWorker: true, startLevel: -1, maxBufferLength: 30 });
       feedHlsRef.current = hls;
       hls.loadSource(videoPlaybackUrl);
       hls.attachMedia(video);
-    } else {
-      // Safari native HLS or direct MP4
-      video.src = videoPlaybackUrl;
-    }
+    });
 
     return () => {
+      cancelado = true;
       feedHlsRef.current?.destroy();
       feedHlsRef.current = null;
       video.removeAttribute("src");

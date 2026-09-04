@@ -40,7 +40,6 @@ import BuyerGreetingRequestOverlay from "./BuyerGreetingRequestOverlay";
 import BuyerSessionRequestOverlay from "./BuyerSessionRequestOverlay";
 import SessionRequestOverlay from "./SessionRequestOverlay";
 import GreetingReviewOverlay from "./GreetingReviewOverlay";
-import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
 import ScheduleDateTimeSelector, {
   getSchedulePartsFromDate,
   schedulePartsToIso,

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import {
   getExclusiveSessionStatusLabel,
   type ExclusiveSessionStatus,
@@ -32,7 +33,19 @@ import {
   rejectExclusiveSessionRequest,
   setExclusiveSessionPreparing,
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
-import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
+/**
+ * La sala de LiveKit va bajo demanda: son ~152 KB comprimidos que hasta ahora
+ * viajaban en TODA pantalla autenticada, porque este componente cuelga del
+ * OwnerSidebar y del banner de cuenta atrás, que se montan en el layout.
+ *
+ * Solo se pinta cuando hay una sesión que preparar, así que la descarga llega
+ * mucho antes de que haga falta. Con ssr:false porque es WebRTC: sin navegador
+ * no hay nada que renderizar.
+ */
+const MeetGreetPreparationFullscreen = dynamic(
+  () => import("@/app/components/meetGreet/MeetGreetPreparationFullscreen"),
+  { ssr: false }
+);
 import { callGetRecordingDownloadUrl } from "@/lib/liveKit/sessionLifecycle";
 
 import ScheduleDateTimeSelector, {

@@ -33,6 +33,8 @@ type ResumenDelDia = {
   liberadasSoltadas: number;
   colaRecogida: number;
   errores: number;
+  /** Qué falló, no solo cuántos. */
+  detalles?: string[];
   timbrado: boolean;
 };
 
@@ -194,6 +196,16 @@ export default function AdminFacturacionPage() {
               />
               <Fila k="Errores" v={result.errores} />
             </div>
+
+            {/* El motivo, no solo la cuenta. Sin esto hay que ir a buscar el log del
+                servidor, que es justo lo que esta pantalla vino a evitar. */}
+            {result.detalles && result.detalles.length > 0 && (
+              <div className="errores">
+                {result.detalles.map((d, i) => (
+                  <p key={i} className="errorLinea">{d}</p>
+                ))}
+              </div>
+            )}
             <p className="hint">
               {result.timbrado
                 ? "Esta pasada TIMBRÓ. Los documentos existen."
@@ -314,6 +326,22 @@ export default function AdminFacturacionPage() {
           font-size: 11.5px;
           color: #666;
           line-height: 1.5;
+        }
+        .errores {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: #1a0808;
+          border: 1px solid #3d1515;
+        }
+        .errorLinea {
+          font-size: 11.5px;
+          color: #fca5a5;
+          line-height: 1.55;
+          word-break: break-word;
+        }
+        .errorLinea + .errorLinea {
+          margin-top: 8px;
         }
       `}</style>
     </div>

@@ -78,6 +78,14 @@ export type ResumenDelDia = {
   /** Facturas de la cola que la barrida recogió (AUD-9). */
   colaRecogida: number;
   errores: number;
+  /**
+   * 🚨 QUÉ falló, no solo cuántos.
+   *
+   * Un panel de administración que dice «Errores: 1» y se guarda el motivo no sirve para
+   * operar nada: obliga a ir a buscar el log del servidor, que es justo lo que esta pantalla
+   * vino a evitar. Se devuelven los mensajes, recortados y con el creador delante.
+   */
+  detalles: string[];
   timbrado: boolean;
 };
 
@@ -108,6 +116,7 @@ export async function procesarGlobalDelDia(
     liberadasSoltadas: 0,
     colaRecogida: 0,
     errores: 0,
+    detalles: [],
     timbrado: timbrar,
   };
 
@@ -222,11 +231,10 @@ export async function procesarGlobalDelDia(
       }
     } catch (err) {
       r.errores++;
-      logger.error("global_invoice_creator_failed", {
-        creatorId,
-        dia,
-        err: err instanceof Error ? err.message : String(err),
-      });
+      const detalle = err instanceof Error ? err.message : String(err);
+      logger.error("global_invoice_creator_failed", { creatorId, dia, err: detalle });
+      // Al informe, no solo al log: quien dispara esto desde el panel necesita leerlo ahí.
+      r.detalles.push(`${creatorId.slice(0, 8)}… — ${detalle.slice(0, 400)}`);
     }
   }
 
