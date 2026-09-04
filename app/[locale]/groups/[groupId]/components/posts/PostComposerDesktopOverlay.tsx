@@ -509,14 +509,19 @@ style={{
           border: "none",
           borderRadius: 5,
           padding: "0 13px",
-          background: "linear-gradient(135deg, #4f46ff, #a855f7, #ff2fb3)",
+          // El degradado canonico de marca, el mismo que <Button variant="gradient">
+          // (ver vibra_style.md). Sale de los tokens y no de tres hex sueltos, asi
+          // que sigue al morado de marca si algun dia se mueve.
+          background:
+            "linear-gradient(135deg, var(--pink) 0%, var(--brand-strong) 52%, #3b82f6 100%)",
           color: "#fff",
           fontSize: 13,
           fontWeight: 500,
           cursor: creating || isPreparingImages ? "not-allowed" : "pointer",
           opacity: creating || isPreparingImages ? 0.55 : 1,
           fontFamily: fontStack,
-          boxShadow: "0 8px 20px rgba(168,85,247,0.24)",
+          // Sin halo: el color ya destaca de sobra sobre el negro, y la sombra
+          // morada difusa lo dejaba flotando por encima de todo lo demas.
           whiteSpace: "nowrap",
           display: "flex",
           alignItems: "center",
