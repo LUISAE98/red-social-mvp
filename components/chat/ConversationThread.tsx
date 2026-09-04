@@ -344,15 +344,25 @@ const INPUT_MAX_HEIGHT = 132;
  * Se devuelve `aspectRatio` en vez de un alto fijo para que la caja pueda
  * encoger con el globo en pantallas estrechas sin deformar la foto.
  */
-function imageBox(image: ChatImage): {
+/**
+ * Hueco exacto de una foto en el globo.
+ *
+ * Recibe medidas sueltas y no un `ChatImage` porque lo llama también el hueco
+ * de la foto QUE AÚN SE ESTÁ SUBIENDO, que todavía no es un mensaje: las dos
+ * cajas tienen que salir de la misma cuenta o al relevarse se movería.
+ */
+function imageBox(
+  imageWidth?: number,
+  imageHeight?: number
+): {
   width: number;
   maxWidth: string;
   aspectRatio: string;
 } {
   const MAX_WIDTH = 240;
   const MAX_HEIGHT = 260;
-  const width = image.width ?? 0;
-  const height = image.height ?? 0;
+  const width = imageWidth ?? 0;
+  const height = imageHeight ?? 0;
 
   // Sin dimensiones guardadas (mensajes antiguos) se asume apaisado corriente.
   if (!width || !height) {
@@ -367,6 +377,42 @@ function imageBox(image: ChatImage): {
     aspectRatio: `${width} / ${height}`,
   };
 }
+
+/**
+ * Mide la foto elegida SIN subirla y deja su URL local viva.
+ *
+ * `getImageDimensions` de `image-upload` no sirve aquí: revoca la URL nada más
+ * medir, y lo que se necesita justo es quedársela para pintar la foto mientras
+ * sube. La URL se revoca al cerrar el hilo.
+ */
+function medirFotoLocal(
+  file: File
+): Promise<{ url: string; width: number; height: number }> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () =>
+      resolve({ url, width: image.naturalWidth || 0, height: image.naturalHeight || 0 });
+    // Sin medidas, `imageBox` cae en su caja por defecto. Se sigue adelante: no
+    // poder medir no es motivo para no mandar la foto.
+    image.onerror = () => resolve({ url, width: 0, height: 0 });
+    image.src = url;
+  });
+}
+/** Una foto elegida que todavía está subiendo, con su hueco ya reservado. */
+type FotoEnCamino = {
+  id: number;
+  /** URL local de la foto: se pinta YA, en su sitio y su tamaño definitivos. */
+  previewUrl: string;
+  width: number;
+  height: number;
+  /**
+   * Ruta de la miniatura ya subida, o `null` mientras sube. Es la llave del
+   * relevo: cuando llega un mensaje con esta misma ruta, este hueco sobra.
+   */
+  thumbnailPath: string | null;
+};
+
 function autoGrow(el: HTMLTextAreaElement) {
   el.style.height = "auto";
   el.style.height = `${Math.min(el.scrollHeight, INPUT_MAX_HEIGHT)}px`;
@@ -437,8 +483,19 @@ export default function ConversationThread({
    * skeletons. Se guardan ids y no un contador porque dos fotos seguidas
    * terminan en cualquier orden.
    */
-  const [uploadingIds, setUploadingIds] = useState<number[]>([]);
+  const [uploading, setUploading] = useState<FotoEnCamino[]>([]);
   const uploadIdRef = useRef(0);
+  /**
+   * URL local de cada foto que se ha mandado desde aquí, por su ruta de Storage.
+   *
+   * Es el MISMO archivo que se acaba de subir y ya está decodificado, así que
+   * mientras exista manda sobre la URL firmada: el globo real se pinta lleno
+   * desde su primer fotograma, sin pasar por el esqueleto. Se revocan al cerrar
+   * el hilo.
+   */
+  const localImageUrls = useRef<Record<string, string>>({});
+  /** Todas las URL locales creadas, para poder revocarlas sin rastrear cuál es cuál. */
+  const createdObjectUrls = useRef(new Set<string>());
   /** El campo tiene el foco ⇒ hay teclado ⇒ el botón de foto se pliega. */
   const [composerFocused, setComposerFocused] = useState(false);
   /** Miniaturas ya cargadas, por ruta: deciden cuándo apagar su skeleton. */
@@ -492,11 +549,17 @@ export default function ConversationThread({
   const popDecision = useRef(new Map<string, boolean>());
   const firstBatchDone = useRef(false);
 
-  function shouldPop(messageId: string): boolean {
-    const decided = popDecision.current.get(messageId);
+  function shouldPop(message: MessageWithId): boolean {
+    const decided = popDecision.current.get(message.id);
     if (decided !== undefined) return decided;
-    const value = firstBatchDone.current;
-    popDecision.current.set(messageId, value);
+    // Una foto mía que ya se estaba viendo en su hueco NO entra: ya estaba. El
+    // relevo tiene que ser invisible, así que ese mensaje no se anima. Se decide
+    // aquí, en el render, y no en un efecto — para entonces la animación ya
+    // habría empezado.
+    const relevaUnaLocal =
+      !!message.image && !!localImageUrls.current[message.image.thumbnailPath];
+    const value = firstBatchDone.current && !relevaUnaLocal;
+    popDecision.current.set(message.id, value);
     return value;
   }
 
@@ -1020,9 +1083,19 @@ export default function ConversationThread({
   /** URL para pintar: la firmada, o la permanente si es un mensaje antiguo. */
   function imageUrl(image: ChatImage, variant: "thumb" | "full"): string | null {
     if (variant === "thumb") {
-      return image.thumbnailUrl ?? signedUrls[image.thumbnailPath] ?? null;
+      // La copia local va PRIMERO: es el archivo que se acaba de mandar, ya
+      // decodificado. Sin ella, el globo que releva a la foto en camino se
+      // pintaría vacío hasta que llegara la firma.
+      return (
+        localImageUrls.current[image.thumbnailPath] ??
+        image.thumbnailUrl ??
+        signedUrls[image.thumbnailPath] ??
+        null
+      );
     }
-    return image.url ?? signedUrls[image.path] ?? null;
+    return (
+      localImageUrls.current[image.path] ?? image.url ?? signedUrls[image.path] ?? null
+    );
   }
 
   /**
@@ -1341,8 +1414,17 @@ export default function ConversationThread({
    * La foto se MANDA al elegirla: sin previsualización en el campo ni segundo
    * toque. Es lo que se espera hoy de un chat — eliges del carrete y ya está.
    *
-   * Mientras sube, su hueco en el hilo lo ocupa un skeleton, así que se ve que
-   * va en camino y al llegar el mensaje real nada salta de sitio.
+   * ⚠️ La foto se pinta desde el primer momento EN SU SITIO DEFINITIVO. Antes su
+   * hueco era un rectángulo gris de 200×150 fijo y el mensaje real entraba
+   * después con la animación de siempre: cambiaba de tamaño Y subía desde abajo,
+   * o sea que la foto parecía salir de debajo del hueco. Ahora:
+   *
+   *  1. se mide el archivo antes de nada, y el hueco sale de la MISMA cuenta
+   *     que usará el globo (`imageBox`), así que mide lo mismo;
+   *  2. dentro del hueco va la propia foto, no una silueta;
+   *  3. el hueco no se suelta al acabar la subida sino cuando LLEGA el mensaje,
+   *     de modo que nunca están los dos ni queda un fotograma vacío;
+   *  4. el mensaje que releva a una foto local no se anima: ya estaba ahí.
    *
    * El hilo puede no existir aún (modo borrador). La ruta de Storage usa el ID
    * determinista de la conversación, que se conoce antes de crearla.
@@ -1351,22 +1433,92 @@ export default function ConversationThread({
     if (!file || !conversationId || !canWrite) return;
 
     const uploadId = ++uploadIdRef.current;
-    setUploadingIds((prev) => [...prev, uploadId]);
+    // Se mide ANTES de enseñar nada: con el hueco puesto a ojo, al llegar la
+    // foto real cambiaría de forma, que es justo el salto que se quiere quitar.
+    const preview = await medirFotoLocal(file);
+    createdObjectUrls.current.add(preview.url);
+
+    setUploading((prev) => [
+      ...prev,
+      {
+        id: uploadId,
+        previewUrl: preview.url,
+        width: preview.width,
+        height: preview.height,
+        thumbnailPath: null,
+      },
+    ]);
     stickToBottomRef.current = true;
     setError(null);
 
     try {
       const uploaded = await uploadDirectMessageImage({ conversationId, file });
+      // La copia local pasa a valer como miniatura de esas rutas: es el mismo
+      // archivo, así que el globo real nace ya pintado.
+      localImageUrls.current[uploaded.thumbnailPath] = preview.url;
+      localImageUrls.current[uploaded.path] = preview.url;
+      setUploading((prev) =>
+        prev.map((foto) =>
+          foto.id === uploadId ? { ...foto, thumbnailPath: uploaded.thumbnailPath } : foto
+        )
+      );
       // La foto va sola: el pie de foto se escribe como un mensaje aparte.
       await deliver("", uploaded, null);
     } catch {
       setError(tCommon("imageUploadError"));
+      // Solo se retira a mano cuando FALLA. Si sale bien, el hueco lo libera el
+      // mensaje de verdad al llegar; retirarlo aquí dejaría un parpadeo vacío.
+      setUploading((prev) => prev.filter((foto) => foto.id !== uploadId));
     } finally {
-      setUploadingIds((prev) => prev.filter((id) => id !== uploadId));
       // Permite volver a elegir el MISMO fichero justo después.
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
+
+  /**
+   * Relevo: el hueco de una foto en camino se suelta cuando su mensaje ya está
+   * en el hilo, no cuando termina la subida. Entre una cosa y la otra hay un
+   * viaje a Firestore, y soltarlo antes dejaba el hilo sin foto ese rato.
+   *
+   * ⚠️ Se decide EN EL RENDER y no en un efecto. Los efectos corren después de
+   * pintar, así que por un fotograma se habrían visto las dos — la foto en
+   * camino y su mensaje — y al desaparecer una, el salto. Así el mensaje real y
+   * la retirada del hueco caen en la misma pintada.
+   */
+  const uploadingVisible = useMemo(() => {
+    if (uploading.length === 0) return uploading;
+
+    const llegadas = new Set(
+      messages.map((message) => message.image?.thumbnailPath).filter(Boolean)
+    );
+    return uploading.filter(
+      (foto) => !foto.thumbnailPath || !llegadas.has(foto.thumbnailPath)
+    );
+  }, [messages, uploading]);
+
+  /** Y ya sin prisa, se limpia el estado de las que dejaron de pintarse. */
+  useEffect(() => {
+    if (uploadingVisible.length !== uploading.length) setUploading(uploadingVisible);
+  }, [uploadingVisible, uploading]);
+
+  /**
+   * Una foto que se acaba de elegir tiene que VERSE, aunque el hilo estuviera al
+   * final: ocupa su sitio y lo empuja fuera de la pantalla.
+   */
+  useEffect(() => {
+    if (uploadingVisible.length > 0 && stickToBottomRef.current) scrollToBottom(true);
+  }, [uploadingVisible.length, scrollToBottom]);
+
+  /** Las URL locales mueren con el hilo; hasta entonces son la miniatura buena. */
+  useEffect(() => {
+    const creadas = createdObjectUrls.current;
+    const porRuta = localImageUrls.current;
+    return () => {
+      for (const url of creadas) URL.revokeObjectURL(url);
+      creadas.clear();
+      for (const ruta of Object.keys(porRuta)) delete porRuta[ruta];
+    };
+  }, [conversationId]);
 
   async function runAction(action: () => Promise<void>, errorKey: string) {
     if (busyAction) return;
@@ -1452,8 +1604,16 @@ export default function ConversationThread({
           if (node) messageNodes.current.set(message.id, node);
           else messageNodes.current.delete(message.id);
         }}
-        // Los que llegan mientras miras entran con un pequeño rebote.
-        className={shouldPop(message.id) ? "vibra-msg-pop" : undefined}
+        // Los que llegan mientras miras entran con un pequeño rebote. Los que
+        // traen foto no: una foto se funde en su sitio y no se mueve, porque su
+        // hueco ya estaba reservado y moverla lo delata.
+        className={
+          shouldPop(message)
+            ? message.image
+              ? "vibra-msg-fade"
+              : "vibra-msg-pop"
+            : undefined
+        }
         // Con un menú abierto, TODO lo demás se difumina: el mensaje que
         // pulsaste y su menú se quedan nítidos y el ojo va solo hacia ellos.
         data-dimmed={
@@ -1817,7 +1977,7 @@ export default function ConversationThread({
                  reintentar. Ahora el hueco explica qué pasó y ofrece la salida. */
               <div
                 style={{
-                  ...imageBox(message.image),
+                  ...imageBox(message.image.width, message.image.height),
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
@@ -1868,7 +2028,7 @@ export default function ConversationThread({
                   background: "none",
                   cursor: "zoom-in",
                   lineHeight: 0,
-                  ...imageBox(message.image),
+                  ...imageBox(message.image.width, message.image.height),
                 }}
               >
                 <SkeletonBlock
@@ -2527,7 +2687,7 @@ export default function ConversationThread({
 
         {loading && exists ? (
           <MessageThreadSkeleton />
-        ) : (!exists || messages.length === 0) && uploadingIds.length === 0 ? (
+        ) : (!exists || messages.length === 0) && uploadingVisible.length === 0 ? (
           // Con una foto ya subiendo NO se enseña el hilo vacío: la primera cosa
           // que mandas puede ser precisamente esa foto, y decirte "aún no hay
           // mensajes" mientras va en camino se lee como que no se envió.
@@ -2555,10 +2715,15 @@ export default function ConversationThread({
               renderMessage(message, index > 0 ? messages[index - 1] : null)
             )}
 
-            {/* Fotos en camino. Van al final porque es donde va a aparecer el
-                mensaje de verdad en cuanto termine de subir. */}
-            {uploadingIds.map((id) => (
-              <SendingImageSkeleton key={id} />
+            {/* Fotos en camino. Van al final porque es exactamente donde va a
+                quedarse el mensaje de verdad, con la misma caja y la misma
+                foto: el relevo no mueve nada. */}
+            {uploadingVisible.map((foto) => (
+              <SendingImageSkeleton
+                key={foto.id}
+                previewUrl={foto.previewUrl}
+                box={imageBox(foto.width, foto.height)}
+              />
             ))}
 
           </ChatReveal>
@@ -2664,11 +2829,29 @@ export default function ConversationThread({
             transform: scale(1) translateY(0);
           }
         }
+
+        /* Entrada de un mensaje CON FOTO: se funde y nada más.
+           Una foto llega a un hueco que ya estaba reservado y a su tamaño
+           definitivo; subirla o escalarla la hace pelearse con ese hueco y
+           parece que sale de debajo de él. Fundido en su sitio y ya. */
+        .vibra-msg-fade {
+          animation: vibraMsgFade var(--duration-normal, 250ms)
+            var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1)) both;
+        }
+        @keyframes vibraMsgFade {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
         @media (prefers-reduced-motion: reduce) {
           .vibra-chat-ph {
             transition: none;
           }
-          .vibra-msg-pop {
+          .vibra-msg-pop,
+          .vibra-msg-fade {
             animation: none;
           }
           .vibra-msg-heart {

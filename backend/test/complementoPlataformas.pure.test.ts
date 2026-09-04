@@ -92,31 +92,57 @@ describe("armado del complemento", () => {
 });
 
 describe("detalle sacado de los asientos", () => {
-  const asiento = (over: Record<string, unknown> = {}) => ({
-    status: "earned",
-    grossAmount: 100,
-    occurredAt: { toDate: () => new Date("2026-09-15T18:00:00.000Z") },
-    fiscalMxn: { total: 2146, base: 1850, iva: 296, tipoCambio: 18.5, fuente: "cobro" },
-    retenciones: { comision: 25, ivaComision: 4 },
-    ...over,
-  }) as Parameters<typeof serviciosDelPeriodo>[0][number];
+  const asiento = (over: Record<string, unknown> = {}) =>
+    ({
+      status: "earned",
+      grossAmount: 100,
+      occurredAt: { toDate: () => new Date("2026-09-15T18:00:00.000Z") },
+      fiscalMxn: { total: 2146, base: 1850, iva: 296, tipoCambio: 18.5, fuente: "cobro" },
+      retenciones: { comision: 25, ivaComision: 4 },
+      ...over,
+    }) as Parameters<typeof serviciosDelPeriodo>[0][number];
 
-  it("convierte la comisión a pesos con el tipo de cambio de ESA venta", () => {
-    const [s] = serviciosDelPeriodo([asiento()]);
+  /** FIX de mentira, para no depender de que Banxico esté en pie durante un test. */
+  const fixFalso = async () => 20;
+
+  it("con pesos congelados usa el tipo de cambio de ESA venta", async () => {
+    const [s] = await serviciosDelPeriodo([asiento()], fixFalso);
     expect(s.precioSinIva).toBe(1850);
-    expect(s.comision).toBe(462.5); // 25 USD × 18.5
-    expect(s.ivaComision).toBe(74); // 4 USD × 18.5
+    expect(s.comision).toBe(462.5); // 25 USD × 18.5, la tasa real de su cobro
+    expect(s.ivaComision).toBe(74);
   });
 
-  it("🚨 salta las ventas sin pesos congelados en vez de aproximarlas", () => {
-    expect(serviciosDelPeriodo([asiento({ fiscalMxn: undefined })])).toHaveLength(0);
+  it("🚨 una venta de EXPORTACIÓN se convierte con el FIX, no se salta", async () => {
+    /*
+     * Antes se saltaba, y por eso la constancia quedaba con la base corta: el ISR se retiene
+     * sobre TODAS las ventas, también las exportadas. Fue lo que bloqueó este documento hasta
+     * que apareció la fuente oficial de tipo de cambio.
+     */
+    const [s] = await serviciosDelPeriodo([asiento({ fiscalMxn: undefined })], fixFalso);
+    expect(s.precioSinIva).toBe(2000); // 100 USD × 20 del FIX
+    expect(s.ivaTrasladado).toBe(0); // exportación a 0%: no hubo IVA que trasladar
+    expect(s.comision).toBe(500); // 25 × 20
   });
 
-  it("🚨 salta las ventas sin fecha: `FechaServ` es obligatorio", () => {
-    expect(serviciosDelPeriodo([asiento({ occurredAt: null, createdAt: null })])).toHaveLength(0);
+  it("🚨 salta las ventas sin fecha: `FechaServ` es obligatorio", async () => {
+    const r = await serviciosDelPeriodo(
+      [asiento({ occurredAt: null, createdAt: null })],
+      fixFalso
+    );
+    expect(r).toHaveLength(0);
   });
 
-  it("solo cuenta lo ganado, no lo pendiente de resolver", () => {
-    expect(serviciosDelPeriodo([asiento({ status: "pending" })])).toHaveLength(0);
+  it("solo cuenta lo ganado, no lo pendiente de resolver", async () => {
+    expect(await serviciosDelPeriodo([asiento({ status: "pending" })], fixFalso)).toHaveLength(0);
+  });
+
+  it("🚨 mezcla nacional y exportación en el mismo periodo, cada una con su tasa", async () => {
+    const r = await serviciosDelPeriodo(
+      [asiento(), asiento({ fiscalMxn: undefined })],
+      fixFalso
+    );
+    expect(r).toHaveLength(2);
+    expect(r[0].precioSinIva).toBe(1850); // cobro real
+    expect(r[1].precioSinIva).toBe(2000); // FIX
   });
 });

@@ -36,6 +36,7 @@ import {
 } from "./creatorMonthlyDocs";
 import { armarComprobante, guardarComprobante } from "./comprobanteLiquidacion";
 import { requirePlatformMod } from "../authz";
+import { banxicoToken } from "./tipoCambioDof";
 import { SETTLEMENT_CURRENCY } from "../wallet/ledger";
 
 if (admin.apps.length === 0) {
@@ -141,7 +142,7 @@ export async function procesarPeriodo(
             tipo === "comision"
               ? await emitirCfdiComision(acc, customerId)
               : // La constancia lleva un nodo por operación, no solo totales (§A4).
-                await emitirCfdiRetenciones(acc, customerId, serviciosDelPeriodo(asientos));
+                await emitirCfdiRetenciones(acc, customerId, await serviciosDelPeriodo(asientos));
           facturapiId = doc.id;
           uuid = doc.uuid ?? null;
         }
@@ -170,7 +171,7 @@ export const creatorMonthlyDocsCron = onSchedule(
     region: REGION,
     schedule: "0 9 5 * *",
     timeZone: "America/Mexico_City",
-    secrets: [facturapiTestKey, facturapiUserKey],
+    secrets: [facturapiTestKey, facturapiUserKey, banxicoToken],
   },
   async () => {
     await procesarPeriodo(periodoAnterior(new Date()));
@@ -183,7 +184,7 @@ export const creatorMonthlyDocsCron = onSchedule(
  * Solo superadministradores: emite documentos fiscales a nombre de Vibra.
  */
 export const runCreatorMonthlyDocs = onCall(
-  { region: REGION, cors: true, secrets: [facturapiTestKey, facturapiUserKey] },
+  { region: REGION, cors: true, secrets: [facturapiTestKey, facturapiUserKey, banxicoToken] },
   async (request) => {
     /**
      * 🚨 El supermoderador se identifica por el claim `role=moderator` MÁS sesión de Google.

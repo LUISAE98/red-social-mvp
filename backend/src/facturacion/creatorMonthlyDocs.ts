@@ -25,6 +25,7 @@ import { logger } from "firebase-functions";
 import { facturapiFetch } from "./facturapiClient";
 import { requiereCfdiRetenciones } from "../tax/fiscalEngine";
 import { leerImporteFiscal } from "./importeFiscal";
+import { fixParaOperacion } from "./tipoCambioDof";
 import {
   armarComplemento,
   CVE_RETENC_PLATAFORMAS,
@@ -150,6 +151,18 @@ export function rangoDelPeriodo(periodo: string): { desde: Date; hasta: Date } {
   return { desde: inicioDeDiaMx(a, m, 1), hasta: inicioDeDiaMx(a, m + 1, 1) };
 }
 
+/**
+ * Último día de un periodo `YYYY-MM`, en `YYYY-MM-DD`.
+ *
+ * Es la fecha de la operación para un comprobante que cubre un mes: la obligación nace al
+ * cerrarlo. De ahí sale el tipo de cambio que le toca.
+ */
+export function finDelPeriodo(periodo: string): string {
+  const { hasta } = rangoDelPeriodo(periodo);
+  const ultimo = new Date(hasta.getTime() - 24 * 3_600_000);
+  return diaDe(ultimo);
+}
+
 /** `YYYY-MM-DD` de una fecha, en hora de México. El periodo de una factura global. */
 export function diaDe(fecha: Date): string {
   const { a, m, d } = partesEnMexico(fecha);
@@ -224,32 +237,59 @@ export function acumularMes(
 /**
  * Convierte los asientos de un periodo en el detalle que exige el complemento.
  *
- * Un nodo por operación, con su fecha y sus pesos congelados. Se saltan las ventas que no
- * tengan importe congelado: sin él no hay pesos que declarar, y aproximar en un CFDI es lo que
- * §A0 vino a prohibir. Que falte una es visible en `ventasSinPesos` del acumulado.
+ * Un nodo por operación, con su fecha y sus importes EN PESOS. La constancia documenta una
+ * obligación en pesos —la retención se entera al SAT en pesos— así que aquí todo se convierte.
  *
- * Función PURA sobre los asientos, para poder probarla sin Firestore.
+ * ⚠️ QUÉ TIPO DE CAMBIO SE USA, Y POR QUÉ NO SIEMPRE EL MISMO
+ *
+ * - Venta a comprador MEXICANO: los pesos que de verdad se cobraron (`fiscalMxn`). Ahí no hay
+ *   nada que convertir, la operación ocurrió en pesos.
+ * - Venta de EXPORTACIÓN: el comprador pagó en su moneda y no existe operación en pesos, así
+ *   que se convierte con el **FIX de Banxico** del día hábil anterior a la venta, que es lo
+ *   que manda el artículo 20 del CFF.
+ *
+ * Las dos son defendibles y cada una lo es por su motivo. Lo que no sería defendible es usar
+ * una tasa de una API cualquiera, ni saltarse las de exportación —que fue lo que bloqueó este
+ * documento hasta el 2026-09-03—: **el ISR se retiene sobre TODAS las ventas**, también las
+ * exportadas, y omitirlas dejaría la base corta.
+ *
+ * 🔁 FISCALISTA: que la misma venta pueda valer pesos distintos en la factura global (tasa del
+ * cobro) y en la constancia (FIX) es correcto por separado, pero conviene que lo confirme.
  */
-export function serviciosDelPeriodo(asientos: AsientoConRetenciones[]): ServicioDelComplemento[] {
+export async function serviciosDelPeriodo(
+  asientos: AsientoConRetenciones[],
+  /**
+   * De dónde sale el tipo de cambio de las ventas de exportación.
+   *
+   * Se inyecta para poder probar esta función sin salir a la red: una prueba que depende de
+   * que Banxico esté en pie no prueba lo que dice probar, y falla los días que no debería.
+   */
+  tipoDeCambio: (dia: string) => Promise<number> = async (dia) =>
+    (await fixParaOperacion(dia)).tasa
+): Promise<ServicioDelComplemento[]> {
   const out: ServicioDelComplemento[] = [];
   for (const a of asientos) {
     if (a.status !== "earned") continue;
     const r = a.retenciones;
     if (!r) continue;
-    const pesos = leerImporteFiscal(a.fiscalMxn);
-    if (!pesos) continue;
 
     const cuando = a.occurredAt ?? a.createdAt;
     const fecha = cuando?.toDate?.();
     if (!fecha) continue; // sin fecha no hay `FechaServ`, que es obligatorio
+    const dia = diaDe(fecha);
+
+    const pesos = leerImporteFiscal(a.fiscalMxn);
+    // Con pesos congelados, ésa es la tasa de esa venta. Sin ellos —exportación— el FIX.
+    const tasa = pesos ? pesos.tipoCambio : await tipoDeCambio(dia);
+    const base = pesos ? pesos.base : round2((a.grossAmount ?? 0) * tasa);
+    const iva = pesos ? pesos.iva : 0; // exportación a 0%: no hubo IVA que trasladar
 
     out.push({
-      fecha: diaDe(fecha),
-      precioSinIva: pesos.base,
-      ivaTrasladado: pesos.iva,
-      // La comisión de ESA venta, en pesos, con el tipo de cambio congelado de ESA venta.
-      comision: round2((r.comision ?? 0) * pesos.tipoCambio),
-      ivaComision: round2((r.ivaComision ?? 0) * pesos.tipoCambio),
+      fecha: dia,
+      precioSinIva: base,
+      ivaTrasladado: iva,
+      comision: round2((r.comision ?? 0) * tasa),
+      ivaComision: round2((r.ivaComision ?? 0) * tasa),
     });
   }
   return out;
@@ -392,16 +432,22 @@ export async function emitirCfdiComision(
   customerId: string
 ): Promise<FacturapiDoc> {
   const llevaImpuesto = acc.ivaComision > 0;
+
   /**
-   * 🚨 Sin pesos no se timbra. Si alguna venta del mes no tiene su importe congelado, la
-   *    comisión en pesos está incompleta y el CFDI saldría corto. Corto es tan falso como
-   *    largo, y el backfill existe justo para que esto no pase.
+   * 💵 VA EN DÓLARES, con el tipo de cambio oficial.
+   *
+   * La comisión está denominada en dólares —el ledger lo está— y se cobra sobre TODAS las
+   * ventas, también las de exportación. Ésas nunca tocaron un peso, así que no hay tipo de
+   * cambio real que despejar de su cobro y convertirlas una por una es imposible.
+   *
+   * Emitir en USD con `TipoCambio` resuelve el problema de raíz: no se convierte nada, se
+   * declara la moneda de la operación y la tasa oficial del artículo 20 del CFF.
+   *
+   * ⚠️ Esto revierte lo que §A0 decidió. Allí se eligió emitirla en pesos «porque cada venta
+   * trae su tasa real», sin ver que las de exportación no la traen. El error se descubrió al
+   * timbrar de verdad, el 2026-09-03.
    */
-  if (acc.ventasSinPesos > 0) {
-    throw new Error(
-      `comisión sin pesos congelados: ${acc.ventasSinPesos} de ${acc.ventas} ventas de ${acc.periodo}`
-    );
-  }
+  const { tasa, fechaTasa } = await fixParaOperacion(finDelPeriodo(acc.periodo));
   const res = await facturapiFetch<FacturapiDoc>("/invoices", {
     method: "POST",
     body: {
@@ -414,7 +460,7 @@ export async function emitirCfdiComision(
             // 🔁 FISCALISTA: clave de producto/servicio de la comisión de intermediación.
             product_key: "80141600",
             unit_key: "E48",
-            price: acc.comisionMxn,
+            price: acc.comision, // 💵 en dólares; la moneda del comprobante es USD
             tax_included: false,
             taxes: llevaImpuesto
               ? [{ type: "IVA", rate: 0.16, factor: "Tasa" }]
@@ -426,11 +472,18 @@ export async function emitirCfdiComision(
       use: "G03",
       payment_form: "17", // Compensación: se descuenta del saldo, no se cobra aparte.
       payment_method: "PUE",
-      currency: "MXN",
+      currency: "USD",
+      /**
+       * 🔁 FACTURAPI: el nombre del campo del tipo de cambio está por confirmar en el primer
+       * timbrado. Su vocabulario no es el del SAT —lo aprendimos con `global.periodicity`— así
+       * que `exchange` es lo que dice su documentación, no una traducción del Anexo 20.
+       */
+      exchange: tasa,
     },
     auth: "secret", // 👈 organización de VIBRA: el emisor es ella.
   });
   if (!res.ok) throw new Error(`CFDI de comisión falló: ${String(res.error).slice(0, 200)}`);
+  logger.info("cfdi_comision", { creatorId: acc.creatorId, periodo: acc.periodo, tasa, fechaTasa });
   return res.data;
 }
 

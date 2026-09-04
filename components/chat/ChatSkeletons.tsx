@@ -152,7 +152,15 @@ export function SkeletonBlock({ style }: { style?: React.CSSProperties }) {
  *
  * Va siempre del lado de quien escribe — solo tú puedes estar subiendo algo.
  */
-export function SendingImageSkeleton() {
+export function SendingImageSkeleton({
+  previewUrl,
+  box,
+}: {
+  /** URL local de la foto elegida. Se ve la foto, no su silueta. */
+  previewUrl: string;
+  /** La MISMA caja que usará el globo real, medida con `imageBox`. */
+  box: { width: number; maxWidth: string; aspectRatio: string };
+}) {
   return (
     <div
       className="vb-chat-skel"
@@ -160,14 +168,37 @@ export function SendingImageSkeleton() {
       style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}
     >
       <div
-        className="vb-skel"
         style={{
-          width: 200,
-          height: 150,
+          ...box,
+          position: "relative",
+          overflow: "hidden",
           // Mismo redondeo que un globo propio: es lo que va a sustituirlo.
           borderRadius: "16px 16px 4px 16px",
         }}
-      />
+      >
+        {/* La foto ya elegida, a su tamaño final. Antes esto era un rectángulo
+            gris de 200×150 fijo, así que al llegar el mensaje real la foto
+            cambiaba de forma y de sitio de golpe. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={previewUrl}
+          alt=""
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+          }}
+        />
+        {/* Velo con la misma onda que el resto de skeletons. La foto ya se ve;
+            lo único que falta por decir es que todavía va en camino. */}
+        <div
+          className="vb-skel"
+          style={{ position: "absolute", inset: 0, opacity: 0.5 }}
+        />
+      </div>
       <SkeletonBase />
     </div>
   );

@@ -216,6 +216,38 @@ todas (bajar por el feed, abrir una publicación, volver) dejaba la lista arriba
 del todo. Ahora la posición se guarda de forma continua y el «atrás» la
 recupera.
 
+### Dónde está puesta la caché de disco, y dónde NO
+
+La lógica vive en **un** sitio, [`lib/cache/feedPersistence.ts`](../../lib/cache/feedPersistence.ts),
+no copiada en cada feed.
+
+| Pantalla | Estado |
+| --- | --- |
+| Inicio | ✅ |
+| Guardados | ✅ |
+| Publicaciones de un perfil | ✅ |
+| Publicaciones de una comunidad | ✅ |
+| Wallet · comunidades de suscripción y canales | ✅ |
+| Wallet · saldo, ledger y movimientos | ⛔ **a propósito** |
+
+🚨 **Por qué el saldo NO lleva caché nuestra.** El saldo y los movimientos llegan
+por `onSnapshot`, y la caché persistente de Firestore —ya activa en
+`lib/firebase.ts`— entrega la primera emisión desde IndexedDB al instante en una
+recarga. Poner encima una segunda caché no lo haría más rápido: solo abriría la
+puerta a enseñar un saldo **más viejo del que Firestore ya tiene**. Con dinero
+eso no se hace.
+
+Lo que sí se arregló de la wallet es lo que Firestore no puede cachear: las
+comunidades de suscripción y los canales se cargan con `getDocs` —que espera al
+servidor— y la primera suma además un **`getCountFromServer` por comunidad**, que
+por definición no se sirve desde ninguna caché. Ahí es donde la pantalla se
+quedaba en blanco. Lo guardado son cifras para mostrar (precio publicado,
+cuántos suscriptores hay), no dinero sobre el que se pueda actuar.
+
+**Regla general que se siguió:** `onSnapshot` ya está cubierto por Firestore;
+lo que merece caché nuestra es lo que se pide con `getDocs` o
+`getCountFromServer`.
+
 ⚠️ **Pendiente del bloque 3:** el cliente de datos único (3.2). Sigue habiendo
 un `useEffect` por lista en vez de una capa que deduplique y revalide sola. Es
 un refactor grande y va aparte.

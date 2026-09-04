@@ -699,6 +699,69 @@ console.log((await fn({ dia: "2026-08-31", timbrar: true })).data);
 
 ---
 
+# TIPO DE CAMBIO OFICIAL — Banxico FIX 💱 (2026-09-03)
+
+## Por qué hizo falta, y por qué §A0 se equivocó al descartarlo
+
+§A0 decidió emitir la comisión **en pesos** en vez de en dólares con `TipoCambio`, con este
+razonamiento: «no tenemos fuente del FIX de Banxico, pero da igual, porque cada venta trae su
+tipo de cambio real congelado del cobro».
+
+**El razonamiento tenía un agujero**, y se vio al timbrar de verdad: las ventas de EXPORTACIÓN
+no traen tasa. El comprador pagó en su moneda, no hubo operación en pesos y no hay nada que
+despejar. Pero **la comisión se cobra sobre ellas igual, y el ISR se retiene sobre ellas igual**.
+
+Un creador con 4 ventas —2 mexicanas y 2 a Estados Unidos— dejaba los dos comprobantes
+mensuales bloqueados: la guarda se negaba, correctamente, a emitir una factura corta.
+
+## La fuente
+
+Serie **`SF43718`** del SIE de Banxico: *«Tipo de cambio para solventar obligaciones denominadas
+en moneda extranjera, fecha de determinación (FIX)»*. Es literalmente la que nombra el artículo
+20 del CFF. Token gratuito, 40 000 consultas al día.
+
+⚠️ **Fecha de determinación, no de publicación.** El FIX determinado un día se publica al
+siguiente y rige para las obligaciones de ese siguiente, así que para una operación del día D se
+usa el del **día hábil anterior**. Se resuelve pidiendo un rango que acaba en D−1 y tomando el
+último dato: la serie solo trae días hábiles, así que fines de semana y festivos se saltan solos
+sin llevar un calendario.
+
+🚨 **Cada tasa se congela** en `tiposDeCambioDof/{fecha}` y no se vuelve a pedir. Un CFDI
+reexpedido en dos años tiene que dar el mismo número, y una API externa no garantiza eso — ni
+que siga existiendo.
+
+## Qué tasa usa cada documento, y por qué no todos la misma
+
+| Documento | Moneda | Tasa |
+|---|---|---|
+| Venta al comprador y factura global | MXN | **Los pesos realmente cobrados.** La operación ocurrió en pesos, no hay nada que convertir |
+| **Comisión de Vibra** | **USD con `TipoCambio`** | FIX del cierre del periodo. Está denominada en dólares y cubre ventas que nunca tocaron un peso |
+| **Constancia de retenciones** | MXN | Por venta: si es nacional, la tasa de su cobro; si es de exportación, el **FIX de su día** |
+
+Que la misma venta valga pesos distintos en la global (tasa del cobro) y en la constancia (FIX)
+es correcto por separado —cada una responde a su hecho— pero está marcado `🔁 FISCALISTA` para
+que lo confirme.
+
+## Lo que falta para usarlo
+
+🔴 **El token.** Sacarlo en <https://www.banxico.org.mx/SieAPIRest/service/v1/> y guardarlo:
+
+```
+firebase functions:secrets:set BANXICO_TOKEN
+```
+
+Sin él, los comprobantes mensuales fallan con un mensaje explícito. No se inventa una tasa:
+un CFDI con un tipo de cambio aproximado es peor que un CFDI que no sale.
+
+| Pieza | Dónde |
+|---|---|
+| La fuente, con congelado y día hábil anterior | 🆕 `backend/src/facturacion/tipoCambioDof.ts` |
+| Comisión en USD con `TipoCambio` | `backend/src/facturacion/creatorMonthlyDocs.ts` |
+| La constancia convierte las de exportación con el FIX | idem, `serviciosDelPeriodo` |
+| 5 pruebas, con la fuente inyectada para no salir a la red | `backend/test/complementoPlataformas.pure.test.ts` |
+
+---
+
 # GRUPO B — Para que la global salga correcta
 
 ## B5 · Cola de facturas pendientes ✅ HECHO (2026-09-02)
