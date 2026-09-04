@@ -211,17 +211,44 @@ const HEART_PATH =
 /**
  * Fondos de los globos, sobre negro.
  *
- * El morado es el de marca (#a855f7) con alfa: la opacidad es lo que decide
- * cuánta luz tiene. A 0.30 quedaba casi apagado sobre el fondo negro del chat.
+ * OPACOS y planos. Antes eran el morado de marca con alfa (0.52) sobre el negro
+ * del chat, y el negro de debajo se comía la saturación: salía un morado
+ * apagado. Un color sólido llega entero a la pantalla.
+ *
+ * Nada de brillo interior ni sombra: el globo se lee por su color, no por
+ * fingir volumen. Con el degradado encima, un reflejo arriba lo volvía un
+ * plástico abombado — que es justo lo que se veía en celular.
  *
  * El destello del salto a una cita tiene que seguir leyéndose como un golpe de
- * luz POR ENCIMA del globo ya iluminado, no como su color normal — de ahí la
- * distancia entre los dos valores.
+ * luz POR ENCIMA del globo, no como su color normal — de ahí la distancia.
  */
-const BUBBLE_MINE = "rgba(168,85,247,0.52)";
-const BUBBLE_MINE_FLASH = "rgba(168,85,247,0.85)";
+const BUBBLE_MINE = "#a855f7";
+/**
+ * Destello del salto a una cita. Es un velo blanco POR ENCIMA del fondo, no un
+ * color de fondo: así sirve igual sobre el morado, sobre el gris del otro y
+ * sobre el barrido de color, y además se puede animar de ida y de vuelta.
+ */
+const BUBBLE_FLASH_VEIL = "inset 0 0 0 999px rgba(255,255,255,0.30)";
 /** Los del otro no se tocan: el encargo era iluminar el morado, no el gris. */
 const BUBBLE_THEIRS = "rgba(255,255,255,0.07)";
+
+/**
+ * Barrido de color del hilo, al estilo de Instagram.
+ *
+ * ⚠️ La gracia está en que va anclado a la PANTALLA, no al globo: el degradado
+ * mide lo que mide el hilo visible y cada globo enseña el trozo que le toca
+ * según dónde esté en ese momento. Rosa arriba, azul al centro, morado abajo, y
+ * al scrollear los globos van cambiando de color al pasar por delante.
+ *
+ * Si cada globo llevara su propio degradado, uno pequeño sería un arcoíris
+ * entero y uno grande otro distinto; así todos comparten UNA sola rampa.
+ *
+ * El morado manda: ocupa desde el 78 % hasta abajo, que es donde vive la
+ * conversación reciente — lo que más se mira. Rosa y azul son el acento de lo
+ * que va quedando arriba.
+ */
+const THREAD_GRADIENT =
+  "linear-gradient(180deg, #ff4d9d 0%, #4d7cf5 38%, #a855f7 78%, #a855f7 100%)";
 
 
 /** Pista del gesto: aparece a la izquierda del globo según se arrastra. */
@@ -438,6 +465,8 @@ export default function ConversationThread({
   const expandedPanelRef = useRef<HTMLDivElement | null>(null);
   /** Nodo de cada mensaje, para poder saltar al original desde su cita. */
   const messageNodes = useRef(new Map<string, HTMLDivElement>());
+  /** Nodo del GLOBO de cada mensaje, para anclarle el barrido de color. */
+  const bubbleNodes = useRef(new Map<string, HTMLDivElement>());
 
   /**
    * Qué mensajes entran con animación.
@@ -1110,6 +1139,51 @@ export default function ConversationThread({
     return () => observer.disconnect();
   }, [scrollToBottom]);
 
+  /**
+   * Ancla el barrido de color a la PANTALLA, no a cada globo.
+   *
+   * Son dos datos y ya: cuánto mide el hilo visible (`--vb-thread-h`) y a qué
+   * altura del contenido está cada globo (`--vb-bubble-y`). Con eso, el globo
+   * pinta el degradado a tamaño de pantalla y lo desplaza hacia arriba justo lo
+   * que él baja, así que todos comparten UNA rampa continua.
+   *
+   * ⚠️ El scroll NO vuelve a medir nada: mueve una sola variable en el scroller
+   * (`--vb-thread-scroll`) y la herencia de CSS reposiciona los globos sola. Si
+   * hubiera que recorrer los nodos en cada fotograma, esto no se podría hacer.
+   *
+   * `offsetTop` sale del scroller porque es el ancestro posicionado más cercano
+   * (`position: relative` allí, y nada posicionado en medio).
+   */
+  const measureBubbleTints = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    container.style.setProperty("--vb-thread-h", `${container.clientHeight}px`);
+    container.style.setProperty("--vb-thread-scroll", `${container.scrollTop}px`);
+    for (const node of bubbleNodes.current.values()) {
+      node.style.setProperty("--vb-bubble-y", `${node.offsetTop}px`);
+    }
+  }, []);
+
+  /**
+   * Se vuelve a medir cuando algo mueve los globos de sitio: mensajes nuevos o
+   * más historial, una foto que al cargar cambia el alto, y el menú al abrirse.
+   * Mientras no se haya medido, el globo se queda en su morado plano — de ahí
+   * el `-100vh` por defecto, que deja el degradado fuera del recorte.
+   */
+  useEffect(() => {
+    measureBubbleTints();
+  }, [messages, loadedImages, expandedMessage, measureBubbleTints]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => measureBubbleTints());
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [measureBubbleTints]);
+
   useEffect(() => {
     setDraft("");
     setError(null);
@@ -1442,29 +1516,15 @@ export default function ConversationThread({
                   alignSelf: "stretch",
                 }}
               >
-                {/* Palomitas de leído y corazón COMPARTEN sitio, y por eso van
-                    los dos siempre montados: al pasar las palomitas al mensaje
-                    siguiente, el corazón de este entra con su rebote en el hueco
-                    que dejan. Si se montaran y desmontaran, el relevo sería un
-                    corte seco. */}
+                {/* Aquí fuera ya SOLO vive el corazón. Las palomitas de leído
+                    se mudaron dentro del globo: compartir este hueco las hacía
+                    turnarse (mientras estaban ellas, el corazón esperaba) y
+                    encima quedaban por debajo de la foto del mensaje siguiente.
+                    Va siempre montado y se enciende con el atributo, para que el
+                    pop de entrada y el de salida sean la misma transición. */}
                 <span
                   className="vibra-msg-heart"
-                  data-on={showsReadChecks ? "" : undefined}
-                  style={{
-                    position: "absolute",
-                    bottom: -7,
-                    ...(mine ? { insetInlineStart: -5 } : { insetInlineEnd: -5 }),
-                  }}
-                >
-                  <ReadChecksIcon />
-                </span>
-
-                <span
-                  className="vibra-msg-heart"
-                  // Las palomitas mandan: mientras estén, el corazón espera.
-                  data-on={
-                    !showsReadChecks && (message.likedBy ?? []).length > 0 ? "" : undefined
-                  }
+                  data-on={(message.likedBy ?? []).length > 0 ? "" : undefined}
                   style={{
                     position: "absolute",
                     bottom: -7,
@@ -1478,20 +1538,24 @@ export default function ConversationThread({
               </span>
             ) : null}
 
-            {/* Acciones al pasar el cursor. El hueco se reserva SIEMPRE (aunque
-                estén invisibles) para que aparecer no empuje el globo de sitio.
-                Van del lado de fuera del globo: a su izquierda si el mensaje es
-                mío (pegado a la derecha), a su derecha si es del otro. */}
+            {/* Acción al pasar el cursor. El hueco se reserva SIEMPRE (aunque
+                esté invisible) para que aparecer no empuje el globo de sitio.
+                Va del lado de fuera del globo: a su izquierda si el mensaje es
+                mío (pegado a la derecha), a su derecha si es del otro.
+
+                ⚠️ Aquí queda SOLO el corazón. Responder y editar se fueron al
+                menú del clic: tres iconos no cabían en el hueco reservado y se
+                salían del panel por la izquierda, encima de la página de
+                debajo. El corazón se queda porque es lo único que se usa de
+                pasada; el resto ya tiene su sitio en el menú. */}
             {pointerActions ? (
             <span
               className="vibra-msg-actions"
               style={{
                 order: mine ? 0 : 6,
-                // Pegados AL GLOBO, no centrados en el hueco reservado. Con una
-                // sola acción (editar caduca a los 10 minutos, y en lo del otro
-                // nunca aparece) centrar dejaba un espacio muerto justo entre el
-                // icono y el mensaje. Así el sobrante se va hacia fuera, donde
-                // no se nota.
+                // Pegado AL GLOBO, no centrado en el hueco reservado: centrar
+                // dejaba un espacio muerto justo entre el icono y el mensaje.
+                // Así el sobrante se va hacia fuera, donde no se nota.
                 justifyContent: mine ? "flex-end" : "flex-start",
               }}
             >
@@ -1518,20 +1582,6 @@ export default function ConversationThread({
                       si está puesto, y rellenar también el botón lo repetía. */}
                   <ActionIcon path={<path d={HEART_PATH} />} />
                 </button>
-              ) : null}
-
-              {canReply(message) ? (
-                <IconButton label={tChat("reply")} size="sm" tone="bare" style={{ color: "rgba(255,255,255,0.92)" }} className="vibra-msg-action" onClick={(e) => { e.stopPropagation(); startReply(message); }}>
-                  <ActionIcon path={ICON_REPLY} />
-                </IconButton>
-              ) : null}
-
-              {/* Editar: solo lo tuyo, con texto y dentro de los 10 minutos.
-                  Pasado ese punto las rules lo rechazan, así que ni se ofrece. */}
-              {mine && withinWindow && message.text && !message.isDeleted ? (
-                <IconButton label={tCommon("edit")} size="sm" tone="bare" style={{ color: "rgba(255,255,255,0.92)" }} className="vibra-msg-action" onClick={(e) => { e.stopPropagation(); startEdit(message); }}>
-                  <ActionIcon path={ICON_PENCIL} />
-                </IconButton>
               ) : null}
             </span>
             ) : null}
@@ -1564,6 +1614,10 @@ export default function ConversationThread({
           <div
             role="button"
             tabIndex={0}
+            ref={(node) => {
+              if (node) bubbleNodes.current.set(message.id, node);
+              else bubbleNodes.current.delete(message.id);
+            }}
             onClick={(e) => {
               // Un arrastre, o la pulsación larga que ya abrió el menú, acaban
               // disparando un click; ese no debe hacer nada más.
@@ -1595,18 +1649,33 @@ export default function ConversationThread({
               // La esquina "pegada" al lado del emisor da la direccionalidad del
               // globo sin necesidad de una cola.
               borderRadius: mine ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-              background: flashing === message.id
-                ? BUBBLE_MINE_FLASH
-                : bareImage
-                  ? "transparent"
-                  : mine
-                    ? BUBBLE_MINE
-                    : BUBBLE_THEIRS,
-              // El destello al llegar desde una cita: entra rápido y se va sin
-              // prisa, que es lo que hace que el ojo lo siga.
-              transition: "background 420ms ease",
+              // Ancla de las palomitas de leído, que van dentro del globo.
+              position: "relative",
+              backgroundColor: bareImage
+                ? "transparent"
+                : mine
+                  ? BUBBLE_MINE
+                  : BUBBLE_THEIRS,
+              /* El barrido de color solo va en LO MÍO, como en Instagram: los
+                 globos del otro son el gris neutro contra el que se lee. Se pinta
+                 a tamaño de pantalla y se sube tanto como haya bajado el globo,
+                 así que todos los míos comparten la misma rampa continua.
+
+                 Sin medir todavía, `--vb-bubble-y` vale -100vh: el degradado cae
+                 fuera del globo y lo que se ve es el morado plano de debajo. */
+              backgroundImage: mine && !bareImage ? THREAD_GRADIENT : "none",
+              backgroundRepeat: "no-repeat",
+              backgroundSize: "100% var(--vb-thread-h, 100vh)",
+              backgroundPosition:
+                "0 calc(var(--vb-thread-scroll, 0px) - var(--vb-bubble-y, -100vh))",
+              // Plano: sin brillo interior. El destello al llegar desde una cita
+              // entra rápido y se va sin prisa, que es lo que hace que el ojo lo
+              // siga.
               boxShadow:
-                mine && !bareImage ? "inset 0 1px 0 rgba(255,255,255,0.06)" : "none",
+                flashing === message.id
+                  ? BUBBLE_FLASH_VEIL
+                  : "inset 0 0 0 999px rgba(255,255,255,0)",
+              transition: "box-shadow 420ms ease",
               minWidth: 0,
               lineHeight: 0,
             }}
@@ -1813,6 +1882,9 @@ export default function ConversationThread({
                   // El relleno vive aquí, no en el globo. Con imagen encima se
                   // aprieta un poco arriba: la foto ya separa visualmente.
                   padding: message.image && !message.isDeleted ? "6px 11px 9px" : "8px 11px",
+                  // Hueco para las palomitas, que van en esa esquina. Sin él, el
+                  // final de la última línea les pasa por debajo.
+                  paddingInlineEnd: showsReadChecks ? 36 : undefined,
                   fontSize: 13.5,
                   lineHeight: 1.4,
                   color: message.isDeleted
@@ -1827,6 +1899,26 @@ export default function ConversationThread({
                   ? tChat("messageDeleted")
                   : renderMessageText(message.text)}
               </div>
+            ) : null}
+
+            {/* Palomitas de leído DENTRO del globo, en su esquina inferior
+                interior. Fuera se les cruzaba todo: quedaban debajo de la foto
+                del mensaje siguiente y compartían sitio con el corazón. Aquí
+                nada las tapa, y sobre una foto a sangre la sombra las despega. */}
+            {showsReadChecks ? (
+              <span
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  insetInlineEnd: 8,
+                  bottom: 6,
+                  lineHeight: 0,
+                  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))",
+                  pointerEvents: "none",
+                }}
+              >
+                <ReadChecksIcon size={17} />
+              </span>
             ) : null}
 
           </div>
@@ -1906,13 +1998,11 @@ export default function ConversationThread({
                   en vez de una tarjeta vacía. */}
               {!message.isDeleted ? (
                 <div className="vibra-msg-menu">
-                  {/* En celular esto se hace deslizando el mensaje a la derecha.
-                      Aquí queda para táctil; con puntero se hace desde los
-                      iconos que salen al lado del globo. */}
-                  {/* El corazón vive AQUÍ en táctil. Estuvo en el doble toque y
+                  {/* El corazón es la ÚNICA acción que no está aquí con puntero:
+                      allí tiene su icono al lado del globo, que es lo que se usa
+                      de pasada. En táctil vive aquí — estuvo en el doble toque y
                       dio más problemas de los que resolvía: chocaba con abrir la
-                      imagen y obligaba a retrasar todo lo demás. Con puntero
-                      tiene su icono al pasar el cursor. */}
+                      imagen y obligaba a retrasar todo lo demás. */}
                   {!pointerActions && conversationId ? (
                     <button
                       type="button"
@@ -1928,7 +2018,9 @@ export default function ConversationThread({
                     </button>
                   ) : null}
 
-                  {!pointerActions && canReply(message) ? (
+                  {/* En celular responder también se hace deslizando el mensaje
+                      a la derecha; con puntero, este renglón es el único sitio. */}
+                  {canReply(message) ? (
                     <button
                       type="button"
                       className="vibra-msg-menu-item"
@@ -1988,7 +2080,7 @@ export default function ConversationThread({
                         {tChat("deleteForEveryone")}
                       </button>
 
-                      {!pointerActions && message.text ? (
+                      {message.text ? (
                         <button
                           type="button"
                           className="vibra-msg-menu-item"
@@ -2588,18 +2680,22 @@ export default function ConversationThread({
           background: rgba(255, 255, 255, 0.11);
         }
 
-        /* Acciones rápidas al lado del globo. Solo se montan donde hay puntero
-           (lo decide la prop pointerActions), así que aquí no hay media query.
+        /* Acción rápida al lado del globo. Solo se monta donde hay puntero (lo
+           decide la prop pointerActions), así que aquí no hay media query.
            El hueco se reserva siempre para que salir del hover no mueva el
-           globo de sitio. */
+           globo de sitio.
+
+           ⚠️ El ancho tiene que dar para lo que hay DENTRO. Con 56 px reservados
+           y tres iconos de 26 (responder y editar incluidos) el sobrante se
+           salía de la caja por la izquierda y acababa pintado fuera del panel,
+           encima de la página. Ahora solo vive aquí el corazón y el hueco es
+           justo el suyo. */
         .vibra-msg-actions {
           display: flex;
           flex-shrink: 0;
           align-items: center;
-          gap: 2px;
-          /* Ancho FIJO aunque solo haya una acción: si encogiera, el globo se
-             movería de sitio en los mensajes viejos al caducar el editar. */
-          width: 56px;
+          /* Un pelo más que el botón (26 px), para que respire contra el globo. */
+          width: 32px;
           opacity: 0;
           transition: opacity var(--duration-fast, 150ms) ease;
         }
@@ -2638,6 +2734,9 @@ export default function ConversationThread({
           const el = e.currentTarget;
           stickToBottomRef.current =
             el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_TO_BOTTOM_SLACK;
+          // Lo único que hace falta para que los globos vayan cambiando de color
+          // al pasar por la pantalla. Una escritura, sin leer nada del layout.
+          el.style.setProperty("--vb-thread-scroll", `${el.scrollTop}px`);
         }}
         // Con el menú abierto, tocar en cualquier otro sitio lo cierra. Sin
         // esto, abierto con pulsación larga, no había forma evidente de salir:
@@ -2651,6 +2750,10 @@ export default function ConversationThread({
         style={{
           flex: 1,
           minHeight: 0,
+          // Ancestro posicionado de los globos: es lo que hace que su
+          // `offsetTop` sea su altura DENTRO del hilo, que es la que necesita el
+          // barrido de color.
+          position: "relative",
           overflowY: "auto",
           // Explícito: al deslizar un mensaje se sale de la caja, y sin esto el
           // navegador convertiría ese desbordamiento en scroll horizontal.

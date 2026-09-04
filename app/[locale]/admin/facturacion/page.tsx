@@ -101,6 +101,39 @@ export default function AdminFacturacionPage() {
     }
   }
 
+  /**
+   * Suelta las ventas que un intento fallido dejó apartadas.
+   *
+   * Un fallo al timbrar las deja en `emitiendo` y fuera de cualquier global — es el estado
+   * seguro, pero sin esto hay que entrar a la base de datos a mano para poder reintentar.
+   * Solo suelta las que NO llegaron a tener folio; con folio el CFDI existe y soltarlas lo
+   * duplicaría.
+   */
+  async function liberar() {
+    if (corriendo || !diaValido) return;
+    setPhase("running");
+    setError(null);
+    try {
+      const fn = httpsCallable<{ dia: string }, { sueltas: number; conFolio: number }>(
+        functions,
+        "liberarVentasAtascadas"
+      );
+      const r = await fn({ dia });
+      setPhase("idle");
+      setResult(null);
+      setSeenSeco(null);
+      showToast(
+        r.data.conFolio > 0
+          ? `Liberadas ${r.data.sueltas}. ⚠️ ${r.data.conFolio} tienen folio y NO se tocaron: su CFDI existe.`
+          : `Liberadas ${r.data.sueltas} venta(s). Vuelve a contar en seco.`,
+        r.data.conFolio > 0 ? "info" : "success"
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setPhase("error");
+    }
+  }
+
   const corriendo = phase === "running";
 
   return (
@@ -148,7 +181,19 @@ export default function AdminFacturacionPage() {
           >
             Timbrar de verdad
           </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={corriendo || !diaValido}
+            onClick={liberar}
+          >
+            Liberar atascadas
+          </button>
         </div>
+        <p className="hint">
+          Si un intento falla, las ventas se quedan apartadas y no se pueden volver a facturar
+          hasta soltarlas. «Liberar atascadas» hace eso, y nunca toca las que ya tienen folio.
+        </p>
 
         {!secoListo && (
           <p className="hint">

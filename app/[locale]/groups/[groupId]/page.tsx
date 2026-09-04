@@ -67,6 +67,8 @@ import {
 import {
   dataUrlFromFile,
   getCroppedBlob,
+  GROUP_AVATAR_MAX_PX,
+  GROUP_COVER_MAX_PX,
   type GroupCropArea,
 } from "@/lib/groups/groupImageHelpers";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -1544,7 +1546,8 @@ const openCropWithFile = useCallback(
       const blob = await getCroppedBlob(
         cropImageSrc,
         croppedAreaPixels,
-        "image/jpeg"
+        "image/jpeg",
+        mode === "avatar" ? GROUP_AVATAR_MAX_PX : GROUP_COVER_MAX_PX
       );
 
       const path =

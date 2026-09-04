@@ -589,6 +589,7 @@ export { cancelarGlobalPorNominativa } from "./facturacion/cancelacionGlobal";
 export {
   globalInvoiceDailyCron,
   runGlobalInvoiceDay,
+  liberarVentasAtascadas,
 } from "./facturacion/runGlobalInvoice";
 // 🕓 Cola de facturas que esperan al sello del creador. Ver pendientesimpuestos.md §B5.
 export {

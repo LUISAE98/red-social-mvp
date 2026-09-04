@@ -371,6 +371,45 @@ export async function creadoresQueVendieron(periodo: string): Promise<Set<string
 }
 
 /**
+ * Suelta las ventas que se quedaron apartadas por una global que nunca se timbró.
+ *
+ * 🚨 SOLO LAS QUE NO TIENEN FOLIO. Un `emitiendo` CON `facturapiId` significa que el CFDI
+ *    existe y lo que falló fue algo posterior; soltarla la devolvería al circuito y la
+ *    próxima global la timbraría otra vez. Ese caso se arregla confirmándola, no
+ *    liberándola, y por eso aquí se salta y se cuenta aparte.
+ *
+ * Sin folio, en cambio, es seguro: el timbrado no llegó a ocurrir y la venta debe volver a
+ * estar disponible. Sin esto, cualquier fallo de emisión deja las ventas bloqueadas hasta que
+ * alguien entre a la base de datos a mano.
+ */
+export async function soltarAtascadasSinFolio(
+  creatorId: string
+): Promise<{ sueltas: number; conFolio: number }> {
+  const snap = await db
+    .collectionGroup("purchases")
+    .where("creatorId", "==", creatorId)
+    .where("globalInvoice.estado", "==", "emitiendo")
+    .get();
+  if (snap.empty) return { sueltas: 0, conFolio: 0 };
+
+  const batch = db.batch();
+  let sueltas = 0;
+  let conFolio = 0;
+  for (const d of snap.docs) {
+    const g = d.get("globalInvoice") as { facturapiId?: string } | undefined;
+    if (g?.facturapiId) {
+      conFolio++;
+      continue;
+    }
+    batch.set(d.ref, { globalInvoice: admin.firestore.FieldValue.delete() }, { merge: true });
+    sueltas++;
+  }
+  if (sueltas > 0) await batch.commit();
+  logger.info("atascadas_soltadas", { creatorId, sueltas, conFolio });
+  return { sueltas, conFolio };
+}
+
+/**
  * Ventas que se quedaron en `emitiendo`: se reservaron y nadie las confirmó.
  *
  * Son las víctimas de un fallo a media emisión. No se timbran dos veces —quedan excluidas de

@@ -1,4 +1,5 @@
 "use client";
+import { BlurFade } from "@/components/ui";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -360,21 +361,6 @@ export default function MobileBottomNav({
   const tecladoAbierto = useKeyboardOpen();
 
   // ── Nav scale (shrink on scroll-down / idle) ───────────────────────────────
-  /**
-   * TEMPORAL — prueba de aislamiento del cristal. Se activa con ?glassdebug=1.
-   *
-   * Pinta cuatro muestras DENTRO de .wrap, o sea en la misma posición del árbol
-   * que la píldora, cada una con una decoración más que la anterior. La primera
-   * que se vea nítida es la que rompe el backdrop-filter en ese navegador.
-   *
-   * 🗑️ Borrar en cuanto se sepa la respuesta: esto y el bloque .glassProbe*.
-   */
-  const [glassDebug, setGlassDebug] = useState(false);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setGlassDebug(new URLSearchParams(window.location.search).has("glassdebug"));
-  }, []);
-
   const [navScale, setNavScale] = useState(1);
   const [poppingKey, setPoppingKey] = useState<string | null>(null);
   /**
@@ -686,7 +672,7 @@ export default function MobileBottomNav({
              el punto. Lo que antes hacía la opacidad —que los iconos blancos no
              se pierdan sobre una foto clara— ahora lo hace el brightness del
              filtro, que oscurece el FONDO en vez de taparlo. */
-          background: rgba(6, 6, 8, 0.40);
+          background: transparent;
           /* Borde casi invisible. Su trabajo ya no es dibujar el canto —de eso
              se encargan las luces interiores de abajo— sino evitar que sobre un
              fondo muy claro la cápsula se quede sin límite. Al 4% cumple sin
@@ -715,36 +701,15 @@ export default function MobileBottomNav({
              unos 70px es buena parte de su cara. Con la base casi opaca no se
              notaba, porque caía sobre negro; sobre cristal sí. Se queda, porque
              es de donde sale el labio inferior sombreado, pero a la mitad. */
+             Las INTERIORES se mudaron a .navTint, porque tienen que caer sobre
+             el cristal y no por debajo de el; aqui solo quedan las de fuera. */
           box-shadow:
-            inset 0 2px 3px -2px rgba(255, 255, 255, 0.38),
-            inset 0 -2px 3px -2px rgba(0, 0, 0, 0.80),
-            inset 0 -16px 26px -16px rgba(0, 0, 0, 0.45),
-            inset 0 14px 24px -18px rgba(255, 255, 255, 0.12),
             0 1px 2px rgba(0, 0, 0, 0.45),
             0 6px 14px rgba(0, 0, 0, 0.44),
             0 18px 36px rgba(0, 0, 0, 0.56),
             0 38px 76px rgba(0, 0, 0, 0.66);
-          /* El efecto óptico, subido de intensidad.
-
-             · blur(40px): el fondo llega en manchas grandes, sin una sola
-               forma reconocible. Es desenfoque de material, no de suavizado.
-             · saturate(150%): el color hay que exagerarlo para que se note al
-               atravesar la base.
-             · brightness(0.92): ESTE es el que sustituye a la opacidad que se
-               quitó. Oscurece lo que pasa por detrás en vez de taparlo, así que
-               la cápsula sigue siendo traslúcida —se ve el movimiento y el
-               color— pero un video claro ya no se come los iconos blancos.
-               Tapar da negro; oscurecer da cristal ahumado.
-               No hace falta apretarlo más: con el desenfoque de 40px lo de
-               detrás llega ya como manchas, y una mancha no compite con un
-               icono como sí lo hace una forma reconocible.
-
-             🚨 DEFORMAR el fondo, como la lupa de iOS, NO se puede desde CSS en
-             iPhone. Se haría con un filtro SVG de desplazamiento dentro de
-             backdrop-filter, y Safari no admite url() ahí — solo Chrome. Lo que
-             hay aquí es desenfoque y color, que es todo lo que WebKit ofrece. */
-          backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
-          -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
+          /* Ancla de las dos capas de cristal, que van en position: absolute. */
+          position: relative;
           /* SIN overflow:hidden. Los globos de aviso se dibujan fuera de su
              icono (top:-5px, inset-inline-end:-8px) y en el primer y el ultimo
              elemento caerian justo sobre el borde: recortarlos los partiria por
@@ -986,55 +951,6 @@ export default function MobileBottomNav({
           animation: navShake 0.36s ease-out both;
         }
 
-        /* TEMPORAL — ver la nota de glassDebug en el cuerpo del componente.
-           Cada muestra suma UNA decoracion sobre la anterior. Todas llevan el
-           mismo backdrop-filter que la pildora. 🗑️ Borrar con ella. */
-        .glassProbes {
-          display: flex;
-          gap: 6px;
-          margin-bottom: 10px;
-          pointer-events: none;
-        }
-        .glassProbe {
-          flex: 1;
-          height: 54px;
-          display: grid;
-          place-items: center;
-          font-size: 10px;
-          font-weight: 700;
-          color: #fff;
-          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
-          backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
-          -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
-        }
-        /* A: solo el filtro y un tinte. Nada mas. */
-        .probeA {
-          background: rgba(6, 6, 8, 0.4);
-        }
-        /* B: + el radio de pildora. */
-        .probeB {
-          background: rgba(6, 6, 8, 0.4);
-          border-radius: 999px;
-        }
-        /* C: + las sombras interiores. */
-        .probeC {
-          background: rgba(6, 6, 8, 0.4);
-          border-radius: 999px;
-          box-shadow:
-            inset 0 2px 3px -2px rgba(255, 255, 255, 0.38),
-            inset 0 -16px 26px -16px rgba(0, 0, 0, 0.45);
-        }
-        /* D: + el borde y las sombras exteriores. La receta entera. */
-        .probeD {
-          background: rgba(6, 6, 8, 0.4);
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.04);
-          box-shadow:
-            inset 0 2px 3px -2px rgba(255, 255, 255, 0.38),
-            inset 0 -16px 26px -16px rgba(0, 0, 0, 0.45),
-            0 18px 36px rgba(0, 0, 0, 0.56);
-        }
-
         @media (max-width: 768px) {
           .wrap {
             display: block;
@@ -1086,15 +1002,6 @@ export default function MobileBottomNav({
             en vertical no se notaba; una píldora sí: los extremos redondeados se
             vuelven óvalos y el borde cambia de grosor. Escalando por igual, encoge
             entera y conserva su forma. */}
-        {glassDebug ? (
-          <div className="glassProbes">
-            <div className="glassProbe probeA">A plano</div>
-            <div className="glassProbe probeB">B radio</div>
-            <div className="glassProbe probeC">C sombra</div>
-            <div className="glassProbe probeD">D todo</div>
-          </div>
-        ) : null}
-
         <div
           className="navShell"
           style={{

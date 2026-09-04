@@ -57,10 +57,23 @@ export function normalizeDateValue(value?: FirestoreDateLike): string | Date | n
   return null;
 }
 
+/**
+ * `maxSize` limita el lado mayor del archivo que se sube, conservando la
+ * proporción.
+ *
+ * Hace falta porque el origen del recorte ya viene normalizado a 2 000 px, así
+ * que sin tope un avatar se guardaba a 2 000 × 2 000 — y ESE es el archivo que
+ * descarga cada avatar de 40 píxeles del feed, decenas de veces por pantalla.
+ * El recorte se sigue haciendo a resolución completa; lo único que cambia es el
+ * tamaño al que se pinta en el lienzo.
+ *
+ * Sin `maxSize` el comportamiento es el de antes: sin tope.
+ */
 export async function getCroppedBlob(
   imageSrc: string,
   pixelCrop: Area,
-  mime = "image/jpeg"
+  mime = "image/jpeg",
+  maxSize?: number
 ): Promise<Blob> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
@@ -72,8 +85,12 @@ export async function getCroppedBlob(
   const safeW = clamp(pixelCrop.width, 1, image.width - safeX);
   const safeH = clamp(pixelCrop.height, 1, image.height - safeY);
 
-  canvas.width = Math.floor(safeW);
-  canvas.height = Math.floor(safeH);
+  // Nunca se AMPLÍA: el factor se limita a 1 para que un recorte pequeño no se
+  // estire hasta el tope y pierda nitidez.
+  const escala = maxSize ? Math.min(1, maxSize / Math.max(safeW, safeH)) : 1;
+
+  canvas.width = Math.max(1, Math.floor(safeW * escala));
+  canvas.height = Math.max(1, Math.floor(safeH * escala));
 
   ctx.drawImage(
     image,

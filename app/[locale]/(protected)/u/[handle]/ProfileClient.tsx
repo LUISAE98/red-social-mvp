@@ -176,6 +176,20 @@ type UserDoc = {
 };
 
 // ─── Module-level profile cache ───────────────────────────────────────────────
+/**
+ * Tope del lado mayor de avatar y portada al subirlos.
+ *
+ * Antes no había: el recorte se guardaba al tamaño del origen normalizado, hasta
+ * 2 000 px. Un feed pinta decenas de avatares de 32–40 px, y cada uno se traía
+ * ese archivo entero. 512 px cubre la ficha del perfil (~150 px) en pantallas de
+ * densidad 3x; la portada es una banda ancha y se queda en 1 600.
+ *
+ * Solo afecta a lo que se sube DESDE AHORA. Los avatares ya guardados siguen
+ * pesando lo que pesaban — para esos hace falta un backfill aparte.
+ */
+const AVATAR_MAX_PX = 512;
+const COVER_MAX_PX = 1600;
+
 const PROFILE_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
 
 type ProfileCacheEntry = {
@@ -1573,10 +1587,14 @@ async function handleSendPasswordReset() {
     try {
       const uid = userDoc.uid;
 
+      // El avatar se pinta como mucho a ~150 px (la ficha del perfil); 512
+      // cubre pantallas de densidad 3x con margen. La portada es una banda
+      // ancha, así que se le deja 1 600.
       const blob = await getCroppedBlob(
         cropImageSrc,
         croppedAreaPixels,
-        "image/jpeg"
+        "image/jpeg",
+        mode === "avatar" ? AVATAR_MAX_PX : COVER_MAX_PX
       );
 
       const path =

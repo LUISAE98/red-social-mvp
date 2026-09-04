@@ -32,6 +32,7 @@ import {
   emitirFacturaGlobal,
   reservarVentasParaGlobal,
   creadoresQueVendieron,
+  soltarAtascadasSinFolio,
   soltarLiberadasCaducadas,
   ventasAtascadas,
   ventasSinFacturarDelPeriodo,
@@ -257,6 +258,41 @@ export const globalInvoiceDailyCron = onSchedule(
   },
   async () => {
     await procesarGlobalDelDia(diaAnterior(new Date()));
+  }
+);
+
+/**
+ * Suelta las ventas que un intento fallido dejó apartadas, para poder reintentar.
+ *
+ * Sin esto, cada fallo de emisión deja las ventas bloqueadas y hace falta entrar a la base de
+ * datos a mano — que es exactamente lo que pasó las tres veces que se probó esto.
+ *
+ * 🚨 Solo suelta las que NO tienen folio. Ver `soltarAtascadasSinFolio`.
+ */
+export const liberarVentasAtascadas = onCall(
+  { region: REGION, cors: true },
+  async (request) => {
+    requirePlatformMod(request);
+    const creatorId = String((request.data ?? {}).creatorId ?? "").trim();
+    if (creatorId) return await soltarAtascadasSinFolio(creatorId);
+
+    /**
+     * Sin creador, se barren los que vendieron. Se prefiere esto a una consulta global de
+     * `emitiendo` porque reutiliza el índice compuesto que ya existe, y porque el operador
+     * casi nunca sabe de memoria el id del creador atascado.
+     */
+    const dia = String((request.data ?? {}).dia ?? "").trim();
+    if (!/^d{4}-d{2}-d{2}$/.test(dia)) {
+      throw new HttpsError("invalid-argument", "El día va en formato AAAA-MM-DD.");
+    }
+    let sueltas = 0;
+    let conFolio = 0;
+    for (const c of await creadoresQueVendieron(dia)) {
+      const r = await soltarAtascadasSinFolio(c);
+      sueltas += r.sueltas;
+      conFolio += r.conFolio;
+    }
+    return { sueltas, conFolio };
   }
 );
 

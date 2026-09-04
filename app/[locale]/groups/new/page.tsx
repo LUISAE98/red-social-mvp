@@ -27,6 +27,10 @@ import { uploadFile } from "@/lib/storage/uploadFile";
 import { buildFileName } from "@/lib/storage/fileNaming";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
+import {
+  GROUP_AVATAR_MAX_PX,
+  GROUP_COVER_MAX_PX,
+} from "@/lib/groups/groupImageHelpers";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import OptionWheelPanel from "@/components/ui/OptionWheelPanel";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -65,10 +69,21 @@ function createImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
+/**
+ * ⚠️ Tercera copia de esta función: las otras dos están en
+ * `lib/groups/groupImageHelpers.ts` y en `ProfileClient.utils.ts`. No se unificó
+ * aquí porque `clamp` y `createImage` locales los usan además otras cinco
+ * llamadas de este archivo, y moverlos es un refactor con su propio riesgo.
+ * Al tocar cualquiera de las tres, tocar las tres.
+ *
+ * `maxSize` limita el lado mayor conservando la proporción; sin él no hay tope,
+ * como antes.
+ */
 async function getCroppedBlob(
   imageSrc: string,
   pixelCrop: Area,
-  mime = "image/jpeg"
+  mime = "image/jpeg",
+  maxSize?: number
 ): Promise<Blob> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
@@ -81,8 +96,12 @@ async function getCroppedBlob(
   const safeW = clamp(pixelCrop.width, 1, image.width - safeX);
   const safeH = clamp(pixelCrop.height, 1, image.height - safeY);
 
-  canvas.width = Math.floor(safeW);
-  canvas.height = Math.floor(safeH);
+  // Nunca se AMPLÍA: el factor se limita a 1 para que un recorte pequeño no se
+  // estire hasta el tope y pierda nitidez.
+  const escala = maxSize ? Math.min(1, maxSize / Math.max(safeW, safeH)) : 1;
+
+  canvas.width = Math.max(1, Math.floor(safeW * escala));
+  canvas.height = Math.max(1, Math.floor(safeH * escala));
 
   ctx.drawImage(
     image,
@@ -452,7 +471,12 @@ const onCropComplete = useCallback(
     setError(null);
 
     try {
-      const blob = await getCroppedBlob(cropImageSrc, croppedAreaPixels, "image/jpeg");
+      const blob = await getCroppedBlob(
+        cropImageSrc,
+        croppedAreaPixels,
+        "image/jpeg",
+        cropMode === "avatar" ? GROUP_AVATAR_MAX_PX : GROUP_COVER_MAX_PX
+      );
       const ext = extFromMime("image/jpeg");
 
       if (cropMode === "avatar") {

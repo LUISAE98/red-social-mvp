@@ -3,6 +3,8 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { useIsCompact } from "@/lib/hooks/useMediaQuery";
 import { BlurFade, IconButton } from "@/components/ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -11,7 +13,28 @@ import { consumeNavSlideDir } from "@/lib/nav-slide";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
-import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
+/**
+ * El OwnerSidebar NO se monta en celular ni tablet, y ya no viaja en el paquete
+ * inicial de ninguna pantalla.
+ *
+ * Hasta ahora se montaba siempre y en compacto se ocultaba con `display: none`.
+ * Oculto seguía costando lo mismo: son ~2 900 líneas que abren del orden de
+ * veinte escuchas de Firestore —bandeja, rails, grupos, saludos, sesiones,
+ * contadores— en CADA pantalla autenticada, para una interfaz que en el teléfono
+ * no se ve nunca. Ahí la navegación es MobileBottomNav y la pantalla /menu.
+ *
+ * ⚠️ Lo único que el sidebar sacaba fuera de su columna eran los dos banners de
+ * cuenta atrás de sesión, que salen por portal y por tanto SÍ se veían en
+ * celular pese al `display: none`. No se pierden: `GlobalSessionCard`, montado
+ * en `app/[locale]/layout.tsx`, ya renderiza esos mismos dos banners y lo hace
+ * exactamente cuando `isCompact` — es decir, justo el caso que aquí se deja de
+ * montar. El reparto ya estaba pensado así; esto solo deja de pagar el lado que
+ * no se usa.
+ */
+const OwnerSidebar = dynamic(
+  () => import("@/app/components/OwnerSidebar/OwnerSidebar"),
+  { ssr: false }
+);
 import ChatDockProvider from "@/components/chat/ChatDockProvider";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import ScrollToTopFAB from "@/app/components/ScrollToTopFAB/ScrollToTopFAB";
@@ -115,7 +138,34 @@ const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 // Solo el rail derecho se condiciona a monetizar (servicios activos en perfil o
 // comunidad, o alguna solicitud histórica). El header y el nav móvil siguen
 // mostrando la wallet a cualquier usuario con sesión.
-const { hasWallet: hasMonetization } = useWalletVisibility(user?.uid);
+/**
+ * ¿Estamos en laptop, y ya lo sabemos con certeza?
+ *
+ * `useIsCompact` arranca en `false` para no romper la hidratación y se corrige
+ * tras el primer efecto. Sin esperar a esa corrección, un teléfono daría por
+ * bueno el camino de escritorio durante un instante y lanzaría justo las
+ * consultas que aquí se quieren evitar.
+ */
+const isCompact = useIsCompact();
+const [viewportResuelto, setViewportResuelto] = useState(false);
+// Marcar "ya sé el ancho" es lo único que hace este efecto: corre una vez al
+// montar y no encadena renders.
+// eslint-disable-next-line react-hooks/set-state-in-effect
+useEffect(() => { setViewportResuelto(true); }, []);
+const soloEscritorio = viewportResuelto && !isCompact;
+
+/**
+ * `useWalletVisibility` cuesta SEIS consultas por montaje —los grupos del
+ * creador, su documento de usuario y cuatro colecciones de solicitudes— y su
+ * único consumidor es el `showWallet` del rail de escritorio.
+ *
+ * En celular ese rail no se monta, así que se le pasa `null` y el hook no
+ * consulta nada. Antes esas seis consultas se pagaban en cada pantalla
+ * autenticada del teléfono para decidir algo que allí no se pinta.
+ */
+const { hasWallet: hasMonetization } = useWalletVisibility(
+  soloEscritorio ? user?.uid : null
+);
 // La estrella "Mis experiencias" solo aparece para quien COMPRÓ alguna experiencia
 // (no a quien solo vende ni a quien solo navega). Ver useHasPurchasedExperiences.
 const hasPurchasedExperiences = useHasPurchasedExperiences(user?.uid);
@@ -202,6 +252,8 @@ useLayoutEffect(() => {
     setIsEmbed(true);
   }
 }, []);
+
+const montarSidebar = !isEmbed && soloEscritorio;
 
   const fontStack =
     'inherit';
@@ -1340,9 +1392,11 @@ const contentAreaClassName = isEmbed
         )}
 
         <div className={contentAreaClassName}>
+          {/* La columna se mantiene aunque el sidebar no esté: es la que
+              reserva el ancho de la rejilla, y quitarla movería el feed. */}
           {!isEmbed && (
             <div className="sidebarCol">
-              <OwnerSidebar />
+              {montarSidebar && <OwnerSidebar />}
             </div>
           )}
 
@@ -1350,14 +1404,20 @@ const contentAreaClassName = isEmbed
             <div className="mainInner" ref={mainInnerRef}>{children}</div>
           </main>
 
+          {/* Mismo criterio que el sidebar: el rail de wallet también está en
+              `display: none` en compacto, y sus hooks de finanzas consultaban
+              igual. No saca nada por portal, así que no montarlo en celular no
+              quita nada de la pantalla. */}
           {!isEmbed && (
             <div className="walletCol">
-              <WalletDesktopRail
-                activePath={pathname}
-                showWallet={hasMonetization}
-                showExperiences={hasPurchasedExperiences}
-                experiencesBadgeCount={experiencesBadgeCount}
-              />
+              {montarSidebar && (
+                <WalletDesktopRail
+                  activePath={pathname}
+                  showWallet={hasMonetization}
+                  showExperiences={hasPurchasedExperiences}
+                  experiencesBadgeCount={experiencesBadgeCount}
+                />
+              )}
             </div>
           )}
         </div>

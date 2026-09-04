@@ -31,10 +31,27 @@ export function createImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
+/**
+ * Tope del lado mayor de las imágenes de comunidad al subirlas.
+ *
+ * El avatar de una comunidad se pinta a ~40 px en los rails y a ~150 px en su
+ * ficha; la portada es una banda ancha. Sin tope se guardaba al tamaño del
+ * origen normalizado —hasta 2 000 px— y ese archivo entero es el que descarga
+ * cada rail del menú lateral.
+ */
+export const GROUP_AVATAR_MAX_PX = 512;
+export const GROUP_COVER_MAX_PX = 1600;
+
+/**
+ * `maxSize` limita el lado mayor conservando la proporción. Sin él, el
+ * comportamiento es el de antes: sin tope. El recorte se sigue calculando a
+ * resolución completa; solo cambia el tamaño al que se pinta en el lienzo.
+ */
 export async function getCroppedBlob(
   imageSrc: string,
   pixelCrop: GroupCropArea,
-  mime = "image/jpeg"
+  mime = "image/jpeg",
+  maxSize?: number
 ): Promise<Blob> {
   const image = await createImage(imageSrc);
 
@@ -50,8 +67,12 @@ export async function getCroppedBlob(
   const safeW = clamp(pixelCrop.width, 1, image.width - safeX);
   const safeH = clamp(pixelCrop.height, 1, image.height - safeY);
 
-  canvas.width = Math.floor(safeW);
-  canvas.height = Math.floor(safeH);
+  // Nunca se AMPLÍA: el factor se limita a 1 para que un recorte pequeño no se
+  // estire hasta el tope y pierda nitidez.
+  const escala = maxSize ? Math.min(1, maxSize / Math.max(safeW, safeH)) : 1;
+
+  canvas.width = Math.max(1, Math.floor(safeW * escala));
+  canvas.height = Math.max(1, Math.floor(safeH * escala));
 
   ctx.drawImage(
     image,
