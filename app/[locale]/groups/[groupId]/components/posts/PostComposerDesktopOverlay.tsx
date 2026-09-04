@@ -280,6 +280,14 @@ const removeMediaButtonStyle: CSSProperties = {
 
 <section
   style={{
+    /* 🚨 SIN ESTO LA CABECERA Y EL PIE SE ESCAPAN DE LA TARJETA.
+       `GlassEdge` se coloca con `position: absolute`, así que busca al ancestro
+       posicionado más cercano. Si la tarjeta no lo es, el más cercano pasa a ser
+       el fondo —que sí va `fixed`— y el título y el botón de publicar se estiran
+       de lado a lado de la VENTANA, con la tarjeta flotando suelta en medio.
+       El overlay de celular ya lo tenía; este se quedó sin él al pasar a
+       `GlassEdge`. */
+    position: "relative",
     width: "min(100%, 540px)",
     maxHeight: "min(88vh, 680px)",
     display: "flex",
