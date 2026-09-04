@@ -416,6 +416,28 @@ export default function CreatorServiceModals({
     }
   }, []);
 
+  /**
+   * Foco inicial del primer campo, SOLO donde hay ratón.
+   *
+   * 🚨 NO USAR `autoFocus` AQUÍ. En el celular levanta el teclado a la vez que
+   * el panel: se abre la pestaña y ya viene medio tapada, sin que nadie lo haya
+   * pedido, y encima con el panel bloqueado hasta que se cierre el teclado. El
+   * teclado tiene que salir cuando la persona toca el campo, no antes.
+   *
+   * `(pointer: fine)` es la pregunta correcta —"¿hay un puntero preciso?"— y no
+   * el ancho de la pantalla: una tableta ancha con dedo también levanta teclado,
+   * y un portátil estrecho no.
+   */
+  const nombreDestinatarioRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (!greetOpen) return;
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+    // Un fotograma de margen: el panel entra con animación, y enfocar antes de
+    // que esté colocado hace que el navegador salte a recolocar el scroll.
+    const id = requestAnimationFrame(() => nombreDestinatarioRef.current?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [greetOpen]);
+
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (!greetOpen) setAcceptedTerms(false); }, [greetOpen]);
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -527,7 +549,7 @@ export default function CreatorServiceModals({
       <label style={{ display: "grid", gap: 6 }}>
         <span style={s.label}>{greetingUi.recipientLabel}</span>
         <input
-          autoFocus
+          ref={nombreDestinatarioRef}
           value={toName}
           onChange={(e) => onChangeToName(e.target.value)}
           placeholder={greetingUi.recipientPlaceholder}

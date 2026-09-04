@@ -463,7 +463,13 @@ export function useGreetingPurchase({
           inputStyle={{ width: "100%", borderRadius: 10, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(255,255,255,0.06)", color: "#fff", padding: "10px 12px", fontSize: 14, fontFamily: FONT, boxSizing: "border-box" }}
           messageBox={{ padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 12, lineHeight: 1.45, fontFamily: FONT }}
           serviceModalBackdropStyle={{ position: "fixed", inset: 0, zIndex: 100001, background: "rgba(0,0,0,0.80)", display: "grid", placeItems: "center", padding: 14, fontFamily: FONT }}
-          serviceModalCardStyle={{ width: "min(720px, calc(100vw - 28px))", maxHeight: "calc(var(--vb-alto-pantalla) - 28px)", overflowY: "auto", background: "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 18, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.72)", color: "#fff" }}
+          // 🚨 `overflowX`/`overflowY` POR SEPARADO, y nunca la abreviatura
+          // `overflow` detrás. Aquí había un `overflowY: "auto"` seguido de un
+          // `overflow: "hidden"`, y la abreviatura, al ir después, se lo comía:
+          // la tarjeta no hacía scroll. No se notaba sin teclado porque el
+          // contenido cabía; con el teclado abierto el panel quedaba clavado y
+          // no había forma de llegar a los campos de abajo.
+          serviceModalCardStyle={{ width: "min(720px, calc(100vw - 28px))", maxHeight: "calc(var(--vb-alto-pantalla) - 28px)", background: "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 18, overflowX: "hidden", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.72)", color: "#fff" }}
           serviceToastStyle={{ position: "fixed", left: "50%", bottom: "calc(24px + var(--vb-safe-bottom, 0px))", transform: "translateX(-50%)", zIndex: 100002, maxWidth: "min(520px, calc(100vw - 28px))", padding: "10px 12px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(12,12,12,0.94)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT }}
         />
         <StripePaymentModal

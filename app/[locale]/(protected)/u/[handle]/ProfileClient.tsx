@@ -3110,7 +3110,11 @@ const res = (await createExclusiveSessionRequest({
     "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))",
   border: "1px solid rgba(255,255,255,0.16)",
   borderRadius: 18,
-  overflow: "hidden",
+  // Con `overflow: "hidden"` a secas la tarjeta no hacía scroll nunca. No se
+  // notaba sin teclado porque el contenido cabía; con el teclado abierto se
+  // quedaba clavada y no se llegaba a los campos de abajo.
+  overflowX: "hidden",
+  overflowY: "auto",
   boxShadow: "0 24px 80px rgba(0,0,0,0.72)",
   color: "#fff",
   backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
