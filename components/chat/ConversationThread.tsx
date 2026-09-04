@@ -1588,6 +1588,19 @@ export default function ConversationThread({
     // esquinas redondeadas.
     const bareImage = !message.isDeleted && !!message.image && !message.text && !message.replyTo;
 
+    /**
+     * La foto ya se puede enseñar: o la pintó el navegador, o es una que se
+     * mandó desde aquí y sigue en memoria.
+     *
+     * Lo segundo importa para el relevo: la copia local ya está decodificada,
+     * así que esperar a su `onLoad` para encenderla metía un parpadeo de
+     * esqueleto justo encima de una foto que ya se estaba viendo.
+     */
+    const fotoLista =
+      !!message.image &&
+      (!!loadedImages[message.image.thumbnailPath] ||
+        !!localImageUrls.current[message.image.thumbnailPath]);
+
     const expanded = expandedMessage?.id === message.id;
     const opensUp = expanded && expandedMessage?.direction === "up";
     // Editar y retirar caducan a los 10 minutos. Si el mensaje aún no tiene
@@ -2037,7 +2050,7 @@ export default function ConversationThread({
                     inset: 0,
                     // Se apaga en cuanto la foto está encima, para que no siga
                     // brillando por los bordes.
-                    opacity: loadedImages[message.image.thumbnailPath] ? 0 : 1,
+                    opacity: fotoLista ? 0 : 1,
                     transition: "opacity var(--duration-fast, 150ms) ease",
                   }}
                 />
@@ -2069,7 +2082,7 @@ export default function ConversationThread({
                     // La caja lleva la proporción real, así que `cover` no
                     // recorta nada: solo evita medio píxel de desajuste.
                     objectFit: "cover",
-                    opacity: loadedImages[message.image.thumbnailPath] ? 1 : 0,
+                    opacity: fotoLista ? 1 : 0,
                     transition: "opacity var(--duration-slow, 400ms) ease",
                   }}
                 />

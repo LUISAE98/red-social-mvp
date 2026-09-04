@@ -47,6 +47,15 @@ export type BlurFadeProps = {
    * cambiaría la ruta de pintado.
    */
   uniform?: boolean;
+  /**
+   * Radio de las esquinas. Se aplica a TODAS las capas, no solo al envoltorio.
+   *
+   * Hace falta porque las capas van en `position: absolute` y no heredan el
+   * radio del padre: sin esto se pintan cuadradas y asoman por las esquinas. Y
+   * es mejor que recortar al padre con `overflow: hidden`, que deja un canto
+   * vivo donde el desenfoque se corta contra el fondo sin difuminar.
+   */
+  radius?: number | string;
   /** Desenfoque máximo, en el borde fuerte. */
   blur?: number;
   /**
@@ -80,6 +89,7 @@ export default function BlurFade({
   blur = 14,
   fade,
   uniform = false,
+  radius,
   veil = "rgba(11,11,13,0.68)",
   saturate = 140,
   style,
@@ -112,6 +122,7 @@ export default function BlurFade({
     top: side === "top" ? 0 : undefined,
     bottom: side === "bottom" ? 0 : undefined,
     height: size,
+    borderRadius: radius,
     // Nunca se come un clic: lo que hay debajo sigue siendo pulsable, y la
     // cabecera que la contiene pinta su contenido por encima.
     pointerEvents: "none",

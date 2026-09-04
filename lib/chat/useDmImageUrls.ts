@@ -5,6 +5,7 @@ import { httpsCallable } from "firebase/functions";
 
 import { functions } from "@/lib/firebase";
 import { captureError } from "@/lib/observability/captureError";
+import { guardarEnCache, leerDeCache } from "@/lib/cache/persistentCache";
 
 /**
  * URLs firmadas de las imágenes de un hilo.
@@ -36,7 +37,19 @@ type SignedUrlsResponse = {
  * Caché por proceso: evita volver a firmar lo ya firmado al re-renderizar o al
  * pasar de la pestaña de laptop a la página de celular.
  */
-const cache = new Map<string, { url: string; expiresAt: number }>();
+type FirmaGuardada = { url: string; expiresAt: number };
+
+const cache = new Map<string, FirmaGuardada>();
+
+function claveFirmas(conversationId: string): string {
+  return `chat:firmas:${conversationId}`;
+}
+
+/**
+ * Techo de edad del REGISTRO en disco. Es holgado a propósito: quien decide de
+ * verdad si una URL sirve es su propio `expiresAt`, comprobado al volcarla.
+ */
+const TTL_FIRMAS_MS = 24 * 60 * 60 * 1000;
 
 /** Margen para no servir una URL que caduca mientras se está pintando. */
 const REFRESH_MARGIN_MS = 60 * 1000;
@@ -75,6 +88,12 @@ export function useDmImageUrls(
   const [failed, setFailed] = useState<ReadonlySet<string>>(() => new Set());
   /** Sube al reintentar; es lo que vuelve a lanzar el efecto. */
   const [intento, setIntento] = useState(0);
+  /**
+   * Sube cuando el disco terminó de volcarse en la caché de memoria. Sirve
+   * para dos cosas: forzar un render que ya vea esas URLs, y no lanzar la firma
+   * antes de haber mirado lo que ya estaba guardado.
+   */
+  const [hidratado, setHidratado] = useState(0);
 
   // Clave estable: sin esto, un array nuevo en cada render relanzaría la llamada.
   const key = paths.slice().sort().join("|");
@@ -90,8 +109,45 @@ export function useDmImageUrls(
     return out;
   }, [key]);
 
+  // Vuelca en la caché de memoria lo firmado en visitas anteriores. Un solo
+  // registro por conversación: leer ruta por ruta serían N lecturas de disco
+  // para pintar una sola pantalla de mensajes.
+  useEffect(() => {
+    if (!conversationId) return;
+
+    let cancelado = false;
+
+    (async () => {
+      const guardado = await leerDeCache<Record<string, FirmaGuardada>>(
+        claveFirmas(conversationId),
+        TTL_FIRMAS_MS
+      );
+
+      if (cancelado || !guardado) {
+        if (!cancelado) setHidratado((n) => n + 1);
+        return;
+      }
+
+      for (const [path, firma] of Object.entries(guardado)) {
+        // El `expiresAt` de cada URL manda sobre la edad del registro: una firma
+        // caducada no sirve aunque el registro sea de hace un minuto.
+        if (firma.expiresAt - REFRESH_MARGIN_MS > Date.now()) {
+          cache.set(path, firma);
+        }
+      }
+
+      setHidratado((n) => n + 1);
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [conversationId]);
+
   useEffect(() => {
     if (!conversationId || !key) return;
+    // Esperar al disco: sin esto se firmaría de nuevo lo que ya estaba guardado.
+    if (hidratado === 0) return;
 
     const missing = key.split("|").filter((path) => path && !cached(path));
     if (missing.length === 0) return;
@@ -108,6 +164,14 @@ export function useDmImageUrls(
         for (const [path, url] of Object.entries(data.urls)) {
           cache.set(path, { url, expiresAt: data.expiresAt });
         }
+
+        // Se guarda la conversación entera, no solo lo recién firmado: así el
+        // registro de disco queda completo para la próxima visita.
+        const paraDisco: Record<string, FirmaGuardada> = {};
+        for (const [path, firma] of cache.entries()) {
+          if (firma.expiresAt > Date.now()) paraDisco[path] = firma;
+        }
+        void guardarEnCache(claveFirmas(conversationId), paraDisco);
         if (cancelled) return;
         setFetched((prev) => ({ ...prev, ...data.urls }));
 
@@ -128,7 +192,7 @@ export function useDmImageUrls(
     return () => {
       cancelled = true;
     };
-  }, [conversationId, key, intento]);
+  }, [conversationId, key, intento, hidratado]);
 
   const retry = useCallback(() => {
     // Se limpian las fallidas ANTES de subir el intento: si se dejaran puestas,

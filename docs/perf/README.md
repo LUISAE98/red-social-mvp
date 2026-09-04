@@ -228,7 +228,10 @@ no copiada en cada feed.
 | Publicaciones de un perfil | ✅ |
 | Publicaciones de una comunidad | ✅ |
 | Wallet · comunidades de suscripción y canales | ✅ |
+| Mensajes · perfiles de los interlocutores | ✅ |
+| Mensajes · URLs firmadas de las imágenes | ✅ |
 | Wallet · saldo, ledger y movimientos | ⛔ **a propósito** |
+| Mensajes · bandeja e hilo | ⛔ **a propósito** |
 
 🚨 **Por qué el saldo NO lleva caché nuestra.** El saldo y los movimientos llegan
 por `onSnapshot`, y la caché persistente de Firestore —ya activa en
@@ -244,9 +247,25 @@ por definición no se sirve desde ninguna caché. Ahí es donde la pantalla se
 quedaba en blanco. Lo guardado son cifras para mostrar (precio publicado,
 cuántos suscriptores hay), no dinero sobre el que se pueda actuar.
 
+**Los mensajes siguen la misma regla.** La bandeja y el hilo van por
+`onSnapshot` (`subscribeToInbox`, `subscribeToConversation`), así que Firestore
+ya los entrega desde disco al instante y no llevan caché nuestra. Lo que sí la
+lleva es lo que iba por otro camino:
+
+- **Perfiles de los interlocutores.** `useProfileMinis` y `useProfileMini` hacían
+  un `getDoc` por conversación, y su caché vivía DENTRO del componente: salir de
+  la bandeja y volver releía a todo el mundo. Con veinte conversaciones, veinte
+  viajes al servidor antes de que aparecieran nombres y fotos. Ahora comparten
+  [`profileMiniCache`](../../lib/chat/profileMiniCache.ts), con memoria y disco —
+  y entrar a un hilo desde la bandeja ya no vuelve a leer nada.
+- **URLs firmadas de las imágenes.** Cada imagen se firma con una llamada a una
+  Cloud Function, y esa caché también era solo de memoria: al recargar se volvía
+  a firmar todo. Ahora se guarda un registro por conversación. Quien decide si
+  una URL sirve es su propio `expiresAt`, no la edad del registro.
+
 **Regla general que se siguió:** `onSnapshot` ya está cubierto por Firestore;
-lo que merece caché nuestra es lo que se pide con `getDocs` o
-`getCountFromServer`.
+lo que merece caché nuestra es lo que se pide con `getDoc`, `getDocs`,
+`getCountFromServer` o una llamada a una función.
 
 ⚠️ **Pendiente del bloque 3:** el cliente de datos único (3.2). Sigue habiendo
 un `useEffect` por lista en vez de una capa que deduplique y revalide sola. Es
