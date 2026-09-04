@@ -13,6 +13,8 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { CACHE_TTL } from "@/lib/cache/ttl";
+import { guardarEnCache, leerDeCache } from "@/lib/cache/persistentCache";
 
 function pickString(v: unknown): string | null {
   return typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
@@ -36,6 +38,37 @@ type Store<T> = { data: T; loaded: boolean; loading: boolean; subs: Set<() => vo
 function makeStore<T>(empty: T): Store<T> {
   return { data: empty, loaded: false, loading: false, subs: new Set() };
 }
+/**
+ * Pinta desde disco mientras la consulta real va en camino.
+ *
+ * ⚠️ Esto se aplica SOLO a estas dos listas —comunidades de suscripción y
+ * canales del creador— y no al saldo ni al ledger. La diferencia importa: el
+ * saldo llega por `onSnapshot`, y la caché persistente de Firestore ya lo
+ * entrega al instante en una recarga. Ponerle encima una segunda caché nuestra
+ * no lo haría más rápido, solo abriría la puerta a enseñar un saldo MÁS VIEJO
+ * del que Firestore ya tiene. Con dinero eso no se hace.
+ *
+ * Estas dos, en cambio, se cargan con `getDocs` —que sí espera al servidor— y
+ * una de ellas suma un `getCountFromServer` POR COMUNIDAD, que por definición no
+ * se puede servir desde ninguna caché. Ahí es donde la wallet se quedaba en
+ * blanco, y es lo único que se arregla aquí. Lo que se guarda son cifras para
+ * mostrar (precio publicado, cuántos suscriptores hay), no dinero sobre el que
+ * se pueda actuar.
+ *
+ * Se marca `loaded` a propósito, para que la pantalla deje de esperar y pinte.
+ * La consulta de verdad sigue corriendo y sobrescribe lo pintado al llegar.
+ */
+async function hidratarDesdeDisco<T>(s: Store<T>, clave: string): Promise<void> {
+  const guardado = await leerDeCache<T>(clave, CACHE_TTL.CATALOGO);
+
+  // Si la red llegó primero, lo suyo manda: no se pisa con algo más viejo.
+  if (!guardado || s.loaded) return;
+
+  s.data = guardado;
+  s.loaded = true;
+  notify(s);
+}
+
 function notify<T>(s: Store<T>) {
   s.subs.forEach((fn) => fn());
 }
@@ -56,6 +89,12 @@ async function loadCommunities(uid: string) {
   const s = getCommStore(uid);
   if (s.loaded || s.loading) return;
   s.loading = true;
+
+  // Va DESPUÉS del corte de arriba, no antes: si se hidratara primero, marcar
+  // `loaded` haría que la propia comprobación abortara la consulta real y la
+  // lista se quedaría congelada en lo que había en disco.
+  await hidratarDesdeDisco(s, `wallet:comunidades:${uid}`);
+
   try {
     const gSnap = await getDocs(
       query(collection(db, "groups"), where("ownerId", "==", uid))
@@ -85,8 +124,11 @@ async function loadCommunities(uid: string) {
       )
     ).filter((x): x is SubCommunity => x !== null);
     s.data = result;
+    void guardarEnCache(`wallet:comunidades:${uid}`, result);
   } catch {
-    s.data = EMPTY_COMMS;
+    // Si la consulta falla pero ya había algo de disco pintado, se conserva:
+    // vaciarlo cambiaría una lista un poco vieja por una vacía, que es peor.
+    if (!s.loaded) s.data = EMPTY_COMMS;
   }
   s.loaded = true;
   s.loading = false;
@@ -144,6 +186,10 @@ async function loadChannels(uid: string) {
   const s = getChannelStore(uid);
   if (s.loaded || s.loading) return;
   s.loading = true;
+
+  // Mismo orden que en loadCommunities, y por el mismo motivo.
+  await hidratarDesdeDisco(s, `wallet:canales:${uid}`);
+
   try {
     const [uSnap, gSnap] = await Promise.all([
       getDoc(doc(db, "users", uid)),
@@ -183,8 +229,11 @@ async function loadChannels(uid: string) {
       };
     });
     s.data = [profile, ...groups];
+    void guardarEnCache(`wallet:canales:${uid}`, s.data);
   } catch {
-    s.data = EMPTY_CHANNELS;
+    // Se conserva lo que ya hubiera de disco: una lista algo vieja es mejor
+    // que una vacía.
+    if (!s.loaded) s.data = EMPTY_CHANNELS;
   }
   s.loaded = true;
   s.loading = false;

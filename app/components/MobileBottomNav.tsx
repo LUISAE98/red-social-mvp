@@ -1,4 +1,5 @@
 "use client";
+import { BlurFade } from "@/components/ui";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -664,7 +665,7 @@ export default function MobileBottomNav({
              el punto. Lo que antes hacía la opacidad —que los iconos blancos no
              se pierdan sobre una foto clara— ahora lo hace el brightness del
              filtro, que oscurece el FONDO en vez de taparlo. */
-          background: rgba(6, 6, 8, 0.46);
+          background: transparent;
           /* Borde casi invisible. Su trabajo ya no es dibujar el canto —de eso
              se encargan las luces interiores de abajo— sino evitar que sobre un
              fondo muy claro la cápsula se quede sin límite. Al 4% cumple sin
@@ -721,8 +722,8 @@ export default function MobileBottomNav({
              iPhone. Se haría con un filtro SVG de desplazamiento dentro de
              backdrop-filter, y Safari no admite url() ahí — solo Chrome. Lo que
              hay aquí es desenfoque y color, que es todo lo que WebKit ofrece. */
-          backdrop-filter: blur(40px) saturate(150%);
-          -webkit-backdrop-filter: blur(40px) saturate(150%);
+          /* Ancla del cristal, que va en position: absolute dentro. */
+          position: relative;
           /* SIN overflow:hidden. Los globos de aviso se dibujan fuera de su
              icono (top:-5px, inset-inline-end:-8px) y en el primer y el ultimo
              elemento caerian justo sobre el borde: recortarlos los partiria por
@@ -769,6 +770,81 @@ export default function MobileBottomNav({
           }
         }
 
+        .navGlassLayer {
+          position: absolute;
+          inset: 0;
+          border-radius: 999px;
+          /* CON overflow:hidden, al reves que .navShell.
+             BlurFade solo le pone el radio a su envoltorio; sus capas de dentro
+             —las del filtro y la del tinte— se pintan CUADRADAS, y asomaban por
+             las cuatro esquinas dejando ademas un canto vivo abajo. Aqui recortar
+             es seguro: dentro solo vive el cristal, no hay globos de aviso que
+             se salgan (esos cuelgan de .nav, que es hermana). */
+          overflow: hidden;
+          pointer-events: none;
+        }
+
+        /* 🍏 DOS PILDORAS, UNA POR MOTOR. Y no es capricho.
+           ===============================================
+           En Chromium (Android) la capsula salia como un vidrio limpio, sin
+           difuminar, mientras el resto del producto si difuminaba. Se fueron
+           descartando una a una view-transition-name, el transform propio, el
+           border-radius, las sombras, el borde, el sitio en el arbol, el fondo
+           en el mismo elemento, la mascara, el radio del desenfoque y
+           brightness(). Ninguna era, o no bastaba.
+
+           Lo unico que SIEMPRE ha difuminado en ese telefono es
+           components/ui/BlurFade.tsx, que es lo que usan los otros cinco sitios
+           del producto. Asi que la pildora deja de tener receta propia y usa esa.
+
+           · Base (Chromium): .navShell no lleva cristal; lo pone .navGlassLayer,
+             que es un BlurFade en modo uniforme. Y como un transform en el
+             ANCESTRO mataria el cristal de sus hijos, aqui el encogido no puede
+             ser un scale sobre .navShell: la CAJA mengua por layout (relleno de
+             .nav y alto de .item) y el CONTENIDO con un scale en .itemInner, que
+             es descendiente de .nav — hermana del cristal, no ancestro suyo.
+
+           · WebKit (iPhone): todo lo de arriba se apaga y vuelve, IDENTICO, lo
+             que ya habia y se veia bien: el backdrop-filter con brightness sobre
+             .navShell y el scale sobre la capsula entera. Ni un pixel cambia.
+
+           -webkit-touch-callout solo lo entiende WebKit, asi que este bloque lo
+           toman Safari y Chrome de iPhone (los dos son WebKit) y no lo toca
+           Android. El nav solo se pinta por debajo de 768px, asi que Safari de
+           escritorio no entra.
+
+           ⚠️ Al tocar cualquiera de las dos pildoras, mirar LAS DOS en los DOS
+           telefonos. Ya paso una vez que arreglar una rompio la otra. */
+        @supports (-webkit-touch-callout: none) {
+          .navGlassLayer {
+            display: none;
+          }
+
+          .navShell {
+            background: rgba(6, 6, 8, 0.40);
+            backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
+            -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
+            transform: scale(var(--nav-scale, 1));
+            transform-origin: bottom center;
+            transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1);
+          }
+
+          /* El scale de la capsula ya encoge todo; aqui se vuelve a los valores
+             fijos para no encoger dos veces. */
+          .nav {
+            padding: 7px 6px;
+            transition: none;
+          }
+          .item {
+            height: 74px;
+            transition: none;
+          }
+          .itemInner {
+            transform: none;
+            transition: none;
+          }
+        }
+
         /* Sin backdrop-filter no hay nada que difuminar, y una base al 40% se
            vería como una barra medio transparente con el contenido CRUDO detrás
            —peor que no intentarlo—. Ahí la cápsula se cierra y se comporta como
@@ -787,11 +863,14 @@ export default function MobileBottomNav({
           align-items: center;
           /* Sin fondo propio: el de la píldora es el que se ve. El safe-area ya
              lo reserva el contenedor. */
-          padding: 7px 6px;
+          padding: calc(7px * var(--nav-scale, 1)) calc(6px * var(--nav-scale, 1));
+          transition: padding 350ms cubic-bezier(0.4, 0, 0.2, 1);
           background: transparent;
           box-sizing: border-box;
-          /* Ancla de la burbuja, que va en posición absoluta dentro. */
+          /* Ancla de la burbuja, que va en posición absoluta dentro. Y por
+             encima del cristal, que es hermano suyo. */
           position: relative;
+          z-index: 1;
           transform: translateZ(0);
           -webkit-transform: translateZ(0);
         }
@@ -800,7 +879,8 @@ export default function MobileBottomNav({
         .item {
           position: relative;
           z-index: 1;
-          height: 74px;
+          height: calc(74px * var(--nav-scale, 1));
+          transition: height 350ms cubic-bezier(0.4, 0, 0.2, 1);
           display: grid;
           place-items: center;
           text-decoration: none;
@@ -815,6 +895,8 @@ export default function MobileBottomNav({
         .itemInner {
           position: relative;
           z-index: 1;
+          transform: scale(var(--nav-scale, 1));
+          transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1);
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -964,6 +1046,13 @@ export default function MobileBottomNav({
         }
 
         @media (prefers-reduced-motion: reduce) {
+          .navShell,
+          .nav,
+          .item,
+          .itemInner {
+            transition: none;
+          }
+
           .vibraFlash { animation-duration: 1ms; }
         }
 
@@ -1045,11 +1134,27 @@ export default function MobileBottomNav({
         <div
           className="navShell"
           style={{
-            transform: `scale(${navScale})`,
-            transformOrigin: "bottom center",
-            transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
-          }}
+            // Solo el factor. Quien lo usa es el CSS, y de forma distinta en
+            // cada motor: WebKit con un scale sobre la capsula entera (lo de
+            // siempre), Chromium encogiendo caja y contenido por separado,
+            // porque alli un transform sobre .navShell mata el cristal de sus
+            // hijos. Ver la nota larga junto a @supports mas abajo.
+            ["--nav-scale" as string]: navScale,
+          } as React.CSSProperties}
         >
+          {/* El cristal de Chromium. En WebKit se apaga por CSS y manda el
+              backdrop-filter de .navShell, que ahi si funciona. */}
+          <div className="navGlassLayer" aria-hidden="true">
+            <BlurFade
+              uniform
+              size="100%"
+              blur={22}
+              saturate={150}
+              veil="rgba(6,6,8,0.46)"
+              style={{ borderRadius: 999 }}
+            />
+          </div>
+
           <div
             className="nav"
             style={{

@@ -49,39 +49,44 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     /**
-     * 🚨 NO VOLVER A PONER `black-translucent`. De ahí salía el escalón negro.
+     * `black-translucent` es DELIBERADO: el lienzo pasa por debajo de la barra
+     * de estado y `.safeAreaGlass` pinta el cristal detrás del reloj y la
+     * batería. Sin esto, `env(safe-area-inset-top)` vale 0, ese cristal se
+     * queda en 22px sueltos y el contenido se corta en seco contra una barra
+     * negra opaca.
      *
-     * `black-translucent` es el mecanismo VIEJO de Apple para que la app ocupe
-     * toda la pantalla, de antes de que existieran los safe-area. Abajo, en
-     * `viewport`, ya está declarado el moderno: `viewportFit: "cover"`. Los dos
-     * piden lo mismo por caminos distintos, y declarados a la vez iOS se
-     * contradice a sí mismo.
+     * 🚨 VA EMPAREJADO CON `display: "standalone"` EN EL MANIFEST. Los dos
+     * juntos, o ninguno. De desemparejarlos salía el escalón negro de abajo.
      *
-     * Medido en un iPhone 16 Pro el 2026-09-03, con la app instalada:
+     * Medido en un iPhone 16 Pro el 2026-09-03, con la app instalada y el
+     * manifest pidiendo `display: "fullscreen"`:
      *
-     *     pantalla 874    lvh 874     ← el lienzo SÍ ocupa la pantalla entera
-     *     alto win 812    dvh 812     ← pero el área de dibujo mide 62px menos
-     *     seguro ↑62 ↓34              ← y los márgenes son los de una de 874
+     *     pantalla 874    lvh 874     ← el lienzo SÍ ocupaba la pantalla entera
+     *     alto win 812    dvh 812     ← pero el área de dibujo medía 62px menos
+     *     seguro ↑62 ↓34              ← y los márgenes eran los de una de 874
      *
-     * 62 es exactamente lo que ocupa la barra de estado. El área de dibujo
-     * quedaba anclada arriba, así que esos 62px se caían POR ABAJO y dejaban
-     * ver el fondo negro del lienzo. De ahí que el escalón se viera abajo
-     * aunque el número venga de arriba, y de ahí que los intentos de arreglarlo
-     * tocando el safe-area INFERIOR no encontraran nunca nada que tocar: no
-     * había nada. `--vb-safe-bottom` vale 0 y no se redefine en ningún sitio.
+     * Es decir: iOS daba al lienzo el tamaño de fullscreen y hacía las cuentas
+     * de standalone. 62 es exactamente la barra de estado. El área quedaba
+     * anclada arriba, así que esos 62px se caían POR ABAJO y dejaban ver el
+     * fondo negro del lienzo — de ahí que el escalón se viera abajo aunque el
+     * número venga de arriba, y de ahí que los cuatro intentos de arreglarlo
+     * tocando el safe-area INFERIOR no encontraran nada: no había nada.
+     * `--vb-safe-bottom` vale 0 y no se redefine en ningún sitio.
      *
      * Era pasajero porque iOS rehace esa cuenta en cada transición —el splash
      * al refrescar, abrir un panel, cerrar el teclado— y tarda unos fotogramas
      * en cuadrarla. Lo que se pintara dentro de esa ventana salía 62px corto.
      *
-     * Con `black` la barra de estado es opaca y iOS entrega un área coherente
-     * con sus propios márgenes. Se pierde poder pintar por debajo de la barra,
-     * que sobre un fondo negro no se distingue.
+     * iOS nunca cumplió aquel `fullscreen`: lo reportaba por `display-mode`
+     * mientras enseñaba la barra de estado. `standalone` sí lo implementa, y
+     * con él las dos cuentas vuelven a ser la misma.
      *
-     * ⚠️ iOS se guarda esto al INSTALAR. Para ver el cambio hay que borrar la
-     * app de la pantalla de inicio y volver a añadirla; recargar no basta.
+     * ⚠️ iOS se guarda esto al INSTALAR. Para ver un cambio aquí hay que borrar
+     * la app de la pantalla de inicio y volver a añadirla; recargar no basta.
+     *
+     * Historia completa y medidas en `docs/ios-pwa-viewport.md`.
      */
-    statusBarStyle: "black",
+    statusBarStyle: "black-translucent",
     title: "Vibra",
   },
 };

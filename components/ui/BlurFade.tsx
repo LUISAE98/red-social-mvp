@@ -32,8 +32,21 @@ const LAYERS = 4;
 export type BlurFadeProps = {
   /** Borde donde el efecto es MÁS fuerte. Una cabecera quiere `top`. */
   side?: "top" | "bottom";
-  /** Alto de la zona del efecto, en px. Conviene que sobresalga del elemento. */
-  size: number;
+  /**
+   * Alto de la zona del efecto. Un número son px; también acepta una medida CSS
+   * ("100%"), que es lo que quiere quien solo busca cristal uniforme y no un
+   * fundido — ahí no hay que medir nada.
+   */
+  size: number | string;
+  /**
+   * Cristal PAREJO, sin degradado: misma potencia en toda la caja. Para piezas
+   * que no tienen una orilla por la que disolverse, como la píldora del nav.
+   *
+   * Las capas siguen llevando su máscara (una que no recorta nada). No es
+   * decorativo: es la configuración que se comprobó en Android, y quitarla
+   * cambiaría la ruta de pintado.
+   */
+  uniform?: boolean;
   /** Desenfoque máximo, en el borde fuerte. */
   blur?: number;
   /**
@@ -66,6 +79,7 @@ export default function BlurFade({
   size,
   blur = 14,
   fade,
+  uniform = false,
   veil = "rgba(11,11,13,0.68)",
   saturate = 140,
   style,
@@ -79,7 +93,14 @@ export default function BlurFade({
    * borde limpio y 1 el fuerte. Todo el recorrido se comprime dentro de `fade`,
    * y de ahí al borde fuerte se queda a tope.
    */
-  const span = Math.min(Math.max((fade ?? size) / size, 0.05), 1);
+  // Con `size` en medida CSS no hay proporción que calcular; ese caso es
+  // siempre uniforme.
+  const isNumeric = typeof size === "number";
+  const parejo = uniform || !isNumeric;
+  const span =
+    parejo || fade == null || !isNumeric
+      ? 1
+      : Math.min(Math.max(fade / size, 0.05), 1);
   const at = (t: number) => `${(t * span * 100).toFixed(2)}%`;
 
   const box: CSSProperties = {
@@ -102,7 +123,11 @@ export default function BlurFade({
         // La primera capa es la más suave y la que más terreno cubre; cada
         // siguiente dobla el desenfoque y se arrima más al borde fuerte.
         const strength = blur / 2 ** (LAYERS - 1 - i);
-        const mask = `linear-gradient(${axis}, transparent ${at(i / LAYERS)}, #000 ${at(1)})`;
+        // Parejo: máscara que deja pasar TODO. Se mantiene la máscara aunque no
+        // recorte, para no cambiar la ruta de pintado (ver `uniform`).
+        const mask = parejo
+          ? "linear-gradient(#000, #000)"
+          : `linear-gradient(${axis}, transparent ${at(i / LAYERS)}, #000 ${at(1)})`;
         return (
           <div
             key={i}
@@ -121,7 +146,9 @@ export default function BlurFade({
       <div
         style={{
           ...box,
-          background: `linear-gradient(${axis}, transparent 0%, ${veil} ${at(1)})`,
+          background: parejo
+            ? veil
+            : `linear-gradient(${axis}, transparent 0%, ${veil} ${at(1)})`,
         }}
       />
     </div>

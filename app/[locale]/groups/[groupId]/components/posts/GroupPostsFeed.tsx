@@ -61,6 +61,12 @@ import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import {
+  claveDeFeed,
+  leerFeedPersistido,
+  olvidarFeed,
+  persistirFeed,
+} from "@/lib/cache/feedPersistence";
+import {
   GROUP_FEED_CACHE_TTL_MS,
   GROUP_FEED_PAGE_SIZE,
   GROUP_SEARCH_MAX_AUTO_PAGES,
@@ -189,6 +195,7 @@ export default function GroupPostsFeed({
             hasMore: hasMoreRef.current,
             updatedAt: Date.now(),
           });
+          persistirFeed(claveDeFeed("comunidad", cacheKey), next);
         }
 
         return next;
@@ -224,6 +231,7 @@ export default function GroupPostsFeed({
       },
       clear: () => {
         groupFeedMemoryCache.delete(cacheKey);
+        olvidarFeed(claveDeFeed("comunidad", cacheKey));
         setPosts([]);
         setPageCursor(null);
         setHasMore(false);
@@ -406,6 +414,7 @@ export default function GroupPostsFeed({
             hasMore: nextHasMore,
             updatedAt: Date.now(),
           });
+          persistirFeed(claveDeFeed("comunidad", cacheKey), nextPosts);
 
           return nextPosts;
         });
@@ -461,6 +470,7 @@ export default function GroupPostsFeed({
 
   const handleGroupMemberBlockComplete = useCallback(async () => {
     groupFeedMemoryCache.delete(cacheKey);
+    olvidarFeed(claveDeFeed("comunidad", cacheKey));
     setPageCursor(null);
     setHasMore(false);
     pageCursorRef.current = null;
@@ -493,6 +503,21 @@ export default function GroupPostsFeed({
         hasMoreRef.current = cached.hasMore;
         setLoadingInitial(false);
         return;
+      }
+
+      // Nada en memoria: se mira el disco y se pinta con lo que haya. La
+      // consulta sale igual detrás — es la que trae el cursor.
+      const persistido = await leerFeedPersistido<PostWithAuthorState>(
+        claveDeFeed("comunidad", cacheKey),
+        GROUP_FEED_CACHE_TTL_MS,
+        { descartarSi: isVideoPostStillProcessing }
+      );
+
+      if (!active) return;
+
+      if (persistido && persistido.length > 0) {
+        setPosts(persistido);
+        setLoadingInitial(false);
       }
 
       if (active) {

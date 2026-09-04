@@ -40,6 +40,12 @@ import { motion } from "framer-motion";
 import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "@/app/groups/[groupId]/components/posts/PostsMediaSubnav";
 import MediaGallery, { clearMediaGalleryCache, type GalleryTile } from "@/app/groups/[groupId]/components/posts/MediaGallery";
 import {
+  claveDeFeed,
+  leerFeedPersistido,
+  olvidarFeed,
+  persistirFeed,
+} from "@/lib/cache/feedPersistence";
+import {
   SAVED_POSTS_CACHE_TTL_MS,
   SAVED_POSTS_PAGE_SIZE,
   VIDEO_PROCESSING_MAX_POLLS,
@@ -223,6 +229,7 @@ const syncPostsState = useCallback(
           hasMore: existingCache?.hasMore ?? hasMore,
           timestamp: Date.now(),
         });
+        persistirFeed(claveDeFeed("guardados", cacheKey), nextPosts);
       }
 
       return nextPosts;
@@ -257,6 +264,7 @@ const syncPostsState = useCallback(
       clear: () => {
         if (currentUserId) {
           savedPostsMemoryCache.delete(currentUserId);
+          olvidarFeed(claveDeFeed("guardados", currentUserId));
         }
 
         setPosts([]);
@@ -328,6 +336,7 @@ const syncPostsState = useCallback(
             hasMore: page.hasMore,
             timestamp: Date.now(),
           });
+          persistirFeed(claveDeFeed("guardados", currentUserId), nextPosts);
 
           return nextPosts;
         });
@@ -362,6 +371,7 @@ const syncPostsState = useCallback(
     if (!currentUserId) return;
 
     savedPostsMemoryCache.delete(currentUserId);
+    olvidarFeed(claveDeFeed("guardados", currentUserId));
 
     await loadPostsPage({ reset: true });
   }, [currentUserId, loadPostsPage]);
@@ -398,6 +408,19 @@ const syncPostsState = useCallback(
         setHasMore(cache.hasMore);
         setLoadingInitial(false);
         return;
+      }
+
+      // Nada en memoria: se mira el disco y se pinta con lo que haya. La
+      // consulta sale igual detrás — es la que trae el cursor.
+      const persistido = await leerFeedPersistido<PostWithFlags>(
+        claveDeFeed("guardados", currentUserId),
+        SAVED_POSTS_CACHE_TTL_MS,
+        { descartarSi: isVideoPostStillProcessing }
+      );
+
+      if (persistido && persistido.length > 0) {
+        setPosts(persistido);
+        setLoadingInitial(false);
       }
 
       await loadPostsPage({ reset: true });

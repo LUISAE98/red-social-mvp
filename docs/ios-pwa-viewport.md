@@ -82,40 +82,72 @@ Y 874 − 812 = **62**, que es exactamente lo que ocupa la barra de estado.
 
 ## La causa
 
-`app/layout.tsx` declaraba **los dos mecanismos de pantalla completa a la vez**:
+**`public/manifest.json` pedía `display: "fullscreen"`, un modo que iOS no implementa.**
 
-| Declaración | Qué es |
-|---|---|
-| `statusBarStyle: "black-translucent"` | El mecanismo **viejo** de Apple, anterior a que existieran los safe-area |
-| `viewportFit: "cover"` | El mecanismo **moderno** |
+iOS lo reportaba por `display-mode` —el lector lo dejó por escrito— mientras seguía enseñando
+la barra de estado. Ese estado a medias es exactamente lo que miden los números:
 
-Piden lo mismo por caminos distintos. Juntos, iOS estiraba el lienzo a la pantalla entera
-(874) pero calculaba el área de dibujo como si no lo hubiera estirado (812). El área quedaba
-anclada arriba, así que esos 62px huérfanos **se caían por abajo** y dejaban ver el fondo
-negro del lienzo.
+* **daba al lienzo el tamaño de fullscreen** (874, la pantalla entera),
+* **pero hacía las cuentas de standalone** para el área de dibujo (812),
+* y reportaba los márgenes del primero (↑62).
+
+El área quedaba anclada arriba, así que esos 62px huérfanos **se caían por abajo** y dejaban
+ver el fondo negro del lienzo.
 
 Era pasajero porque iOS rehace esa cuenta en cada transición —el splash al refrescar, abrir
 un panel, cerrar el teclado— y tarda unos fotogramas en cuadrarla. Lo que se pintara dentro
 de esa ventana salía 62px corto y se quedaba así.
 
+### El desvío: por qué la primera versión de este documento culpaba a otra cosa
+
+El primer arreglo fue quitar `statusBarStyle: "black-translucent"` y dejar `"black"`. **El
+escalón desapareció**, y este documento llegó a afirmar que ahí estaba la causa.
+
+Era un falso positivo. `black-translucent` es lo que mete el lienzo por debajo de la barra de
+estado; al quitarlo, iOS pasó a insetar el lienzo bajo una barra opaca y todo quedó coherente
+—pero por reducción, no por arreglo. Y se llevó por delante un diseño deliberado:
+`.safeAreaGlass`, en `app/[locale]/(protected)/layout.tsx`, pinta el cristal detrás del reloj
+y la batería con `height: calc(env(safe-area-inset-top) + 22px)`. Con la barra opaca ese inset
+vale 0, el cristal se quedó en 22px sueltos y el contenido pasó a cortarse en seco.
+
+La lección: **que un síntoma desaparezca no demuestra que hayas encontrado la causa.** Quitar
+`black-translucent` también habría "funcionado" desactivando media pantalla.
+
 ## El arreglo
 
-Una línea: se quitó el mecanismo viejo.
+Dos declaraciones que **van emparejadas**:
+
+```jsonc
+// public/manifest.json
+"display": "standalone",          // era "fullscreen"
+"display_override": ["standalone"]
+```
 
 ```ts
 // app/layout.tsx
 appleWebApp: {
   capable: true,
-  statusBarStyle: "black",   // era "black-translucent"
+  statusBarStyle: "black-translucent",   // se conserva: es lo que da el lienzo a pantalla completa
   title: "Vibra",
 },
 ```
 
-⚠️ **iOS guarda esta preferencia al INSTALAR.** Para ver el cambio hay que borrar la app de la
-pantalla de inicio y volver a añadirla. Recargar no basta, y eso hizo perder tiempo.
+`standalone` sí lo implementa iOS, así que las dos cuentas —lienzo y área de dibujo— vuelven a
+ser la misma, y `black-translucent` puede seguir metiendo el contenido por debajo de la barra
+sin que nada se descuadre.
 
-Efecto secundario aceptado: el degradado morado ya no se ve por detrás de la barra de estado,
-que pasa a ser negra opaca. Sobre fondo negro no se distingue.
+⚠️ **iOS guarda esto al INSTALAR.** Para ver un cambio aquí hay que borrar la app de la
+pantalla de inicio y volver a añadirla. Recargar no basta, y eso hizo perder tiempo dos veces.
+
+**Coste asumido:** en Android la app deja de ser fullscreen y reaparece la barra de estado.
+Se aceptó a cambio de recuperar el cristal traslúcido en iOS, que es diseño deliberado.
+
+### Si el escalón vuelve
+
+El estado conocido-bueno alternativo es `statusBarStyle: "black"` con el manifest en
+`standalone`: quita el escalón con seguridad, a cambio de perder el traslúcido y dejar el
+corte en seco arriba. Es una línea. Antes de tocar nada, **medir con el lector** (abajo) y
+comprobar si `alto win` volvió a separarse de `pantalla`.
 
 ## Lo que deliberadamente NO se hizo
 
@@ -142,13 +174,13 @@ contradigan sobre geometría:
 | `env(safe-area-inset-bottom)` activo | ✅ ninguno |
 | Código que consulta `display-mode` | ✅ ninguno, aparte del propio lector |
 
+> ⚠️ Esta tabla se levantó cuando aún se creía que la causa era `black-translucent`. El
+> `display: "fullscreen"` aparecía abajo como residual "sin tocar"; resultó ser **la causa**.
+> Se deja constancia: un residual descartado por parecer inofensivo era el culpable.
+
 ### Residuales conocidos, a propósito sin tocar
 
-1. **`display: "fullscreen"` en `public/manifest.json`.** iOS no lo cumple —lo reporta como
-   fullscreen mientras enseña la barra de estado— así que `matchMedia("(display-mode: ...)")`
-   miente en iOS. Hoy no lo consulta nadie, así que no rompe nada. **No se cambió porque
-   Android sí lo cumple**, y ponerlo en `standalone` devolvería la barra de estado allí. Si
-   algún día hace falta consultar el modo, hay que resolver esto primero.
+1. ~~**`display: "fullscreen"`**~~ → **era la causa.** Corregido a `standalone`. Ver arriba.
 2. **`orientation: "portrait"` en el manifest** frente al código que sí maneja horizontal
    (`LiveViewerModal`, `PostImageViewer`, `MeetGreetPreparationFullscreen`, `ReelStorySlide`).
    Android respeta el bloqueo y iOS no, así que ese código solo corre en iOS. Es una decisión
@@ -158,7 +190,8 @@ contradigan sobre geometría:
 
 `test/unit/pantallaCompleta.test.ts` falla si:
 
-* reaparece `black-translucent` en algún sitio activo,
+* el manifest vuelve a pedir `fullscreen`, en `display` o en `display_override`,
+* se desemparejan `black-translucent` y `standalone` — van los dos o ninguno,
 * se declara `viewport` o `appleWebApp` fuera de `app/layout.tsx`,
 * desaparece `viewportFit: "cover"`,
 * alguien vuelve a usar `env(safe-area-inset-bottom)`,

@@ -5,9 +5,8 @@
   "description": "Plataforma social de creadores: comunidades, contenido, video en vivo, servicios y monetización directa.",
   "start_url": "/",
   "scope": "/",
-  "display": "fullscreen",
+  "display": "standalone",
   "display_override": [
-    "fullscreen",
     "standalone"
   ],
   "background_color": "#000000",

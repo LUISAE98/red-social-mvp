@@ -53,10 +53,10 @@ import { followUser, unfollowUser } from "@/lib/social/social-service";
 import { joinGroup, leaveGroup } from "@/lib/groups/membership";
 import { CACHE_TTL } from "@/lib/cache/ttl";
 import {
-  borrarDeCache,
-  guardarEnCache,
-  leerDeCache,
-} from "@/lib/cache/persistentCache";
+  claveDeFeed,
+  leerFeedPersistido,
+  persistirFeed,
+} from "@/lib/cache/feedPersistence";
 
 
 export type HomePostsFeedProps = {
@@ -418,39 +418,21 @@ export function mergeUniquePosts(
  * hidratación de autores y comunidades y el estado del visor.
  */
 export function getHomeFeedPersistKey(currentUserId: string): string {
-  return `home-feed-posts:${currentUserId}`;
+  return claveDeFeed("inicio", currentUserId);
 }
 
 export function persistirFeedInicio(uid: string, posts: PostWithFlags[]): void {
-  // Solo la primera página. Guardar cien publicaciones tras un rato de
-  // desplazamiento haría la escritura cara y la lectura lenta, justo en el
-  // momento en el que se quiere pintar rápido.
-  const recorte = posts.slice(0, HOME_FEED_PAGE_SIZE);
-
-  if (recorte.length === 0) {
-    void borrarDeCache(getHomeFeedPersistKey(uid));
-    return;
-  }
-
-  void guardarEnCache(getHomeFeedPersistKey(uid), recorte);
+  persistirFeed(getHomeFeedPersistKey(uid), posts);
 }
 
-export async function leerFeedInicioPersistido(
+export function leerFeedInicioPersistido(
   uid: string
 ): Promise<PostWithFlags[] | null> {
-  const posts = await leerDeCache<PostWithFlags[]>(
+  return leerFeedPersistido<PostWithFlags>(
     getHomeFeedPersistKey(uid),
-    HOME_FEED_CACHE_TTL_MS
+    HOME_FEED_CACHE_TTL_MS,
+    { descartarSi: isVideoPostStillProcessing }
   );
-
-  if (!posts || posts.length === 0) return null;
-
-  // Un video a medio procesar cambia solo en el servidor, así que restaurarlo
-  // desde disco enseñaría un "procesando" que quizá ya terminó. En ese caso se
-  // prefiere esperar a la consulta.
-  if (posts.some(isVideoPostStillProcessing)) return null;
-
-  return posts.filter((post) => post.isDeleted !== true);
 }
 
 export function peekFreshCache(uid: string | null): HomeFeedCacheEntry | null {

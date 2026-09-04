@@ -46,6 +46,12 @@ import { loadFeedWithRetry, isFeedLoadTimeout } from "@/lib/posts/feed-load-help
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import {
+  claveDeFeed,
+  leerFeedPersistido,
+  olvidarFeed,
+  persistirFeed,
+} from "@/lib/cache/feedPersistence";
+import {
   PROFILE_FEED_CACHE_TTL_MS, PROFILE_FEED_PAGE_SIZE, SEARCH_MAX_AUTO_PAGES,
   VIDEO_PROCESSING_MAX_POLLS, VIDEO_PROCESSING_POLL_MS,
   attachModerationFlags, filterBannedGroupPosts, getProfileFeedCacheKey,
@@ -174,6 +180,7 @@ const cacheKey = useMemo(
             hasMore: hasMoreRef.current,
             updatedAt: Date.now(),
           });
+          persistirFeed(claveDeFeed("perfil", cacheKey), next);
         }
 
         return next;
@@ -209,6 +216,7 @@ const cacheKey = useMemo(
       },
       clear: () => {
         profileFeedMemoryCache.delete(cacheKey);
+        olvidarFeed(claveDeFeed("perfil", cacheKey));
         setPosts([]);
         setPageCursor(null);
         setHasMore(false);
@@ -325,6 +333,7 @@ const cacheKey = useMemo(
             hasMore: nextHasMore,
             updatedAt: Date.now(),
           });
+          persistirFeed(claveDeFeed("perfil", cacheKey), nextPosts);
 
           return nextPosts;
         });
@@ -407,6 +416,21 @@ const cacheKey = useMemo(
         hasMoreRef.current = cached.hasMore;
         setLoadingInitial(false);
         return;
+      }
+
+      // Nada en memoria: se mira el disco y se pinta con lo que haya. La
+      // consulta sale igual detrás — es la que trae el cursor.
+      const persistido = await leerFeedPersistido<PostWithFlags>(
+        claveDeFeed("perfil", cacheKey),
+        PROFILE_FEED_CACHE_TTL_MS,
+        { descartarSi: isVideoPostStillProcessing }
+      );
+
+      if (!active) return;
+
+      if (persistido && persistido.length > 0) {
+        setPosts(persistido);
+        setLoadingInitial(false);
       }
 
       if (active) {

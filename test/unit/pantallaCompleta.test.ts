@@ -39,14 +39,26 @@ const FUENTES: ReadonlyArray<{ ruta: string; texto: string }> = (() => {
 })();
 
 describe("pantalla completa en la PWA de iOS", () => {
-  it("no vuelve a declarar `black-translucent`", () => {
-    // Con `viewport-fit: cover` ya declarado, este pide lo mismo por el camino
-    // viejo y iOS acaba entregando un área de dibujo 62px más corta que sus
-    // propios márgenes. Esos 62px son la barra de estado, y se caen POR ABAJO.
-    const culpables = FUENTES.filter((f) =>
-      sinComentarios(f.texto).includes("black-translucent")
-    ).map((f) => f.ruta);
-    expect(culpables).toEqual([]);
+  it("no pide un modo de pantalla que iOS no implementa", () => {
+    // `fullscreen` es de donde salía el escalón. iOS lo reportaba por
+    // `display-mode` mientras enseñaba la barra de estado: daba al lienzo el
+    // tamaño de fullscreen y hacía las cuentas de standalone, y los 62px de la
+    // barra se caían por abajo. `standalone` sí lo implementa.
+    const manifest = JSON.parse(readFileSync(root("public/manifest.json"), "utf8"));
+    expect(manifest.display).toBe("standalone");
+    expect(manifest.display_override ?? []).not.toContain("fullscreen");
+  });
+
+  it("mantiene emparejados el lienzo a pantalla completa y `standalone`", () => {
+    // Van juntos o no van. `black-translucent` mete el lienzo por debajo de la
+    // barra de estado, que es lo que hace que `.safeAreaGlass` tenga un inset
+    // que cubrir; sin él ese cristal se queda en 22px y el contenido se corta
+    // en seco. Y con `fullscreen` en vez de `standalone`, vuelve el escalón.
+    const layout = readFileSync(root("app/layout.tsx"), "utf8");
+    const manifest = JSON.parse(readFileSync(root("public/manifest.json"), "utf8"));
+
+    expect(layout).toMatch(/statusBarStyle:\s*"black-translucent"/);
+    expect(manifest.display).toBe("standalone");
   });
 
   it("declara la configuración de pantalla en un solo sitio", () => {
