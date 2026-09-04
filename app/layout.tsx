@@ -48,7 +48,40 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    /**
+     * 🚨 NO VOLVER A PONER `black-translucent`. De ahí salía el escalón negro.
+     *
+     * `black-translucent` es el mecanismo VIEJO de Apple para que la app ocupe
+     * toda la pantalla, de antes de que existieran los safe-area. Abajo, en
+     * `viewport`, ya está declarado el moderno: `viewportFit: "cover"`. Los dos
+     * piden lo mismo por caminos distintos, y declarados a la vez iOS se
+     * contradice a sí mismo.
+     *
+     * Medido en un iPhone 16 Pro el 2026-09-03, con la app instalada:
+     *
+     *     pantalla 874    lvh 874     ← el lienzo SÍ ocupa la pantalla entera
+     *     alto win 812    dvh 812     ← pero el área de dibujo mide 62px menos
+     *     seguro ↑62 ↓34              ← y los márgenes son los de una de 874
+     *
+     * 62 es exactamente lo que ocupa la barra de estado. El área de dibujo
+     * quedaba anclada arriba, así que esos 62px se caían POR ABAJO y dejaban
+     * ver el fondo negro del lienzo. De ahí que el escalón se viera abajo
+     * aunque el número venga de arriba, y de ahí que los intentos de arreglarlo
+     * tocando el safe-area INFERIOR no encontraran nunca nada que tocar: no
+     * había nada. `--vb-safe-bottom` vale 0 y no se redefine en ningún sitio.
+     *
+     * Era pasajero porque iOS rehace esa cuenta en cada transición —el splash
+     * al refrescar, abrir un panel, cerrar el teclado— y tarda unos fotogramas
+     * en cuadrarla. Lo que se pintara dentro de esa ventana salía 62px corto.
+     *
+     * Con `black` la barra de estado es opaca y iOS entrega un área coherente
+     * con sus propios márgenes. Se pierde poder pintar por debajo de la barra,
+     * que sobre un fondo negro no se distingue.
+     *
+     * ⚠️ iOS se guarda esto al INSTALAR. Para ver el cambio hay que borrar la
+     * app de la pantalla de inicio y volver a añadirla; recargar no basta.
+     */
+    statusBarStyle: "black",
     title: "Vibra",
   },
 };
