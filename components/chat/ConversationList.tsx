@@ -90,7 +90,9 @@ export default function ConversationList({
   if (loading) {
     return (
       <div style={{ ...styles.sectionPanel, background: "transparent", padding: 0 }}>
-        <ConversationListSkeleton avatarSize={isMobile ? 43 : 36} />
+        {/* El hueco de carga mide lo MISMO que la fila real. Si no, la lista
+            da un salto al llegar los datos. */}
+        <ConversationListSkeleton avatarSize={isMobile ? 52 : 36} />
       </div>
     );
   }
@@ -218,7 +220,11 @@ export default function ConversationList({
                   currentUserId={selfUid}
                   photoURL={profile?.photoURL ?? null}
                   displayName={displayName}
-                  size={isMobile ? 43 : 36}
+                  // Un 20% mas grande SOLO en celular: ahi la fila tiene el
+                  // ancho de la pantalla entera y el avatar se quedaba menudo.
+                  // En la barra de laptop la columna es estrecha y 36 sigue
+                  // siendo lo que cabe.
+                  size={isMobile ? 52 : 36}
                 />
 
                 {/* Rejilla de dos por dos, y no dos renglones con la hora

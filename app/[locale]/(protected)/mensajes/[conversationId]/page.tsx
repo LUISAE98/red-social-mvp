@@ -918,7 +918,9 @@ export default function ConversationPage() {
           currentUserId={selfUid}
           photoURL={profile?.photoURL ?? null}
           displayName={displayName}
-          size={34}
+          // Sube con los de la lista, para que abrir una conversacion no
+          // encoja de golpe la foto de la persona.
+          size={41}
           onClick={handleOpenProfile}
           style={{ position: "relative", zIndex: 1 }}
         />
