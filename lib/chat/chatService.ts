@@ -508,7 +508,10 @@ export async function reportConversation(params: {
 function toConversation(
   snap: QueryDocumentSnapshot<DocumentData>
 ): ConversationWithId {
-  return { id: snap.id, ...(snap.data() as ConversationDoc) };
+  // Mismo motivo que en los mensajes: `lastMessageAt` es un `serverTimestamp()`
+  // y en el eco local llega nulo, así que el renglón del inbox se quedaba sin
+  // hora justo después de escribir en ese hilo.
+  return { id: snap.id, ...(snap.data({ serverTimestamps: "estimate" }) as ConversationDoc) };
 }
 
 /**
@@ -596,7 +599,16 @@ export function subscribeToConversation(
     q,
     (snap) => {
       const messages = snap.docs
-        .map((d) => ({ id: d.id, ...(d.data() as MessageDoc) }))
+        .map((d) => ({
+          id: d.id,
+          // ⚠️ `estimate` y no el valor crudo. `createdAt` es un
+          // `serverTimestamp()`, y hasta que el servidor lo resuelve llega NULO
+          // en el eco local — así que el mensaje se pintaba sin hora y la hora
+          // aparecía sola un momento después, ya enviado. Con la estimación
+          // nace con su hora (la del reloj local) y Firestore la corrige con la
+          // buena cuando llega el acuse, sin que se note.
+          ...(d.data({ serverTimestamps: "estimate" }) as MessageDoc),
+        }))
         .reverse();
       onData(messages);
     },

@@ -23,7 +23,22 @@ import {
  * lectura de una sola vez y se guardan en memoria: el historial ya no cambia,
  * así que suscribirse a él sería pagar para siempre por datos inmutables.
  */
-export function useConversation(conversationId: string | null, selfUid: string | null) {
+export function useConversation(
+  conversationId: string | null,
+  selfUid: string | null,
+  /**
+   * ¿Se está VIENDO el final del hilo ahora mismo?
+   *
+   * Tener la conversación abierta no es haber leído: se puede estar arriba, en
+   * el historial, mientras abajo entran mensajes nuevos. Sin esto el recibo se
+   * mandaba igual y el otro veía el visto de algo que nadie había mirado.
+   *
+   * Va como función y no como valor porque en la vista esto es un `ref` que
+   * cambia en cada scroll; pasarlo como estado obligaría a repintar el hilo
+   * entero al cruzar el umbral.
+   */
+  viendoElFinal?: () => boolean
+) {
   /** Última página, en vivo. */
   const [live, setLive] = useState<MessageWithId[]>([]);
   /** Páginas anteriores ya cargadas, de más antigua a más reciente. */
@@ -34,11 +49,23 @@ export function useConversation(conversationId: string | null, selfUid: string |
   const [error, setError] = useState<Error | null>(null);
 
   const markedRef = useRef<string | null>(null);
+  /** Hay lectura por confirmar que no se pudo mandar por estar arriba del hilo. */
+  const lecturaPendienteRef = useRef(false);
+  /**
+   * La última versión de `viendoElFinal`. Se guarda en un ref y se sincroniza en
+   * un efecto declarado ANTES que los que la usan, para que estos la vean ya
+   * puesta y no se reejecuten cada vez que la vista crea otra función.
+   */
+  const viendoElFinalRef = useRef(viendoElFinal);
+  useEffect(() => {
+    viendoElFinalRef.current = viendoElFinal;
+  });
 
   useEffect(() => {
     setOlder([]);
     setHasMore(true);
     markedRef.current = null;
+    lecturaPendienteRef.current = false;
 
     if (!conversationId) {
       setLive([]);
@@ -77,20 +104,51 @@ export function useConversation(conversationId: string | null, selfUid: string |
     [older, live, selfUid]
   );
 
+  /**
+   * Manda el recibo, pero solo si de verdad se está viendo el final del hilo.
+   *
+   * Si no se puede, no se pierde: queda apuntado y sale en cuanto la vista
+   * avise de que ha vuelto abajo (`confirmarLecturaPendiente`).
+   */
+  const marcarLeido = useCallback(() => {
+    if (!conversationId || !selfUid) return;
+
+    const viendo = viendoElFinalRef.current;
+    if (viendo && !viendo()) {
+      lecturaPendienteRef.current = true;
+      return;
+    }
+
+    lecturaPendienteRef.current = false;
+    void markConversationRead(conversationId, selfUid);
+  }, [conversationId, selfUid]);
+
+  /**
+   * La vista llama a esto al volver al final del hilo. Solo escribe si quedaba
+   * algo por confirmar, así que bajar y subir no cuesta writes.
+   */
+  const confirmarLecturaPendiente = useCallback(() => {
+    if (!lecturaPendienteRef.current) return;
+    marcarLeido();
+  }, [marcarLeido]);
+
   // Marca leído al abrir el hilo: un solo write, no uno por render.
   useEffect(() => {
     if (!conversationId || !selfUid || loading) return;
     if (markedRef.current === conversationId) return;
 
     markedRef.current = conversationId;
-    void markConversationRead(conversationId, selfUid);
-  }, [conversationId, selfUid, loading]);
+    marcarLeido();
+  }, [conversationId, selfUid, loading, marcarLeido]);
 
   // Con el hilo YA abierto, los mensajes que llegan también cuentan como leídos
   // (si no, la Cloud Function sigue subiendo el contador de algo que la persona
   // está mirando). Va con retardo a propósito: una ráfaga de mensajes se
   // colapsa en UN write en vez de uno por mensaje, que es justo el costo que
   // este diseño evita.
+  //
+  // "Está mirando" es literal: si se está arriba leyendo historial, esto NO
+  // confirma nada — lo deja pendiente para cuando se vuelva abajo.
   const lastIncomingIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!conversationId || !selfUid) return;
@@ -100,12 +158,10 @@ export function useConversation(conversationId: string | null, selfUid: string |
     if (lastIncomingIdRef.current === last.id) return;
 
     lastIncomingIdRef.current = last.id;
-    const timer = setTimeout(() => {
-      void markConversationRead(conversationId, selfUid);
-    }, 2500);
+    const timer = setTimeout(marcarLeido, 2500);
 
     return () => clearTimeout(timer);
-  }, [messages, conversationId, selfUid]);
+  }, [messages, conversationId, selfUid, marcarLeido]);
 
   const loadOlder = useCallback(async () => {
     if (!conversationId || loadingOlder || !hasMore) return;
@@ -148,5 +204,6 @@ export function useConversation(conversationId: string | null, selfUid: string |
     error,
     loadOlder,
     send,
+    confirmarLecturaPendiente,
   };
 }

@@ -593,6 +593,9 @@ export default function ReelStorySlide({
     zIndex: 10,
     display: "flex",
     alignItems: "center",
+    // La caja se ajusta a su contenido (avatar, nombre y seguir), así que
+    // reactivar aquí no roba más superficie de la que ocupa a la vista.
+    pointerEvents: "auto",
   };
   // El enlace al perfil envuelve SOLO avatar y nombre.
   //
@@ -720,13 +723,29 @@ export default function ReelStorySlide({
 
       {tapLayer}
 
+      {/* Capa de controles.
+          ⚠️ Cubre la pantalla ENTERA y va por encima de `tapLayer`, así que si
+          recibe toques se los quita a las zonas de avanzar y retroceder. Y sus
+          contenedores son casi todos transparentes y de ancho completo —la
+          tira del progreso arriba, la fila de la flamita y la de los botones
+          abajo—, o sea que se tragaban el toque sin hacer nada: de ahí que
+          picar a un lado o a otro funcionara "a veces".
+
+          Por eso la capa NO recibe nada y cada control de verdad se reactiva
+          con `pointerEvents: "auto"`. Lo que hay entre control y control deja
+          pasar el toque a la zona de debajo.
+
+          Y cuando la capa está oculta se apaga con `visibility`, no con
+          `pointer-events`: los hijos ahora piden `auto` a mano y un `none` en
+          el padre ya no los frenaría. */}
       <div
         style={{
           position: "absolute",
           inset: 0,
           opacity: overlaysHidden ? 0 : 1,
+          visibility: overlaysHidden ? "hidden" : "visible",
           transition: overlaysHidden ? "none" : "opacity 180ms ease",
-          pointerEvents: overlaysHidden ? "none" : undefined,
+          pointerEvents: "none",
         }}
       >
         {topSlot}
@@ -783,6 +802,8 @@ export default function ReelStorySlide({
             alignItems: "center",
             gap: 4,
             zIndex: 11,
+            // También se ajusta a sus iconos, así que no invade el resto.
+            pointerEvents: "auto",
           }}
         >
           <IconButton label={muted ? tCommon("unmute") : tCommon("muteAriaLabel")} size="sm" tone="bare" shape="square" onClick={(e) => { e.stopPropagation(); onMutedChange(!muted); }}>
@@ -829,6 +850,9 @@ export default function ReelStorySlide({
               border: "none",
               padding: 0,
               cursor: "default",
+              // Con el contexto abierto, este SÍ tiene que cubrirlo todo: es la
+              // forma de cerrarlo picando fuera.
+              pointerEvents: "auto",
             }}
           />
         )}
@@ -1018,7 +1042,7 @@ export default function ReelStorySlide({
                 // a AMBOS lados del dibujo. A la izquierda desalineaba la fila
                 // respecto a "Contexto"; a la derecha alejaba el numero. Los dos
                 // se descuentan con el mismo valor.
-                style={{ marginInlineStart: -flameInset }}
+                style={{ marginInlineStart: -flameInset, pointerEvents: "auto" }}
                 onClick={(e) => { void handleLike(e); }}
               >
                 <VibraFlameIcon active={liked} size={flameIconSize} />
@@ -1051,7 +1075,7 @@ export default function ReelStorySlide({
                 e.stopPropagation();
                 setContextOpen((v) => !v);
               }}
-              style={{ flex: 1, padding: compact ? "8px 10px" : "11px 10px", borderRadius: 10, border: "none", background: "#3b82f6", color: "#fff", fontSize: compact ? 12 : 14, fontWeight: 600, fontFamily: FONT, cursor: "pointer", letterSpacing: "-0.01em", transition: "opacity 150ms ease", WebkitTapHighlightColor: "transparent" }}
+              style={{ pointerEvents: "auto", flex: 1, padding: compact ? "8px 10px" : "11px 10px", borderRadius: 10, border: "none", background: "#3b82f6", color: "#fff", fontSize: compact ? 12 : 14, fontWeight: 600, fontFamily: FONT, cursor: "pointer", letterSpacing: "-0.01em", transition: "opacity 150ms ease", WebkitTapHighlightColor: "transparent" }}
             >
               {tServices("contextLabel")}
             </button>
@@ -1078,7 +1102,7 @@ export default function ReelStorySlide({
                   e.stopPropagation();
                   void purchase.open();
                 }}
-                style={{ flex: 1, padding: compact ? "8px 10px" : "11px 10px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #f472b6, #a855f7)", color: "#fff", fontSize: compact ? 12 : 14, fontWeight: 600, fontFamily: FONT, cursor: "pointer", letterSpacing: "-0.01em", transition: "opacity 150ms ease", WebkitTapHighlightColor: "transparent" }}
+                style={{ pointerEvents: "auto", flex: 1, padding: compact ? "8px 10px" : "11px 10px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #f472b6, #a855f7)", color: "#fff", fontSize: compact ? 12 : 14, fontWeight: 600, fontFamily: FONT, cursor: "pointer", letterSpacing: "-0.01em", transition: "opacity 150ms ease", WebkitTapHighlightColor: "transparent" }}
               >
                 {effectiveType === "saludo" ? tServices("wantGreeting") : tServices("wantAdvice")}
               </button>

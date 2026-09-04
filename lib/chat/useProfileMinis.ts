@@ -3,28 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { ProfileMini } from "@/components/chat/ConversationList";
-import {
-  leerMinisDeMemoria,
-  rescatarMinisDeDisco,
-  traerMinis,
-} from "./profileMiniCache";
+import { leerMinisCacheados, traerMinis } from "./profileMiniCache";
 
 /**
  * Perfiles (nombre, avatar, handle) de varios interlocutores, por uid.
  *
- * La caché ya no vive aquí: está en `profileMiniCache`, compartida con
- * `useProfileMini` y con dos pisos (memoria y disco). Antes era local al
- * componente, así que salir de la bandeja y volver releía a todo el mundo.
- *
- * El orden es el de siempre: lo que ya está en memoria se pinta en el primer
- * render, lo del disco en cuanto llega, y solo se va a la red por lo que falte.
+ * La caché vive en `profileMiniCache`, compartida con `useProfileMini`. Es
+ * SÍNCRONA a propósito: se lee aquí mismo, en el inicializador del estado, para
+ * que los avatares salgan puestos en el primer render y no se vea el cambio de
+ * iniciales a foto. Ver la explicación completa en ese archivo.
  */
 export function useProfileMinis(uids: string[]): Record<string, ProfileMini> {
   // Clave estable: sin esto, un array nuevo en cada render relanzaría la carga.
   const key = uids.slice().sort().join(",");
 
   const [profiles, setProfiles] = useState<Record<string, ProfileMini>>(() =>
-    leerMinisDeMemoria(key.split(",").filter(Boolean))
+    leerMinisCacheados(key.split(",").filter(Boolean))
   );
   const pedidosRef = useRef<Set<string>>(new Set());
 
@@ -32,38 +26,28 @@ export function useProfileMinis(uids: string[]): Record<string, ProfileMini> {
     const todos = key.split(",").filter(Boolean);
     if (todos.length === 0) return;
 
+    // La caché pudo llenarse desde otro componente después del primer render.
+    const cacheados = leerMinisCacheados(todos);
+
+    const faltan = todos.filter(
+      (uid) => !cacheados[uid] && !pedidosRef.current.has(uid)
+    );
+
     let cancelado = false;
 
     (async () => {
-      // Todo esto va DENTRO de la parte asíncrona: un `setState` síncrono en el
-      // cuerpo del efecto encadena un render de más, y aquí no hace falta — el
-      // inicializador perezoso ya sirvió lo que había en memoria al montar.
-      // Esta relectura solo cubre que otro componente la haya llenado entretanto.
-      const deMemoria = leerMinisDeMemoria(todos);
-      if (cancelado) return;
-
-      if (Object.keys(deMemoria).length > 0) {
-        setProfiles((prev) => ({ ...deMemoria, ...prev }));
+      // Va dentro de la parte asíncrona: un `setState` síncrono en el cuerpo del
+      // efecto encadena un render de más, y el inicializador ya cubrió el caso
+      // normal.
+      if (Object.keys(cacheados).length > 0) {
+        if (cancelado) return;
+        setProfiles((prev) => ({ ...cacheados, ...prev }));
       }
 
-      const faltan = todos.filter(
-        (uid) => !deMemoria[uid] && !pedidosRef.current.has(uid)
-      );
       if (faltan.length === 0) return;
-
       faltan.forEach((uid) => pedidosRef.current.add(uid));
 
-      const deDisco = await rescatarMinisDeDisco(faltan);
-      if (cancelado) return;
-
-      if (Object.keys(deDisco).length > 0) {
-        setProfiles((prev) => ({ ...prev, ...deDisco }));
-      }
-
-      const sinResolver = faltan.filter((uid) => !deDisco[uid]);
-      if (sinResolver.length === 0) return;
-
-      const deRed = await traerMinis(sinResolver);
+      const deRed = await traerMinis(faltan);
       if (cancelado) return;
 
       setProfiles((prev) => ({ ...prev, ...deRed }));

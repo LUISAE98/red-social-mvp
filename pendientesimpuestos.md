@@ -444,10 +444,36 @@ que explica que la tasa vive en la Ley de Ingresos y no en el 113-A. Nada que to
 |---|---|
 | Las claves, el armado y el cuadre de totales contra el detalle | 🆕 `backend/src/facturacion/complementoPlataformas.ts` |
 | `serviciosDelPeriodo`, el detalle sacado de los asientos; clave `26`; totales en pesos | `backend/src/facturacion/creatorMonthlyDocs.ts` |
-| 12 pruebas | 🆕 `backend/test/complementoPlataformas.pure.test.ts` |
+| 17 pruebas, 5 de ellas sobre la forma del XML | 🆕 `backend/test/complementoPlataformas.pure.test.ts` |
 
-🔁 **Por confirmar en el primer timbrado de sandbox:** el nombre del tipo de complemento en
-Facturapi (`plataformas_tecnologicas`). Si fuera otro, falla ruidosamente y es una línea.
+✅ **Resuelto en sandbox (2026-09-03): el complemento va como XML, no como objeto.** No era el
+nombre lo que fallaba. **Facturapi no tiene un tipo con nombre para este complemento**: su
+documentación enumera siete de retenciones —dividendos, intereses, premios, fideicomisos,
+arrendamiento en fideicomiso, planes de retiro y enajenación de acciones— y plataformas
+tecnológicas no es ninguno. Mandar `{ type, data }` devolvía «El campo complements.0 tiene un
+tipo inválido». La salida es la que su propia documentación describe para cualquier complemento
+sin tipo propio: **meter el XML en `complements`**, que se inserta tal cual al timbrar.
+
+Lo arma `complementoComoXml` en `complementoPlataformas.ts`. Al ser texto a mano, **el orden de
+los nodos y los dos decimales exactos importan**: el XSD del SAT valida las dos cosas, y
+`462.5` donde espera `462.50` tumba el timbrado aunque el número sea correcto. Hay 5 pruebas
+que fijan la forma.
+
+🚨 **Y el espacio de nombres NO se deduce, se consulta.** El primer XML llevaba
+`.../retencionpago/1/servicios/plataformastecnologicas`, deducido del nombre del complemento.
+Parece razonable y no existe: el validador del SAT contestó `cvc-complex-type.2.4.c: the
+matching wildcard is strict, but no declaration can be found for element`, que es lo que dice
+cuando no hay esquema publicado para ese espacio de nombres. El bueno lleva el nombre pegado y
+versionado:
+
+| Pieza | Valor |
+|---|---|
+| Prefijo | `plataformasTecnologicas` |
+| Espacio de nombres | `http://www.sat.gob.mx/esquemas/retencionpago/1/PlataformasTecnologicas10` |
+| XSD | `.../PlataformasTecnologicas10/ServiciosPlataformasTecnologicas10.xsd` |
+
+Sale del **registro de espacios de nombres del SAT** (`phpcfdi/sat-ns-registry`), que es la
+fuente a la que hay que ir la próxima vez que haga falta un complemento, en lugar de inferirlo.
 
 🚧 **Sigue bloqueada por §A5.** `CONSTANCIA_BLOQUEADA` no se quita: A4 arregla la FORMA del
 documento, A5 decide de dónde salen los números.
@@ -613,9 +639,14 @@ traduce ella al código cuando arma el XML:
 §A1 y nunca se había notado porque nunca se había timbrado. Es el argumento a favor de probar
 en sandbox antes de encender nada.
 
-👉 **Regla general:** los campos de la API de Facturapi tienen su propio vocabulario. Los del
-complemento (`complements[].data`) sí son los del SAT, porque viajan tal cual al XML. No dar por
-hecho que un catálogo del Anexo 20 se manda literal.
+👉 **Regla general:** cada objeto de la API de Facturapi tiene su propio vocabulario, y no es el
+mismo entre objetos. La factura usa inglés (`period`, `totals`); **la retención usa español**
+(`cve_retenc`, `periodo`, `totales`, `imp_retenidos`). Y el complemento de plataformas no usa
+ninguno de los dos: **va como XML crudo**, con los nombres del Anexo 20, porque Facturapi no
+tiene un tipo con nombre para él. Tres vocabularios en un mismo documento.
+
+Esto mordió **tres veces** en la integración —`periodicity`, `cve_retenc` y `complements`— y
+cada una costó un viaje a sandbox. No dar por hecho el vocabulario de un objeto nuevo: mirarlo.
 
 ## El hueco que destapó la prueba
 
@@ -692,8 +723,8 @@ console.log((await fn({ dia: "2026-08-31", timbrar: true })).data);
 2. Que las 2 ventas queden marcadas `globalInvoice.estado = "emitida"` con su folio.
 3. Que el importe esté en **pesos** y cuadre con `fiscalMxn` de esas ventas, no con sus dólares.
 4. Que `periodicity` vaya como **`01`** (diaria) y no la rechacen.
-5. 🔁 Que **el nombre del complemento** de la constancia sea el que asumimos
-   (`plataformas_tecnologicas`). Es lo único de §A4 que no se pudo verificar por documentación.
+5. ✅ Resuelto: **el complemento va como XML**, no como objeto con tipo. Facturapi no tiene tipo
+   con nombre para plataformas tecnológicas. Ver §A4.
 6. Después, ejercitar la **cancelación motivo 04** sobre esa misma global (AUD-11), que tampoco se
    ha probado nunca.
 

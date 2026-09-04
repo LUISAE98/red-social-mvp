@@ -3,11 +3,7 @@
 import { useEffect, useState } from "react";
 
 import type { ProfileMini } from "@/components/chat/ConversationList";
-import {
-  leerMinisDeMemoria,
-  rescatarMinisDeDisco,
-  traerMinis,
-} from "./profileMiniCache";
+import { leerMinisCacheados, traerMinis } from "./profileMiniCache";
 
 /**
  * Nombre, avatar y handle de un perfil, para la cabecera de un hilo abierto
@@ -15,17 +11,18 @@ import {
  *
  * Comparte caché con `useProfileMinis` (ver `profileMiniCache`), así que entrar
  * a un hilo desde la bandeja ya no vuelve a leer el mismo perfil: viene resuelto
- * de la lista que acabas de ver.
+ * de la lista que acabas de ver, y la cabecera sale con foto desde el primer
+ * render en vez de enseñar las iniciales un instante.
  */
 export function useProfileMini(uid: string | null) {
   const [state, setState] = useState<{
     profile: ProfileMini | undefined;
     loading: boolean;
   }>(() => {
-    const enMemoria = uid ? leerMinisDeMemoria([uid])[uid] : undefined;
-    // Con el perfil ya en memoria no hay nada que esperar: se pinta la cabecera
-    // en el primer render, sin pasar por el estado de carga.
-    return { profile: enMemoria, loading: !enMemoria };
+    const cacheado = uid ? leerMinisCacheados([uid])[uid] : undefined;
+    // Con el perfil ya cacheado no hay nada que esperar: se pinta la cabecera en
+    // el primer render, sin pasar por el estado de carga.
+    return { profile: cacheado, loading: !cacheado };
   });
 
   useEffect(() => {
@@ -34,21 +31,13 @@ export function useProfileMini(uid: string | null) {
     let cancelado = false;
 
     (async () => {
-      // La memoria se consulta DENTRO de la parte asíncrona, no en el cuerpo del
-      // efecto: un `setState` síncrono ahí encadena un render de más, y aquí no
-      // hace falta — el inicializador perezoso ya cubrió el caso normal. Esta
-      // rama solo cubre el cambio de `uid` sin desmontar.
-      const enMemoria = leerMinisDeMemoria([uid])[uid];
-      if (enMemoria) {
-        if (!cancelado) setState({ profile: enMemoria, loading: false });
-        return;
-      }
-
-      const deDisco = (await rescatarMinisDeDisco([uid]))[uid];
-      if (cancelado) return;
-
-      if (deDisco) {
-        setState({ profile: deDisco, loading: false });
+      // La caché se consulta DENTRO de la parte asíncrona: un `setState`
+      // síncrono en el cuerpo del efecto encadena un render de más, y aquí no
+      // hace falta — el inicializador ya cubrió el caso normal. Esta rama solo
+      // cubre el cambio de `uid` sin desmontar.
+      const cacheado = leerMinisCacheados([uid])[uid];
+      if (cacheado) {
+        if (!cancelado) setState({ profile: cacheado, loading: false });
         return;
       }
 

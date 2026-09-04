@@ -10,6 +10,7 @@ import {
   CVE_RETENC_PLATAFORMAS,
   TIPO_SERVICIO_OTROS,
   PERIODICIDAD_MENSUAL,
+  complementoComoXml,
   type ServicioDelComplemento,
 } from "../src/facturacion/complementoPlataformas";
 import { serviciosDelPeriodo } from "../src/facturacion/creatorMonthlyDocs";
@@ -144,5 +145,46 @@ describe("detalle sacado de los asientos", () => {
     expect(r).toHaveLength(2);
     expect(r[0].precioSinIva).toBe(1850); // cobro real
     expect(r[1].precioSinIva).toBe(2000); // FIX
+  });
+});
+
+describe("el complemento como XML", () => {
+  /*
+   * Facturapi no tiene un tipo con nombre para este complemento —su lista de siete no lo
+   * incluye—, así que viaja como XML dentro de `complements` y se inserta tal cual al timbrar.
+   * Eso lo vuelve texto a mano, y el XSD del SAT es estricto: aquí se fija la forma.
+   */
+  const xml = () => complementoComoXml(armarComplemento([venta()], { iva: 148, isr: 46.25 }));
+
+  it("🚨 declara el espacio de nombres EXACTO del registro del SAT", () => {
+    // El primero que se probó fue deducido y no existía: el validador contestó
+    // `cvc-complex-type.2.4.c, no declaration can be found`. Este sale del registro oficial.
+    expect(xml()).toContain(
+      'xmlns:plataformasTecnologicas="http://www.sat.gob.mx/esquemas/retencionpago/1/PlataformasTecnologicas10"'
+    );
+  });
+
+  it("🚨 todos los importes llevan dos decimales exactos", () => {
+    // El XSD los valida. Un `1850` pelado donde espera `1850.00` tumba el timbrado, y un
+    // `462.5` también: no basta con que el número sea correcto.
+    const s = xml();
+    expect(s).toContain('MontToServSIva="1850.00"');
+    expect(s).toContain('MontoComision="462.50"');
+    expect(s).toContain('TotalIsrRetenido="46.25"');
+    // Solo los importes: `Version="1.0"` lleva un decimal y así debe ser.
+    expect(s).not.toMatch(/(Mont|Total|Precio|Base|Impuesto|Dif)[A-Za-z]*="\d+\.\d"/);
+  });
+
+  it("lleva un nodo Servicios por operación, con sus dos hijos", () => {
+    const s = complementoComoXml(armarComplemento([venta(), venta()], { iva: 296, isr: 92.5 }));
+    expect(s.match(/<plataformasTecnologicas:Servicios /g)).toHaveLength(2);
+    expect(s.match(/ImpuestosTrasladadosdelServicio/g)).toHaveLength(2);
+    expect(s.match(/ComisionDelServicio/g)).toHaveLength(2);
+  });
+
+  it("cierra bien la raíz", () => {
+    expect(xml()).toMatch(
+      /^<plataformasTecnologicas:ServiciosPlataformasTecnologicas .*<\/plataformasTecnologicas:ServiciosPlataformasTecnologicas>$/s
+    );
   });
 });

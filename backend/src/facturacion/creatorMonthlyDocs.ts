@@ -28,6 +28,7 @@ import { leerImporteFiscal } from "./importeFiscal";
 import { fixParaOperacion } from "./tipoCambioDof";
 import {
   armarComplemento,
+  complementoComoXml,
   CVE_RETENC_PLATAFORMAS,
   type ServicioDelComplemento,
 } from "./complementoPlataformas";
@@ -599,10 +600,18 @@ export async function emitirCfdiRetenciones(
         ],
       },
       /**
-       * 🔁 FACTURAPI: el nombre del tipo de complemento está por confirmar contra su API. Si
-       * fuera otro, el primer intento en sandbox falla ruidosamente y es una línea.
+       * 🚨 EL COMPLEMENTO VA COMO XML, NO COMO OBJETO.
+       *
+       * Facturapi tiene tipos con nombre para siete complementos de retenciones —dividendos,
+       * intereses, premios, fideicomisos, arrendamiento en fideicomiso, planes de retiro y
+       * enajenación de acciones— y **plataformas tecnológicas no es ninguno de ellos**. Mandarle
+       * `{ type, data }` devolvía «El campo complements.0 tiene un tipo inválido».
+       *
+       * Su documentación describe la salida para cualquier complemento sin tipo propio: meter
+       * el XML en este nodo, que se inserta tal cual al timbrar. Se arma en
+       * `complementoPlataformas.ts`, donde los nombres sí son los del Anexo 20.
        */
-      complements: [{ type: "plataformas_tecnologicas", data: complemento }],
+      complements: [complementoComoXml(complemento)],
     },
     auth: "secret",
   });

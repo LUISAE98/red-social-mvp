@@ -178,6 +178,19 @@ export default function StoryViewer({
   }, [index, goTo, onClose, contained, heroActive, handleHeroClose]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    /**
+     * ⚠️ El "trágate el próximo clic" caduca con el gesto anterior.
+     *
+     * Se enciende al soltar tras mantener pulsado, y solo lo apagaba la zona de
+     * toque al recibir su clic. Si ese clic caía en cualquier otro sitio —un
+     * control, o una zona muerta— la marca se quedaba encendida y el que se
+     * comía era el SIGUIENTE toque, uno legítimo. De ahí que avanzar funcionara
+     * "a veces".
+     *
+     * Aquí ya no puede haber ningún clic pendiente: el del gesto anterior se
+     * despachó antes de que este dedo tocara la pantalla.
+     */
+    suppressNextClickRef.current = false;
     touchStartXRef.current = e.touches[0]?.clientX ?? null;
     touchStartYRef.current = e.touches[0]?.clientY ?? null;
     holdTimerRef.current = setTimeout(() => {
@@ -287,7 +300,11 @@ export default function StoryViewer({
   // ── Capas que este visor inyecta en el slide ──────────────────────────────
 
   const progressBars = (safeTop: string | number) => (
-    <div style={{ position: "absolute", top: safeTop, insetInlineStart: 0, insetInlineEnd: 0, paddingTop: 12, paddingInlineStart: 10, paddingInlineEnd: 10, display: "flex", gap: 4, zIndex: 10 }}>
+    // ⚠️ La tira ocupa TODO el ancho y va por encima de las zonas de toque, así
+    // que si recibiera el clic se lo quitaría a avanzar y retroceder sin hacer
+    // nada a cambio: los segmentos que no son el actual son solo dibujo. Solo la
+    // barra en curso se reactiva, y lo hace ella misma.
+    <div style={{ position: "absolute", top: safeTop, insetInlineStart: 0, insetInlineEnd: 0, paddingTop: 12, paddingInlineStart: 10, paddingInlineEnd: 10, display: "flex", gap: 4, zIndex: 10, pointerEvents: "none" }}>
       {stories.map((_, i) =>
         i === index ? (
           // Solo el segmento en curso se puede manipular: los demás son de otras

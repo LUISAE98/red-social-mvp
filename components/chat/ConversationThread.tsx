@@ -469,9 +469,37 @@ export default function ConversationThread({
   const { conversation } = useConversationDoc(active ? conversationId : null);
   const exists = conversation != null;
 
-  const { messages, loading, loadingOlder, hasMore, loadOlder, send } = useConversation(
+  /**
+   * Distancia al final por debajo de la cual se considera que estás "abajo".
+   * Con margen: al llegar un mensaje mientras lees los últimos, se sigue bajando.
+   */
+  const STICK_TO_BOTTOM_SLACK = 90;
+  /** ¿Seguimos pegados al final? Si te fuiste a leer historia, no se te arrastra. */
+  const stickToBottomRef = useRef(true);
+
+  /**
+   * El criterio de "esto ya se ha visto de verdad", guardado en un ref.
+   *
+   * Hace falta ANTES de llamar al hook —que es quien lo consulta— y solo se
+   * puede escribir DESPUÉS, porque mide el último mensaje y los mensajes los
+   * devuelve el propio hook. El ref rompe ese círculo.
+   */
+  const lecturaVisibleRef = useRef<() => boolean>(() => true);
+
+  const {
+    messages,
+    loading,
+    loadingOlder,
+    hasMore,
+    loadOlder,
+    send,
+    confirmarLecturaPendiente,
+  } = useConversation(
     active && exists ? conversationId : null,
-    selfUid
+    selfUid,
+    // Tener el hilo abierto no es haberlo leído: si estás arriba, en el
+    // historial, lo que entra abajo todavía no lo has visto.
+    () => lecturaVisibleRef.current()
   );
 
   const [draft, setDraft] = useState("");
@@ -585,14 +613,6 @@ export default function ConversationThread({
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-
-  /**
-   * Distancia al final por debajo de la cual se considera que estás "abajo".
-   * Con margen: al llegar un mensaje mientras lees los últimos, se sigue bajando.
-   */
-  const STICK_TO_BOTTOM_SLACK = 90;
-  /** ¿Seguimos pegados al final? Si te fuiste a leer historia, no se te arrastra. */
-  const stickToBottomRef = useRef(true);
 
   /**
    * Baja al final del hilo.
@@ -1217,6 +1237,60 @@ export default function ConversationThread({
     observer.observe(container);
     return () => observer.disconnect();
   }, [scrollToBottom]);
+
+  /**
+   * ¿Se ha visto DE VERDAD lo último que llegó?
+   *
+   * Es el permiso para mandar el recibo de lectura, y pide dos cosas:
+   *
+   *  1. Que la pestaña esté delante. Con el chat abierto en una pestaña de
+   *     atrás no se está leyendo nada, por muy abajo que estuviera el scroll.
+   *  2. Que el ÚLTIMO mensaje quepa entero en lo que se ve, con su borde de
+   *     abajo por encima del compositor —que va superpuesto y tapa esa franja—.
+   *
+   * Lo segundo es más estricto que "estás al final del hilo": un mensaje muy
+   * alto puede asomar por el canto inferior y contar como leído sin que se haya
+   * visto ni la primera línea. Aquí no cuenta hasta que se llega a su final.
+   *
+   * Sin nodo que medir (el hilo todavía sin pintar) se cae al criterio de
+   * siempre, que es el que ya usa el auto-scroll.
+   */
+  const LECTURA_SLACK = 4;
+  const ultimoMensajeALaVista = useCallback(() => {
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+      return false;
+    }
+
+    const container = scrollRef.current;
+    if (!container) return false;
+
+    const last = messages[messages.length - 1];
+    const node = last ? messageNodes.current.get(last.id) : null;
+    if (!node) return stickToBottomRef.current;
+
+    const containerRect = container.getBoundingClientRect();
+    const nodeRect = node.getBoundingClientRect();
+    const visibleBottom = containerRect.bottom - composerHeight;
+
+    return nodeRect.bottom <= visibleBottom + LECTURA_SLACK;
+  }, [messages, composerHeight]);
+
+  useEffect(() => {
+    lecturaVisibleRef.current = ultimoMensajeALaVista;
+  }, [ultimoMensajeALaVista]);
+
+  /**
+   * Volver a la pestaña también es leer: aquí sale el recibo que se quedó
+   * guardado mientras el chat estaba detrás. Si no había nada pendiente, no
+   * escribe nada.
+   */
+  useEffect(() => {
+    const alVolver = () => {
+      if (document.visibilityState === "visible") confirmarLecturaPendiente();
+    };
+    document.addEventListener("visibilitychange", alVolver);
+    return () => document.removeEventListener("visibilitychange", alVolver);
+  }, [confirmarLecturaPendiente]);
 
   /**
    * Ancla el barrido de color a la PANTALLA, no a cada globo.
@@ -2998,6 +3072,12 @@ export default function ConversationThread({
           const el = e.currentTarget;
           stickToBottomRef.current =
             el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_TO_BOTTOM_SLACK;
+          // Bajar hasta verlo ES leer: aquí sale el recibo que se quedó guardado
+          // mientras se estaba arriba. Se pregunta en cada scroll y no solo al
+          // cruzar el umbral de "pegado al final", porque un mensaje muy alto se
+          // termina de ver ANTES de llegar a ese umbral. Si no hay nada
+          // pendiente sale de inmediato, sin medir nada.
+          confirmarLecturaPendiente();
           // Lo único que hace falta para que los globos vayan cambiando de color
           // al pasar por la pantalla. Una escritura, sin leer nada del layout.
           el.style.setProperty("--vb-thread-scroll", `${el.scrollTop}px`);
@@ -3009,6 +3089,24 @@ export default function ConversationThread({
           if (!expandedMessage) return;
           const target = e.target as HTMLElement | null;
           if (target?.closest(".vibra-msg-menu")) return;
+
+          /**
+           * ⚠️ El globo que YA tiene el menú abierto se salta, y solo con
+           * puntero.
+           *
+           * Esto corre en fase de CAPTURA, o sea antes que el `onClick` del
+           * globo. Cerrando aquí, el `toggleExpanded` que venía detrás se
+           * encontraba el menú ya cerrado y lo volvía a abrir — de ahí que
+           * volver a pulsar el mensaje no lo cerrara nunca. Dejándolo pasar, lo
+           * cierra el propio toggle, que es quien sabe alternar.
+           *
+           * En táctil NO se salta: allí el menú se abre manteniendo pulsado y
+           * el `onClick` del globo no hace nada, así que el único que puede
+           * cerrarlo con un toque es este.
+           */
+          const bubble = bubbleNodes.current.get(expandedMessage.id);
+          if (pointerActions && bubble && target && bubble.contains(target)) return;
+
           setExpandedMessage(null);
         }}
         style={{

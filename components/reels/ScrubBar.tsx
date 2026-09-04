@@ -119,6 +119,10 @@ export default function ScrubBar({
         cursor: "pointer",
         touchAction: "none",
         WebkitTapHighlightColor: "transparent",
+        // Explícito: la capa de controles que la contiene está en
+        // `pointer-events: none` para no tragarse los toques de avanzar y
+        // retroceder, y cada control de verdad se reactiva por su cuenta.
+        pointerEvents: "auto",
       }}
     >
       <div

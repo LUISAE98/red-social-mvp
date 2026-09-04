@@ -5,6 +5,7 @@ import { terminate, clearIndexedDbPersistence } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { clearStoredSessionId } from "@/lib/sessions/sessions-service";
 import { vaciarCache } from "@/lib/cache/persistentCache";
+import { olvidarMinis } from "@/lib/chat/profileMiniCache";
 
 // Claves de localStorage que son SOLO de la sesión y no deben sobrevivir para el
 // siguiente usuario de este navegador.
@@ -49,6 +50,15 @@ export async function clearClientSession(): Promise<void> {
     await vaciarCache();
   } catch {
     // ignorar: el borrado es best-effort y no puede bloquear la salida
+  }
+
+  // Los perfiles del chat van aparte porque viven en localStorage, no en
+  // IndexedDB (ver la nota en profileMiniCache: se leen de forma síncrona para
+  // que el avatar no parpadee). Son con quién hablaba esa persona: no se quedan.
+  try {
+    olvidarMinis();
+  } catch {
+    // ignorar
   }
 
   // La caché de Firestore. `clearIndexedDbPersistence` exige que la instancia

@@ -57,6 +57,24 @@ export const PERIODICIDAD_MENSUAL = "02";
  */
 export const FORMA_PAGO_INTERMEDIARIO = "08";
 
+/**
+ * Espacio de nombres del complemento.
+ *
+ * 🚨 NO SE DEDUCE, SE CONSULTA. El primer intento usó
+ * `.../retencionpago/1/servicios/plataformastecnologicas`, que parece razonable y no existe. El
+ * SAT respondió `cvc-complex-type.2.4.c: no declaration can be found for element` — su validador
+ * no encuentra esquema para un espacio de nombres que nadie publicó.
+ *
+ * El bueno lleva el nombre pegado y versionado, `PlataformasTecnologicas10`, y sale del registro
+ * de espacios de nombres del SAT (`phpcfdi/sat-ns-registry`), no de la intuición.
+ */
+const NS = "http://www.sat.gob.mx/esquemas/retencionpago/1/PlataformasTecnologicas10";
+
+/** Ruta del XSD, del mismo registro. El validador la exige aunque no la descargue. */
+const XSD =
+  "http://www.sat.gob.mx/esquemas/retencionpago/1/PlataformasTecnologicas10" +
+  "/ServiciosPlataformasTecnologicas10.xsd";
+
 function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
@@ -151,4 +169,57 @@ export function armarComplemento(
     MonTotalporUsoPlataforma: comisiones,
     Servicios: nodos,
   };
+}
+
+/**
+ * El complemento como XML, que es como Facturapi lo admite.
+ *
+ * 🚨 FACTURAPI NO TIENE UN TIPO CON NOMBRE PARA ESTE COMPLEMENTO.
+ *
+ *    Su documentación enumera siete complementos de retenciones —dividendos, intereses,
+ *    premios, fideicomisos, arrendamiento en fideicomiso, planes de retiro y enajenación de
+ *    acciones— y **plataformas tecnológicas no está entre ellos**. Mandarle
+ *    `{ type, data }` devuelve «El campo complements.0 tiene un tipo inválido».
+ *
+ *    La salida es la que su propia documentación describe para cualquier complemento que no
+ *    tenga tipo propio: **insertar el XML** en el nodo `complements`. Se arma aquí, con los
+ *    nombres del Anexo 20 —que en el XML sí son los del SAT, porque viaja tal cual—.
+ *
+ * ⚠️ Al ser XML a mano, el orden de los nodos importa y los importes van con dos decimales
+ *    exactos: el XSD del SAT valida las dos cosas.
+ */
+export function complementoComoXml(c: ComplementoPlataformas): string {
+  const n = (v: number) => v.toFixed(2);
+
+  const servicios = c.Servicios.map(
+    (s) =>
+      `<plataformasTecnologicas:Servicios FechaServ="${s.FechaServ}" ` +
+      `PrecioServSinIva="${n(s.PrecioServSinIva)}" ` +
+      `TipoDeServ="${s.TipoDeServ}" FormaPagoServ="${s.FormaPagoServ}">` +
+      `<plataformasTecnologicas:ImpuestosTrasladadosdelServicio ` +
+      `BaseIva="${n(s.ImpuestosTrasladadosdelServicio.BaseIva)}" ` +
+      `ImpuestoIva="${n(s.ImpuestosTrasladadosdelServicio.ImpuestoIva)}"/>` +
+      `<plataformasTecnologicas:ComisionDelServicio ` +
+      `MontoComision="${n(s.ComisionDelServicio.MontoComision)}" ` +
+      `ImpuestoIvaComision="${n(s.ComisionDelServicio.ImpuestoIvaComision)}"/>` +
+      `</plataformasTecnologicas:Servicios>`
+  ).join("");
+
+  return (
+    `<plataformasTecnologicas:ServiciosPlataformasTecnologicas ` +
+    `xmlns:plataformasTecnologicas="${NS}" ` +
+    `xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ` +
+    `xsi:schemaLocation="${NS} ${XSD}" ` +
+    `Version="1.0" ` +
+    `Periodicidad="${c.Periodicidad}" ` +
+    `NumServ="${c.NumServ}" ` +
+    `MontToServSIva="${n(c.MontToServSIva)}" ` +
+    `TotalIvaTrasladado="${n(c.TotalIvaTrasladado)}" ` +
+    `TotalIvaRetenido="${n(c.TotalIvaRetenido)}" ` +
+    `TotalIsrRetenido="${n(c.TotalIsrRetenido)}" ` +
+    `DifIvaEntregadoPrestServ="${n(c.DifIvaEntregadoPrestServ)}" ` +
+    `MonTotalporUsoPlataforma="${n(c.MonTotalporUsoPlataforma)}">` +
+    servicios +
+    `</plataformasTecnologicas:ServiciosPlataformasTecnologicas>`
+  );
 }
