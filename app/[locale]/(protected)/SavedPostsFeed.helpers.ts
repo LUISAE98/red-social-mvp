@@ -35,9 +35,11 @@ import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNav
 import { motion } from "framer-motion";
 import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "@/app/groups/[groupId]/components/posts/PostsMediaSubnav";
 import MediaGallery, { clearMediaGalleryCache, type GalleryTile } from "@/app/groups/[groupId]/components/posts/MediaGallery";
+import { CACHE_TTL } from "@/lib/cache/ttl";
 
 export const SAVED_POSTS_PAGE_SIZE = 10;
-export const SAVED_POSTS_CACHE_TTL_MS = 5 * 60 * 1000;
+// Guardados: contenido de quien mira, y suscrito al bus de invalidación.
+export const SAVED_POSTS_CACHE_TTL_MS = CACHE_TTL.CONTENIDO_PROPIO;
 export const VIDEO_PROCESSING_POLL_MS = 15_000;
 export const VIDEO_PROCESSING_MAX_POLLS = 20;
 

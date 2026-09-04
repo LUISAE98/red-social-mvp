@@ -51,6 +51,12 @@ import {
 } from "@/lib/discovery/viewSignal";
 import { followUser, unfollowUser } from "@/lib/social/social-service";
 import { joinGroup, leaveGroup } from "@/lib/groups/membership";
+import { CACHE_TTL } from "@/lib/cache/ttl";
+import {
+  borrarDeCache,
+  guardarEnCache,
+  leerDeCache,
+} from "@/lib/cache/persistentCache";
 
 
 export type HomePostsFeedProps = {
@@ -360,7 +366,7 @@ export function isVideoPostStillProcessing(post: PostWithFlags): boolean {
 }
 
 export const HOME_FEED_PAGE_SIZE = 10;
-export const HOME_FEED_CACHE_TTL_MS = 1000 * 60 * 30;
+export const HOME_FEED_CACHE_TTL_MS = CACHE_TTL.CONTENIDO_PROPIO;
 export const VIDEO_PROCESSING_POLL_MS = 15_000;
 export const VIDEO_PROCESSING_MAX_POLLS = 20;
 
@@ -396,6 +402,55 @@ export function mergeUniquePosts(
   });
 
   return Array.from(map.values());
+}
+
+/**
+ * Segundo piso de la caché del feed: IndexedDB, que sobrevive a la recarga.
+ *
+ * ⚠️ Se guardan las PUBLICACIONES, no el cursor. El cursor de Firestore es una
+ * instantánea viva de un documento, no un dato: no se puede serializar ni
+ * reconstruir desde disco. Por eso al restaurar se pinta al instante y se lanza
+ * igualmente la primera página en segundo plano — esa consulta trae el cursor de
+ * verdad, y con él vuelve a funcionar el desplazamiento infinito.
+ *
+ * El efecto para quien mira es el que se buscaba: al volver, el feed ya está
+ * ahí, en vez de una pantalla vacía mientras se rehace la consulta, la
+ * hidratación de autores y comunidades y el estado del visor.
+ */
+export function getHomeFeedPersistKey(currentUserId: string): string {
+  return `home-feed-posts:${currentUserId}`;
+}
+
+export function persistirFeedInicio(uid: string, posts: PostWithFlags[]): void {
+  // Solo la primera página. Guardar cien publicaciones tras un rato de
+  // desplazamiento haría la escritura cara y la lectura lenta, justo en el
+  // momento en el que se quiere pintar rápido.
+  const recorte = posts.slice(0, HOME_FEED_PAGE_SIZE);
+
+  if (recorte.length === 0) {
+    void borrarDeCache(getHomeFeedPersistKey(uid));
+    return;
+  }
+
+  void guardarEnCache(getHomeFeedPersistKey(uid), recorte);
+}
+
+export async function leerFeedInicioPersistido(
+  uid: string
+): Promise<PostWithFlags[] | null> {
+  const posts = await leerDeCache<PostWithFlags[]>(
+    getHomeFeedPersistKey(uid),
+    HOME_FEED_CACHE_TTL_MS
+  );
+
+  if (!posts || posts.length === 0) return null;
+
+  // Un video a medio procesar cambia solo en el servidor, así que restaurarlo
+  // desde disco enseñaría un "procesando" que quizá ya terminó. En ese caso se
+  // prefiere esperar a la consulta.
+  if (posts.some(isVideoPostStillProcessing)) return null;
+
+  return posts.filter((post) => post.isDeleted !== true);
 }
 
 export function peekFreshCache(uid: string | null): HomeFeedCacheEntry | null {

@@ -53,6 +53,7 @@ import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
 import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { CACHE_TTL } from "@/lib/cache/ttl";
 
 export type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 
@@ -321,7 +322,8 @@ export function buildCommentBlockedMessage(reason: InteractionBlockedReason): st
   return "No puedes comentar en esta comunidad";
 }
 export const GROUP_FEED_PAGE_SIZE = 10;
-export const GROUP_FEED_CACHE_TTL_MS = 1000 * 60 * 5;
+// Publicaciones de una comunidad: mismo trato que el inicio.
+export const GROUP_FEED_CACHE_TTL_MS = CACHE_TTL.CONTENIDO_PROPIO;
 export const VIDEO_PROCESSING_POLL_MS = 1000 * 15;
 export const VIDEO_PROCESSING_MAX_POLLS = 20;
 export const VIDEO_MAX_DURATION_SECONDS = 60 * 30;

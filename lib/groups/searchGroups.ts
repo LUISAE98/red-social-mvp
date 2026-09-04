@@ -17,12 +17,16 @@ import {
   tokenizeSearchText,
 } from "@/lib/search/normalize";
 import type { Group, GroupVisibility } from "@/types/group";
+import { CACHE_TTL } from "@/lib/cache/ttl";
 
 const DEFAULT_PAGE_SIZE = 12;
 const MAX_PAGE_SIZE = 24;
 const MAX_FIRESTORE_ARRAY_CONTAINS_ANY = 10;
 const MAX_FIRESTORE_DISJUNCTIONS = 30;
-const SEARCH_GROUPS_CACHE_TTL_MS = 30_000;
+// Estaba en 30 SEGUNDOS: repetir la misma búsqueda medio minuto después
+// volvía a consultar Firestore entera. Las comunidades no aparecen ni
+// desaparecen a ese ritmo.
+const SEARCH_GROUPS_CACHE_TTL_MS = CACHE_TTL.CATALOGO;
 
 type SearchableVisibility = Extract<GroupVisibility, "public" | "private">;
 

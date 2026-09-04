@@ -7,8 +7,18 @@
  *
  * Vive aparte porque la usan el hilo (junto al globo) y la lista de
  * conversaciones (bajo la hora).
+ *
+ * El color se pasa desde fuera porque las mismas palomitas dicen dos cosas: en
+ * azul, que ya lo leyeron; en gris, que salió pero todavía no. Por defecto van
+ * azules, que es como las usaba la lista de conversaciones desde el principio.
  */
-export default function ReadChecksIcon({ size = 21 }: { size?: number }) {
+export default function ReadChecksIcon({
+  size = 21,
+  color = "#53bdeb",
+}: {
+  size?: number;
+  color?: string;
+}) {
   return (
     <svg
       width={size}
@@ -16,7 +26,7 @@ export default function ReadChecksIcon({ size = 21 }: { size?: number }) {
       height={Math.round((size * 16) / 26)}
       viewBox="0 0 26 16"
       fill="none"
-      stroke="#53bdeb"
+      stroke={color}
       strokeWidth="2.4"
       strokeLinecap="round"
       strokeLinejoin="round"

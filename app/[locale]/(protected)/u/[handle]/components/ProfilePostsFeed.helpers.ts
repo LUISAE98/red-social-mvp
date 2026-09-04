@@ -42,6 +42,7 @@ import DonationFeedBanner from "@/app/components/DonationFeedBanner/DonationFeed
 import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { CACHE_TTL } from "@/lib/cache/ttl";
 
 export type DonationData = {
   mode?: string;
@@ -389,7 +390,9 @@ export function postMatchesQuery(post: Post, tokens: string[]): boolean {
 export const SEARCH_MAX_AUTO_PAGES = 12;
 
 export const PROFILE_FEED_PAGE_SIZE = 10;
-export const PROFILE_FEED_CACHE_TTL_MS = 1000 * 60 * 5;
+// Publicaciones de un perfil: mismo trato que el inicio. Estaba en 5 min y
+// era la razón de que volver a un perfil recargara la lista entera.
+export const PROFILE_FEED_CACHE_TTL_MS = CACHE_TTL.CONTENIDO_PROPIO;
 export const VIDEO_PROCESSING_POLL_MS = 15_000;
 export const VIDEO_PROCESSING_MAX_POLLS = 20;
 

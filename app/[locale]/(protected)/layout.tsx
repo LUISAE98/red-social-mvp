@@ -68,6 +68,39 @@ import PushEnablePrompt from "@/app/components/PushEnablePrompt";
  */
 const SELF_ANIMATED_SECTIONS = ["/wallet"];
 
+/**
+ * Devuelve la pantalla al sitio donde se dejó.
+ *
+ * Se intenta dos veces a propósito. Al primer intento la lista puede no tener
+ * todavía su altura —si el contenido aún no llegó, el navegador recorta el
+ * destino a lo que haya— así que se repite en el siguiente fotograma, cuando ya
+ * se pintó lo que venía de la caché. El segundo intento se salta si para
+ * entonces alguien ya movió la pantalla a mano.
+ */
+function restaurarScroll(pathname: string): void {
+  let objetivo: number;
+
+  try {
+    const guardado = sessionStorage.getItem(`nav:scroll:${pathname}`);
+    objetivo = guardado !== null ? parseInt(guardado, 10) : 0;
+  } catch {
+    objetivo = 0;
+  }
+
+  if (!Number.isFinite(objetivo) || objetivo < 0) objetivo = 0;
+
+  window.scrollTo({ top: objetivo, behavior: "instant" });
+  if (objetivo === 0) return;
+
+  requestAnimationFrame(() => {
+    // `scrollY` se quedó corto porque faltaba altura, no porque alguien tocara
+    // la rueda: en ese caso, y solo en ese, se vuelve a intentar.
+    if (Math.abs(window.scrollY - objetivo) > 4 && window.scrollY < objetivo) {
+      window.scrollTo({ top: objetivo, behavior: "instant" });
+    }
+  });
+}
+
 function isNavWithinSelfAnimatedSection(
   prev: string | null,
   next: string
@@ -284,6 +317,44 @@ const montarSidebar = !isEmbed && soloEscritorio;
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  /**
+   * Guarda continuamente dónde está el scroll de la pantalla actual.
+   *
+   * Antes solo lo guardaba el nav inferior, al tocarlo. Así que la vía más
+   * común de todas —bajar por el feed, abrir una publicación y volver— no
+   * guardaba nada, y al volver la lista aparecía arriba del todo. Con el feed
+   * restaurándose ya desde la caché de disco, esa es justo la pieza que
+   * quedaba para que volver no se sienta como recargar.
+   *
+   * Escribe en el mismo `nav:scroll:<ruta>` que ya usaba el nav inferior, así
+   * que los dos caminos siguen entendiéndose.
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let pendiente = 0;
+
+    const guardar = () => {
+      // Una escritura por fotograma como mucho: `scroll` dispara decenas de
+      // veces por segundo y `sessionStorage` es síncrono.
+      if (pendiente) return;
+      pendiente = requestAnimationFrame(() => {
+        pendiente = 0;
+        try {
+          sessionStorage.setItem(`nav:scroll:${pathname}`, String(window.scrollY));
+        } catch {
+          // Modo privado o sin cuota: se navega igual, solo sin recordar el sitio.
+        }
+      });
+    };
+
+    window.addEventListener("scroll", guardar, { passive: true });
+    return () => {
+      if (pendiente) cancelAnimationFrame(pendiente);
+      window.removeEventListener("scroll", guardar);
+    };
+  }, [pathname]);
+
   useLayoutEffect(() => {
     const explicit = consumeNavSlideDir();
     const wasBack = poppedRef.current;
@@ -308,10 +379,25 @@ const montarSidebar = !isEmbed && soloEscritorio;
 
     if (explicit) {
       // Navegación del subnav: además restaura el scroll que tenía esa página.
-      const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
-      window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
+      restaurarScroll(pathname);
       pendingAnimDirRef.current = explicit;
       return;
+    }
+
+    /**
+     * VOLVER ATRÁS también restaura el sitio.
+     *
+     * Es el caso que faltaba, y el más frecuente: bajar por el feed, abrir una
+     * publicación y volver. `scrollRestoration` está en "manual" unas líneas más
+     * arriba —para que el navegador no pelee con nuestra restauración— así que
+     * si aquí no se hace nada, atrás deja la pantalla arriba del todo. Eso es
+     * exactamente lo que se lee como "se recargó todo".
+     *
+     * Solo hacia ATRÁS: ir hacia adelante a una pantalla nueva debe empezar
+     * arriba, y de eso ya se encarga Next.
+     */
+    if (wasBack) {
+      restaurarScroll(pathname);
     }
 
     // En CELULAR toda navegación desliza, la pida quien la pida: un enlace del

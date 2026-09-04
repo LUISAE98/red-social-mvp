@@ -28,6 +28,7 @@ import { WalletFilterMenu } from "@/app/(protected)/wallet/components/WalletUi";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import SearchDateFilterMenu from "@/app/components/SearchToolbar/SearchDateFilterMenu";
 import type { PostsSearchFilter } from "@/app/components/SearchToolbar/SearchPostsResults";
+import { CACHE_TTL } from "@/lib/cache/ttl";
 
 import type {
   CanonicalMemberStatus,
@@ -64,7 +65,10 @@ const SearchPostsResults = dynamic(
 const MIN_SEARCH_LENGTH = 2;
 const SEARCH_LIMIT = 20;
 const SEARCH_DEBOUNCE_MS = 350;
-const VIEWER_GROUP_STATE_TTL_MS = 60_000;
+// 🚨 CORTO A PROPÓSITO — no subirlo. Guarda si eres miembro y si tu solicitud
+// sigue pendiente, y eso lo cambia OTRA PERSONA desde su teléfono. Ver
+// CACHE_TTL.TERCEROS.
+const VIEWER_GROUP_STATE_TTL_MS = CACHE_TTL.TERCEROS;
 
 const viewerGroupStateCache = new Map<string, ViewerGroupStateCacheEntry>();
 

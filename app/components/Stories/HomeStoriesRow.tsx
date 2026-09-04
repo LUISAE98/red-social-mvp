@@ -34,6 +34,7 @@ import HomeStoryCarouselDesktop, { type CarouselGroup } from "./HomeStoryCarouse
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import { RAIL_CARD_W, RAIL_GAP } from "@/app/components/GroupRecommendations/GroupRecommendationsRail.parts";
 import { useDragScroll } from "@/lib/hooks/useDragScroll";
+import { CACHE_TTL } from "@/lib/cache/ttl";
 
 // Las medidas se IMPORTAN del rail de recomendaciones en vez de copiarse. Los
 // dos rails viven pegados en el home y tienen que leerse como el mismo sistema;
@@ -82,7 +83,9 @@ const AVATAR_SIZE = 34;
 // ─── Caché a nivel de módulo, sobrevive a la navegación en la misma pestaña ───
 type IdsEntry = { creatorIds: string[]; groupIds: string[]; cachedAt: number };
 const idsCache = new Map<string, IdsEntry>();
-const IDS_TTL_MS = 5 * 60 * 1000;
+// A quién sigues cambia cuando TÚ sigues a alguien, y eso ya invalida esta
+// caché a mano (invalidateFollowedIdsCache). El TTL es solo la red de abajo.
+const IDS_TTL_MS = CACHE_TTL.CATALOGO;
 
 function peekIds(uid: string): IdsEntry | null {
   const e = idsCache.get(uid);

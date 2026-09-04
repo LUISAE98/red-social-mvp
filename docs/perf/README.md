@@ -126,6 +126,40 @@ Se mantienen en celular, porque el header móvil los usa de verdad:
 > una sesión real en el navegador. Lo de arriba es la bajada de **bytes**, que sí
 > está medida.
 
+### Bloque 2.2 y 2.4 — menos escuchas, no menos bytes
+
+Estos dos no mueven el peso del paquete: quitan **escuchas de Firestore**, que
+es lo que hace lento el cambio de pantalla y lo que engorda la factura.
+
+**Solicitudes de ingreso — de N escuchas a ninguna.** El menú lateral abría UNA
+escucha por comunidad sobre `groups/{id}/joinRequests` solo para pintar el
+globito. Ahora el número vive en el propio documento del grupo
+(`pendingJoinRequestsCount`), que el menú YA escucha para dibujarse. Las filas —
+quién pidió entrar— se traen únicamente de la comunidad que el creador tenga
+desplegada.
+
+- Trigger: `backend/src/entityCounters.ts` → `onJoinRequestsPendingCount`
+- Backfill: `npx tsx scripts/backfill-pending-join-requests.ts`
+- Reglas: **no hacía falta tocarlas.** El `allow update` de `groups` acota con
+  `hasOnly([...])` y el campo nuevo no está en esa lista, así que el cliente no
+  puede escribirlo. Mismo caso que `membersCount` y `postsCount`.
+
+**Señales de los rails — solo la mitad se agrupa, y es deliberado.**
+
+- **Perfiles:** una sola consulta por lote en vez de treinta escuchas. La regla
+  de `/users/{uid}` es `get, list: if true`, así que agrupar no cuesta nada.
+- **Comunidades:** sigue una escucha por documento. La regla `list` de `/groups`
+  termina en `isMember()`, `isOwner()`, `isModerator()` e `isPlatformMod()`, que
+  hacen llamadas a `get()`. Por lote, **una sola comunidad oculta** basta para que
+  la evaluación caiga hasta ahí, se pase del límite de `get()` y Firestore niegue
+  la consulta **entera** — no solo esa comunidad. Es un fallo que este repositorio
+  ya se comió una vez. Sale más caro y se queda así a propósito.
+
+**De paso:** `OwnerSidebar.parts.tsx` tenía **56 vinculaciones importadas y sin
+usar** —el árbol entero del menú, Firestore, auth— en un archivo que solo exporta
+tres componentes de presentación y tipos. Quedaron ahí al partir el componente
+original.
+
 ⚠️ **El bloque 1.1 (partir las traducciones) se pospone hasta después del resto
 del bloque 2.** Los espacios de nombres pesados —`services` 38,5 KB y `wallet`
 32,5 KB— se usan dentro de `OwnerSidebar`. Ahora que no se monta en celular, el

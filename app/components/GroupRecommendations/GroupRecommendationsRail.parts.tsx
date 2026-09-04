@@ -62,11 +62,14 @@ import type {
   RecommendationRailContext,
 } from "./types";
 import { RailActionButton, type RailBtnTono } from "./RailActionButton";
+import { CACHE_TTL } from "@/lib/cache/ttl";
 
 // Module-level profile cache — survives navigation in the same tab
 export type ProfileCacheEntry = { profiles: RecommendationProfileCard[]; cachedAt: number };
 export const profileCache = new Map<string, ProfileCacheEntry>();
-export const PROFILE_CACHE_TTL_MS = 90_000;
+// Estaba en 90 segundos, contra los 10 minutos del motor que las calcula:
+// las tarjetas caducaban seis veces antes que la recomendación que muestran.
+export const PROFILE_CACHE_TTL_MS = CACHE_TTL.CATALOGO;
 
 export function peekProfiles(uid: string): RecommendationProfileCard[] | null {
   const e = profileCache.get(uid);

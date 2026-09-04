@@ -250,6 +250,18 @@ const BUBBLE_THEIRS = "rgba(255,255,255,0.07)";
 const THREAD_GRADIENT =
   "linear-gradient(180deg, #ff4d9d 0%, #4d7cf5 38%, #a855f7 78%, #a855f7 100%)";
 
+/**
+ * La hora del chat va SIEMPRE en 24 h (14:22), en los 47 idiomas.
+ *
+ * `hourCycle` y no `hour12: false`: el segundo, en varios locales, devuelve el
+ * ciclo h24 y saca las medianoches como "24:00".
+ */
+const HORA_24H: Intl.DateTimeFormatOptions = {
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+};
+
 
 /** Pista del gesto: aparece a la izquierda del globo según se arrastra. */
 function SwipeReplyCue() {
@@ -989,27 +1001,21 @@ export default function ConversationThread({
   }, [retryImageUrls]);
 
   /**
-   * Cuál de MIS mensajes lleva las palomitas de leído.
+   * Hasta cuándo leyó la otra persona, en milisegundos.
    *
    * Sale del recibo agregado que ya existía: `lastReadAt` guarda hasta cuándo
    * leyó cada quien, así que un mensaje está leído si es anterior a esa marca.
    * No hace falta ningún campo por mensaje ni ninguna escritura nueva — que es
    * justo lo que abarataba este diseño desde el principio.
+   *
+   * Antes esto buscaba UN mensaje, el último leído, porque las palomitas iban
+   * solo en él. Ahora las lleva cada mensaje mío, así que lo que hace falta es
+   * la marca suelta y cada globo se compara con ella.
    */
-  const lastReadMineId = useMemo(() => {
+  const otherLastReadMs = useMemo(() => {
     const readAt = otherUid ? conversation?.lastReadAt?.[otherUid] : null;
-    if (!readAt || !selfUid) return null;
-
-    for (let i = messages.length - 1; i >= 0; i -= 1) {
-      const candidate = messages[i];
-      if (candidate.senderId !== selfUid) continue;
-      // Sin `createdAt` es una escritura optimista que el servidor aún no ha
-      // sellado: no se puede comparar, y desde luego no está leída.
-      const at = candidate.createdAt;
-      if (at && at.toMillis() <= readAt.toMillis()) return candidate.id;
-    }
-    return null;
-  }, [messages, conversation?.lastReadAt, otherUid, selfUid]);
+    return readAt ? readAt.toMillis() : null;
+  }, [conversation?.lastReadAt, otherUid]);
 
   /** URL para pintar: la firmada, o la permanente si es un mensaje antiguo. */
   function imageUrl(image: ChatImage, variant: "thumb" | "full"): string | null {
@@ -1386,10 +1392,7 @@ export default function ConversationThread({
     // y que el orden sea siempre hora → fecha, sea cual sea el idioma.
     const time = date
       ? [
-          new Intl.DateTimeFormat(locale, {
-            hour: "numeric",
-            minute: "2-digit",
-          }).format(date),
+          new Intl.DateTimeFormat(locale, HORA_24H).format(date),
           new Intl.DateTimeFormat(locale, {
             day: "numeric",
             month: "short",
@@ -1398,15 +1401,36 @@ export default function ConversationThread({
         ].join(" · ")
       : "";
 
+    /** La del pie del globo: solo la hora, sin la fecha. */
+    const shortTime = date
+      ? new Intl.DateTimeFormat(locale, HORA_24H).format(date)
+      : "";
+
     /**
-     * Este mensaje es el que lleva las palomitas de leído.
+     * Las palomitas van en TODOS mis mensajes, no solo en el último.
      *
-     * Solo uno en todo el hilo, y va recorriéndose: es el ÚLTIMO tuyo que la
-     * otra persona ya vio. Marcarlos todos sería ruido, y dejarlas clavadas en
-     * el último enviado las haría desaparecer cada vez que escribes algo nuevo
-     * — justo cuando más quieres saber si lo leyeron.
+     * Antes marcaban uno solo — el último que la otra persona había visto — para
+     * no llenar el hilo de iconos. Con el pie dentro del globo ya no estorban:
+     * son parte del renglón de la hora, como en WhatsApp, y así se ve de un
+     * vistazo dónde se quedó de leer sin tener que deducirlo.
+     *
+     * Azules si ya lo leyeron, grises si aún no. Sin `createdAt` es una
+     * escritura optimista que el servidor no ha sellado: no se puede comparar,
+     * y desde luego no está leída.
      */
-    const showsReadChecks = message.id === lastReadMineId;
+    const showsReadChecks = mine;
+    const readByOther =
+      !!date && otherLastReadMs !== null && date.getTime() <= otherLastReadMs;
+
+    /**
+     * Hueco que el texto le reserva al pie en su última línea.
+     *
+     * El pie va posicionado sobre la esquina del globo, o sea FUERA del flujo,
+     * así que sin esto el final del último renglón se le metería debajo. Un
+     * hueco al final del texto lo empuja, y si no cabe, el pie se queda solo en
+     * un renglón nuevo — que es exactamente lo que hace WhatsApp.
+     */
+    const metaWidth = (shortTime ? 34 : 0) + (showsReadChecks ? 21 : 0);
 
     // Una imagen sin pie ni cita ES el mensaje: no lleva globo detrás, solo sus
     // esquinas redondeadas.
@@ -1898,9 +1922,6 @@ export default function ConversationThread({
                   // El relleno vive aquí, no en el globo. Con imagen encima se
                   // aprieta un poco arriba: la foto ya separa visualmente.
                   padding: message.image && !message.isDeleted ? "6px 11px 9px" : "8px 11px",
-                  // Hueco para las palomitas, que van en esa esquina. Sin él, el
-                  // final de la última línea les pasa por debajo.
-                  paddingInlineEnd: showsReadChecks ? 36 : undefined,
                   fontSize: 13.5,
                   lineHeight: 1.4,
                   color: message.isDeleted
@@ -1914,26 +1935,56 @@ export default function ConversationThread({
                 {message.isDeleted
                   ? tChat("messageDeleted")
                   : renderMessageText(message.text)}
+
+                {/* El hueco del pie, al final del texto y no como relleno del
+                    bloque: como relleno se lo comería a TODOS los renglones, y
+                    en un mensaje largo eso es una columna vacía de arriba abajo.
+                    Aquí solo estrecha el último, que es el único que lo necesita. */}
+                {metaWidth ? (
+                  <span
+                    aria-hidden
+                    style={{ display: "inline-block", width: metaWidth, height: 1 }}
+                  />
+                ) : null}
               </div>
             ) : null}
 
-            {/* Palomitas de leído DENTRO del globo, en su esquina inferior
-                interior. Fuera se les cruzaba todo: quedaban debajo de la foto
-                del mensaje siguiente y compartían sitio con el corazón. Aquí
-                nada las tapa, y sobre una foto a sangre la sombra las despega. */}
-            {showsReadChecks ? (
+            {/* Pie del globo, al estilo de WhatsApp: la hora y, en lo mío, las
+                palomitas detrás. Va DENTRO y en la esquina inferior interior —
+                fuera se les cruzaba todo, quedaban debajo de la foto del mensaje
+                siguiente y compartían sitio con el corazón. Sobre una foto a
+                sangre la sombra lo despega del fondo.
+
+                Es decorativo para el lector de pantalla: la hora completa, con
+                su fecha, ya se anuncia en el detalle que abre el menú. */}
+            {shortTime || showsReadChecks ? (
               <span
                 aria-hidden
                 style={{
                   position: "absolute",
-                  insetInlineEnd: 8,
-                  bottom: 6,
-                  lineHeight: 0,
-                  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.6))",
+                  insetInlineEnd: 9,
+                  bottom: 5,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                  lineHeight: 1,
                   pointerEvents: "none",
+                  fontSize: 10.5,
+                  // Cifras de ancho fijo: sin esto la hora cambia de ancho al
+                  // pasar de las 11:11 a las 20:00 y el hueco reservado deja de
+                  // cuadrar.
+                  fontVariantNumeric: "tabular-nums",
+                  color: mine ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.45)",
+                  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.55))",
                 }}
               >
-                <ReadChecksIcon size={17} />
+                {shortTime ? <span>{shortTime}</span> : null}
+                {showsReadChecks ? (
+                  <ReadChecksIcon
+                    size={16}
+                    color={readByOther ? "#53bdeb" : "rgba(255,255,255,0.55)"}
+                  />
+                ) : null}
               </span>
             ) : null}
 

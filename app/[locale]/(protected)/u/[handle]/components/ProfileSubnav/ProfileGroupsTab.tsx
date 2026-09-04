@@ -20,6 +20,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { CACHE_TTL } from "@/lib/cache/ttl";
 
 type ProfileGroupsTabProps = {
   profileUid: string;
@@ -50,7 +51,7 @@ type GroupListItem = {
 // Module-level cache — survives navigation in the same tab
 type GroupsCacheEntry = { groups: GroupListItem[]; cachedAt: number };
 const groupsCache = new Map<string, GroupsCacheEntry>();
-const GROUPS_CACHE_TTL_MS = 3 * 60 * 1000;
+const GROUPS_CACHE_TTL_MS = CACHE_TTL.CATALOGO;
 
 function peekGroups(key: string): GroupListItem[] | null {
   const e = groupsCache.get(key);

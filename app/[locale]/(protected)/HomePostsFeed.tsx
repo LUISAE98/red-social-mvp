@@ -56,6 +56,7 @@ import {
   HOME_FEED_CACHE_TTL_MS, HOME_FEED_PAGE_SIZE, TAGS_PROP_SEP,
   VIDEO_PROCESSING_MAX_POLLS, VIDEO_PROCESSING_POLL_MS,
   getHomeFeedCacheKey, homeFeedMemoryCache, isVideoPostStillProcessing,
+  leerFeedInicioPersistido, persistirFeedInicio,
   mergeUniquePosts, normalizeHomeFeedPost, peekFreshCache,
   type HomePostsFeedProps, type PostWithFlags,
 } from "./HomePostsFeed.parts";
@@ -108,6 +109,7 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
               hasMore: hasMoreRef.current,
               updatedAt: Date.now(),
             });
+            persistirFeedInicio(currentUserId, next);
           } else {
             homeFeedMemoryCache.delete(cacheKey);
           }
@@ -272,6 +274,7 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
               hasMore: nextHasMore,
               updatedAt: Date.now(),
             });
+            persistirFeedInicio(currentUserId, nextPosts);
           } else {
             homeFeedMemoryCache.delete(getHomeFeedCacheKey(currentUserId));
           }
@@ -357,6 +360,24 @@ const handleHomePullRefresh = useCallback(async () => {
 
       if (cached && cached.posts.length === 0) {
         homeFeedMemoryCache.delete(cacheKey);
+      }
+
+      /**
+       * Nada en memoria. Antes esto significaba pantalla vacía hasta que
+       * terminaran la consulta, la hidratación de autores y comunidades y el
+       * estado del visor — o sea, en CADA recarga y al volver de una pasarela.
+       *
+       * Ahora se mira el disco primero y se pinta con lo que haya. La consulta
+       * sale igual, detrás, y reemplaza lo pintado: es la que trae el cursor,
+       * sin el cual no habría desplazamiento infinito.
+       */
+      const persistido = await leerFeedInicioPersistido(currentUserId);
+
+      if (!active) return;
+
+      if (persistido && persistido.length > 0) {
+        setPosts(persistido);
+        setLoadingInitial(false);
       }
 
       if (active) {

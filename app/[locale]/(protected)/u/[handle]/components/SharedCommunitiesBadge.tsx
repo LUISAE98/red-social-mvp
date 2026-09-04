@@ -8,11 +8,12 @@ import {
   type SharedCommunity,
 } from "@/lib/social/sharedCommunities";
 import SharedCommunitiesOverlay from "./SharedCommunitiesOverlay";
+import { CACHE_TTL } from "@/lib/cache/ttl";
 
 // Module-level cache — survives navigation in the same tab
 type CommunitiesCacheEntry = { communities: SharedCommunity[]; cachedAt: number };
 const communitiesCache = new Map<string, CommunitiesCacheEntry>();
-const COMMUNITIES_CACHE_TTL_MS = 3 * 60 * 1000;
+const COMMUNITIES_CACHE_TTL_MS = CACHE_TTL.CATALOGO;
 
 function peekCommunities(key: string): SharedCommunity[] | null {
   const e = communitiesCache.get(key);

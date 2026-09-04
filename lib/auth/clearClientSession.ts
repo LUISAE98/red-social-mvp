@@ -4,6 +4,7 @@ import { terminate, clearIndexedDbPersistence } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
 import { clearStoredSessionId } from "@/lib/sessions/sessions-service";
+import { vaciarCache } from "@/lib/cache/persistentCache";
 
 // Claves de localStorage que son SOLO de la sesión y no deben sobrevivir para el
 // siguiente usuario de este navegador.
@@ -37,6 +38,17 @@ export async function clearClientSession(): Promise<void> {
     clearStoredSessionId();
   } catch {
     // ignorar
+  }
+
+  // Las listas que guardamos nosotros en IndexedDB (el feed, sobre todo). Van
+  // ANTES de terminar Firestore: son una base distinta, no dependen de él, y si
+  // el borrado de la de Firestore falla —pasa cuando hay otra pestaña abierta—
+  // esto ya se hizo. En un equipo compartido, el feed de quien acaba de salir no
+  // puede quedarse en disco.
+  try {
+    await vaciarCache();
+  } catch {
+    // ignorar: el borrado es best-effort y no puede bloquear la salida
   }
 
   // La caché de Firestore. `clearIndexedDbPersistence` exige que la instancia
