@@ -8,15 +8,33 @@
  * nuevos vienen de `useNewPostsCounts` y las visitas de `useSidebarVisitCounts`.
  *
  * Coste: las historias se resuelven con los suscriptores POR LOTE del servicio
- * (`in` de 30 en 30, uno o dos listeners para toda la lista). El live no tiene
- * equivalente por lote —vive en un campo del documento de cada entidad— así que
- * se abre un listener por entidad. Son los MISMOS documentos que cada tarjeta ya
- * escucha al pintar su aro, así que no añade lecturas nuevas al estado
- * estacionario; solo las adelanta para poder ordenar antes de pintar.
+ * (`in` de 30 en 30, uno o dos listeners para toda la lista).
+ *
+ * El live vive en un campo del documento de cada entidad, y ahí el coste ya no
+ * es el mismo en los dos lados:
+ *
+ *   · PERFILES — una sola consulta por lote. La regla de `/users/{uid}` es
+ *     `get, list: if true`, así que agrupar no cuesta nada y las treinta
+ *     escuchas del rail se quedan en una.
+ *   · COMUNIDADES — sigue habiendo una escucha por entidad, a propósito. La
+ *     regla `list` de `/groups` termina en comprobaciones con `get()`, y por
+ *     lote una comunidad oculta basta para pasarse del límite y tumbar la
+ *     consulta entera. Está explicado en detalle dentro del efecto.
+ *
+ * En ambos casos son los MISMOS documentos que cada tarjeta ya escucha al pintar
+ * su aro, así que en estado estacionario esto no añade lecturas nuevas; solo las
+ * adelanta para poder ordenar antes de pintar.
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  documentId,
+  onSnapshot,
+  query,
+  where,
+} from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
 import {
@@ -48,15 +66,74 @@ export function useRailSignals(
     const list = idsKey ? idsKey.split(",") : [];
     if (list.length === 0) return;
 
-    const collectionName = entityType === "profile" ? "users" : "groups";
+    const esVivo = (raw: unknown) => typeof raw === "string" && raw.length > 0;
+
+    /**
+     * PERFILES: una sola consulta por lote en vez de treinta escuchas.
+     *
+     * El rail está topado a 30 seguidos (OWNER_SIDEBAR_FOLLOWING_LIMIT), y el
+     * `in` de Firestore admite justo 30, así que esto es UNA escucha para toda
+     * la tira. Es seguro porque la regla de `/users/{uid}` es `get, list: if
+     * true`: no mira ningún campo y no hace ni una llamada a `get()`.
+     */
+    if (entityType === "profile") {
+      const unsubs: Array<() => void> = [];
+      const porLote = new Map<number, Set<string>>();
+
+      const publicar = () => {
+        const union = new Set<string>();
+        for (const lote of porLote.values()) for (const id of lote) union.add(id);
+        setLiveIds(union);
+      };
+
+      for (let i = 0; i < list.length; i += 30) {
+        const lote = list.slice(i, i + 30);
+        const indice = i;
+
+        unsubs.push(
+          onSnapshot(
+            query(collection(db, "users"), where(documentId(), "in", lote)),
+            (snap) => {
+              const vivos = new Set<string>();
+              snap.forEach((d) => {
+                if (esVivo(d.data()?.activeLivePostId)) vivos.add(d.id);
+              });
+              porLote.set(indice, vivos);
+              publicar();
+            },
+            () => {
+              // Sin permiso: simplemente no se ordena por live.
+              porLote.set(indice, new Set());
+              publicar();
+            }
+          )
+        );
+      }
+
+      return () => unsubs.forEach((unsub) => unsub());
+    }
+
+    /**
+     * COMUNIDADES: aquí NO se agrupa, y es deliberado.
+     *
+     * La regla `list` de `/groups/{groupId}` termina en `isMember()`,
+     * `isOwner()`, `isModerator()` e `isPlatformMod()`, que hacen llamadas a
+     * `get()`. Con una consulta por lote, una sola comunidad oculta en la tira
+     * hace caer la evaluación hasta esas funciones y el gasto de `get()` se
+     * multiplica por el tamaño del lote hasta pasarse del límite — y entonces
+     * Firestore niega la consulta ENTERA, no solo esa comunidad. Es un fallo que
+     * este repositorio ya se comió una vez.
+     *
+     * Una escucha por documento pasa por la regla `get`, que es otra y no tiene
+     * ese problema. Sale más cara y se queda así a propósito.
+     */
     const live = new Set<string>();
 
     const unsubs = list.map((id) =>
       onSnapshot(
-        doc(db, collectionName, id),
+        doc(db, "groups", id),
         (snap) => {
-          const raw = snap.data()?.activeLivePostId;
-          const isLive = typeof raw === "string" && raw.length > 0;
+          const isLive = esVivo(snap.data()?.activeLivePostId);
 
           // Mutar y clonar: `setState` con un Set nuevo por evento mantiene la
           // identidad estable cuando nada cambió, y evita repintar la tira.

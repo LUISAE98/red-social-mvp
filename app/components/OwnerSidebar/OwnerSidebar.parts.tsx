@@ -2,70 +2,16 @@
 
 // Tipos compartidos y sub-componentes (Switch, Chevron, CountBadge, TabIcon) de OwnerSidebar.
 
-import Image from "next/image";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import {
-  collection,
-  doc,
-  getDoc,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-  Timestamp,
-  type FirestoreError,
-} from "firebase/firestore";
-import { onAuthStateChanged, type User } from "firebase/auth";
-
-import { auth, db } from "@/lib/firebase";
-import {
-  approveJoinRequest,
-  rejectJoinRequest,
-} from "@/lib/groups/joinRequests.admin";
-import { subscribeToMySidebarGroups } from "@/lib/groups/sidebarGroups";
-import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
-import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
-import OwnerSidebarTabNav from "./OwnerSidebarTabNav";
-import OwnerSidebarMyGroups from "./OwnerSidebarMyGroups";
-import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
-import OwnerSidebarFollowedProfiles from "./OwnerSidebarFollowedProfiles";
-import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
-import CopyLinkButton from "@/components/ui/CopyLinkButton";
-import RefreshableArea from "@/components/refresh/RefreshableArea";
-import { useSidebarVisitCounts } from "@/lib/hooks/useSidebarVisitCounts";
-import { useNewPostsCounts } from "@/lib/hooks/useNewPostsCounts";
-import { useVibraToast } from "@/lib/hooks/useVibraToast";
-import VibraToast from "@/app/components/VibraToast/VibraToast";
-import {
-  visibilitySectionTitle,
-  typeLabel,
-  getServiceBucketKey,
-  isMeetGreetCreatorActiveItem,
-  isBuyerRequestedVisibleItem,
-  fmtDate,
-  getInitials,
-  friendlyJoinErrorMessage,
-  buildDisplayName,
-  OWNER_SIDEBAR_FOLLOWING_LIMIT,
-  normalizeOwnerSidebarNoShowStatus,
-  normalizeSidebarMemberStatus,
-  normalizeSidebarGroupRole,
-  sortGroupsWithModsFirst,
-  resolveSidebarSubscriptionEnabled,
-  resolveSidebarSubscriptionPrice,
-  resolveSidebarSubscriptionCurrency,
-} from "./OwnerSidebar.utils";
+/**
+ * Este archivo solo define TIPOS y tres componentes de presentación (Switch,
+ * Chevron, CountBadge). Su bloque de imports arrastraba, sin usar ni uno, el
+ * árbol entero del menú lateral —sus cinco secciones, Firestore, auth, los
+ * hooks de contadores— porque quedó ahí al partir el componente original.
+ * Eran 56 vinculaciones muertas. Si vuelve a hacer falta algo, se importa;
+ * lo que no se usa no se queda.
+ */
+import { Timestamp } from "firebase/firestore";
+import { type User } from "firebase/auth";
 
 export type Currency = "MXN" | "USD";
 export type SidebarMemberStatus =

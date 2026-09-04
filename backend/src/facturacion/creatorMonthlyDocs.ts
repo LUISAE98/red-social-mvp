@@ -295,6 +295,68 @@ export async function asientosDelMes(
 }
 
 type FacturapiDoc = { id: string; uuid?: string; total?: number };
+type FacturapiCustomer = { id?: string };
+
+/**
+ * Da de alta al CREADOR como cliente en la organización de VIBRA.
+ *
+ * ⚠️ EL EMISOR DE ESTOS DOS DOCUMENTOS ES VIBRA, así que el creador es el RECEPTOR y tiene que
+ * existir como cliente en la organización de ella. Los clientes de Facturapi son POR
+ * ORGANIZACIÓN: que el creador tenga la suya propia —donde él emite sus ventas— no lo hace
+ * existir en la de Vibra.
+ *
+ * 🚨 ESTO NO EXISTÍA. `facturapiCustomerIdVibra` se LEÍA en el proceso mensual y no lo escribía
+ *    nadie, así que la comisión y la constancia **nunca podrían haberse emitido**: el proceso
+ *    contaba un error por cada documento y seguía. Salió a la luz el 2026-09-03, al timbrar de
+ *    verdad por primera vez.
+ *
+ * Se guarda el id para no repetir el alta cada mes.
+ */
+export async function asegurarCreadorEnOrgDeVibra(
+  creatorId: string,
+  perfil: admin.firestore.DocumentData
+): Promise<string> {
+  const previo = String(perfil.facturapiCustomerIdVibra ?? "").trim();
+  if (previo) return previo;
+
+  const taxId = String(perfil.taxId ?? "").trim().toUpperCase();
+  const legalName = String(perfil.legalName ?? "").trim();
+  const taxSystem = String(perfil.taxSystem ?? "").trim();
+  const zip = String(perfil.zip ?? "").trim();
+  if (!taxId || !legalName || !taxSystem || !zip) {
+    // Sin datos fiscales no hay receptor posible. Se dice qué falta, no «error genérico».
+    const faltan = [
+      !taxId && "RFC",
+      !legalName && "razón social",
+      !taxSystem && "régimen fiscal",
+      !zip && "código postal",
+    ].filter(Boolean);
+    throw new Error(`al creador le faltan datos fiscales: ${faltan.join(", ")}`);
+  }
+
+  const email = String(perfil.email ?? "").trim();
+  const res = await facturapiFetch<FacturapiCustomer>("/customers", {
+    method: "POST",
+    body: {
+      legal_name: legalName,
+      tax_id: taxId,
+      tax_system: taxSystem,
+      address: { zip },
+      ...(email ? { email } : {}),
+    },
+    auth: "secret", // 👈 la organización de VIBRA: el emisor es ella.
+  });
+  if (!res.ok || !res.data?.id) {
+    throw new Error(`alta del creador en la org de Vibra falló: ${String(res.ok ? "" : res.error).slice(0, 200)}`);
+  }
+
+  await db.doc(`creatorTaxProfiles/${creatorId}`).set(
+    { facturapiCustomerIdVibra: res.data.id },
+    { merge: true }
+  );
+  logger.info("creador_alta_en_org_vibra", { creatorId, customerId: res.data.id });
+  return res.data.id;
+}
 
 /**
  * Resumen mínimo que acompaña a un documento registrado.

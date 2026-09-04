@@ -29,6 +29,7 @@ import {
   emitirCfdiComision,
   emitirCfdiRetenciones,
   periodoDe,
+  asegurarCreadorEnOrgDeVibra,
   registrarDocumento,
   serviciosDelPeriodo,
   yaEmitido,
@@ -104,9 +105,6 @@ export async function procesarPeriodo(
       r.creadores++;
 
       const toca = documentosDelMes(acc);
-      // El cliente de Facturapi del creador, dado de alta en la organización de VIBRA:
-      // aquí el emisor es ella, así que el creador es el receptor.
-      const customerId = String(p.get("facturapiCustomerIdVibra") ?? "").trim();
 
       for (const tipo of ["comision", "retenciones", "liquidacion"] as const) {
         if (!toca[tipo]) continue;
@@ -129,11 +127,16 @@ export async function procesarPeriodo(
         }
 
         if (timbrar && tipo !== "liquidacion") {
-          if (!customerId) {
-            logger.warn("monthly_docs_sin_customer", { creatorId, periodo, tipo });
-            r.errores++;
-            continue;
-          }
+          /**
+           * El creador tiene que existir como CLIENTE en la organización de Vibra, porque en
+           * estos dos documentos el emisor es ella. Se da de alta la primera vez y se guarda.
+           *
+           * 🚨 Antes esto solo se LEÍA de `facturapiCustomerIdVibra`, que no lo escribía nadie:
+           *    la comisión y la constancia contaban un error por documento y no se emitían
+           *    nunca. Si falla, lanza y el creador entero queda en el informe con el motivo,
+           *    en vez de sumar un error mudo.
+           */
+          const customerId = await asegurarCreadorEnOrgDeVibra(creatorId, p.data() ?? {});
           const doc =
             tipo === "comision"
               ? await emitirCfdiComision(acc, customerId)

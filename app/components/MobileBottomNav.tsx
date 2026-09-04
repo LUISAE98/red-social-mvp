@@ -617,20 +617,8 @@ export default function MobileBottomNav({
 
              Ya cayeron dos:
                · un translateZ, que se quitó en su día;
-               · view-transition-name: mobile-nav, que se BORRÓ. Primero se probó
-                 moverlo a .navShell y en iPhone bastó, pero en Android no: en
-                 Chromium esa propiedad promociona a capa el elemento que la
-                 lleva, y ahí el backdrop-filter de ESE MISMO elemento se queda
-                 sin fondo que leer. WebKit la trataba de forma más benigna, y de
-                 ahí que el mismo código se viera bien en un teléfono y como un
-                 vidrio limpio en el otro.
-
-                 No se perdió nada al borrarla: en todo el repositorio no hay ni
-                 un startViewTransition() ni una regla @view-transition, así que
-                 el nombre no llegaba a animar nunca nada. Era peso muerto que
-                 solo servía para romper el cristal. Si algún día se quieren
-                 transiciones de vista de verdad, el nombre NO puede volver aquí
-                 ni a .navShell: tendrá que ir en un elemento que no difumine.
+               · view-transition-name: mobile-nav, que se mudó a .navShell (ver
+                 abajo) porque volvía a matarlo exactamente igual.
 
              La lista completa de disparadores es transform, opacity menor que 1,
              filter, mask, mix-blend-mode, will-change de cualquiera de ellos y
@@ -642,6 +630,11 @@ export default function MobileBottomNav({
         /* La píldora flotante. No toca ningún canto: se apoya sobre el contenido,
            que se ve difuminado por detrás. */
         .navShell {
+          /* Aquí sí puede estar: una raíz de backdrop afecta a los DESCENDIENTES
+             del elemento que la abre, no al elemento mismo. La píldora sigue
+             midiendo su backdrop contra la página, que es lo que se quiere, y la
+             transición de vista sigue animando lo único que se ve de verdad. */
+          view-transition-name: mobile-nav;
           width: 100%;
           pointer-events: auto;
           box-sizing: border-box;
@@ -671,7 +664,7 @@ export default function MobileBottomNav({
              el punto. Lo que antes hacía la opacidad —que los iconos blancos no
              se pierdan sobre una foto clara— ahora lo hace el brightness del
              filtro, que oscurece el FONDO en vez de taparlo. */
-          background: transparent;
+          background: rgba(6, 6, 8, 0.40);
           /* Borde casi invisible. Su trabajo ya no es dibujar el canto —de eso
              se encargan las luces interiores de abajo— sino evitar que sobre un
              fondo muy claro la cápsula se quede sin límite. Al 4% cumple sin
@@ -699,87 +692,42 @@ export default function MobileBottomNav({
              DENTRO, subiendo 16px desde el canto de abajo, que en una píldora de
              unos 70px es buena parte de su cara. Con la base casi opaca no se
              notaba, porque caía sobre negro; sobre cristal sí. Se queda, porque
-             es de donde sale el labio inferior sombreado, pero a la mitad.
-
-             Las INTERIORES se mudaron a .navTint, porque tienen que caer sobre
-             el cristal y no por debajo de el; aqui solo quedan las de fuera. */
+             es de donde sale el labio inferior sombreado, pero a la mitad. */
           box-shadow:
+            inset 0 2px 3px -2px rgba(255, 255, 255, 0.38),
+            inset 0 -2px 3px -2px rgba(0, 0, 0, 0.80),
+            inset 0 -16px 26px -16px rgba(0, 0, 0, 0.45),
+            inset 0 14px 24px -18px rgba(255, 255, 255, 0.12),
             0 1px 2px rgba(0, 0, 0, 0.45),
             0 6px 14px rgba(0, 0, 0, 0.44),
             0 18px 36px rgba(0, 0, 0, 0.56),
             0 38px 76px rgba(0, 0, 0, 0.66);
-          /* Ancla de las dos capas de cristal, que van en position: absolute. */
-          position: relative;
+          /* El efecto óptico, subido de intensidad.
+
+             · blur(40px): el fondo llega en manchas grandes, sin una sola
+               forma reconocible. Es desenfoque de material, no de suavizado.
+             · saturate(150%): el color hay que exagerarlo para que se note al
+               atravesar la base.
+             · brightness(0.92): ESTE es el que sustituye a la opacidad que se
+               quitó. Oscurece lo que pasa por detrás en vez de taparlo, así que
+               la cápsula sigue siendo traslúcida —se ve el movimiento y el
+               color— pero un video claro ya no se come los iconos blancos.
+               Tapar da negro; oscurecer da cristal ahumado.
+               No hace falta apretarlo más: con el desenfoque de 40px lo de
+               detrás llega ya como manchas, y una mancha no compite con un
+               icono como sí lo hace una forma reconocible.
+
+             🚨 DEFORMAR el fondo, como la lupa de iOS, NO se puede desde CSS en
+             iPhone. Se haría con un filtro SVG de desplazamiento dentro de
+             backdrop-filter, y Safari no admite url() ahí — solo Chrome. Lo que
+             hay aquí es desenfoque y color, que es todo lo que WebKit ofrece. */
+          backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
+          -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
           /* SIN overflow:hidden. Los globos de aviso se dibujan fuera de su
              icono (top:-5px, inset-inline-end:-8px) y en el primer y el ultimo
              elemento caerian justo sobre el borde: recortarlos los partiria por
              la mitad. Los hijos no tienen fondo, asi que no hay nada que la
              curva del borde necesite recortar. */
-        }
-
-        /* 🚨 EL FILTRO Y EL TINTE VAN EN CAPAS SEPARADAS, Y NO ES POR GUSTO.
-           ==================================================================
-           Estuvieron juntos en .navShell, un solo elemento con background y
-           backdrop-filter a la vez. En iPhone se veia perfecto; en Android, la
-           capsula salia como un vidrio limpio, con el contenido de detras
-           nitido. Se aislo con cuatro sondas en pantalla y el resultado fue
-           tajante: un elemento con fondo Y filtro pierde el filtro en ese
-           Chromium, y uno con el filtro SOLO (sin fondo y con mascara, que es
-           como lo hace components/ui/BlurFade.tsx) si difumina.
-
-           Asi que ahora son dos hermanas, en este orden:
-             .navGlass — solo el filtro. Sin fondo. Con una mascara que no
-                         recorta nada, puesta a proposito para calcar la
-                         configuracion de BlurFade, que es la unica que se
-                         comprobo que funciona en los dos telefonos.
-             .navTint  — el tinte y las sombras interiores, ENCIMA del filtro.
-                         Mismo reparto que el velo de BlurFade.
-
-           🗑️ Si algun dia se unifican otra vez en un solo elemento, hay que
-           volver a probarlo en Android. No basta con mirarlo en iPhone. */
-        .navGlass,
-        .navTint {
-          position: absolute;
-          inset: 0;
-          border-radius: 999px;
-          pointer-events: none;
-        }
-
-        .navGlass {
-          /* El efecto optico.
-
-             · blur(40px): el fondo llega en manchas grandes, sin una sola forma
-               reconocible. Es desenfoque de material, no de suavizado.
-             · saturate(150%): el color hay que exagerarlo para que se note al
-               atravesar el tinte.
-             · brightness(0.92): ESTE es el que sustituye a la opacidad que se
-               quito en su dia. Oscurece lo que pasa por detras en vez de
-               taparlo, asi que la capsula sigue siendo traslucida —se ve el
-               movimiento y el color— pero un video claro ya no se come los
-               iconos blancos. Tapar da negro; oscurecer da cristal ahumado.
-
-             🚨 DEFORMAR el fondo, como la lupa de iOS, NO se puede desde CSS en
-             iPhone. Se haria con un filtro SVG de desplazamiento dentro de
-             backdrop-filter, y Safari no admite url() ahi — solo Chrome. Lo que
-             hay aqui es desenfoque y color, que es todo lo que WebKit ofrece. */
-          backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
-          -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
-          /* Mascara que deja pasar TODO. No recorta nada: esta para que el
-             elemento tome la misma ruta de pintado que las capas de BlurFade,
-             que es la que se comprobo que difumina en Android. */
-          mask-image: linear-gradient(#000, #000);
-          -webkit-mask-image: linear-gradient(#000, #000);
-        }
-
-        .navTint {
-          background: rgba(6, 6, 8, 0.40);
-          /* Las cuatro interiores que vivian en .navShell. Aqui caen SOBRE el
-             cristal, que es donde tienen que verse. */
-          box-shadow:
-            inset 0 2px 3px -2px rgba(255, 255, 255, 0.38),
-            inset 0 -2px 3px -2px rgba(0, 0, 0, 0.80),
-            inset 0 -16px 26px -16px rgba(0, 0, 0, 0.45),
-            inset 0 14px 24px -18px rgba(255, 255, 255, 0.12);
         }
 
         /* Sin backdrop-filter no hay nada que difuminar, y una base al 40% se
@@ -788,7 +736,7 @@ export default function MobileBottomNav({
            lo que aparenta: negra. Este respaldo es justo por eso el único sitio
            donde la opacidad NO baja. */
         @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-          .navTint {
+          .navShell {
             background: rgba(6, 6, 8, 0.96);
           }
         }
@@ -800,29 +748,20 @@ export default function MobileBottomNav({
           align-items: center;
           /* Sin fondo propio: el de la píldora es el que se ve. El safe-area ya
              lo reserva el contenedor. */
-          padding: calc(7px * var(--nav-scale, 1)) calc(6px * var(--nav-scale, 1));
+          padding: 7px 6px;
           background: transparent;
           box-sizing: border-box;
-          /* Ancla de la burbuja, que va en posición absoluta dentro. Y por
-             encima de las dos capas de cristal, que son hermanas suyas. */
+          /* Ancla de la burbuja, que va en posición absoluta dentro. */
           position: relative;
-          z-index: 1;
-          /* Esto y el alto de .item son el encogimiento entero de la píldora.
-             Mismos tiempos y curva que tenia el scale al que sustituyen. */
-          transition: padding 350ms cubic-bezier(0.4, 0, 0.2, 1);
-          /* SIN translateZ(0). Estaba aquí para forzar capa, pero es un
-             DESCENDIENTE del cristal y en Chromium un descendiente compuesto
-             obliga a la cápsula a pintarse en su propia superficie, que es otra
-             forma de quedarse sin fondo que difuminar. La animación ya no lo
-             necesita: ahora anima relleno y alto, no transform. */
+          transform: translateZ(0);
+          -webkit-transform: translateZ(0);
         }
 
 
         .item {
           position: relative;
           z-index: 1;
-          height: calc(74px * var(--nav-scale, 1));
-          transition: height 350ms cubic-bezier(0.4, 0, 0.2, 1);
+          height: 74px;
           display: grid;
           place-items: center;
           text-decoration: none;
@@ -986,11 +925,6 @@ export default function MobileBottomNav({
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .nav,
-          .item {
-            transition: none;
-          }
-
           .vibraFlash { animation-duration: 1ms; }
         }
 
@@ -1072,30 +1006,11 @@ export default function MobileBottomNav({
         <div
           className="navShell"
           style={{
-            // 🚨 AQUÍ NO PUEDE HABER UN `transform`, y por eso el encogimiento
-            // no se hace con `scale`.
-            //
-            // En Chromium cualquier transform —`scale(1)` incluido, que NO es un
-            // no-op— promociona el elemento a su propia capa, y ahí el
-            // backdrop-filter de ESE MISMO elemento se queda sin fondo que leer:
-            // la cápsula se ve como un vidrio limpio, con el contenido de detrás
-            // nítido. WebKit lo aguanta, de ahí que el mismo código se viera
-            // bien en iPhone y roto en Android.
-            //
-            // Lo que se publica es el factor, y quien encoge de verdad es el
-            // contenido de dentro: el relleno de .nav y el alto de .item, en
-            // `calc()`. Son propiedades de layout, animan solas en los dos
-            // navegadores y no promocionan nada. Como el encogido es del 7%,
-            // que los iconos y las etiquetas no mengüen con él no se nota — y
-            // de paso el texto no pierde nitidez a media animación.
-            ["--nav-scale" as string]: navScale,
-          } as React.CSSProperties}
+            transform: `scale(${navScale})`,
+            transformOrigin: "bottom center",
+            transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
         >
-          {/* Las dos capas del cristal, por debajo de los iconos. Ver la nota
-              larga junto a .navGlass: separadas a proposito. */}
-          <div className="navGlass" aria-hidden="true" />
-          <div className="navTint" aria-hidden="true" />
-
           <div
             className="nav"
             style={{

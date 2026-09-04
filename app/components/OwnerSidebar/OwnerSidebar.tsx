@@ -1098,6 +1098,36 @@ miniItem: {
     return Array.from(mergedMap.values());
   }, [joinedGroups, hiddenSidebarMembershipGroups]);
 
+  /**
+   * Cuántas solicitudes de ingreso tiene pendientes cada comunidad.
+   *
+   * Sale del campo `pendingJoinRequestsCount` del propio documento del grupo, que
+   * mantiene el servidor (`backend/src/entityCounters.ts`). No cuesta ni una
+   * lectura: los documentos de `myGroups` y `moderatedGroups` ya están escuchados
+   * aquí al lado para pintar el menú.
+   *
+   * Antes este número salía de contar las filas de UNA escucha por comunidad
+   * sobre `groups/{id}/joinRequests`. Quien modera veinte comunidades abría
+   * veinte escuchas en cada pantalla, y las volvía a abrir al navegar, solo para
+   * saber si tocaba pintar un globito.
+   */
+  const pendingJoinCountByGroup = useMemo(() => {
+    const conteo: Record<string, number> = {};
+
+    for (const g of [...myGroups, ...moderatedGroups]) {
+      const bruto = (g as { pendingJoinRequestsCount?: unknown })
+        .pendingJoinRequestsCount;
+      conteo[g.id] = typeof bruto === "number" && bruto > 0 ? bruto : 0;
+    }
+
+    return conteo;
+  }, [myGroups, moderatedGroups]);
+
+  /**
+   * Las FILAS —quién pidió entrar— solo se traen de la comunidad que el creador
+   * tenga desplegada, que es la única donde se pintan. El globito ya no depende
+   * de esto: lo lleva `pendingJoinCountByGroup`.
+   */
   useEffect(() => {
     joinUnsubsRef.current.forEach((fn) => fn());
     joinUnsubsRef.current = [];
@@ -1110,13 +1140,13 @@ miniItem: {
     const targetGroupsMap = new Map<string, GroupDocLite>();
 
     for (const g of myGroups) {
-      if (g.visibility !== "public") {
+      if (g.visibility !== "public" && joinSectionOpen[g.id] === true) {
         targetGroupsMap.set(g.id, g);
       }
     }
 
     for (const g of moderatedGroups) {
-      if (g.visibility !== "public") {
+      if (g.visibility !== "public" && joinSectionOpen[g.id] === true) {
         targetGroupsMap.set(g.id, g);
       }
     }
@@ -1171,7 +1201,7 @@ miniItem: {
       unsubs.forEach((fn) => fn());
       joinUnsubsRef.current = [];
     };
-  }, [viewer?.uid, myGroups, moderatedGroups]);
+  }, [viewer?.uid, myGroups, moderatedGroups, joinSectionOpen]);
 
   useEffect(() => {
     if (!viewer?.uid) {
@@ -1584,7 +1614,10 @@ const groupsForSeen = [
       const next = { ...prev };
 
       for (const groupId of groupsForSeen) {
-        const joinCount = (joinRequestsByGroup[groupId] ?? []).length;
+        // El número viene del contador del grupo, no de las filas: estas ya solo
+        // se traen de la comunidad desplegada, así que contarlas dejaría el
+        // indicador "nuevo" en cero para todas las demás.
+        const joinCount = pendingJoinCountByGroup[groupId] ?? 0;
         // Ninguna experiencia (saludos/consejos, tiempo contigo, sesión exclusiva)
         // se muestra ya en el sidebar —viven en la pestaña Experiencias—, así que
         // no cuentan para el indicador "nuevo".
@@ -1607,7 +1640,7 @@ const groupsForSeen = [
   viewer?.uid,
   myGroups,
   moderatedGroups,
-  joinRequestsByGroup,
+  pendingJoinCountByGroup,
   greetingsByGroup,
   exclusiveSessionsByGroup,
   meetGreetsByGroup,
