@@ -7,7 +7,7 @@ import { useAuth } from "@/app/providers";
 import { useInbox } from "@/lib/chat/useInbox";
 import { getOtherParticipant } from "@/lib/chat/types";
 import { useChatDock } from "@/components/chat/ChatDockProvider";
-import ConversationList from "@/components/chat/ConversationList";
+import ConversationList, { CHAT_AVATAR_ANCHO } from "@/components/chat/ConversationList";
 import { ConversationListSkeleton } from "@/components/chat/ChatSkeletons";
 import { useProfileMinis } from "@/lib/chat/useProfileMinis";
 import { useScreenReady } from "@/lib/useScreenReady";
@@ -85,6 +85,14 @@ export default function MessagesPage() {
         <h1 className="vibra-page-title">{tNav("tabMessages")}</h1>
       </div>
 
+      {/* 🚨 `isMobile` NO ES OPCIONAL AQUÍ. No pregunta por el aparato, pregunta
+          si la fila tiene sitio: esta pantalla es una columna de 640px para ella
+          sola, y la barra lateral de laptop es una columna estrecha.
+
+          La página no lo pasaba, así que caía al `false` por defecto y la lista
+          se pintaba con las medidas de la barra —avatares de 36— aunque la rama
+          de celular dijera otra cosa. Subir el número de esa rama no cambiaba
+          nada, porque la rama no se ejecutaba. */}
       <ConversationList
         loading={loading}
         conversations={conversations}
@@ -93,6 +101,7 @@ export default function MessagesPage() {
         styles={listStyles}
         activeConversationIds={activeConversationIds}
         onOpenConversation={handleOpen}
+        isMobile
       />
 
       {/* Historial: al asomarse el final de la lista se trae la siguiente
@@ -101,7 +110,10 @@ export default function MessagesPage() {
       {!loading && hasMore && (
         <>
           <div ref={loadMoreSentinelRef} aria-hidden style={{ height: 1 }} />
-          {loadingMore && <ConversationListSkeleton rows={3} />}
+          {/* El avatar va a mano porque este hueco no pasa por `ConversationList`
+              y su valor por defecto es el de la barra de laptop. Tiene que medir
+              lo mismo que la fila real, o la lista salta al llegar la tanda. */}
+          {loadingMore && <ConversationListSkeleton rows={3} avatarSize={CHAT_AVATAR_ANCHO} />}
         </>
       )}
 
@@ -118,6 +130,7 @@ export default function MessagesPage() {
             styles={listStyles}
             activeConversationIds={activeConversationIds}
             onOpenConversation={handleOpen}
+            isMobile
           />
         </div>
       )}

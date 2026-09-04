@@ -73,6 +73,17 @@ function formatConversationTime(value: TimestampLike, locale: string): string {
   }).format(date);
 }
 
+/**
+ * Alto del avatar de una conversación, según cuánto sitio tiene la fila.
+ *
+ * 🚨 SE EXPORTAN PORQUE HAY UN TERCER SITIO QUE LOS NECESITA y no pasa por este
+ * componente: el hueco de carga de la siguiente tanda, en la página de mensajes.
+ * Copiar el número allí es lo que lo desincroniza, y entonces la lista da un
+ * salto justo al llegar los datos.
+ */
+export const CHAT_AVATAR_ANCHO = 52;
+export const CHAT_AVATAR_ESTRECHO = 36;
+
 export default function ConversationList({
   loading,
   conversations,
@@ -92,7 +103,9 @@ export default function ConversationList({
       <div style={{ ...styles.sectionPanel, background: "transparent", padding: 0 }}>
         {/* El hueco de carga mide lo MISMO que la fila real. Si no, la lista
             da un salto al llegar los datos. */}
-        <ConversationListSkeleton avatarSize={isMobile ? 52 : 36} />
+        <ConversationListSkeleton
+          avatarSize={isMobile ? CHAT_AVATAR_ANCHO : CHAT_AVATAR_ESTRECHO}
+        />
       </div>
     );
   }
@@ -224,7 +237,7 @@ export default function ConversationList({
                   // ancho de la pantalla entera y el avatar se quedaba menudo.
                   // En la barra de laptop la columna es estrecha y 36 sigue
                   // siendo lo que cabe.
-                  size={isMobile ? 52 : 36}
+                  size={isMobile ? CHAT_AVATAR_ANCHO : CHAT_AVATAR_ESTRECHO}
                 />
 
                 {/* Rejilla de dos por dos, y no dos renglones con la hora
