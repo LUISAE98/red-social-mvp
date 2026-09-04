@@ -490,8 +490,11 @@ export default function ExperienceRequestsInbox({
                     : null;
               const isConsejo = req.type === "consejo";
               const cardStyle: CSSProperties = {
-                borderRadius: 12,
-                padding: cardImage ? 12 : 9,
+                // Mismo trato que una notificación social: la fila va de lado a
+                // lado y el aire lo pone su propio relleno, no un margen. Sin
+                // radio, porque no hay tarjeta que recortar. Ver `.expInbox`.
+                borderRadius: 0,
+                padding: "12px 16px",
                 minWidth: 0,
                 boxSizing: "border-box",
                 display: "flex",
@@ -644,8 +647,9 @@ export default function ExperienceRequestsInbox({
                   ? "/sesionexclusiva.webp"
                   : "/encuentroenvivo.webp";
               const cardStyle: CSSProperties = {
-                borderRadius: 12,
-                padding: 12,
+                // Igual que la de saludo/consejo, de lado a lado y sin radio.
+                borderRadius: 0,
+                padding: "12px 16px",
                 minWidth: 0,
                 boxSizing: "border-box",
                 display: "flex",
@@ -782,10 +786,18 @@ export default function ExperienceRequestsInbox({
       <VibraToast toast={inboxToast} />
 
       <style jsx>{`
+        /* Se presenta como la bandeja social: filas a sangre, pegadas, sin
+           relleno propio del contenedor. El aire y el margen lateral los pone
+           cada fila con su padding de 12px 16px, que es exactamente el que usa
+           .notifLink en la lista social. Asi las dos pestanas se leen igual al
+           cambiar de una a otra.
+
+           Ojo: este bloque es un template literal y un acento invertido en un
+           comentario lo parte en seco. */
         .expInbox {
           display: grid;
-          gap: 12px;
-          padding: 12px 16px;
+          gap: 0;
+          padding: 0;
         }
         .expInboxState {
           padding: 56px 16px;
