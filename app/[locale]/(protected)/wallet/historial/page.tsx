@@ -223,6 +223,7 @@ const filteredItems = useMemo(() => {
       <WalletCard
         title={tWallet("historialTitle")}
         transparent
+        bleed
         headerRight={
           <WalletFilterMenu
             label={tWallet("filterLabel")}

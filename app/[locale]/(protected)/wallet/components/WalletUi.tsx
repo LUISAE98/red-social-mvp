@@ -243,18 +243,36 @@ function AvatarImg({ src, alt, initial }: { src: string; alt: string; initial: s
   );
 }
 
+/**
+ * Relleno del contenedor de sección, en un solo sitio.
+ *
+ * Lo consumen dos cosas que TIENEN que coincidir: el propio contenedor, y el
+ * margen negativo con el que las listas se salen de él para llegar al borde.
+ * Si se separan, las filas dejan de cuadrar con el título de su sección.
+ */
+export const WALLET_CARD_PAD = 18;
+
 export function WalletCard({
   title,
   description,
   headerRight,
   children,
   transparent = false,
+  bleed = false,
 }: {
   title?: string;
   description?: string;
   headerRight?: React.ReactNode;
   children?: React.ReactNode;
   transparent?: boolean;
+  /**
+   * Saca el cuerpo hasta los bordes, cancelando el relleno del contenedor.
+   *
+   * Para las listas de filas —pendientes, historial, calendario—, que se leen
+   * como la bandeja de notificaciones: cada fila va de lado a lado y pone su
+   * propio margen por dentro. La cabecera NO se mueve.
+   */
+  bleed?: boolean;
 }) {
   return (
     <>
@@ -263,8 +281,15 @@ export function WalletCard({
           border-radius: 22px;
           border: none;
           background: ${transparent ? "transparent" : "rgba(90, 41, 174, 0.14)"};
-          padding: 18px;
+          padding: ${WALLET_CARD_PAD}px;
           box-shadow: none;
+        }
+
+        /* El cuerpo se sale del relleno del contenedor para que las filas
+           lleguen al borde. El margen es exactamente el relleno, en negativo:
+           por eso los dos salen de la misma constante. */
+        .cardBodyBleed {
+          margin-inline: -${WALLET_CARD_PAD}px;
         }
 
         .cardHeader {
@@ -337,7 +362,9 @@ export function WalletCard({
           </div>
         ) : null}
 
-        {children ? <div className="cardBody">{children}</div> : null}
+        {children ? (
+          <div className={bleed ? "cardBody cardBodyBleed" : "cardBody"}>{children}</div>
+        ) : null}
       </div>
     </>
   );
@@ -829,15 +856,19 @@ export function WalletServiceRow({
     return (
       <>
         <style jsx>{`
+          /* De lado a lado y sin esquinas, como la bandeja de notificaciones.
+             El margen lateral lo pone la propia fila con su relleno, que vale lo
+             mismo que el del contenedor para que todo quede en la misma
+             columna que el título de la sección. */
           .wGCard {
             overflow: hidden;
-            border-radius: 14px;
+            border-radius: 0;
           }
           .wGCardInner {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 13px 14px;
+            padding: 13px ${WALLET_CARD_PAD}px;
           }
           @media (max-width: 640px) {
             .wGCard { cursor: pointer; }
@@ -909,15 +940,16 @@ export function WalletServiceRow({
     return (
       <>
         <style jsx>{`
+          /* Igual que .wGCard: a sangre y sin radio. */
           .wSCard {
             overflow: hidden;
-            border-radius: 14px;
+            border-radius: 0;
           }
           .wSCardInner {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 13px 14px;
+            padding: 13px ${WALLET_CARD_PAD}px;
           }
           @media (max-width: 640px) {
             .wSCard { cursor: pointer; }
@@ -1091,7 +1123,9 @@ export function WalletServiceRow({
 
       `}</style>
 
-      <div style={{ overflow: "hidden", borderRadius: 14 }}>
+      {/* Tercera variante de fila, la generica. Mismo trato que .wGCard y
+          .wSCard: a sangre y sin esquinas. */}
+      <div style={{ overflow: "hidden", borderRadius: 0 }}>
         <button
           type="button"
           onClick={onToggle}
@@ -1101,7 +1135,7 @@ export function WalletServiceRow({
             gap: 12,
             width: "100%",
             border: "none",
-            padding: "13px 14px",
+            padding: `13px ${WALLET_CARD_PAD}px`,
             background: theme.bgImage
               ? `linear-gradient(rgba(8,8,10,0.78), rgba(8,8,10,0.78)), url(${theme.bgImage}) center / cover no-repeat`
               : "rgba(255,255,255,0.04)",

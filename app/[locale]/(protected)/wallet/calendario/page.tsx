@@ -20,6 +20,7 @@ import type { MeetGreetRequestDoc } from "@/app/components/OwnerSidebar/OwnerSid
 import WalletSectionShell from "../components/WalletSectionShell";
 import {
   WalletCard,
+  WALLET_CARD_PAD,
 } from "../components/WalletUi";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -299,8 +300,9 @@ function CalendarEventCard({
         style={{
           position: "relative",
           overflow: "hidden",
-          borderRadius: 14,
-          padding: "13px 14px",
+          // De lado a lado y sin esquinas, como las demas listas de la wallet.
+          borderRadius: 0,
+          padding: `13px ${WALLET_CARD_PAD}px`,
           display: "flex",
           alignItems: "center",
           gap: 12,
@@ -414,11 +416,13 @@ function CalendarEventCard({
   return (
     <>
       <style jsx>{`
+        /* A sangre y sin radio: el margen lateral lo pone la propia fila con
+           su relleno, que vale lo mismo que el del contenedor de seccion. */
         .calEvCard {
           position: relative;
           overflow: hidden;
-          border-radius: 14px;
-          padding: 13px 14px;
+          border-radius: 0;
+          padding: 13px ${WALLET_CARD_PAD}px;
           display: flex;
           align-items: center;
           gap: 12px;
@@ -804,7 +808,7 @@ function EventsOverlay({
                     flex: 1,
                     overflowY: "auto",
                     minHeight: 0,
-                    padding: "12px 14px 8px",
+                    padding: "12px 0 8px",
                     display: "flex",
                     flexDirection: "column",
                     gap: 8,
@@ -903,7 +907,7 @@ function EventsOverlay({
                 flex: 1,
                 overflowY: "auto",
                 minHeight: 0,
-                padding: "12px 20px 8px",
+                padding: "12px 0 8px",
                 display: "flex",
                 flexDirection: "column",
                 gap: 8,
@@ -1302,12 +1306,14 @@ export default function WalletCalendarioPage() {
             border-radius: 6px;
             animation: skelPulseC 1.4s ease-in-out infinite;
           }
+          /* El hueco de carga tiene que medir lo mismo que la fila de verdad,
+             o al llegar los datos la lista da un salto. */
           .skelCardC {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 13px 14px;
-            border-radius: 14px;
+            padding: 13px ${WALLET_CARD_PAD}px;
+            border-radius: 0;
             background: rgba(255,255,255,0.04);
           }
         `}</style>
@@ -1318,7 +1324,7 @@ export default function WalletCalendarioPage() {
 
         <div className="calendarContentOffset">
           {walletData.loading ? (
-            <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ display: "grid", gap: 8, marginInline: -WALLET_CARD_PAD }}>
               {[0, 1, 2].map((i) => (
                 <div key={i} className="skelCardC">
                   <div className="skelC" style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0 }} />
@@ -1342,7 +1348,7 @@ export default function WalletCalendarioPage() {
               {tWalletPage("noEvents")}
             </div>
           ) : viewMode === "list" ? (
-            <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ display: "grid", gap: 8, marginInline: -WALLET_CARD_PAD }}>
               {calendarItems.map((item) => (
                 <CalendarEventCard
                   key={`${item.source}-${item.id}`}

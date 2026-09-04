@@ -328,6 +328,7 @@ export default function WalletPendientesPage() {
       <WalletCard
         title={tWallet("pendientesTitle")}
         transparent
+        bleed
         headerRight={
           !walletData.loading && totalPendingCount > 0 ? (
             <WalletFilterMenu
