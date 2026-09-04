@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BlurFade, IconButton } from "@/components/ui";
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
@@ -45,6 +45,32 @@ const NAV_ANIM_MS = 280;
  */
 const HEADER_FADE_OVERHANG = 26;
 const HEADER_FADE_LENGTH = 40;
+
+/**
+ * Interruptor del lector de geometria, guardado para que aguante una recarga.
+ *
+ * Vive fuera del componente porque lo leen dos sitios (el valor inicial y el
+ * pulsado largo) y no depende de ningun render.
+ */
+const LECTOR_LLAVE = "vb:lector-viewport";
+
+function leerLector(): boolean {
+  if (new URLSearchParams(window.location.search).has("vv")) return true;
+  try {
+    return window.localStorage.getItem(LECTOR_LLAVE) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function guardarLector(valor: boolean): void {
+  try {
+    window.localStorage.setItem(LECTOR_LLAVE, valor ? "1" : "0");
+  } catch {
+    // Navegacion privada de iOS: el lector sigue encendido en esta pantalla,
+    // solo que no sobrevive a recargar. Sirve igual para tomar la medida.
+  }
+}
 
 export default function ConversationPage() {
   const params = useParams<{ conversationId?: string | string[] }>();
@@ -193,11 +219,71 @@ export default function ConversationPage() {
   const viewportCorrido = viewport != null && viewport.offsetTop > 0;
   const calzarAreaVisible = (keyboardOpen || viewportCorrido) && viewport != null;
 
-  /** Lector de geometría en pantalla, solo con `?vv=1`. Ver más abajo. */
-  const depurarViewport =
-    mounted && typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).has("vv")
-      : false;
+  /**
+   * Lector de geometría en pantalla. Ver más abajo.
+   *
+   * Se enciende de dos formas: con `?vv=1` en la URL, o dejando el dedo apretado
+   * un segundo sobre la cabecera del chat.
+   *
+   * ⚠️ Lo segundo NO es un adorno. Este fallo solo se reproduce en la app
+   * INSTALADA, y ahí no hay barra de direcciones donde escribir el parámetro: sin
+   * un interruptor que viva dentro de la propia pantalla, el lector no se puede
+   * encender justo donde hace falta.
+   *
+   * `null` significa "lo que diga la URL o lo guardado"; en cuanto se pulsa
+   * largo pasa a mandar la elección. Se deriva en el render, no se mete en un
+   * efecto, para no acabar en un `setState` dentro de `useEffect`.
+   */
+  const [lectorManual, setLectorManual] = useState<boolean | null>(null);
+
+  const depurarViewport = useMemo(() => {
+    if (!mounted || typeof window === "undefined") return false;
+    if (lectorManual !== null) return lectorManual;
+    return leerLector();
+  }, [mounted, lectorManual]);
+
+  /**
+   * Pulsado largo sobre la cabecera para encender y apagar el lector.
+   *
+   * Es un temporizador y no un contador de toques porque la cabecera está
+   * ocupada por dos botones que NAVEGAN —volver y abrir el perfil—, y a base de
+   * toques sueltos el primero se llevaría la pantalla por delante antes de
+   * llegar al último. `tragarClicDelPulsado` es lo que evita que el dedo, al
+   * levantarse, abra además el perfil.
+   */
+  const pulsadoRef = useRef<{ temporizador: number | null; disparado: boolean }>({
+    temporizador: null,
+    disparado: false,
+  });
+
+  const soltarPulsado = useCallback(() => {
+    const p = pulsadoRef.current;
+    if (p.temporizador === null) return;
+    window.clearTimeout(p.temporizador);
+    p.temporizador = null;
+  }, []);
+
+  const empezarPulsado = useCallback(() => {
+    const p = pulsadoRef.current;
+    p.disparado = false;
+    if (p.temporizador !== null) window.clearTimeout(p.temporizador);
+    p.temporizador = window.setTimeout(() => {
+      p.temporizador = null;
+      p.disparado = true;
+      setLectorManual((prev) => {
+        const nuevo = !(prev ?? leerLector());
+        guardarLector(nuevo);
+        return nuevo;
+      });
+    }, 700);
+  }, []);
+
+  const tragarClicDelPulsado = useCallback((e: React.MouseEvent) => {
+    if (!pulsadoRef.current.disparado) return;
+    pulsadoRef.current.disparado = false;
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
 
   /**
    * Geometría VIVA, leída del navegador y no de nuestro estado.
@@ -419,11 +505,13 @@ export default function ConversationPage() {
         background: "#000",
       }}
     >
-      {/* Lector de geometría para depurar el teclado en iOS. Solo aparece con
-          `?vv=1` en la URL, porque este fallo únicamente se reproduce en un
-          iPhone de verdad y desde el escritorio no hay forma de mirarlo. Si
-          `corrido` se queda en un número distinto de 0 con el teclado ya cerrado,
-          es que iOS no devolvió el viewport visual a su sitio. */}
+      {/* Lector de geometría para depurar el teclado en iOS. Se enciende con
+          `?vv=1` en la URL o con un pulsado largo en la cabecera, porque este
+          fallo únicamente se reproduce en un iPhone de verdad —y en la app
+          INSTALADA, donde no hay barra de direcciones— y desde el escritorio no
+          hay forma de mirarlo. Si `corrido` se queda en un número distinto de 0
+          con el teclado ya cerrado, es que iOS no devolvió el viewport visual a
+          su sitio. */}
       {depurarViewport ? (
         <div
           style={{
@@ -510,6 +598,11 @@ export default function ConversationPage() {
 
       <header
         ref={headerRef}
+        onPointerDown={empezarPulsado}
+        onPointerUp={soltarPulsado}
+        onPointerCancel={soltarPulsado}
+        onPointerLeave={soltarPulsado}
+        onClickCapture={tragarClicDelPulsado}
         style={{
           position: "relative",
           // Por encima del hilo, que es el hermano de abajo: así los mensajes
