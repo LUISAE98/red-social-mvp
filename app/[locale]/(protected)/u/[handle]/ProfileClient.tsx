@@ -3088,6 +3088,7 @@ const res = (await createExclusiveSessionRequest({
   serviceModalBackdropStyle={{
     position: "fixed",
     inset: 0,
+    height: "var(--vb-alto-pantalla)",
     zIndex: 10000,
     background: "rgba(0,0,0,0.72)",
     display: "grid",
@@ -3162,6 +3163,7 @@ const res = (await createExclusiveSessionRequest({
           style={{
             position: "fixed",
             inset: 0,
+            height: "var(--vb-alto-pantalla)",
             zIndex: 10000,
             background: "rgba(0,0,0,0.72)",
             display: "grid",

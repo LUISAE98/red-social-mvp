@@ -226,6 +226,7 @@ export default function EgressSessionPage() {
   const overlayStyle: React.CSSProperties = {
     position: "fixed",
     inset: 0,
+    height: "var(--vb-alto-pantalla)",
     zIndex: 2147483646,
     background: "#000",
   };

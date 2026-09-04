@@ -118,6 +118,7 @@ export function ConfirmModal({
         style={{
           position: "fixed",
           inset: 0,
+          height: "var(--vb-alto-pantalla)",
           zIndex: 999999,
           display: "flex",
           alignItems: "center",
@@ -301,6 +302,7 @@ export function OverlayModal({
         style={{
           position: "fixed",
           inset: 0,
+          height: "var(--vb-alto-pantalla)",
           zIndex: 999999,
           background: "rgba(0,0,0,0.72)",
           display: "flex",

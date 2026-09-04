@@ -306,6 +306,7 @@ export default function OwnerAdminDangerZone({
           style={{
             position: "fixed",
             inset: 0,
+            height: "var(--vb-alto-pantalla)",
             zIndex: 9999,
             background: "rgba(0,0,0,0.68)",
             display: "grid",

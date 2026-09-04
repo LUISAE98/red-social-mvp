@@ -316,6 +316,7 @@ export default function ProfileFollowersOverlay({
         style={{
           position: "fixed",
           inset: 0,
+          height: "var(--vb-alto-pantalla)",
           zIndex: 99980,
           background: "rgba(0,0,0,0.52)",
           backdropFilter: "blur(10px)",
@@ -417,6 +418,7 @@ export default function ProfileFollowersOverlay({
           style={{
             position: "fixed",
             inset: 0,
+            height: "var(--vb-alto-pantalla)",
             zIndex: 99981,
             display: "grid",
             placeItems: "center",

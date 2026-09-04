@@ -74,6 +74,7 @@ function CarouselSkeleton() {
       style={{
         position: "fixed",
         inset: 0,
+        height: "var(--vb-alto-pantalla)",
         background: "#000",
         display: "flex",
         alignItems: "center",

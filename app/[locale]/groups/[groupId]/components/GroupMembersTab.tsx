@@ -813,6 +813,7 @@ export default function GroupMembersTab({
   const modalBackdropStyle: CSSProperties = {
     position: "fixed",
     inset: 0,
+    height: "var(--vb-alto-pantalla)",
     background: "rgba(0,0,0,0.62)",
     display: "grid",
     placeItems: "center",
@@ -1258,6 +1259,7 @@ export default function GroupMembersTab({
                 style={{
                   position: "fixed",
                   inset: 0,
+                  height: "var(--vb-alto-pantalla)",
                   zIndex: 99990,
                   background: "rgba(0,0,0,0.50)",
                   animation: "vbMembersMenuFadeIn 0.18s ease",
@@ -1270,6 +1272,7 @@ export default function GroupMembersTab({
                 style={{
                   position: "fixed",
                   inset: 0,
+                  height: "var(--vb-alto-pantalla)",
                   zIndex: 99991,
                   display: "flex",
                   alignItems: "center",

@@ -148,6 +148,7 @@ export default function MeetGreetPreparationFullscreen({
   const backdropStyle: CSSProperties = {
     position: "fixed",
     inset: 0,
+    height: "var(--vb-alto-pantalla)",
     zIndex: 2147483647,
     background: "#000",
     display: "flex",

@@ -193,6 +193,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onBlockSuccess,
             style={{
               position: "fixed",
               inset: 0,
+              height: "var(--vb-alto-pantalla)",
               zIndex: 99990,
               background: "rgba(0,0,0,0.50)",
               animation: menuClosing
@@ -206,6 +207,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onBlockSuccess,
             style={{
               position: "fixed",
               inset: 0,
+              height: "var(--vb-alto-pantalla)",
               zIndex: 99991,
               display: "flex",
               alignItems: "center",

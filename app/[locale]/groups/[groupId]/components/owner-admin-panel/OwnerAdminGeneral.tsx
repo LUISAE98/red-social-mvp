@@ -149,6 +149,7 @@ function FullScreenModal({
       style={{
         position: "fixed",
         inset: 0,
+        height: "var(--vb-alto-pantalla)",
         zIndex: 999999,
         background: "rgba(0,0,0,0.76)",
         backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",

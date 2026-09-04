@@ -1205,6 +1205,7 @@ export default function LiveComposerModal({
         style={{
           position: "fixed",
           inset: 0,
+          height: "var(--vb-alto-pantalla)",
           zIndex: 999999,
           display: "flex",
           alignItems: isDesktop ? "center" : "flex-end",

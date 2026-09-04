@@ -655,6 +655,7 @@ return (
     style={{
       position: "fixed",
       inset: 0,
+      height: "var(--vb-alto-pantalla)",
       zIndex: 9999,
       background: "rgba(0,0,0,0.72)",
       backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",

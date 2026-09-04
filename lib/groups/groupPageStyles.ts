@@ -206,6 +206,7 @@ export const messageBox: CSSProperties = {
 export const serviceModalBackdropStyle: CSSProperties = {
   position: "fixed",
   inset: 0,
+  height: "var(--vb-alto-pantalla)",
   zIndex: 2147483646,
   background: "rgba(0,0,0,0.76)",
   backdropFilter: "blur(10px)",

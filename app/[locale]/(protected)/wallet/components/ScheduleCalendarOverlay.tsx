@@ -325,6 +325,7 @@ export default function ScheduleCalendarOverlay({
         .scheduleOverlayBackdrop {
           position: fixed;
           inset: 0;
+          height: var(--vb-alto-pantalla);
           z-index: 999999;
           display: flex;
           align-items: center;

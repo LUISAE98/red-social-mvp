@@ -1043,6 +1043,7 @@ const previousMedia =
   const overlayStyle: CSSProperties = {
     position: "fixed",
     inset: 0,
+    height: "var(--vb-alto-pantalla)",
     zIndex: VIEWER_OVERLAY_Z,
     background: useMobileLayout ? "#000" : "rgba(0,0,0,0.82)",
     color: "#fff",
@@ -2001,6 +2002,7 @@ const previewUrl = media.url;
           style={{
             position: "fixed",
             inset: 0,
+            height: "var(--vb-alto-pantalla)",
             zIndex: VIEWER_OVERLAY_Z,
             background: "rgba(0,0,0,0.54)",
             display: "flex",
@@ -2098,6 +2100,7 @@ const previewUrl = media.url;
       style={{
         position: "fixed",
         inset: 0,
+        height: "var(--vb-alto-pantalla)",
         zIndex: VIEWER_OVERLAY_Z,
         background: "rgba(0,0,0,0.86)",
         backdropFilter: "blur(12px)",

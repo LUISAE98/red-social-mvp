@@ -78,6 +78,7 @@ export default function SessionCallPage() {
 const screen: CSSProperties = {
   position: "fixed",
   inset: 0,
+  height: "var(--vb-alto-pantalla)",
   zIndex: 9999,
   background: "rgba(0,0,0,0.95)",
   display: "flex",

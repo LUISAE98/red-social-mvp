@@ -27,6 +27,7 @@ type Step = "select" | "confirm" | "done";
 const overlayStyle: React.CSSProperties = {
   position: "fixed",
   inset: 0,
+  height: "var(--vb-alto-pantalla)",
   zIndex: 10050,
   background: "rgba(0,0,0,0.78)",
   display: "flex",

@@ -215,6 +215,7 @@ export default function SearchDateFilterMenu({ fromDate, toDate, onApply }: Prop
             style={{
               position: "fixed",
               inset: 0,
+              height: "var(--vb-alto-pantalla)",
               zIndex: 99990,
               background: "rgba(0,0,0,0.50)",
               animation: closing
@@ -228,6 +229,7 @@ export default function SearchDateFilterMenu({ fromDate, toDate, onApply }: Prop
             style={{
               position: "fixed",
               inset: 0,
+              height: "var(--vb-alto-pantalla)",
               zIndex: 99991,
               display: "flex",
               alignItems: "center",

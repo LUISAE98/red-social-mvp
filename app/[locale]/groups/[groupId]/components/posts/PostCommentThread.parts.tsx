@@ -334,6 +334,7 @@ export function ActionsPortal({
         style={{
           position: "fixed",
           inset: 0,
+          height: "var(--vb-alto-pantalla)",
           // Entre el panel de comentarios (2147481000/01) y la confirmación
           // (CONFIRM_Z_BASE). El menú se abre DESDE ese panel, que en celular es
           // una hoja a pantalla completa: con los 99990 de antes se montaba bien
@@ -349,6 +350,7 @@ export function ActionsPortal({
         style={{
           position: "fixed",
           inset: 0,
+          height: "var(--vb-alto-pantalla)",
           zIndex: 2147481101,
           display: "flex",
           alignItems: "center",

@@ -511,6 +511,7 @@ export function CommentImageLightbox({
       style={{
         position: "fixed",
         inset: 0,
+        height: "var(--vb-alto-pantalla)",
         zIndex: 2147483647,
         background: "rgba(0,0,0,0.92)",
         touchAction: "none",

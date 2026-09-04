@@ -685,6 +685,7 @@ export default function PostCommentsPanel({
         style={{
           position: "fixed",
           inset: 0,
+          height: "var(--vb-alto-pantalla)",
           // Por debajo del máximo a propósito: la cabecera (2147483646/47) queda
           // reservada al menú de acciones de un comentario, que se abre DESDE
           // aquí y tiene que verse encima. Mismo criterio que VIEWER_OVERLAY_Z

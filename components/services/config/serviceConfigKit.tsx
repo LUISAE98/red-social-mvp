@@ -374,6 +374,7 @@ export function OverlayModal({
         style={{
           position: "fixed",
           inset: 0,
+          height: "var(--vb-alto-pantalla)",
           zIndex: 999999,
           display: "flex",
           alignItems: "center",

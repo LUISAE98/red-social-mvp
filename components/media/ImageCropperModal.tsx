@@ -145,6 +145,7 @@ export default function ImageCropperModal({
       style={{
         position: "fixed",
         inset: 0,
+        height: "var(--vb-alto-pantalla)",
         // ⚠️ AL TOPE, y no es exageración.
         //
         // Esto se abre SIEMPRE desde encima de otra cosa —un formulario, un

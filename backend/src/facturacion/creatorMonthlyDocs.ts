@@ -509,8 +509,7 @@ export async function emitirCfdiRetenciones(
   /** El detalle operación por operación, que el complemento exige. */
   servicios: ServicioDelComplemento[]
 ): Promise<FacturapiDoc> {
-  const { desde, hasta } = rangoDelPeriodo(acc.periodo);
-  const totalRetenido = round2(acc.isrRetenido + acc.ivaRetenido);
+  const { desde } = rangoDelPeriodo(acc.periodo);
 
   /**
    * 🚨 El complemento exige un nodo POR SERVICIO, no solo totales.
@@ -523,9 +522,18 @@ export async function emitirCfdiRetenciones(
       `constancia sin detalle de servicios (creador ${acc.creatorId}, ${acc.periodo})`
     );
   }
+  /**
+   * 💱 Las retenciones vienen en DÓLARES del motor fiscal y este documento va en pesos.
+   *
+   * Se convierten con el FIX del cierre del periodo, la misma tasa oficial que usa el CFDI de
+   * comisión. Es una obligación en pesos —lo retenido se entera al SAT en pesos— así que aquí
+   * no cabe emitir en dólares como en la comisión.
+   */
+  const { tasa: tasaRet } = await fixParaOperacion(finDelPeriodo(acc.periodo));
+
   const complemento = armarComplemento(servicios, {
-    iva: acc.ivaRetenido,
-    isr: acc.isrRetenido,
+    iva: round2(acc.ivaRetenido * tasaRet),
+    isr: round2(acc.isrRetenido * tasaRet),
   });
 
   const res = await facturapiFetch<FacturapiDoc>("/retentions", {
@@ -544,22 +552,49 @@ export async function emitirCfdiRetenciones(
        *    con la 26 el complemento es obligatorio. Por eso los dos cambios van juntos y no se
        *    puede tocar solo el número.
        */
-      key: CVE_RETENC_PLATAFORMAS,
-      period: {
-        month_from: desde.getUTCMonth() + 1,
-        month_to: hasta.getUTCMonth() || 12,
-        year: desde.getUTCFullYear(),
+      cve_retenc: CVE_RETENC_PLATAFORMAS,
+      /**
+       * 🚨 EL OBJETO DE RETENCIONES DE FACTURAPI VA EN ESPAÑOL, y las facturas en inglés.
+       *
+       * Aquí se mandaba `key`, `period` y `totals` —como en `/invoices`— y devolvía 400: «El
+       * campo cve_retenc es requerido». No es un capricho de nombres: la forma también cambia,
+       * con `imp_retenidos` en vez de una lista de impuestos.
+       *
+       * Es la tercera vez que el vocabulario de Facturapi muerde en esta integración. Ver la
+       * nota de `global.periodicity` en `globalInvoice.ts`.
+       */
+      periodo: {
+        mes_ini: desde.getUTCMonth() + 1,
+        mes_fin: desde.getUTCMonth() + 1,
+        ejerc: desde.getUTCFullYear(),
       },
-      totals: {
-        // 💱 En PESOS, no en los dólares del ledger. Ver §A0.
-        total_base: acc.baseMxn,
-        total_retained: totalRetenido,
-        taxes: [
+      totales: {
+        // 💱 Todo en PESOS, sumado del detalle para que no pueda discrepar de él.
+        monto_tot_operacion: round2(complemento.MontToServSIva + complemento.TotalIvaTrasladado),
+        /**
+         * Cero, y no es lo mismo que las exportaciones.
+         *
+         * Una venta a comprador extranjero va a **tasa 0%**, que no es «exenta»: el IVA existe
+         * y vale cero. Meterlas aquí las declararía como operaciones sin impuesto, que es otra
+         * figura y otro tratamiento.
+         */
+        monto_tot_exent: 0,
+        imp_retenidos: [
           ...(acc.isrRetenido > 0
-            ? [{ base: acc.baseMxn, type: "ISR", amount: acc.isrRetenido }]
+            ? [{
+                monto_ret: round2(acc.isrRetenido * tasaRet),
+                // 🔁 FISCALISTA: el ISR del 113-A es pago PROVISIONAL para la persona física.
+                tipo_pago_ret: "02",
+                impuesto: "ISR",
+              }]
             : []),
           ...(acc.ivaRetenido > 0
-            ? [{ base: acc.baseMxn, type: "IVA", amount: acc.ivaRetenido }]
+            ? [{
+                monto_ret: round2(acc.ivaRetenido * tasaRet),
+                // 🔁 FISCALISTA: la retención de IVA es pago DEFINITIVO.
+                tipo_pago_ret: "01",
+                impuesto: "IVA",
+              }]
             : []),
         ],
       },

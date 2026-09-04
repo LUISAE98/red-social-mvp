@@ -119,7 +119,10 @@ export default function FirestoreMeterHud() {
       style={{
         position: "fixed",
         insetInlineEnd: 10,
-        bottom: 10,
+        // Los 10px se cuentan desde el borde de la PANTALLA, no desde el área
+        // de dibujo, que en la PWA de iPhone es más corta. Sin la resta el HUD
+        // flota 62px por encima de donde debería.
+        bottom: "calc(10px - var(--vb-lienzo-extra))",
         zIndex: 2147483000,
         background: "rgba(10, 8, 16, 0.92)",
         border: "1px solid rgba(168, 85, 247, 0.45)",

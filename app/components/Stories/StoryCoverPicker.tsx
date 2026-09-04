@@ -373,6 +373,7 @@ export default function StoryCoverPicker({
       style={{
         position: "fixed",
         inset: 0,
+        height: "var(--vb-alto-pantalla)",
         zIndex: 10000,
         display: "flex",
         alignItems: "center",

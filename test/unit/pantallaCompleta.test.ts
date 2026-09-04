@@ -94,6 +94,41 @@ describe("alto de pantalla en la PWA de iOS", () => {
   });
 });
 
+describe("superficies que deben llegar al borde", () => {
+  /**
+   * `app/layout.tsx` lleva su propia regla, con su media query aparte: el splash
+   * se pinta antes de que cargue `globals.css` y ahí la variable no existe.
+   * El lector del DM mide en vez de maquetar.
+   */
+  const EXENTOS = new Set([
+    "app/layout.tsx",
+    "app/[locale]/(protected)/mensajes/[conversationId]/page.tsx",
+  ]);
+
+  it("todo `position: fixed` con `inset: 0` declara el alto de pantalla", () => {
+    // `inset: 0` se resuelve contra el ÁREA DE DIBUJO, que en la PWA de iPhone
+    // mide 62px menos que la pantalla. Sin el alto, el elemento se queda corto y
+    // deja ver el lienzo desnudo por abajo: eso es el escalón negro.
+    //
+    // Con el alto queda sobre-restringido —`top`, `bottom` y `height`— y CSS
+    // descarta `bottom`. Es justo lo que se busca.
+    const culpables: string[] = [];
+    for (const f of FUENTES) {
+      if (EXENTOS.has(f.ruta)) continue;
+      const L = f.texto.split(/\r?\n/);
+      L.forEach((linea, i) => {
+        if (!/^\s*inset:\s*0\s*[,;]\s*$/.test(linea)) return;
+        const antes = L.slice(Math.max(0, i - 4), i).join("\n");
+        if (!/position:\s*["']?fixed/.test(antes)) return;
+        const despues = L.slice(i + 1, i + 6).join("\n");
+        if (/vb-alto-pantalla/.test(despues)) return;
+        culpables.push(`${f.ruta}:${i + 1}`);
+      });
+    }
+    expect(culpables).toEqual([]);
+  });
+});
+
 describe("configuración de pantalla completa", () => {
   it("declara `viewport` y `appleWebApp` en un solo sitio", () => {
     // Dos declaraciones es como empezó todo: cada una manda sobre una parte de

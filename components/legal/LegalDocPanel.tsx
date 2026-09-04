@@ -49,6 +49,7 @@ export default function LegalDocPanel({
         .legalPanelOverlay {
           position: fixed;
           inset: 0;
+          height: var(--vb-alto-pantalla);
           z-index: 1000;
           display: flex;
           align-items: center;

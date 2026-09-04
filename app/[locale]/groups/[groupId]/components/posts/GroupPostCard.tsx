@@ -1732,6 +1732,7 @@ const menuButtonStyle: CSSProperties = {
   const modalBackdropStyle: CSSProperties = {
     position: "fixed",
     inset: 0,
+    height: "var(--vb-alto-pantalla)",
     background: "rgba(0,0,0,0.62)",
     display: "grid",
     placeItems: "center",
@@ -4869,6 +4870,7 @@ padding: "0 0 2px 0",
               style={{
                 position: "fixed",
                 inset: 0,
+                height: "var(--vb-alto-pantalla)",
                 // Sobre el viewer de medios cuando se abre desde sus 3 puntos.
                 zIndex: selectedMediaUrl !== null ? 2147483646 : 99990,
                 background: "rgba(0,0,0,0.50)",
@@ -4884,6 +4886,7 @@ padding: "0 0 2px 0",
               style={{
                 position: "fixed",
                 inset: 0,
+                height: "var(--vb-alto-pantalla)",
                 zIndex: selectedMediaUrl !== null ? 2147483647 : 99991,
                 display: "flex",
                 alignItems: "center",

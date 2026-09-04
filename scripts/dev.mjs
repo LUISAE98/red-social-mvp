@@ -31,11 +31,92 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { spawn, execSync } from "node:child_process";
-import { rmSync } from "node:fs";
+import { existsSync, readdirSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 
 const PORT = process.env.PORT || "3000";
-const LOCK = path.join(process.cwd(), ".next", "dev", "lock");
+const CACHE = path.join(process.cwd(), ".next");
+const LOCK = path.join(CACHE, "dev", "lock");
+
+/**
+ * A partir de qué peso se tira la caché de Turbopack, en bytes.
+ *
+ * ⚠️ ESTO NO ES HIGIENE, ES EL FALLO MÁS FRECUENTE DE ESTE PROYECTO. La caché
+ * se degrada con las horas y engorda; pasado cierto punto una compilación tarda
+ * MINUTOS y el servidor parece colgado. Se diagnosticó como "se cayó el
+ * servidor" cinco veces en un solo día, y las cinco la cura fue la misma: matar
+ * el árbol y borrar `.next`.
+ *
+ * El auto-reinicio de aquí abajo NO lo detecta, porque el proceso no se cae:
+ * sigue vivo, compilando. Por eso se mira ANTES de arrancar.
+ *
+ * El umbral sale de medidas reales, no de un número redondo:
+ *
+ *   · recién creada, tras 10 minutos de uso …… 633 MB   ← sana
+ *   · los cinco casos que colgaron …………… 887 MB a 1,4 GB
+ *
+ * 850 MB cae en medio, por debajo del más pequeño de los malos. Se prefiere
+ * pasarse de celoso: borrarla de más cuesta UNA compilación completa, no
+ * borrarla cuesta cinco minutos mirando una pantalla que no responde.
+ *
+ * No hay un segundo umbral de aviso a propósito: creciendo así de rápido,
+ * cualquier valor útil quedaría tan pegado a este que saltaría casi siempre, y
+ * un aviso que sale todos los días deja de leerse.
+ */
+const CACHE_LIMITE = 850 * 1024 * 1024;
+
+/**
+ * Peso de un directorio, con salida temprana.
+ *
+ * En cuanto pasa el tope deja de contar: no hace falta el número exacto para
+ * decidir, y así el caso malo —que es el que importa— se resuelve rápido en vez
+ * de recorrer decenas de miles de ficheros hasta el final.
+ */
+function pesoDe(dir, tope) {
+  let total = 0;
+  const pendientes = [dir];
+  while (pendientes.length) {
+    let entradas;
+    const actual = pendientes.pop();
+    try {
+      entradas = readdirSync(actual, { withFileTypes: true });
+    } catch {
+      continue; // desapareció mientras mirábamos
+    }
+    for (const entrada of entradas) {
+      const p = path.join(actual, entrada.name);
+      if (entrada.isDirectory()) {
+        pendientes.push(p);
+        continue;
+      }
+      try {
+        total += statSync(p).size;
+      } catch {
+        /* idem */
+      }
+      if (total > tope) return total;
+    }
+  }
+  return total;
+}
+
+/** Mira la caché al arrancar. Solo una vez: los reinicios no la re-miden. */
+function vigilarCache() {
+  if (!existsSync(CACHE)) return;
+
+  const bytes = pesoDe(CACHE, CACHE_LIMITE);
+  const mb = Math.round(bytes / 1024 / 1024);
+
+  if (bytes <= CACHE_LIMITE) return;
+
+  console.log(
+    `\x1b[33m🧹 La caché de Turbopack pasaba de ${mb} MB. A partir de ahí una ` +
+      `compilación tarda minutos y el servidor parece colgado, así que se ` +
+      `borra sola.\x1b[0m\n` +
+      `\x1b[33m   Este arranque será más lento: está compilando desde cero.\x1b[0m`
+  );
+  rmSync(CACHE, { recursive: true, force: true });
+}
 
 /** Caídas seguidas que se consideran "no se arregla solo". */
 const MAX_FALLOS_SEGUIDOS = 3;
@@ -222,4 +303,5 @@ console.log(
   "\x1b[36m▶  Dev con auto-reinicio activo (se levanta solo si se cae).\x1b[0m\n" +
   "\x1b[36m   Escribe 'r' + Enter para reiniciar a mano si se cuelga · Ctrl+C para detener.\x1b[0m"
 );
+vigilarCache();
 start();

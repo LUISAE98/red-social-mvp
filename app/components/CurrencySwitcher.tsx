@@ -60,6 +60,7 @@ function CurrencyOverlay({
         style={{
           position: "fixed",
           inset: 0,
+          height: "var(--vb-alto-pantalla)",
           zIndex: 99990,
           background: "rgba(0,0,0,0.50)",
           animation: closing ? "vbSwFadeOut 0.15s ease forwards" : "vbSwFadeIn 0.18s ease",
@@ -70,6 +71,7 @@ function CurrencyOverlay({
         style={{
           position: "fixed",
           inset: 0,
+          height: "var(--vb-alto-pantalla)",
           zIndex: 99991,
           display: "flex",
           alignItems: "center",
