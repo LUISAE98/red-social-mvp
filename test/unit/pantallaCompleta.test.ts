@@ -57,12 +57,18 @@ describe("alto de pantalla en la PWA de iOS", () => {
     expect(alto).toEqual(["calc(100dvh + var(--vb-lienzo-extra))"]);
   });
 
-  it("acota la compensación a la app instalada", () => {
+  it("acota la compensación a la app instalada, en sus DOS modos", () => {
     // 🚨 Sin acotar, en Safari `lvh` ignora la barra del navegador y la resta
     // valdría el alto de esa barra, escondiendo contenido por debajo.
-    expect(GLOBALS).toMatch(
-      /@media\s*\(\s*display-mode:\s*standalone\s*\)\s*\{\s*:root\s*\{\s*--vb-lienzo-extra/
-    );
+    //
+    // 🚨 Y tienen que estar los dos modos. Cubrir solo `standalone` costó un
+    // ciclo entero: iOS reporta `fullscreen` aunque enseñe la barra de estado,
+    // así que la regla no casaba, la compensación se quedaba en 0 y parecía que
+    // el arreglo no servía cuando ni siquiera se estaba ejecutando.
+    const query = GLOBALS.match(/@media([^{]*)\{\s*:root\s*\{\s*--vb-lienzo-extra/)?.[1];
+    expect(query).toBeDefined();
+    expect(query).toContain("display-mode: standalone");
+    expect(query).toContain("display-mode: fullscreen");
   });
 
   it("no reintroduce `100dvh` suelto", () => {
@@ -73,7 +79,14 @@ describe("alto de pantalla en la PWA de iOS", () => {
     // la variable a partir de `100dvh`; y `layout.tsx`, cuyo splash se pinta
     // ANTES de que cargue la hoja de estilos y por eso lleva su propia regla
     // `@media (display-mode: standalone)` escrita a mano.
-    const PERMITIDOS = new Set(["app/globals.css", "app/layout.tsx"]);
+    // El lector del DM también: ahí `100dvh` no se consume para maquetar, se
+    // MIDE, para poder distinguir "la compensación no se aplicó" de "se aplicó
+    // y aun así queda corto".
+    const PERMITIDOS = new Set([
+      "app/globals.css",
+      "app/layout.tsx",
+      "app/[locale]/(protected)/mensajes/[conversationId]/page.tsx",
+    ]);
     const culpables = FUENTES.filter(
       (f) => !PERMITIDOS.has(f.ruta) && /\b100dvh\b/.test(sinComentarios(f.texto))
     ).map((f) => f.ruta);

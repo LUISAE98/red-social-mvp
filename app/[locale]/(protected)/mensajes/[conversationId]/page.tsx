@@ -319,6 +319,9 @@ export default function ConversationPage() {
     /** Lo que CSS cree que mide la pantalla, frente a `window.innerHeight`. */
     lvh: number;
     dvh: number;
+    /** Lo que vale de verdad `--vb-alto-pantalla`. Si no iguala a `lvh` dentro
+     *  de la app instalada, la compensación no se está aplicando. */
+    varAlto: number;
     /**
      * La PEOR lectura vista, retenida.
      *
@@ -372,7 +375,16 @@ export default function ConversationPage() {
     const sondaLvh = document.createElement("div");
     sondaLvh.style.cssText = "width:0;height:100lvh;";
     const sondaDvh = document.createElement("div");
-    sondaDvh.style.cssText = "width:0;height:var(--vb-alto-pantalla);";
+    // 🚨 `100dvh` A PELO, A PROPÓSITO. Aquí no se consume la unidad para
+    // maquetar: se MIDE, para poder compararla con `lvh` y con la variable. Si
+    // se cambia por `var(--vb-alto-pantalla)` el lector deja de poder distinguir
+    // "la compensación no se aplicó" de "se aplicó y aun así queda corto".
+    sondaDvh.style.cssText = "width:0;height:100dvh;";
+    // Lo que de verdad está usando la plataforma. Si esto no vale lo mismo que
+    // `lvh` dentro de la app instalada, la regla no se está aplicando.
+    const sondaVar = document.createElement("div");
+    sondaVar.style.cssText = "width:0;height:var(--vb-alto-pantalla);";
+    sonda.append(sondaVar);
     sonda.append(sondaLvh, sondaDvh);
     document.body.appendChild(sonda);
 
@@ -420,6 +432,7 @@ export default function ConversationPage() {
         segAbajo: Math.round(parseFloat(getComputedStyle(sonda).paddingBottom) || 0),
         lvh: Math.round(sondaLvh.getBoundingClientRect().height),
         dvh: Math.round(sondaDvh.getBoundingClientRect().height),
+        varAlto: Math.round(sondaVar.getBoundingClientRect().height),
         peor: peor
           ? {
               win: peor.win,
@@ -658,6 +671,17 @@ export default function ConversationPage() {
             // ARRIBA aunque se vea abajo.
             `seguro ↑${vvVivo?.segArriba ?? "—"} ↓${vvVivo?.segAbajo ?? "—"}`,
             `lvh ${vvVivo?.lvh ?? "—"}  dvh ${vvVivo?.dvh ?? "—"}`,
+            // LA LÍNEA QUE DICE SI EL ARREGLO SE ESTÁ EJECUTANDO. Dentro de la
+            // app instalada tiene que valer lo mismo que `lvh`. Si vale lo
+            // mismo que `dvh`, la regla `@media (display-mode: ...)` no está
+            // casando y no se ha probado nada.
+            `VAR ${vvVivo?.varAlto ?? "—"}  ${
+              vvVivo
+                ? vvVivo.varAlto === vvVivo.lvh
+                  ? "→ aplicada"
+                  : "→ NO APLICADA"
+                : ""
+            }`,
             `falta ${
               typeof window !== "undefined"
                 ? window.screen.height - window.innerHeight

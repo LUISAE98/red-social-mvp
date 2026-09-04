@@ -107,7 +107,16 @@
 /* Solo dentro de la app instalada. Ahí no hay barra de navegador, así que `lvh`
    es el lienzo de verdad; en Safari sería el alto sin su barra y escondería
    contenido. Ver la explicación larga en `--vb-lienzo-extra`, arriba. */
-@media (display-mode: standalone) {
+/* 🚨 LOS DOS MODOS, NO SOLO `standalone`.
+   La primera versión solo cubría `standalone` y la regla no llegó a aplicarse
+   NUNCA: el lector del DM llevaba todo el rato diciendo `modo fullscreen`, que
+   es lo que reporta iOS aunque enseñe la barra de estado. La compensación se
+   quedaba en 0 y parecía que el arreglo no servía, cuando lo que pasaba es que
+   no se estaba ejecutando.
+
+   Los dos significan lo mismo para esto: app instalada, sin barra de navegador
+   que dejar a la vista. `minimal-ui` NO va, porque ahí sí hay barra. */
+@media (display-mode: standalone), (display-mode: fullscreen) {
   :root {
     --vb-lienzo-extra: calc(100lvh - 100dvh);
   }

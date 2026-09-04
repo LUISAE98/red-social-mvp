@@ -173,7 +173,7 @@ export default async function RootLayout({
                  hay barra de navegador que dejar a la vista. Es la misma regla
                  que --vb-lienzo-extra en globals.css, escrita a mano porque
                  aquí la variable todavía no existe. */
-              @media (display-mode: standalone) {
+              @media (display-mode: standalone), (display-mode: fullscreen) {
                 #desktop-refresh-splash {
                   height: 100lvh;
                 }
