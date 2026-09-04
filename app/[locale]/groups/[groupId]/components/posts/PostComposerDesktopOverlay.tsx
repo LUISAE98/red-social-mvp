@@ -22,7 +22,7 @@ import PublishProgressButton from "./PublishProgressButton";
 import type { useComposerPremium } from "./useComposerPremium";
 import { useTranslations } from "next-intl";
 import {
-  Avatar, fontStack, formatVideoDuration,
+  Avatar, BOTON_ACCION_FORMA, fontStack, formatVideoDuration,
   type PostComposerDesktopOverlayProps,
 } from "./PostComposerDesktopOverlay.parts";
 
@@ -505,18 +505,14 @@ style={{
         onClick={premiumComposer.togglePremiumEnabled}
         disabled={creating || isPreparingImages}
         style={{
-          height: 34,
-          border: "none",
-          borderRadius: 5,
-          padding: "0 13px",
+          // Misma forma y letra que el resto de acciones del compositor.
+          ...BOTON_ACCION_FORMA,
           // El degradado canonico de marca, el mismo que <Button variant="gradient">
           // (ver vibra_style.md). Sale de los tokens y no de tres hex sueltos, asi
           // que sigue al morado de marca si algun dia se mueve.
           background:
             "linear-gradient(135deg, var(--pink) 0%, var(--brand-strong) 52%, #3b82f6 100%)",
           color: "#fff",
-          fontSize: 13,
-          fontWeight: 500,
           cursor: creating || isPreparingImages ? "not-allowed" : "pointer",
           opacity: creating || isPreparingImages ? 0.55 : 1,
           fontFamily: fontStack,
@@ -849,7 +845,6 @@ borderRadius: 14,
   disabled={disabledPublish}
   isEditMode={isEditMode}
   onClick={onSubmit}
-  style={{ height: 42, borderRadius: 5, fontSize: 17, fontWeight: 500 }}
 />
         </div>
         </GlassEdge>

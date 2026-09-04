@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import type { CSSProperties } from "react";
 
-import { fontStack, type PublishProgress } from "./GroupPostComposer.parts";
+import { BOTON_ACCION_FORMA, type PublishProgress } from "./GroupPostComposer.parts";
 
 /**
  * El botón de publicar, que se llena mientras publica.
@@ -64,12 +64,12 @@ export default function PublishProgressButton({
       // ve el relleno.
       aria-busy={creating || undefined}
       style={{
+        // Forma y letra compartidas con el resto de acciones; ver la
+        // constante. Aqui solo se anade lo propio de este boton.
+        ...BOTON_ACCION_FORMA,
         position: "relative",
         overflow: "hidden",
         width: "100%",
-        height: 46,
-        border: "none",
-        borderRadius: 12,
         background: success
           ? "#22c55e"
           : disabled && !activo
@@ -81,10 +81,6 @@ export default function PublishProgressButton({
               : "#a855f7",
         color:
           disabled && !activo ? "rgba(255,255,255,0.36)" : "rgba(255,255,255,0.98)",
-        fontSize: 16,
-        fontWeight: 550,
-        fontFamily: fontStack,
-        letterSpacing: "-0.02em",
         cursor: disabled || activo ? "default" : "pointer",
         display: "grid",
         placeItems: "center",

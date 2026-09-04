@@ -15,7 +15,8 @@ import {
   type SetStateAction,
 } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
-import type { PublishProgress } from "./GroupPostComposer.parts";
+import { BOTON_ACCION_FORMA, type PublishProgress } from "./GroupPostComposer.parts";
+export { BOTON_ACCION_FORMA };
 import { createPortal } from "react-dom";
 
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
