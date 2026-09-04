@@ -119,11 +119,13 @@ describe("conciliarRetirosEnCamino", () => {
     const s = await leerResumen(creatorId);
     // El saldo vuelve entero.
     expect(s.withdrawnNet).toBe(0);
-    // Y las retenciones también: se consumieron al solicitar y hay que reponerlas.
-    expect(s.pendingMxVatCollected).toBe(64);
-    expect(s.pendingRetainedIsr).toBe(10);
-    expect(s.pendingRetainedIva).toBe(32);
-    expect(s.pendingCommissionVat).toBe(16);
+    /**
+     * 🚨 Las retenciones NO se reponen, y es lo correcto desde §A5: se aplicaron en la
+     *    VENTA y ya se enteraron al SAT. Devolverlas al rechazar le regalaría al creador un
+     *    impuesto que Vibra ya pagó por él, y cada devolución le inflaría el saldo.
+     */
+    expect(s.pendingRetainedIsr).toBe(0);
+    expect(s.pendingRetainedIva).toBe(0);
   });
 
   it("🚨 `failed` devuelve igual que `returned`", async () => {
@@ -135,7 +137,8 @@ describe("conciliarRetirosEnCamino", () => {
 
     const s = await leerResumen(creatorId);
     expect(s.withdrawnNet).toBe(0);
-    expect(s.pendingRetainedIsr).toBe(10);
+    // Las retenciones no se mueven al conciliar: viven en la venta, no en el retiro (§A5).
+    expect(s.pendingRetainedIsr).toBe(0);
   });
 
   it("🟢 `processing` lo deja en camino y no devuelve nada", async () => {
@@ -175,6 +178,7 @@ describe("conciliarRetirosEnCamino", () => {
 
     const s = await leerResumen(creatorId);
     expect(s.withdrawnNet).toBe(0);
-    expect(s.pendingRetainedIsr).toBe(10);
+    // Las retenciones no se mueven al conciliar: viven en la venta, no en el retiro (§A5).
+    expect(s.pendingRetainedIsr).toBe(0);
   });
 });

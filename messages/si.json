@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "ස්වයංක්‍රීය ඉන්වොයිස් කිරීම සක්‍රියයි",
     "fiscalAutoInvoicingDone": "ඔබ වෙනුවෙන් සෑම විකුණුමකම ඉන්වොයිසය සහ ඔබේ මාසික සමස්ත ඉන්වොයිසය නිකුත් කරන්නෙමු.",
     "fiscalSealExpiresOn": "ඔබේ CSD {date} දින කල් ඉකුත් වේ.",
-    "fiscalDoneCta": "සිදු විය"
+    "fiscalDoneCta": "සිදු විය",
+    "salesRetainedTitle": "ඔබේ විකුණුම්වලින් දැනටමත් අඩු කර ඇත",
+    "salesRetainedNote": "මේවා ඔබේ සියලු විකුණුම්වල එකතුවයි, දැන් තිබෙන මුදල පමණක් නොවේ."
   },
   "services": {
     "confirmLabel": "තහවුරු කරන්න",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "ඔබේ ගෙවීම් ලියාපදිංචිය පරීක්ෂා කළ නොහැකි විය.",
     "verifyIdentityFirst": "පළමුව ඔබේ අනන්‍යතාව තහවුරු කරන්න.",
     "payoutCountryNotYet": "ඔබේ රටට තවම මුදල් යැවිය නොහැක. හැකි වූ වහාම දන්වන්නෙමු.",
-    "payoutCountryOtherWay": "ඔබේ රටට මේ ක්‍රමයෙන් ගෙවීමක් නොකෙරේ. අපට ලියන්න, ගෙවන ආකාරය කියන්නෙමු."
+    "payoutCountryOtherWay": "ඔබේ රටට මේ ක්‍රමයෙන් ගෙවීමක් නොකෙරේ. අපට ලියන්න, ගෙවන ආකාරය කියන්නෙමු.",
+    "invoiceUnavailableNow": "මේ මිලදී ගැනීමට දැන් ඉන්වොයිසයක් නිකුත් කළ නොහැක, අපට ලියන්න.",
+    "invalidDayFormat": "දිනය YYYY-MM-DD ආකෘතියෙන් විය යුතුය."
   },
   "loginLanding": {
     "exp1Eyebrow": "පෞද්ගලික අත්දැකීම්",

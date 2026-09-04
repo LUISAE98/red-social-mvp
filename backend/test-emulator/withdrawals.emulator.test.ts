@@ -45,7 +45,12 @@ async function leer(creatorId: string) {
   return snap.data() as Record<string, number>;
 }
 
-/** Lo que hace `requestWithdrawal`: calcula, aparta el saldo y consume las retenciones. */
+/**
+ * Lo que hace `requestWithdrawal`: calcula y aparta el saldo.
+ *
+ * 🚨 Ya NO consume retenciones (§A5). Se aplican en la venta, así que aquí solo se mueve
+ * dinero que ya es del creador.
+ */
 async function solicitar(creatorId: string) {
   const s = await leer(creatorId);
   const saldo = round2(s.lifetimeEarnedNet - s.withdrawnNet);
@@ -57,13 +62,7 @@ async function solicitar(creatorId: string) {
     ivaComisionPendiente: s.pendingCommissionVat,
   });
   await db.doc(`users/${creatorId}/walletSummary/current`).set(
-    {
-      withdrawnNet: round2(s.withdrawnNet + r.bruto),
-      pendingMxVatCollected: round2(Math.max(0, s.pendingMxVatCollected - r.ivaCobrado)),
-      pendingRetainedIsr: round2(Math.max(0, s.pendingRetainedIsr - r.isr)),
-      pendingRetainedIva: round2(Math.max(0, s.pendingRetainedIva - r.iva)),
-      pendingCommissionVat: round2(Math.max(0, s.pendingCommissionVat - r.ivaComision)),
-    },
+    { withdrawnNet: round2(s.withdrawnNet + r.bruto) },
     { merge: true }
   );
   return r;
@@ -107,20 +106,29 @@ beforeAll(() => {
 });
 
 describe("solicitud de retiro", () => {
-  it("aparta el saldo y consume las retenciones al solicitar", async () => {
+  it("aparta el saldo al solicitar, y NO vuelve a retener (§A5)", async () => {
     const creatorId = newCreator();
     const antes = await sembrar(creatorId);
 
     const r = await solicitar(creatorId);
-    expect(r.neto).toBe(229.5); // 225 + 48 − 7.5 − 24 − 12
+    /**
+     * 🚨 El neto ES el saldo. Desde §A5 la retención ocurre en la VENTA, así que lo que hay
+     *    en la wallet ya viene limpio y retirar solo lo mueve. Antes esto daba 229.50 porque
+     *    sumaba el IVA cobrado y restaba las tres retenciones aquí; hacerlo ahora sería
+     *    cobrárselas dos veces.
+     */
+    expect(r.neto).toBe(225);
+    expect(r.isr).toBe(0);
+    expect(r.iva).toBe(0);
+    expect(r.ivaComision).toBe(0);
 
     const s = await leer(creatorId);
     // El saldo disponible queda en cero: ya no puede pedir otro con el mismo dinero.
     expect(round2(s.lifetimeEarnedNet - s.withdrawnNet)).toBe(0);
-    expect(s.pendingMxVatCollected).toBe(0);
-    expect(s.pendingRetainedIsr).toBe(0);
-    expect(s.pendingRetainedIva).toBe(0);
-    expect(s.pendingCommissionVat).toBe(0);
+    // Las retenciones anotadas NO se consumen: ya se aplicaron en la venta y siguen ahí como
+    // registro de lo que se enteró al SAT por él.
+    expect(s.pendingRetainedIsr).toBe(antes.pendingRetainedIsr);
+    expect(s.pendingRetainedIva).toBe(antes.pendingRetainedIva);
     expect(antes.lifetimeEarnedNet).toBe(225); // el ganado histórico NO se toca
   });
 
@@ -150,7 +158,7 @@ describe("solicitud de retiro", () => {
     const primera = await solicitar(creatorId);
     const segunda = await solicitar(creatorId);
 
-    expect(primera.neto).toBe(229.5);
+    expect(primera.neto).toBe(225); // el saldo entero, ya neto desde la venta (§A5)
     expect(segunda.neto).toBe(0); // sin saldo, no hay retiro
     const s = await leer(creatorId);
     expect(round2(s.lifetimeEarnedNet - s.withdrawnNet)).toBe(0);

@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automātiskā rēķinu izrakstīšana aktīva",
     "fiscalAutoInvoicingDone": "Tavā vietā izrakstīsim rēķinu par katru pārdevumu un tavu mēneša kopsavilkuma rēķinu.",
     "fiscalSealExpiresOn": "Tavam CSD beidzas termiņš {date}.",
-    "fiscalDoneCta": "Gatavs"
+    "fiscalDoneCta": "Gatavs",
+    "salesRetainedTitle": "Jau atskaitīts no taviem pārdevumiem",
+    "salesRetainedNote": "Šīs ir visu tavu pārdevumu kopsummas, nevis tikai tā, kas pieejams tagad."
   },
   "services": {
     "confirmLabel": "Apstiprināt",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Neizdevās pārbaudīt tavu izmaksu reģistrāciju.",
     "verifyIdentityFirst": "Vispirms apstiprini savu identitāti.",
     "payoutCountryNotYet": "Uz tavu valsti naudu vēl nevaram sūtīt. Paziņosim, tiklīdz būs iespējams.",
-    "payoutCountryOtherWay": "Tavai valstij šādi netiek maksāts. Uzraksti mums, un pateiksim, kā tev samaksāt."
+    "payoutCountryOtherWay": "Tavai valstij šādi netiek maksāts. Uzraksti mums, un pateiksim, kā tev samaksāt.",
+    "invoiceUnavailableNow": "Šobrīd nevaram izrakstīt rēķinu par šo pirkumu, uzraksti mums, un mēs to atrisināsim.",
+    "invalidDayFormat": "Datumam jābūt formātā GGGG-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "Personīgi pārdzīvojumi",

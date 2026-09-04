@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Faturimi automatik aktiv",
     "fiscalAutoInvoicingDone": "Do të lëshojmë për ty faturën e çdo shitjeje dhe faturën tënde globale të muajit.",
     "fiscalSealExpiresOn": "CSD-ja jote skadon më {date}.",
-    "fiscalDoneCta": "Gati"
+    "fiscalDoneCta": "Gati",
+    "salesRetainedTitle": "Tashmë e zbritur nga shitjet e tua",
+    "salesRetainedNote": "Këto janë totalet e të gjitha shitjeve të tua, jo vetëm e asaj që ke në dispozicion tani."
   },
   "services": {
     "confirmLabel": "Konfirmo",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Nuk arritëm ta kontrollojmë regjistrimin tënd për pagesat.",
     "verifyIdentityFirst": "Së pari verifiko identitetin tënd.",
     "payoutCountryNotYet": "Ende nuk mund të dërgojmë para në vendin tënd. Të njoftojmë sapo të jetë e mundur.",
-    "payoutCountryOtherWay": "Vendi yt nuk paguhet nëpërmjet kësaj rruge. Na shkruaj dhe të themi si të të paguajmë."
+    "payoutCountryOtherWay": "Vendi yt nuk paguhet nëpërmjet kësaj rruge. Na shkruaj dhe të themi si të të paguajmë.",
+    "invoiceUnavailableNow": "Nuk mund ta faturojmë këtë blerje tani, na shkruaj dhe do ta zgjidhim.",
+    "invalidDayFormat": "Data duhet të jetë në formatin VVVV-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "Përvoja personale",

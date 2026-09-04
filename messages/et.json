@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automaatne arveldamine aktiivne",
     "fiscalAutoInvoicingDone": "Väljastame sinu eest iga müügi arve ja sinu kuu koondarve.",
     "fiscalSealExpiresOn": "Sinu CSD aegub {date}.",
-    "fiscalDoneCta": "Valmis"
+    "fiscalDoneCta": "Valmis",
+    "salesRetainedTitle": "Juba sinu müügist maha arvatud",
+    "salesRetainedNote": "Need on kõigi su müükide kogusummad, mitte ainult praegu saadaoleva oma."
   },
   "services": {
     "confirmLabel": "Kinnita",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Sinu väljamaksete registreerimist ei õnnestunud kontrollida.",
     "verifyIdentityFirst": "Kinnita esmalt oma isikusamasus.",
     "payoutCountryNotYet": "Me ei saa veel sinu riiki raha saata. Anname teada niipea, kui see on võimalik.",
-    "payoutCountryOtherWay": "Sinu riiki ei maksta seda teed pidi. Kirjuta meile ja ütleme, kuidas sulle maksta."
+    "payoutCountryOtherWay": "Sinu riiki ei maksta seda teed pidi. Kirjuta meile ja ütleme, kuidas sulle maksta.",
+    "invoiceUnavailableNow": "Praegu ei saa me seda ostu arveldada, kirjuta meile ja lahendame selle.",
+    "invalidDayFormat": "Kuupäev peab olema vormingus AAAA-KK-PP."
   },
   "loginLanding": {
     "exp1Eyebrow": "Isiklikud elamused",

@@ -116,60 +116,66 @@ describe("creador extranjero", () => {
   });
 });
 
-describe("el desglose del retiro suma casos distintos", () => {
-  it("dos ventas iguales retienen distinto según el comprador", () => {
+describe("el saldo ya viene neto (§A5)", () => {
+  // 🚨 Desde el 2026-09-03 la retención ocurre EN LA VENTA, no al retirar. El saldo que ve el
+  // creador es dinero suyo, ya limpio, y retirar solo lo mueve.
+
+  it("🚨 dos ventas iguales dejan saldos distintos según el comprador", () => {
     const aMexicano = venta("MX");
     const aAleman = venta("DE");
 
-    // El creador ve 150 de saldo (75 + 75) pero ni el IVA cobrado ni sus retenciones son
-    // proporcionales: los dos salieron solo de la primera venta.
-    const ivaCobradoPendiente = 16; // el IVA de la venta mexicana; la alemana va a 0%
-    const isrPendiente = aMexicano.isrRetenido + aAleman.isrRetenido; // 5
-    const ivaPendiente = aMexicano.ivaRetenido + aAleman.ivaRetenido; // 8, no 16
-    const ivaComisionPendiente = aMexicano.ivaComision + aAleman.ivaComision; // 8
+    // No es un porcentaje sobre el total: son dos tratamientos distintos sumados.
+    // La mexicana llevó IVA y se le retuvo la mitad; la alemana fue exportación a 0%.
+    expect(aMexicano.ivaRetenido).toBe(8);
+    expect(aAleman.ivaRetenido).toBe(0);
+    expect(aMexicano.neto).not.toBe(aAleman.neto);
 
-    expect(ivaPendiente).toBe(8);
-
-    const retiro = calcularRetiro({
-      saldo: 150,
-      ivaCobradoPendiente,
-      isrPendiente,
-      ivaPendiente,
-      ivaComisionPendiente,
-    });
-
-    expect(retiro.bruto).toBe(150);
-    // 🚨 Contra la suma de las DOS liquidaciones, no contra una resta escrita a mano. Es la
-    //    invariante que faltaba: el retiro tiene que dar lo mismo que las ventas que lo
-    //    formaron. Escrita como resta, este test daba 129 por bueno — que era el bug.
-    expect(retiro.neto).toBe(round2(aMexicano.neto + aAleman.neto)); // 76.50 + 68.50
-    expect(retiro.neto).toBe(145);
+    // Lo que el creador tiene disponible es la suma de los dos netos, no 150.
+    const saldo = round2(aMexicano.neto + aAleman.neto);
+    expect(saldo).toBe(145);
   });
 
-  it("un retiro parcial descuenta la parte proporcional", () => {
+  it("🚨 retirar NO vuelve a retener: sería cobrarlo dos veces", () => {
     const r = calcularRetiro({
-      saldo: 150,
-      solicitado: 75,
+      saldo: 145,
+      // Se siguen pasando por compatibilidad, pero ya no deben aplicarse.
+      ivaCobradoPendiente: 16,
+      isrPendiente: 5,
+      ivaPendiente: 8,
+      ivaComisionPendiente: 8,
+    });
+
+    expect(r.bruto).toBe(145);
+    expect(r.neto).toBe(145);
+    expect(r.isr).toBe(0);
+    expect(r.iva).toBe(0);
+    expect(r.ivaComision).toBe(0);
+    expect(r.ivaCobrado).toBe(0);
+  });
+
+  it("un retiro parcial es solo una fracción del dinero", () => {
+    const r = calcularRetiro({
+      saldo: 145,
+      solicitado: 72.5,
       ivaCobradoPendiente: 16,
       isrPendiente: 5,
       ivaPendiente: 8,
       ivaComisionPendiente: 8,
     });
     expect(r.proporcion).toBe(0.5);
-    expect(r.isr).toBe(2.5);
-    expect(r.ivaCobrado).toBe(8); // el IVA también se consume en proporción
+    expect(r.neto).toBe(72.5);
   });
 
-  it("el neto nunca queda en negativo", () => {
-    // Si las retenciones se comieran el retiro, lo que corresponde es no depositar en rojo.
+  it("no se puede retirar más de lo que hay", () => {
     const r = calcularRetiro({
       saldo: 10,
+      solicitado: 500,
       ivaCobradoPendiente: 0,
-      isrPendiente: 50,
-      ivaPendiente: 50,
-      ivaComisionPendiente: 50,
+      isrPendiente: 0,
+      ivaPendiente: 0,
+      ivaComisionPendiente: 0,
     });
-    expect(r.neto).toBe(0);
+    expect(r.neto).toBe(10);
   });
 });
 

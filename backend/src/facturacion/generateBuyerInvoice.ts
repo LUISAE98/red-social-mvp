@@ -193,7 +193,7 @@ export const generateBuyerInvoice = onCall(
         logger.error("generateBuyerInvoice sin_importe_congelado", { uid, purchaseId: pid, creatorId });
         throw new HttpsError(
           "failed-precondition",
-          "No podemos facturar una de estas compras ahora mismo, escríbenos y lo resolvemos."
+          "No podemos facturar esta compra ahora mismo, escríbenos y lo resolvemos."
         );
       }
 

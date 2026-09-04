@@ -113,6 +113,11 @@ const MSG_TO_KEY: Record<string, string> = {
   "falta el uso de cfdi.": "missingCfdiUse",
   "solo puedes facturar compras pagadas.": "onlyPaidPurchasesInvoiceable",
   "una de las compras ya fue facturada.": "alreadyInvoiced",
+  // §A4/§A5 — sin importe congelado no se factura, y no se aproxima.
+  "no podemos facturar esta compra ahora mismo, escríbenos y lo resolvemos.": "invoiceUnavailableNow",
+  "el día va en formato aaaa-mm-dd.": "invalidDayFormat",
+  // Herramientas de administración de la facturación.
+  "solo administración.": "noPermission",
   "no hay tasa de cambio disponible para facturar esta compra.": "invoiceFxUnavailable",
   "selecciona al menos un movimiento.": "selectAtLeastOneMovement",
   "el perfil de facturación no tiene cliente de facturapi.": "internalError",

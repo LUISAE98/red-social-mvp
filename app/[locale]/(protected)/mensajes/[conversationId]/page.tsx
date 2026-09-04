@@ -199,6 +199,68 @@ export default function ConversationPage() {
       ? new URLSearchParams(window.location.search).has("vv")
       : false;
 
+  /**
+   * Geometría VIVA, leída del navegador y no de nuestro estado.
+   *
+   * 🚨 SIN ESTO EL LECTOR NO SIRVE PARA LO QUE SE HIZO. Enseñaba `viewport.height`,
+   * que es NUESTRA copia; y la pregunta que hay que responder es precisamente si
+   * esa copia coincide con lo que dice el navegador:
+   *
+   *   · copia ≠ vivo  → el navegador ya se reasentó y los que vamos viejos somos
+   *     nosotros. Se arregla en `useVisualViewport`.
+   *   · copia = vivo, y vivo sigue corto o corrido → WebKit no ha devuelto el
+   *     viewport a su sitio. Eso no se arregla releyendo: hay que forzar el
+   *     reasiento.
+   *
+   * Con el valor de antes las dos ramas se veían idénticas, así que el lector
+   * confirmaba cualquier hipótesis que uno ya trajera puesta.
+   *
+   * `eventos` cuenta lo que iOS emite: si no sube al cerrar el teclado, queda
+   * demostrado que no avisa, que es la premisa de la que cuelgan las relecturas.
+   *
+   * Se relee por temporizador y no por evento a propósito — depender del evento
+   * es justo lo que se está poniendo en duda. Solo corre con `?vv=1`.
+   */
+  const [vvVivo, setVvVivo] = useState<{
+    alto: number;
+    corrido: number;
+    eventos: number;
+    desdeUltimoMs: number;
+    foco: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!depurarViewport) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    let eventos = 0;
+    let ultimo = performance.now();
+    const marcar = () => {
+      eventos += 1;
+      ultimo = performance.now();
+    };
+    vv.addEventListener("resize", marcar);
+    vv.addEventListener("scroll", marcar);
+
+    const id = setInterval(() => {
+      const activo = document.activeElement;
+      setVvVivo({
+        alto: Math.round(vv.height),
+        corrido: Math.round(vv.offsetTop),
+        eventos,
+        desdeUltimoMs: Math.round(performance.now() - ultimo),
+        foco: activo ? activo.tagName.toLowerCase() : "—",
+      });
+    }, 250);
+
+    return () => {
+      clearInterval(id);
+      vv.removeEventListener("resize", marcar);
+      vv.removeEventListener("scroll", marcar);
+    };
+  }, [depurarViewport]);
+
   /** Dónde estaba el documento al entrar. Es el sitio al que hay que devolverlo. */
   const baseScrollRef = useRef(0);
   useEffect(() => {
@@ -379,8 +441,22 @@ export default function ConversationPage() {
           }}
         >
           {[
-            `corrido ${viewport?.offsetTop ?? "—"}`,
-            `alto vv ${viewport?.height ?? "—"}`,
+            // LAS DOS QUE DECIDEN. Si no coinciden, el navegador está bien y
+            // nosotros vamos viejos; si coinciden y el alto sigue corto, es
+            // WebKit el que no ha vuelto a su sitio.
+            `copia ${viewport?.height ?? "—"} @${viewport?.offsetTop ?? "—"}`,
+            `vivo  ${vvVivo?.alto ?? "—"} @${vvVivo?.corrido ?? "—"}`,
+            `IGUAL ${
+              vvVivo && viewport
+                ? vvVivo.alto === Math.round(viewport.height) &&
+                  vvVivo.corrido === Math.round(viewport.offsetTop)
+                  ? "sí → (B) WebKit"
+                  : "NO → (A) copia vieja"
+                : "—"
+            }`,
+            // Si esto no sube al cerrar el teclado, iOS no avisó.
+            `eventos ${vvVivo?.eventos ?? "—"} hace ${vvVivo?.desdeUltimoMs ?? "—"}ms`,
+            `activo ${vvVivo?.foco ?? "—"}`,
             `alto win ${typeof window !== "undefined" ? window.innerHeight : "—"}`,
             // La comparacion que importa: si "alto win" se queda por debajo de
             // "pantalla" con el teclado ya cerrado, el viewport de LAYOUT sigue

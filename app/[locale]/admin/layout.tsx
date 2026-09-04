@@ -18,6 +18,8 @@ const NAV_ITEMS = [
   { label: "Devoluciones", href: "/admin/refunds" },
   // 🚨 Mueve dinero de verdad: aceptar una solicitud manda una transferencia.
   { label: "Retiros", href: "/admin/retiros" },
+  // 🚨 Timbra documentos fiscales. Cancelar un CFDI es un trámite, no un borrado.
+  { label: "Facturación", href: "/admin/facturacion" },
   { label: "Historial", href: "/admin/audit-log" },
   { label: "Comunidades ocultas", href: "/admin/hidden-communities" },
   { label: "Comunidades privadas", href: "/admin/private-communities" },

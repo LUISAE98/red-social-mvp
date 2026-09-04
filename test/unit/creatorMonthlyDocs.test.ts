@@ -48,21 +48,27 @@ const ventaExtranjero = {
 };
 
 describe("comprobantes mensuales / periodo", () => {
-  it("el periodo es el mes natural en UTC", () => {
+  it("🚨 el periodo es el mes natural MEXICANO, no el de UTC (AUD-2)", () => {
+    // Un periodo fiscal mexicano se mide con el calendario mexicano. Cortar en medianoche
+    // UTC —las 18:00 de aquí— metía las operaciones de la tarde en el periodo siguiente.
     expect(periodoDe(new Date("2026-08-26T23:00:00Z"))).toBe("2026-08");
-    expect(periodoDe(new Date("2026-01-01T00:00:00Z"))).toBe("2026-01");
+    // Medianoche UTC del 1 de enero son las 18:00 del 31 de diciembre en México.
+    expect(periodoDe(new Date("2026-01-01T00:00:00Z"))).toBe("2025-12");
+    // Y a las 06:00 UTC ya es día 1 aquí.
+    expect(periodoDe(new Date("2026-01-01T06:00:00Z"))).toBe("2026-01");
   });
 
   it("el rango cubre el mes completo y excluye el primero del siguiente", () => {
+    // Los cortes son a las 06:00 UTC, que es medianoche en el centro de México.
     const { desde, hasta } = rangoDelPeriodo("2026-02");
-    expect(desde.toISOString()).toBe("2026-02-01T00:00:00.000Z");
-    expect(hasta.toISOString()).toBe("2026-03-01T00:00:00.000Z");
+    expect(desde.toISOString()).toBe("2026-02-01T06:00:00.000Z");
+    expect(hasta.toISOString()).toBe("2026-03-01T06:00:00.000Z");
   });
 
   it("diciembre rueda al año siguiente sin romperse", () => {
     const { desde, hasta } = rangoDelPeriodo("2026-12");
-    expect(desde.toISOString()).toBe("2026-12-01T00:00:00.000Z");
-    expect(hasta.toISOString()).toBe("2027-01-01T00:00:00.000Z");
+    expect(desde.toISOString()).toBe("2026-12-01T06:00:00.000Z");
+    expect(hasta.toISOString()).toBe("2027-01-01T06:00:00.000Z");
   });
 });
 
@@ -215,9 +221,15 @@ describe("comprobante de liquidación", () => {
     const c = armarComprobante(mes, "USD", "2026-09-05T09:00:00Z");
     expect(c.neto).toBe(round2(porVenta.neto * 3));
 
-    // Y el retiro de ese mismo mes, por la vía de los contadores del resumen.
+    /**
+     * Y el retiro de ese mismo mes.
+     *
+     * 🚨 Desde §A5 el saldo ES la suma de los netos, así que se le pasa `c.neto`. La invariante
+     * sigue siendo la misma y sigue siendo la que importa: **lo que se paga tiene que ser lo
+     * que el comprobante dice**. Lo que cambió es dónde se restan las retenciones, no cuánto.
+     */
     const retiro = calcularRetiro({
-      saldo: mes.base - mes.comision,
+      saldo: c.neto,
       ivaCobradoPendiente: mes.mxVatVenta,
       isrPendiente: mes.isrRetenido,
       ivaPendiente: mes.ivaRetenido,

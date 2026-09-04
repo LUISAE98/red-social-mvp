@@ -7,6 +7,8 @@
     "dev:next": "next dev",
     "dev:webpack": "next dev --webpack",
     "build": "next build",
+    "perf:baseline": "node scripts/perf-baseline.mjs",
+    "perf:compare": "node scripts/perf-baseline.mjs --compare",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",

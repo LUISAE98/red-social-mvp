@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Facturare automată activată",
     "fiscalAutoInvoicingDone": "Vom emite pentru tine factura fiecărei vânzări și factura ta globală a lunii.",
     "fiscalSealExpiresOn": "CSD-ul tău expiră pe {date}.",
-    "fiscalDoneCta": "Gata"
+    "fiscalDoneCta": "Gata",
+    "salesRetainedTitle": "Deja scăzut din vânzările tale",
+    "salesRetainedNote": "Sunt totalurile tuturor vânzărilor tale, nu doar ale sumei disponibile acum."
   },
   "services": {
     "confirmLabel": "Confirmă",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Nu am putut verifica înregistrarea ta pentru plăți.",
     "verifyIdentityFirst": "Mai întâi verifică-ți identitatea.",
     "payoutCountryNotYet": "Încă nu putem trimite bani în țara ta. Te anunțăm de îndată ce se poate.",
-    "payoutCountryOtherWay": "Țara ta nu este plătită pe această cale. Scrie-ne și îți spunem cum să te plătim."
+    "payoutCountryOtherWay": "Țara ta nu este plătită pe această cale. Scrie-ne și îți spunem cum să te plătim.",
+    "invoiceUnavailableNow": "Nu putem factura această achiziție acum, scrie-ne și rezolvăm.",
+    "invalidDayFormat": "Data trebuie să fie în formatul AAAA-LL-ZZ."
   },
   "loginLanding": {
     "exp1Eyebrow": "Experiențe personale",

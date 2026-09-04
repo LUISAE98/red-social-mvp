@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automatische Rechnungsstellung aktiv",
     "fiscalAutoInvoicingDone": "Wir stellen für dich die Rechnung zu jedem Verkauf und deine monatliche Sammelrechnung aus.",
     "fiscalSealExpiresOn": "Dein CSD läuft am {date} ab.",
-    "fiscalDoneCta": "Fertig"
+    "fiscalDoneCta": "Fertig",
+    "salesRetainedTitle": "Bereits von deinen Verkäufen abgezogen",
+    "salesRetainedNote": "Das sind die Summen aller deiner Verkäufe, nicht nur des aktuell verfügbaren Betrags."
   },
   "services": {
     "confirmLabel": "Bestätigen",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Wir konnten deine Auszahlungsanmeldung nicht abfragen.",
     "verifyIdentityFirst": "Bestätige zuerst deine Identität.",
     "payoutCountryNotYet": "Wir können noch kein Geld in dein Land senden. Wir melden uns, sobald es geht.",
-    "payoutCountryOtherWay": "Dein Land wird nicht auf diesem Weg ausgezahlt. Schreib uns und wir sagen dir, wie wir dich bezahlen."
+    "payoutCountryOtherWay": "Dein Land wird nicht auf diesem Weg ausgezahlt. Schreib uns und wir sagen dir, wie wir dich bezahlen.",
+    "invoiceUnavailableNow": "Wir können diesen Kauf gerade nicht abrechnen. Schreib uns, wir klären das.",
+    "invalidDayFormat": "Das Datum muss im Format JJJJ-MM-TT sein."
   },
   "loginLanding": {
     "exp1Eyebrow": "Persönliche Erlebnisse",

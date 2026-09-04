@@ -97,16 +97,17 @@ function normalizeSummary(data: Record<string, unknown>): WalletSummary {
     rejectedNet: toNumber(data.rejectedNet),
     // El backend lo guarda como lifetimeTaxCollected; aquí lo exponemos como taxCollected.
     taxCollected: toNumber(data.lifetimeTaxCollected),
-    // 🚨 Las PENDIENTES, no las de por vida.
-    //
-    // Las de por vida solo suben y sirven para el informe anual. Descontarlas de un retiro
-    // se las cobraría dos veces al creador que ya retiró antes: seguirían incluyendo lo
-    // retenido de ventas cuyo dinero ya cobró.
-    //
-    // Con respaldo a las de por vida para los resúmenes anteriores al 2026-08-29, que aún no
-    // tienen los campos nuevos. Para un creador que nunca ha retirado, las dos coinciden.
-    // 🚨 La PENDIENTE, igual que las retenciones: la de por vida incluiría el IVA de ventas
-    // ya retiradas y se le pagaría dos veces.
+    /**
+     * 🧾 Lo que YA se le retuvo, no lo que se le va a retener.
+     *
+     * ⚠️ Desde §A5 (2026-09-03) la retención ocurre EN LA VENTA, así que estas cifras no se
+     * consumen al retirar y `pending*` acabó valiendo lo mismo que `lifetime*`. Siguen aquí
+     * porque son la materia prima para explicarle al creador por qué su saldo no es el 75% —
+     * pero ya **no entran en ningún cálculo de retiro**.
+     *
+     * 🚨 Ojo al usarlas para explicar el SALDO: son de todas sus ventas, no solo de las que
+     * siguen sin retirar. Contra un saldo ya mermado por retiros anteriores no cuadran.
+     */
     mxVatCollected: toNumber(data.pendingMxVatCollected),
     retainedIsr: toNumber(data.pendingRetainedIsr ?? data.lifetimeRetainedIsr),
     retainedIva: toNumber(data.pendingRetainedIva ?? data.lifetimeRetainedIva),

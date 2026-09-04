@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Faktur otomatis aktif",
     "fiscalAutoInvoicingDone": "Kami akan menerbitkan faktur setiap penjualan atas namamu dan faktur gabungan bulananmu.",
     "fiscalSealExpiresOn": "CSD kamu kedaluwarsa pada {date}.",
-    "fiscalDoneCta": "Selesai"
+    "fiscalDoneCta": "Selesai",
+    "salesRetainedTitle": "Sudah dipotong dari penjualanmu",
+    "salesRetainedNote": "Ini total dari semua penjualanmu, bukan hanya yang tersedia sekarang."
   },
   "services": {
     "confirmLabel": "Konfirmasi",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Kami tidak bisa memeriksa pendaftaran pembayaranmu.",
     "verifyIdentityFirst": "Verifikasi identitasmu dulu.",
     "payoutCountryNotYet": "Kami belum bisa mengirim uang ke negaramu. Kami kabari begitu bisa.",
-    "payoutCountryOtherWay": "Negaramu tidak dibayar lewat jalur ini. Tulis ke kami dan kami beri tahu cara membayarmu."
+    "payoutCountryOtherWay": "Negaramu tidak dibayar lewat jalur ini. Tulis ke kami dan kami beri tahu cara membayarmu.",
+    "invoiceUnavailableNow": "Kami belum bisa membuat faktur untuk pembelian ini, hubungi kami dan akan kami selesaikan.",
+    "invalidDayFormat": "Tanggal harus dalam format TTTT-BB-HH."
   },
   "loginLanding": {
     "exp1Eyebrow": "Pengalaman personal",

@@ -454,7 +454,7 @@ documento, A5 decide de dónde salen los números.
 
 ---
 
-## A5 · La constancia de retenciones se arma desde las VENTAS, no desde los RETIROS 🔴
+## A5 · La retención se movió a la VENTA ✅ HECHO (2026-09-03)
 
 **Encontrado el 2026-09-02, verificando la pregunta del tipo de cambio. No estaba en ninguna lista.**
 
@@ -506,10 +506,124 @@ CFDI de la venta **es** la ganancia o pérdida cambiaria, y se explica sola.
 ⚠️ Sujeta a confirmación del contador en **C8**. Si respondiera que la retención se causa al
 vender, se invierte la elección y la constancia se queda donde está hoy.
 
+### ✅ Resuelto al revés de lo que estaba escrito (2026-09-03)
+
+**La retención se movió a la VENTA.** Se decidió con la investigación de §A4 encima de la mesa,
+que cambió el balance:
+
+1. **El dinero ya está a disposición del creador desde la venta.** Vibra cobra por su cuenta y
+   en cuanto se le abona el saldo puede disponer de él. Fiscalmente eso ya es un pago, y el
+   113-A retiene sobre los pagos que efectúa la plataforma. Retener semanas después es retener
+   tarde, y **una retención extemporánea es pasivo de Vibra**, no del creador.
+2. **El complemento del SAT está construido para esto.** Cada nodo pide la fecha del SERVICIO y
+   la periodicidad solo admite semanal o mensual. Una constancia armada desde los retiros
+   tendría que enumerar servicios de otros periodos.
+3. Un único momento en el que se decide el dinero. Antes eran dos y se desincronizaban.
+
+**Uniforme para todos, no partido por país.** Se consideró aplicarlo solo en México y descartado:
+la frontera fiscal no es la nacionalidad del creador sino si hay retención mexicana —un
+extranjero que vende a compradores mexicanos también la tiene—, así que partirlo sería llevar
+dos contabilidades. Para quien no tiene retención, esto resta cero.
+
+**La preocupación de agosto se resuelve donde tocaba.** Difierir la retención al retiro venía de
+no querer que el saldo bajara sin explicación. La respuesta a eso es **explicarlo**, no
+aplazarlo.
+
+| Pieza | Dónde |
+|---|---|
+| `netAmount` pasa a ser `liquidacion.neto`, el neto real | `backend/src/wallet/ledger.ts` |
+| `calcularRetiro` deja de restar: el neto ES el bruto | `backend/src/tax/fiscalEngine.ts` |
+| El espejo del frontend, sincronizado (hay test que lo vigila) | `lib/tax/fiscalEngine.ts` |
+| El retiro ya no consume ni devuelve retenciones | `backend/src/wallet/withdrawals.ts` |
+| Comentarios y copy que habían quedado falsos | `finanzas/page.tsx`, `lib/wallet/walletFinances.ts` |
+| Dos claves nuevas de error en los 47 idiomas | `lib/i18n/cfError.ts`, `messages/*.json` |
+
+**Las pruebas que codificaban el modelo viejo se reescribieron, no se borraron.** Diecinueve en
+total, entre puras, unitarias y de emulador. Las invariantes que protegían siguen ahí, solo que
+ahora se comprueban donde ocurre la retención: *el saldo ES la suma de los netos de las ventas
+que lo formaron, y el retiro paga el saldo entero*.
+
+### ✅ Dónde se enseñan las cifras (decisión de Luis, 2026-09-03)
+
+**En la pestaña de Retiros, junto al disponible.** No como resta del saldo: el número grande de
+la wallet se queda limpio y las cuatro cifras van debajo, como hechos consumados de sus ventas.
+
+Se enseñan las cuatro —IVA que cobró, ISR retenido, IVA retenido e IVA de la comisión— cada una
+con la explicación de por qué existe, que es la mitad del valor de esa pantalla.
+
+🚨 **Con su aviso de que son totales históricos.** Los contadores del resumen dejaron de
+decrementarse al retirar cuando la retención se movió a la venta, así que cubren TODAS sus
+ventas, no solo las no retiradas. Restarlas del disponible no cuadraría, y presentarlas como
+desglose del saldo sería enseñarle una resta que no da.
+
+| Pieza | Dónde |
+|---|---|
+| El bloque de cifras, con su aviso | 🆕 `wallet/components/RetencionesDeVentas.tsx` |
+| Alimentado desde el resumen, no de `calcularRetiro` | `wallet/finanzas/page.tsx` |
+| Colocado bajo el disponible en la pestaña de Retiros | `wallet/components/WalletTransactions.tsx` |
+| Dos cadenas nuevas en los 47 idiomas; las cuatro filas reusan copia que ya existía | `messages/*.json` |
+
+🚧 **`CONSTANCIA_BLOQUEADA` sigue puesta.** El modelo ya encaja, pero la constancia no se ha
+probado nunca contra Facturapi y el nombre del complemento está sin confirmar. Se quita cuando
+se timbre una en sandbox.
+
 - **Depende de:** A0 (la convención de moneda) y de una respuesta del **contador** sobre cuándo se
   causa la retención.
 - **Bloquea `TIMBRAR`.** Una constancia de retenciones mal fechada es un documento que el creador
   usa para acreditar, y el SAT cruza contra la declaración informativa.
+
+---
+
+# PRUEBA EN SANDBOX 🧪
+
+Con el grupo A cerrado, lo único que falta para encender `TIMBRAR` es **verlo timbrar**. Nunca se
+ha emitido un CFDI de global ni una constancia contra Facturapi.
+
+## Cómo se dispara sin encender el cron
+
+`runGlobalInvoiceDay` acepta `timbrar: true`, que **emite de verdad solo en esa pasada**. El
+interruptor global se queda apagado. Encenderlo y apagarlo con un despliegue en medio es la clase
+de maniobra en la que se queda encendido por accidente.
+
+⚠️ **Lo tiene que disparar una persona, no un script.** `requirePlatformMod` exige el claim
+`role=moderator` **y sesión de Google**; un token acuñado con el Admin SDK sale con proveedor
+`custom` y lo rechaza. Es el control funcionando, no un estorbo.
+
+Desde el navegador, con sesión de **administradorvibra@gmail.com** —el único supermoderador— en
+vibraon.com:
+
+```js
+const { getFunctions, httpsCallable } = await import("firebase/functions");
+const fn = httpsCallable(getFunctions(undefined, "us-central1"), "runGlobalInvoiceDay");
+
+// 1) Primero en seco: cuenta lo que haría, sin emitir nada.
+console.log((await fn({ dia: "2026-08-31" })).data);
+
+// 2) Y cuando el resumen cuadre, de verdad:
+console.log((await fn({ dia: "2026-08-31", timbrar: true })).data);
+```
+
+## Qué hay para probar (medido el 2026-09-03)
+
+| | |
+|---|---|
+| Perfiles fiscales | 3 |
+| Con organización Facturapi **y** sello vigente | **1** — `OrW9osodagdjexu6riTo8P4ADJG3` |
+| Días con ventas facturables | 13 |
+| **Día que ese creador puede emitir** | **2026-08-31**, 2 ventas |
+
+`npx tsx scripts/estado-timbrado.ts` lo vuelve a medir cuando haga falta.
+
+## Qué mirar cuando salga
+
+1. Que la global **timbre** y devuelva UUID.
+2. Que las 2 ventas queden marcadas `globalInvoice.estado = "emitida"` con su folio.
+3. Que el importe esté en **pesos** y cuadre con `fiscalMxn` de esas ventas, no con sus dólares.
+4. Que `periodicity` vaya como **`01`** (diaria) y no la rechacen.
+5. 🔁 Que **el nombre del complemento** de la constancia sea el que asumimos
+   (`plataformas_tecnologicas`). Es lo único de §A4 que no se pudo verificar por documentación.
+6. Después, ejercitar la **cancelación motivo 04** sobre esa misma global (AUD-11), que tampoco se
+   ha probado nunca.
 
 ---
 
@@ -794,7 +908,7 @@ cobro tenga pantalla propia.
 | A0 | Moneda del CFDI, USD etiquetado MXN | A | — | ✅ **Hecho** |
 | A2 | La global marca las ventas | A | A0 | ✅ **Hecho** |
 | A3 | Candado del doble timbrado | A | A2 | ✅ **Hecho** |
-| A5 | Constancia desde los retiros, no las ventas | A | A0 + C8 | 🔴 Abierto |
+| A5 | Retención movida a la venta | A | — | ✅ **Hecho** |
 | B5 | Cola de facturas pendientes | B | A2 | ✅ **Hecho** |
 | A1 | Cadencia de 24 h | A | A2, A3, B5 | ✅ **Hecho** |
 | B7 | Cancelación motivo 04 | B | A2 | ✅ **Hecho** |
@@ -804,7 +918,7 @@ cobro tenga pantalla propia.
 | C1–C9 | Preguntas del contador | C | Contador | 🟠 Fuera de código |
 | E1 | País de cobro en la interfaz | E | — | ⚪ Mitigado |
 | D | Cutover a producción | D | Grupo A y contador | ⬜ Al final |
-| — | **Encender `TIMBRAR`** | — | **A0, A1, A2, A3, A4, A5** | 🚧 Apagado |
+| — | **Encender `TIMBRAR`** | — | ✅ Grupo A completo · falta probarlo en sandbox | 🚧 Apagado |
 
 > Regla del proyecto: al cerrar cada punto se actualiza **esta tabla** y el documento informativo
 > que quede obsoleto, en el mismo ticket.

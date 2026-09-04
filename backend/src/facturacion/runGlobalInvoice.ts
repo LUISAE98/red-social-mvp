@@ -37,6 +37,7 @@ import {
   ventasSinFacturarDelPeriodo,
 } from "./globalInvoice";
 import { creadoresConColaPendiente, procesarColaDeCreador } from "./colaDeFacturas";
+import { requirePlatformMod } from "../authz";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -86,7 +87,16 @@ export type ResumenDelDia = {
  * Un creador que falla no detiene a los demás: son documentos independientes y cada uno responde
  * ante el SAT por su cuenta.
  */
-export async function procesarGlobalDelDia(dia: string): Promise<ResumenDelDia> {
+export async function procesarGlobalDelDia(
+  dia: string,
+  /**
+   * 🧪 Timbrar de verdad en ESTA pasada, sin tocar el interruptor global.
+   *
+   * Existe para poder probar contra Facturapi sin encender el cron para toda la plataforma.
+   * Solo lo pasa el disparo manual de administración.
+   */
+  timbrar: boolean = TIMBRAR
+): Promise<ResumenDelDia> {
   const r: ResumenDelDia = {
     dia,
     creadores: 0,
@@ -98,7 +108,7 @@ export async function procesarGlobalDelDia(dia: string): Promise<ResumenDelDia> 
     liberadasSoltadas: 0,
     colaRecogida: 0,
     errores: 0,
-    timbrado: TIMBRAR,
+    timbrado: timbrar,
   };
 
   /**
@@ -157,7 +167,7 @@ export async function procesarGlobalDelDia(dia: string): Promise<ResumenDelDia> 
           // NO es un error del proceso: es un creador que debe subirlo.
           r.sinSello++;
           logger.warn("global_invoice_sin_sello", { creatorId, dia, ventas: previo.ventas });
-        } else if (!TIMBRAR) {
+        } else if (!timbrar) {
           /**
            * 🚧 Apagado: se calcula y se cuenta, pero **no se marca ni se registra**. Marcar
            * apartaría las ventas por una factura que no existe, y registrar daría el día por
@@ -246,16 +256,24 @@ export const globalInvoiceDailyCron = onSchedule(
 export const runGlobalInvoiceDay = onCall(
   { region: REGION, cors: true, secrets: [facturapiTestKey, facturapiUserKey] },
   async (request) => {
-    const uid = request.auth?.uid;
-    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-    const userSnap = await db.doc(`users/${uid}`).get();
-    if (userSnap.get("isPlatformMod") !== true) {
-      throw new HttpsError("permission-denied", "Solo administración.");
-    }
-    const dia = String((request.data ?? {}).dia ?? "").trim();
+    /**
+     * 🚨 El supermoderador se identifica por el claim `role=moderator` MÁS sesión de Google,
+     * no por un campo de Firestore. Aquí había un `userSnap.get("isPlatformMod")` que leía
+     * un campo que no existe, así que esta función estaba cerrada para todo el mundo.
+     */
+    requirePlatformMod(request);
+    const data = (request.data ?? {}) as Record<string, unknown>;
+    const dia = String(data.dia ?? "").trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) {
-      throw new HttpsError("invalid-argument", "El día va en formato YYYY-MM-DD.");
+      throw new HttpsError("invalid-argument", "El día va en formato AAAA-MM-DD.");
     }
-    return await procesarGlobalDelDia(dia);
+    /**
+     * 🧪 `timbrar: true` emite DE VERDAD, aunque el cron siga apagado.
+     *
+     * Es la vía para probar contra Facturapi sin encender el interruptor global: encenderlo y
+     * apagarlo con un despliegue en medio es la clase de maniobra en la que se queda encendido
+     * por accidente.
+     */
+    return await procesarGlobalDelDia(dia, data.timbrar === true || TIMBRAR);
   }
 );

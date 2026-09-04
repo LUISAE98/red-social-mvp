@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automatic invoicing active",
     "fiscalAutoInvoicingDone": "We will issue the invoice for each of your sales and your monthly global invoice.",
     "fiscalSealExpiresOn": "Your CSD expires on {date}.",
-    "fiscalDoneCta": "Done"
+    "fiscalDoneCta": "Done",
+    "salesRetainedTitle": "Already deducted from your sales",
+    "salesRetainedNote": "These are the totals across all your sales, not just what's available right now."
   },
   "services": {
     "confirmLabel": "Confirm",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "We couldn't check your payout setup.",
     "verifyIdentityFirst": "Verify your identity first.",
     "payoutCountryNotYet": "We can't send money to your country yet. We'll let you know as soon as we can.",
-    "payoutCountryOtherWay": "Your country doesn't get paid this way. Write to us and we'll tell you how to get paid."
+    "payoutCountryOtherWay": "Your country doesn't get paid this way. Write to us and we'll tell you how to get paid.",
+    "invoiceUnavailableNow": "We can't invoice this purchase right now, write to us and we'll sort it out.",
+    "invalidDayFormat": "The day must be in YYYY-MM-DD format."
   },
   "loginLanding": {
     "exp1Eyebrow": "Personal experiences",

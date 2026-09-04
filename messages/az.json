@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Avtomatik fakturalaşdırma aktivdir",
     "fiscalAutoInvoicingDone": "Hər satışın fakturasını və ayın ümumi fakturasını sənin adından kəsəcəyik.",
     "fiscalSealExpiresOn": "Sənin CSD-nin müddəti {date} tarixində bitir.",
-    "fiscalDoneCta": "Hazır"
+    "fiscalDoneCta": "Hazır",
+    "salesRetainedTitle": "Satışlarınızdan artıq tutulanlar",
+    "salesRetainedNote": "Bunlar bütün satışlarınızın cəmidir, təkcə indi mövcud olanın deyil."
   },
   "services": {
     "confirmLabel": "Təsdiqlə",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Ödəniş qeydiyyatının vəziyyətini yoxlamaq alınmadı.",
     "verifyIdentityFirst": "Əvvəlcə şəxsiyyətini təsdiqlə.",
     "payoutCountryNotYet": "Hələ sənin ölkənə pul göndərə bilmirik. Mümkün olan kimi xəbər verəcəyik.",
-    "payoutCountryOtherWay": "Sənin ölkən bu yolla ödəniş almır. Bizə yaz, necə ödəyəcəyimizi deyək."
+    "payoutCountryOtherWay": "Sənin ölkən bu yolla ödəniş almır. Bizə yaz, necə ödəyəcəyimizi deyək.",
+    "invoiceUnavailableNow": "Bu alışa hazırda faktura verə bilmirik, bizə yazın, həll edək.",
+    "invalidDayFormat": "Tarix YYYY-MM-DD formatında olmalıdır."
   },
   "loginLanding": {
     "exp1Eyebrow": "Şəxsi təcrübələr",

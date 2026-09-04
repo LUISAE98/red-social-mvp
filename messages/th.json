@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "เปิดใช้งานการออกใบแจ้งหนี้อัตโนมัติแล้ว",
     "fiscalAutoInvoicingDone": "เราจะออกใบแจ้งหนี้ของทุกการขายแทนคุณ และใบแจ้งหนี้รวมประจำเดือนของคุณ",
     "fiscalSealExpiresOn": "CSD ของคุณหมดอายุวันที่ {date}",
-    "fiscalDoneCta": "เสร็จแล้ว"
+    "fiscalDoneCta": "เสร็จแล้ว",
+    "salesRetainedTitle": "หักจากยอดขายของคุณแล้ว",
+    "salesRetainedNote": "นี่คือยอดรวมของการขายทั้งหมด ไม่ใช่แค่ยอดที่ถอนได้ตอนนี้"
   },
   "services": {
     "confirmLabel": "ยืนยัน",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "เราตรวจสอบการลงทะเบียนรับเงินของคุณไม่ได้",
     "verifyIdentityFirst": "ยืนยันตัวตนของคุณก่อน",
     "payoutCountryNotYet": "เรายังส่งเงินไปประเทศของคุณไม่ได้ จะแจ้งให้ทราบทันทีที่ทำได้",
-    "payoutCountryOtherWay": "ประเทศของคุณไม่ได้รับเงินทางนี้ เขียนมาหาเราแล้วเราจะบอกวิธีจ่ายให้คุณ"
+    "payoutCountryOtherWay": "ประเทศของคุณไม่ได้รับเงินทางนี้ เขียนมาหาเราแล้วเราจะบอกวิธีจ่ายให้คุณ",
+    "invoiceUnavailableNow": "ตอนนี้เรายังออกใบแจ้งหนี้สำหรับการซื้อนี้ไม่ได้ ติดต่อเราแล้วเราจะจัดการให้",
+    "invalidDayFormat": "วันที่ต้องอยู่ในรูปแบบ YYYY-MM-DD"
   },
   "loginLanding": {
     "exp1Eyebrow": "ประสบการณ์ส่วนตัว",

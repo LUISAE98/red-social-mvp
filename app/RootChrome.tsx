@@ -221,17 +221,45 @@ if (renderUser && isAuthPage && hasProfile === true) {
   return null;
 }
 
-if (renderUser) {
-  return <>{children}</>;
-}
-
-if (isPublicPostRoute || isOverlayRoute) {
-  return <>{children}</>;
-}
+  /**
+   * ¿Toca pintar el chrome público —cabecera, buscador y botón de entrar—?
+   *
+   * ⚠️ La respuesta NO puede cambiar la FORMA del árbol, solo lo que se pinta
+   * dentro de él.
+   *
+   * Aquí había dos `return` distintos: con sesión se devolvía `children` pelado
+   * y sin ella, envuelto en la maqueta pública. React reconcilia los hijos de un
+   * fragmento POR POSICIÓN, así que al aparecer la sesión el índice 0 pasaba de
+   * ser la maqueta a ser la página. Tipos distintos, y React BORRA el subárbol
+   * entero y monta uno nuevo.
+   *
+   * Eso pasaba en mitad de una compra de Vibra Express. El alta de la cuenta va
+   * ANTES de cobrar, y en cuanto la sesión deja de ser anónima este componente
+   * cambiaba de rama y se llevaba por delante el feed, el panel, la pasarela y su
+   * pantalla verde. El cobro seguía su camino —su promesa vive en una clausura,
+   * no en el árbol—, así que se cobraba y no quedaba nadie a quien contárselo.
+   *
+   * Ahora hay UN solo `return` y `children` vive siempre en el mismo sitio
+   * (`div` → `main`). Cuando no toca chrome, el envoltorio se anula con
+   * `display: contents`: sus cajas desaparecen, la maquetación de la app
+   * autenticada queda exactamente como estaba, y el árbol ya no se borra.
+   *
+   * No lo vuelvas a partir en dos `return`.
+   */
+  const sinChrome = !!renderUser || isPublicPostRoute || isOverlayRoute;
 
   return (
     <>
       <style jsx global>{`
+        /* Envoltorio ANULADO: sin caja y sin efecto sobre la maquetación. Es lo
+           que permite que los hijos no se muevan de sitio al aparecer la sesión
+           sin cambiarle la maqueta a la app autenticada.
+           (Sin acentos graves aquí dentro: cerrarían la plantilla de estilos.) */
+        .rootChromeBare,
+        .rootChromeBareMain {
+          display: contents;
+        }
+
         .rootChromePublicLayout {
           --shell-gutter: 16px;
           min-height: 100dvh;
@@ -421,66 +449,78 @@ if (isPublicPostRoute || isOverlayRoute) {
         }
       `}</style>
 
-      <div className="rootChromePublicLayout">
-        <header
-          ref={publicHeaderRef}
-          className="rootChromePublicHeader"
-          data-hidden={publicHeaderHidden ? "true" : undefined}
-        >
-          <div className="rootChromePublicHeaderInner">
-            <div className="rootChromeDesktopHeader">
-              <div className="rootChromeBrandCol" />
+      <div className={sinChrome ? "rootChromeBare" : "rootChromePublicLayout"}>
+        {!sinChrome && (
+          <header
+            ref={publicHeaderRef}
+            className="rootChromePublicHeader"
+            data-hidden={publicHeaderHidden ? "true" : undefined}
+          >
+            <div className="rootChromePublicHeaderInner">
+              <div className="rootChromeDesktopHeader">
+                <div className="rootChromeBrandCol" />
 
-              <div className="rootChromeDesktopSearchCol">
-                {!isExpressRoute && (
-                  <GroupsSearchPanel
-                    fontStack={fontStack}
-                    showCreateGroup={false}
-                    createGroupHref="/login"
-                  />
-                )}
-              </div>
+                <div className="rootChromeDesktopSearchCol">
+                  {!isExpressRoute && (
+                    <GroupsSearchPanel
+                      fontStack={fontStack}
+                      showCreateGroup={false}
+                      createGroupHref="/login"
+                    />
+                  )}
+                </div>
 
-              <div className="rootChromeDesktopActions">
-                {pathname !== "/login" ? (
-                  <Link
-                    href={`/login?next=${encodeURIComponent(buildCurrentPathWithSearch(pathname, searchParams))}`}
-                    className="rootChromeDesktopAuthLink"
-                    onClick={() => startAuthTransition("entering")}
-                  >
-                    {tCommon("login")}
-                  </Link>
-                ) : null}
-                {/* En auth los switches los pone el (public)/layout; aquí solo
-                    para páginas públicas fuera de auth (evita duplicados). */}
-                {!isAuthPage && (
-                  <>
-                    <CurrencySwitcher variant="desktop" />
-                    <LanguageSwitcher variant="desktop" />
-                  </>
-                )}
-              </div>
-            </div>
-
-            {!isExpressRoute && (
-              <div className="rootChromeMobileSearchRow">
-                <div className="rootChromeMobileSearchCol">
-                  <GroupsSearchPanel
-                    fontStack={fontStack}
-                    showCreateGroup={false}
-                    createGroupHref="/login"
-                    showCloseSearch={false}
-                  />
+                <div className="rootChromeDesktopActions">
+                  {pathname !== "/login" ? (
+                    <Link
+                      href={`/login?next=${encodeURIComponent(buildCurrentPathWithSearch(pathname, searchParams))}`}
+                      className="rootChromeDesktopAuthLink"
+                      onClick={() => startAuthTransition("entering")}
+                    >
+                      {tCommon("login")}
+                    </Link>
+                  ) : null}
+                  {/* En auth los switches los pone el (public)/layout; aquí solo
+                      para páginas públicas fuera de auth (evita duplicados). */}
+                  {!isAuthPage && (
+                    <>
+                      <CurrencySwitcher variant="desktop" />
+                      <LanguageSwitcher variant="desktop" />
+                    </>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        </header>
 
-        <main className="rootChromePageContent">{children}</main>
+              {!isExpressRoute && (
+                <div className="rootChromeMobileSearchRow">
+                  <div className="rootChromeMobileSearchCol">
+                    <GroupsSearchPanel
+                      fontStack={fontStack}
+                      showCreateGroup={false}
+                      createGroupHref="/login"
+                      showCloseSearch={false}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </header>
+        )}
+
+        {/* ⚠️ Este `main` se pinta SIEMPRE, con chrome y sin él. Es la posición
+            estable de `children` en el árbol, que es justo lo que impide que
+            React lo borre al cambiar la sesión. Sin chrome no es un punto de
+            referencia de la página —la app autenticada trae el suyo—, así que
+            deja de anunciarse como tal y se queda solo por su sitio. */}
+        <main
+          className={sinChrome ? "rootChromeBareMain" : "rootChromePageContent"}
+          role={sinChrome ? "presentation" : undefined}
+        >
+          {children}
+        </main>
 
         {/* CTA de login FIJO en celular, solo en perfil/comunidad públicos. */}
-        {isProfileOrCommunity && pathname !== "/login" && (
+        {!sinChrome && isProfileOrCommunity && pathname !== "/login" && (
           <Link
             href={`/login?next=${encodeURIComponent(buildCurrentPathWithSearch(pathname, searchParams))}`}
             className="rootChromeMobileAuthCta"

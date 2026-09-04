@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automatische facturatie actief",
     "fiscalAutoInvoicingDone": "We geven voor jou de factuur van elke verkoop uit en je globale maandfactuur.",
     "fiscalSealExpiresOn": "Je CSD verloopt op {date}.",
-    "fiscalDoneCta": "Klaar"
+    "fiscalDoneCta": "Klaar",
+    "salesRetainedTitle": "Al afgetrokken van je verkopen",
+    "salesRetainedNote": "Dit zijn de totalen van al je verkopen, niet alleen van wat nu beschikbaar is."
   },
   "services": {
     "confirmLabel": "Bevestigen",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "We konden je uitbetalingsregistratie niet opvragen.",
     "verifyIdentityFirst": "Verifieer eerst je identiteit.",
     "payoutCountryNotYet": "We kunnen nog geen geld naar jouw land sturen. We laten het weten zodra het kan.",
-    "payoutCountryOtherWay": "Jouw land wordt niet via deze weg uitbetaald. Schrijf ons en we vertellen hoe we je betalen."
+    "payoutCountryOtherWay": "Jouw land wordt niet via deze weg uitbetaald. Schrijf ons en we vertellen hoe we je betalen.",
+    "invoiceUnavailableNow": "We kunnen deze aankoop nu niet factureren. Schrijf ons en we lossen het op.",
+    "invalidDayFormat": "De datum moet in de notatie JJJJ-MM-DD staan."
   },
   "loginLanding": {
     "exp1Eyebrow": "Persoonlijke ervaringen",

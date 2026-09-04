@@ -8,7 +8,7 @@
 // palabra, autoscroll del cursor), así que duplicarla habría sido garantía de
 // que las dos copias se separaran.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { playEdgeTTS, type EdgeTTSHandle } from "./edge-tts-client";
 
 export type TextReaderState = "idle" | "playing" | "paused";
@@ -202,7 +202,20 @@ export function useTextReader(text: string | null, options?: Options) {
     [],
   );
 
-  return { state, rate, highlight, toggle, cycleRate, seekFromPoint, stop };
+  // ⚠️ MEMORIZADO. Devolver una caja recién hecha en cada pintado convierte a
+  // este lector en una dependencia que cambia SIEMPRE, y quien lo escucha acaba
+  // con un efecto que se ejecuta en cada render. En el slide del reel eso es
+  // literalmente `useEffect(..., [contextOpen, reader])`, que llama a `stop()`:
+  // hoy no cicla solo porque escribe los mismos valores y React se ahorra el
+  // render, pero basta con que el componente tenga otra actualización pendiente
+  // para que deje de ahorrárselo. Es la clase de cable pelado que termina en un
+  // "Maximum update depth exceeded" sin autor visible.
+  //
+  // Las funciones de dentro ya venían de `useCallback`; faltaba no tirar la caja.
+  return useMemo(
+    () => ({ state, rate, highlight, toggle, cycleRate, seekFromPoint, stop }),
+    [state, rate, highlight, toggle, cycleRate, seekFromPoint, stop],
+  );
 }
 
 /**

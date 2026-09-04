@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automatsko izdavanje računa aktivno",
     "fiscalAutoInvoicingDone": "Umjesto tebe izdavat ćemo račun za svaku prodaju i tvoj mjesečni zbirni račun.",
     "fiscalSealExpiresOn": "Tvoj CSD istječe {date}.",
-    "fiscalDoneCta": "Gotovo"
+    "fiscalDoneCta": "Gotovo",
+    "salesRetainedTitle": "Već odbijeno od tvoje prodaje",
+    "salesRetainedNote": "Ovo su ukupni iznosi svih tvojih prodaja, ne samo onoga što je sada dostupno."
   },
   "services": {
     "confirmLabel": "Potvrdi",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Nismo mogli provjeriti tvoju prijavu za isplate.",
     "verifyIdentityFirst": "Prvo potvrdi svoj identitet.",
     "payoutCountryNotYet": "Još ne možemo slati novac u tvoju zemlju. Javit ćemo ti čim bude moguće.",
-    "payoutCountryOtherWay": "Tvoja se zemlja ne isplaćuje ovim putem. Piši nam i reći ćemo ti kako da ti platimo."
+    "payoutCountryOtherWay": "Tvoja se zemlja ne isplaćuje ovim putem. Piši nam i reći ćemo ti kako da ti platimo.",
+    "invoiceUnavailableNow": "Trenutačno ne možemo fakturirati ovu kupnju, javi nam se i riješit ćemo to.",
+    "invalidDayFormat": "Datum mora biti u formatu GGGG-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "Osobni doživljaji",

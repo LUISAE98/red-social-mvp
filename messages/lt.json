@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automatinis sąskaitų išrašymas aktyvus",
     "fiscalAutoInvoicingDone": "Už tave išrašysime sąskaitą už kiekvieną pardavimą ir tavo mėnesio bendrą sąskaitą.",
     "fiscalSealExpiresOn": "Tavo CSD baigia galioti {date}.",
-    "fiscalDoneCta": "Baigta"
+    "fiscalDoneCta": "Baigta",
+    "salesRetainedTitle": "Jau išskaičiuota iš tavo pardavimų",
+    "salesRetainedNote": "Tai visų tavo pardavimų sumos, ne tik to, kas dabar prieinama."
   },
   "services": {
     "confirmLabel": "Patvirtinti",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Nepavyko patikrinti tavo išmokų registracijos.",
     "verifyIdentityFirst": "Pirma patvirtink savo tapatybę.",
     "payoutCountryNotYet": "Į tavo šalį pinigų dar siųsti negalime. Pranešime, kai tik bus galima.",
-    "payoutCountryOtherWay": "Tavo šaliai šiuo būdu nemokama. Parašyk mums ir pasakysime, kaip tau sumokėti."
+    "payoutCountryOtherWay": "Tavo šaliai šiuo būdu nemokama. Parašyk mums ir pasakysime, kaip tau sumokėti.",
+    "invoiceUnavailableNow": "Šio pirkinio dabar išrašyti sąskaitos negalime, parašyk mums ir viską sutvarkysime.",
+    "invalidDayFormat": "Data turi būti MMMM-MM-DD formatu."
   },
   "loginLanding": {
     "exp1Eyebrow": "Asmeniniai potyriai",

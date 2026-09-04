@@ -236,88 +236,55 @@ function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-describe("motor fiscal / desglose del retiro", () => {
+describe("motor fiscal / el retiro ya no retiene (§A5)", () => {
   /**
    * Un mes típico: TRES ventas de 100 a compradores mexicanos, creador mexicano.
    *
-   * Por venta: participación 75, IVA cobrado 16, ISR 2.50, IVA retenido 8, IVA comisión 4.
-   * Por tres: saldo 225, IVA cobrado 48, ISR 7.50, IVA retenido 24, IVA comisión 12.
+   * 🚨 Desde el 2026-09-03 la retención ocurre EN LA VENTA. Cada una acredita su neto real
+   * —76.50— así que el saldo es 229.50, no 225. Retirar solo mueve ese dinero.
+   *
+   * Antes el saldo era la participación pelada (225) y aquí se sumaba el IVA cobrado y se
+   * restaban las tres retenciones. Hacerlo ahora sería cobrárselas dos veces.
    */
+  const porVenta = settleBack({ base: 100, mxVatAmount: 16, creador: mxConRfc });
+  const saldo = round2(porVenta.neto * 3);
+
+  /** Contadores del resumen. Se siguen pasando, pero el motor ya no los aplica. */
   const acumulado = {
-    saldo: 225,
+    saldo,
     ivaCobradoPendiente: 48,
     isrPendiente: 7.5,
     ivaPendiente: 24,
     ivaComisionPendiente: 12,
   };
 
-  it("retirar todo suma el IVA cobrado y aplica todas las retenciones", () => {
+  it("🚨 el saldo ES la suma de los netos de las ventas que lo formaron", () => {
+    expect(porVenta.neto).toBe(76.5); // 100 + 16 − 25 − 4 − 8 − 2.5
+    expect(saldo).toBe(229.5);
+  });
+
+  it("🚨 retirar todo paga el saldo entero, sin retener nada más", () => {
     const r = calcularRetiro(acumulado);
-    expect(r.bruto).toBe(225);
-    expect(r.ivaCobrado).toBe(48);
-    expect(r.isr).toBe(7.5);
-    expect(r.iva).toBe(24);
-    expect(r.ivaComision).toBe(12);
-    expect(r.neto).toBe(229.5); // 225 + 48 − 7.5 − 24 − 12
-    expect(r.ivaPorDeclarar).toBe(24); // los 48 cobrados menos los 24 retenidos
+    expect(r.bruto).toBe(229.5);
+    expect(r.neto).toBe(229.5);
+    expect(r.isr).toBe(0);
+    expect(r.iva).toBe(0);
+    expect(r.ivaComision).toBe(0);
+    expect(r.ivaCobrado).toBe(0);
+    expect(r.ivaPorDeclarar).toBe(0);
     expect(r.proporcion).toBe(1);
   });
 
-  it("🚨 el retiro CUADRA con la liquidación de las ventas que lo formaron", () => {
-    // La invariante que faltaba y que costó 15.25 USD por cada 71.49 de saldo: el retiro
-    // restaba el IVA retenido de un saldo que nunca contuvo el IVA cobrado. Aquí se compara
-    // el desglose del pago contra lo que el motor dijo, venta por venta, que se depositaría.
-    const porVenta = settleBack({
-      base: 100,
-      mxVatAmount: 16,
-      creador: mxConRfc,
-    });
-    const r = calcularRetiro(acumulado);
-    expect(r.neto).toBe(round2(porVenta.neto * 3));
-  });
-
-  it("un retiro parcial consume el IVA y las retenciones EN PROPORCIÓN", () => {
-    // Un tercio del saldo se lleva un tercio de todo.
-    const r = calcularRetiro({ ...acumulado, solicitado: 75 });
-    expect(r.bruto).toBe(75);
-    expect(r.ivaCobrado).toBe(16);
-    expect(r.isr).toBe(2.5);
-    expect(r.iva).toBe(8);
-    expect(r.ivaComision).toBe(4);
+  it("un retiro parcial es una fracción del dinero, sin más cuentas", () => {
+    const r = calcularRetiro({ ...acumulado, solicitado: 76.5 });
+    expect(r.bruto).toBe(76.5);
     expect(r.neto).toBe(76.5);
-  });
-
-  it("sacar poco de un saldo grande NO paga el impuesto de todo el saldo", () => {
-    // El error que evita la proporcionalidad: 10 de 1,000 no debe cargar con todo.
-    const r = calcularRetiro({
-      saldo: 1000,
-      solicitado: 10,
-      ivaCobradoPendiente: 0,
-      isrPendiente: 100,
-      ivaPendiente: 200,
-      ivaComisionPendiente: 50,
-    });
-    expect(r.isr).toBe(1);
-    expect(r.iva).toBe(2);
-    expect(r.neto).toBe(6.5);
   });
 
   it("no se puede retirar más que el saldo", () => {
     const r = calcularRetiro({ ...acumulado, solicitado: 9999 });
-    expect(r.bruto).toBe(225);
+    expect(r.bruto).toBe(229.5);
     expect(r.proporcion).toBe(1);
-  });
-
-  it("el neto nunca es negativo", () => {
-    // Caso extremo: retenciones mayores que el retiro. Se deposita cero, no en rojo.
-    const r = calcularRetiro({
-      saldo: 10,
-      ivaCobradoPendiente: 0,
-      isrPendiente: 20,
-      ivaPendiente: 20,
-      ivaComisionPendiente: 0,
-    });
-    expect(r.neto).toBe(0);
   });
 
   it("sin saldo no hay retiro", () => {
@@ -332,30 +299,16 @@ describe("motor fiscal / desglose del retiro", () => {
     expect(r.neto).toBe(0);
   });
 
-  it("creador extranjero con comprador MEXICANO recibe su 75% ÍNTEGRO", () => {
-    // 🚨 El caso más feo del bug: a un creador alemán se le restaba una retención mexicana
-    //    de 16 sobre un IVA que jamás fue suyo, y acababa cobrando 59 en vez de 75.
-    //    El IVA entra y sale por el mismo importe —se le retiene el 100%— y no le toca nada.
-    const r = calcularRetiro({
-      saldo: 75,
-      ivaCobradoPendiente: 16,
-      isrPendiente: 0,
-      ivaPendiente: 16,
-      ivaComisionPendiente: 0,
+  it("🚨 creador extranjero con comprador MEXICANO no pierde nada de su parte", () => {
+    // El IVA mexicano entra y sale por el mismo importe —se le retiene el 100%— así que su
+    // neto es su participación limpia. Se comprueba en la VENTA, que es donde ahora ocurre.
+    const aleman = settleBack({
+      base: 100,
+      mxVatAmount: 16,
+      creador: { residency: "FOREIGN", hasTaxId: false, payoutAccountCountry: "DE" },
     });
-    expect(r.neto).toBe(75);
-    expect(r.ivaPorDeclarar).toBe(0);
-  });
-
-  it("creador extranjero sin retenciones recibe íntegro", () => {
-    const r = calcularRetiro({
-      saldo: 300,
-      ivaCobradoPendiente: 0,
-      isrPendiente: 0,
-      ivaPendiente: 0,
-      ivaComisionPendiente: 0,
-    });
-    expect(r.neto).toBe(300);
+    expect(aleman.ivaRetenido).toBe(16);
+    expect(aleman.neto).toBe(75);
   });
 
   it("backend y espejo dan el mismo desglose", () => {
@@ -366,9 +319,9 @@ describe("motor fiscal / desglose del retiro", () => {
 describe("motor fiscal / MEZCLAS de ventas en un mismo saldo", () => {
   /**
    * Un creador real no tiene una venta: tiene un saldo hecho de muchas, de compradores de
-   * países distintos y algunas devueltas. El retiro no las recorre —lee contadores agregados
-   * del resumen—, así que sumar y luego repartir TIENE que dar lo mismo que repartir venta
-   * por venta. Si no, el creador cobra mal y nadie lo nota.
+   * países distintos y algunas devueltas. Desde §A5 cada venta acredita su NETO ya limpio, así
+   * que el saldo tiene que ser exactamente la suma de esos netos — y el retiro, pagarlo entero.
+   * Si no cuadra, el creador cobra mal y nadie lo nota.
    *
    * Azar determinista: misma semilla, misma corrida. Un fallo tiene que poder repetirse.
    */
@@ -397,8 +350,8 @@ describe("motor fiscal / MEZCLAS de ventas en un mismo saldo", () => {
       const liq = settleBack({ base, mxVatAmount: venta.mxVatAmount, creador: perfil });
       const devuelta = r() < 0.15;
 
-      // Suma como el ledger al ganar…
-      c.saldo = round2(c.saldo + liq.participacion);
+      // Suma como el ledger al ganar… con el NETO REAL, que es lo que se acredita desde §A5.
+      c.saldo = round2(c.saldo + liq.neto);
       c.mxVat = round2(c.mxVat + venta.mxVatAmount);
       c.isr = round2(c.isr + liq.isrRetenido);
       c.iva = round2(c.iva + liq.ivaRetenido);
@@ -406,7 +359,7 @@ describe("motor fiscal / MEZCLAS de ventas en un mismo saldo", () => {
 
       // …y resta como el ledger al devolver, nunca por debajo de cero.
       if (devuelta) {
-        c.saldo = round2(c.saldo - liq.participacion);
+        c.saldo = round2(c.saldo - liq.neto);
         c.mxVat = round2(Math.max(0, c.mxVat - venta.mxVatAmount));
         c.isr = round2(Math.max(0, c.isr - liq.isrRetenido));
         c.iva = round2(Math.max(0, c.iva - liq.ivaRetenido));

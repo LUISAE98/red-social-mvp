@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automatisk fakturering aktiv",
     "fiscalAutoInvoicingDone": "Vi utfärdar fakturan för varje försäljning åt dig och din samlingsfaktura för månaden.",
     "fiscalSealExpiresOn": "Ditt CSD går ut den {date}.",
-    "fiscalDoneCta": "Klart"
+    "fiscalDoneCta": "Klart",
+    "salesRetainedTitle": "Redan avdraget från din försäljning",
+    "salesRetainedNote": "Det här är totalerna för all din försäljning, inte bara det som är tillgängligt nu."
   },
   "services": {
     "confirmLabel": "Bekräfta",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Vi kunde inte kontrollera din utbetalningsregistrering.",
     "verifyIdentityFirst": "Verifiera din identitet först.",
     "payoutCountryNotYet": "Vi kan inte skicka pengar till ditt land än. Vi hör av oss så snart det går.",
-    "payoutCountryOtherWay": "Ditt land betalas inte ut den här vägen. Skriv till oss så berättar vi hur vi betalar dig."
+    "payoutCountryOtherWay": "Ditt land betalas inte ut den här vägen. Skriv till oss så berättar vi hur vi betalar dig.",
+    "invoiceUnavailableNow": "Vi kan inte fakturera det här köpet just nu. Skriv till oss så löser vi det.",
+    "invalidDayFormat": "Datumet ska vara i formatet ÅÅÅÅ-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "Personliga upplevelser",

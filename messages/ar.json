@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "الفوترة التلقائية مفعّلة",
     "fiscalAutoInvoicingDone": "سنصدر نيابةً عنك فاتورة كل عملية بيع وفاتورتك الإجمالية للشهر.",
     "fiscalSealExpiresOn": "تنتهي صلاحية شهادة CSD في {date}.",
-    "fiscalDoneCta": "تم"
+    "fiscalDoneCta": "تم",
+    "salesRetainedTitle": "ما تم خصمه من مبيعاتك",
+    "salesRetainedNote": "هذه إجماليات جميع مبيعاتك، وليست فقط ما هو متاح الآن."
   },
   "services": {
     "confirmLabel": "تأكيد",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "تعذّر التحقق من حالة تسجيل بيانات التحصيل.",
     "verifyIdentityFirst": "تحقّق من هويتك أولًا.",
     "payoutCountryNotYet": "لا يمكننا إرسال الأموال إلى بلدك بعد. سنُعلمك فور توفّر ذلك.",
-    "payoutCountryOtherWay": "بلدك لا يستلم بهذه الطريقة. راسلنا وسنخبرك كيف نرسل لك المبلغ."
+    "payoutCountryOtherWay": "بلدك لا يستلم بهذه الطريقة. راسلنا وسنخبرك كيف نرسل لك المبلغ.",
+    "invoiceUnavailableNow": "لا يمكننا إصدار فاتورة لهذه العملية الآن، راسلنا وسنحلّ الأمر.",
+    "invalidDayFormat": "يجب أن يكون التاريخ بصيغة YYYY-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "تجارب شخصية",

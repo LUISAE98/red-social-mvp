@@ -37,6 +37,7 @@ import {
 } from "./globalInvoice";
 import { leerImporteFiscal } from "./importeFiscal";
 import { registrarDocumento } from "./creatorMonthlyDocs";
+import { requirePlatformMod } from "../authz";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -231,12 +232,12 @@ export async function liberarDeGlobal(params: {
 export const cancelarGlobalPorNominativa = onCall(
   { region: REGION, cors: true, secrets: [facturapiTestKey, facturapiUserKey] },
   async (request) => {
-    const uid = request.auth?.uid;
-    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-    const userSnap = await db.doc(`users/${uid}`).get();
-    if (userSnap.get("isPlatformMod") !== true) {
-      throw new HttpsError("permission-denied", "Solo administración.");
-    }
+    /**
+     * 🚨 El supermoderador se identifica por el claim `role=moderator` MÁS sesión de Google,
+     * no por un campo de Firestore. Aquí había un `userSnap.get("isPlatformMod")` que leía
+     * un campo que no existe, así que esta función estaba cerrada para todo el mundo.
+     */
+    const uid = requirePlatformMod(request);
 
     const data = (request.data ?? {}) as Record<string, unknown>;
     const buyerId = String(data.buyerId ?? "").trim();

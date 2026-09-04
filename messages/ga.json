@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Sonrascadh uathoibríoch gníomhach",
     "fiscalAutoInvoicingDone": "Eiseoimid ar do shon an sonrasc do gach díolachán agus do shonrasc iomlán na míosa.",
     "fiscalSealExpiresOn": "Rachaidh do CSD in éag ar {date}.",
-    "fiscalDoneCta": "Déanta"
+    "fiscalDoneCta": "Déanta",
+    "salesRetainedTitle": "Bainte de do chuid díolachán cheana",
+    "salesRetainedNote": "Is iad seo iomlán do chuid díolachán go léir, ní hé amháin an méid atá ar fáil anois."
   },
   "services": {
     "confirmLabel": "Deimhnigh",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Níorbh fhéidir linn do chlárú íocaíochta a sheiceáil.",
     "verifyIdentityFirst": "Fíoraigh do chéannacht ar dtús.",
     "payoutCountryNotYet": "Ní féidir linn airgead a sheoladh chuig do thír fós. Cuirfimid in iúl duit a luaithe is féidir.",
-    "payoutCountryOtherWay": "Ní íoctar do thír ar an mbealach seo. Scríobh chugainn agus inseoimid duit conas tú a íoc."
+    "payoutCountryOtherWay": "Ní íoctar do thír ar an mbealach seo. Scríobh chugainn agus inseoimid duit conas tú a íoc.",
+    "invoiceUnavailableNow": "Ní féidir linn an ceannach seo a shonrascadh faoi láthair, scríobh chugainn agus réiteoimid é.",
+    "invalidDayFormat": "Caithfidh an dáta a bheith i bhformáid BBBB-MM-LL."
   },
   "loginLanding": {
     "exp1Eyebrow": "Eispéiris phearsanta",

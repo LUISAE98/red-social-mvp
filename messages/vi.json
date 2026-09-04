@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Đã bật xuất hoá đơn tự động",
     "fiscalAutoInvoicingDone": "Chúng tôi sẽ phát hành hoá đơn cho mỗi giao dịch bán thay bạn và hoá đơn tổng hợp trong tháng.",
     "fiscalSealExpiresOn": "CSD của bạn hết hạn vào {date}.",
-    "fiscalDoneCta": "Xong"
+    "fiscalDoneCta": "Xong",
+    "salesRetainedTitle": "Đã trừ từ doanh thu của bạn",
+    "salesRetainedNote": "Đây là tổng của tất cả giao dịch, không chỉ số dư khả dụng hiện tại."
   },
   "services": {
     "confirmLabel": "Xác nhận",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Không thể kiểm tra đăng ký nhận tiền của bạn.",
     "verifyIdentityFirst": "Hãy xác minh danh tính của bạn trước.",
     "payoutCountryNotYet": "Chúng tôi chưa thể gửi tiền đến quốc gia của bạn. Sẽ báo ngay khi có thể.",
-    "payoutCountryOtherWay": "Quốc gia của bạn không nhận tiền theo cách này. Hãy viết cho chúng tôi để biết cách nhận thanh toán."
+    "payoutCountryOtherWay": "Quốc gia của bạn không nhận tiền theo cách này. Hãy viết cho chúng tôi để biết cách nhận thanh toán.",
+    "invoiceUnavailableNow": "Hiện chưa thể xuất hóa đơn cho giao dịch này, hãy nhắn cho chúng tôi và chúng tôi sẽ xử lý.",
+    "invalidDayFormat": "Ngày phải theo định dạng YYYY-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "Trải nghiệm cá nhân",

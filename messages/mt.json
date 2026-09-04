@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Fatturar awtomatiku attiv",
     "fiscalAutoInvoicingDone": "Noħorġu għalik il-fattura ta' kull bejgħ u l-fattura globali tiegħek tax-xahar.",
     "fiscalSealExpiresOn": "Is-CSD tiegħek jiskadi fil-{date}.",
-    "fiscalDoneCta": "Lest"
+    "fiscalDoneCta": "Lest",
+    "salesRetainedTitle": "Diġà mnaqqas mill-bejgħ tiegħek",
+    "salesRetainedNote": "Dawn huma t-totali tal-bejgħ kollu tiegħek, mhux biss dak disponibbli issa."
   },
   "services": {
     "confirmLabel": "Ikkonferma",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Ma stajniex niċċekkjaw ir-reġistrazzjoni tal-ħlasijiet tiegħek.",
     "verifyIdentityFirst": "L-ewwel ivverifika l-identità tiegħek.",
     "payoutCountryNotYet": "Għadna ma nistgħux nibagħtu flus lejn pajjiżek. Ngħidulek hekk kif ikun possibbli.",
-    "payoutCountryOtherWay": "Pajjiżek ma jitħallasx b'din il-mod. Ikteb lilna u ngħidulek kif inħallsuk."
+    "payoutCountryOtherWay": "Pajjiżek ma jitħallasx b'din il-mod. Ikteb lilna u ngħidulek kif inħallsuk.",
+    "invoiceUnavailableNow": "Bħalissa ma nistgħux noħorġu fattura għal dan ix-xiri, iktbilna u nsolvuh.",
+    "invalidDayFormat": "Id-data trid tkun fil-format SSSS-XX-JJ."
   },
   "loginLanding": {
     "exp1Eyebrow": "Esperjenzi personali",

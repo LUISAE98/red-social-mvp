@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automatická fakturácia aktívna",
     "fiscalAutoInvoicingDone": "Budeme za teba vystavovať faktúru ku každému predaju a tvoju súhrnnú mesačnú faktúru.",
     "fiscalSealExpiresOn": "Tvoj CSD vyprší {date}.",
-    "fiscalDoneCta": "Hotovo"
+    "fiscalDoneCta": "Hotovo",
+    "salesRetainedTitle": "Už odpočítané z tvojich predajov",
+    "salesRetainedNote": "Sú to súčty všetkých tvojich predajov, nielen toho, čo máš teraz k dispozícii."
   },
   "services": {
     "confirmLabel": "Potvrdiť",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Nepodarilo sa overiť tvoju registráciu na výplaty.",
     "verifyIdentityFirst": "Najprv over svoju totožnosť.",
     "payoutCountryNotYet": "Do tvojej krajiny zatiaľ peniaze poslať nevieme. Dáme ti vedieť, hneď ako to pôjde.",
-    "payoutCountryOtherWay": "Tvoja krajina sa takto nevypláca. Napíš nám a povieme ti, ako ti zaplatiť."
+    "payoutCountryOtherWay": "Tvoja krajina sa takto nevypláca. Napíš nám a povieme ti, ako ti zaplatiť.",
+    "invoiceUnavailableNow": "Tento nákup teraz nevieme vyfakturovať, napíš nám a vyriešime to.",
+    "invalidDayFormat": "Dátum musí byť vo formáte RRRR-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "Osobné zážitky",

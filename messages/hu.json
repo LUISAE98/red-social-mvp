@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automatikus számlázás aktív",
     "fiscalAutoInvoicingDone": "Helyetted kiállítjuk minden eladásod számláját és a havi gyűjtőszámládat.",
     "fiscalSealExpiresOn": "A CSD-d lejár ekkor, {date}.",
-    "fiscalDoneCta": "Kész"
+    "fiscalDoneCta": "Kész",
+    "salesRetainedTitle": "Már levonva az eladásaidból",
+    "salesRetainedNote": "Ezek az összes eladásod összesített értékei, nem csak a most elérhetőé."
   },
   "services": {
     "confirmLabel": "Megerősítés",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Nem tudtuk lekérdezni a kifizetési regisztrációdat.",
     "verifyIdentityFirst": "Előbb igazold a személyazonosságodat.",
     "payoutCountryNotYet": "Az országodba még nem tudunk pénzt küldeni. Szólunk, amint lehetséges.",
-    "payoutCountryOtherWay": "Az országodba nem így fizetünk. Írj nekünk, és elmondjuk, hogyan fizetünk neked."
+    "payoutCountryOtherWay": "Az országodba nem így fizetünk. Írj nekünk, és elmondjuk, hogyan fizetünk neked.",
+    "invoiceUnavailableNow": "Ezt a vásárlást most nem tudjuk kiszámlázni. Írj nekünk, és megoldjuk.",
+    "invalidDayFormat": "A dátum formátuma ÉÉÉÉ-HH-NN."
   },
   "loginLanding": {
     "exp1Eyebrow": "Személyes élmények",

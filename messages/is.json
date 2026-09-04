@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Sjálfvirk reikningagerð virk",
     "fiscalAutoInvoicingDone": "Við gefum út reikning fyrir hverja sölu fyrir þig og heildarreikning mánaðarins.",
     "fiscalSealExpiresOn": "CSD-ið þitt rennur út {date}.",
-    "fiscalDoneCta": "Lokið"
+    "fiscalDoneCta": "Lokið",
+    "salesRetainedTitle": "Þegar dregið frá sölunni þinni",
+    "salesRetainedNote": "Þetta eru heildartölur allrar sölu þinnar, ekki bara þess sem er laust núna."
   },
   "services": {
     "confirmLabel": "Staðfesta",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Ekki tókst að fletta upp skráningu þinni fyrir útgreiðslur.",
     "verifyIdentityFirst": "Staðfestu fyrst auðkenni þitt.",
     "payoutCountryNotYet": "Við getum ekki enn sent peninga til lands þíns. Við látum vita um leið og það er hægt.",
-    "payoutCountryOtherWay": "Land þitt fær ekki greitt þessa leið. Skrifaðu okkur og við segjum þér hvernig við greiðum þér."
+    "payoutCountryOtherWay": "Land þitt fær ekki greitt þessa leið. Skrifaðu okkur og við segjum þér hvernig við greiðum þér.",
+    "invoiceUnavailableNow": "Við getum ekki gefið út reikning fyrir þessi kaup núna, skrifaðu okkur og við leysum það.",
+    "invalidDayFormat": "Dagsetningin þarf að vera á sniðinu ÁÁÁÁ-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "Persónuleg upplifun",

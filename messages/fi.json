@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automaattinen laskutus käytössä",
     "fiscalAutoInvoicingDone": "Luomme puolestasi laskun jokaisesta myynnistä ja kuukauden koontilaskusi.",
     "fiscalSealExpiresOn": "CSD:si vanhenee {date}.",
-    "fiscalDoneCta": "Valmis"
+    "fiscalDoneCta": "Valmis",
+    "salesRetainedTitle": "Jo vähennetty myynneistäsi",
+    "salesRetainedNote": "Nämä ovat kaikkien myyntiesi kokonaissummat, eivät vain nyt käytettävissä olevan."
   },
   "services": {
     "confirmLabel": "Vahvista",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Maksutilisi rekisteröintiä ei voitu tarkistaa.",
     "verifyIdentityFirst": "Vahvista ensin henkilöllisyytesi.",
     "payoutCountryNotYet": "Emme voi vielä lähettää rahaa maahasi. Ilmoitamme heti, kun se onnistuu.",
-    "payoutCountryOtherWay": "Maahasi ei makseta tätä kautta. Kirjoita meille, niin kerromme miten maksamme sinulle."
+    "payoutCountryOtherWay": "Maahasi ei makseta tätä kautta. Kirjoita meille, niin kerromme miten maksamme sinulle.",
+    "invoiceUnavailableNow": "Emme voi laskuttaa tätä ostoa juuri nyt. Kirjoita meille, niin selvitämme asian.",
+    "invalidDayFormat": "Päivän muoto on VVVV-KK-PP."
   },
   "loginLanding": {
     "exp1Eyebrow": "Henkilökohtaiset kokemukset",

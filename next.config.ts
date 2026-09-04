@@ -1,8 +1,30 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
+/**
+ * Medidor de lecturas de Firestore (bloque 0 del plan de rendimiento).
+ *
+ * Con `NEXT_PUBLIC_FS_METER=1` en `.env.local`, `firebase/firestore` se alía a
+ * `lib/dev/firestoreMeter.ts`, que reexporta la API entera envolviendo las cinco
+ * funciones que leen. Así se cuenta lo que consume cada pantalla sin tocar
+ * ninguno de los ~126 sitios que abren escuchas.
+ *
+ * Va con doble candado —la bandera Y que no sea producción— porque el medidor
+ * envuelve el camino caliente de TODA la base de datos. Que un despliegue lo
+ * lleve puesto por accidente no puede depender de un solo `if`.
+ */
+const MEDIR_FIRESTORE =
+  process.env.NEXT_PUBLIC_FS_METER === "1" && process.env.NODE_ENV !== "production";
+
+if (MEDIR_FIRESTORE) {
+  console.log(
+    "\x1b[35m◉  Medidor de Firestore ACTIVO: firebase/firestore va aliado a lib/dev/firestoreMeter.ts\x1b[0m"
+  );
+}
 
 const nextConfig: NextConfig = {
   // Desactiva el indicador visual de Next en desarrollo
@@ -95,11 +117,27 @@ const nextConfig: NextConfig = {
       ...(config.watchOptions || {}),
       ignored: ["**/functions/**"],
     };
+
+    if (MEDIR_FIRESTORE) {
+      config.resolve = config.resolve || {};
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        "firebase/firestore": path.resolve("./lib/dev/firestoreMeter.ts"),
+      };
+    }
+
     return config;
   },
 
   // Next 16: turbopack config
-  turbopack: {},
+  turbopack: {
+    // El dev server corre con Turbopack, así que el alias del medidor tiene que
+    // estar declarado aquí además de en webpack; `npm run dev:webpack` usa el
+    // otro camino.
+    ...(MEDIR_FIRESTORE
+      ? { resolveAlias: { "firebase/firestore": "./lib/dev/firestoreMeter.ts" } }
+      : {}),
+  },
 };
 
 export default withSentryConfig(withNextIntl(nextConfig), {

@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Facturació automàtica activada",
     "fiscalAutoInvoicingDone": "Emetrem per tu la factura de cada venda i la teva factura global del mes.",
     "fiscalSealExpiresOn": "El teu CSD caduca el {date}.",
-    "fiscalDoneCta": "Fet"
+    "fiscalDoneCta": "Fet",
+    "salesRetainedTitle": "Ja descomptat de les teves vendes",
+    "salesRetainedNote": "Són els totals de totes les teves vendes, no només del que tens disponible ara."
   },
   "services": {
     "confirmLabel": "Confirma",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "No hem pogut consultar el teu alta de cobrament.",
     "verifyIdentityFirst": "Primer verifica la teva identitat.",
     "payoutCountryNotYet": "Encara no podem enviar diners al teu país. T'avisarem quan sigui possible.",
-    "payoutCountryOtherWay": "El teu país no cobra per aquesta via. Escriu-nos i t'expliquem com pagar-te."
+    "payoutCountryOtherWay": "El teu país no cobra per aquesta via. Escriu-nos i t'expliquem com pagar-te.",
+    "invoiceUnavailableNow": "Ara mateix no podem facturar aquesta compra, escriu-nos i ho resolem.",
+    "invalidDayFormat": "El dia va en format AAAA-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "Experiències personals",

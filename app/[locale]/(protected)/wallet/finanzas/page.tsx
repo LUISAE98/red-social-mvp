@@ -465,12 +465,51 @@ export default function WalletFinanzasPage() {
   /**
    * Qué le llega al retirar.
    *
-   * La wallet sigue enseñando su 75% íntegro; los descuentos viven SOLO aquí, en el momento
-   * de pedir el dinero. Decisión de producto del 2026-08-26.
+   * ⚠️ **Desde §A5 (2026-09-03) aquí ya no se retiene nada.** El saldo de la wallet viene neto
+   * desde la venta, así que retirar es mover dinero que ya es suyo. `calcularRetiro` devuelve
+   * las retenciones en cero y el desglose se pliega solo: sin retenciones que enseñar, quedan
+   * el saldo y lo que le llega, que son la misma cifra.
+   *
+   * La decisión de agosto —enseñar el 75% íntegro y descontar aquí— se revirtió porque retener
+   * después de haber puesto el dinero a disposición del creador es retener tarde, y eso es un
+   * pasivo de Vibra. El «para que el saldo no baje sin explicación» se resuelve explicándolo en
+   * la wallet, no aplazándolo.
+   *
+   * 🔁 PENDIENTE DE DISEÑO: la wallet todavía no explica POR QUÉ su saldo no es el 75%. Los
+   * datos están (`summary.retainedIsr`, `retainedIva`, `commissionVat`, `mxVatCollected`), falta
+   * decidir cómo se enseñan. Ver `pendientesimpuestos.md` §A5.
    */
+  /**
+   * 🧾 Lo que YA se descontó de sus ventas, para la pestaña de Retiros.
+   *
+   * Sale del resumen, no de `calcularRetiro`: son hechos consumados de sus ventas, no algo
+   * que vaya a pasar al retirar. 🚨 Y son de TODAS sus ventas, no solo de las no retiradas —
+   * por eso el componente lo avisa y no se presentan como desglose del disponible.
+   */
+  const retencionesDeVentas = useMemo(
+    () => ({
+      isr: formatSettlement(summary.retainedIsr, { code: true }),
+      iva: formatSettlement(summary.retainedIva, { code: true }),
+      ivaComision: formatSettlement(summary.commissionVat, { code: true }),
+      ivaCobrado: formatSettlement(summary.mxVatCollected, { code: true }),
+      hayIsr: summary.retainedIsr > 0,
+      hayIva: summary.retainedIva > 0,
+      hayIvaComision: summary.commissionVat > 0,
+      hayIvaCobrado: summary.mxVatCollected > 0,
+    }),
+    [
+      summary.retainedIsr,
+      summary.retainedIva,
+      summary.commissionVat,
+      summary.mxVatCollected,
+      formatSettlement,
+    ]
+  );
+
   const desgloseRetiro = useMemo(() => {
     const r = calcularRetiro({
       saldo: disponibleNeto,
+      // Se siguen pasando porque la firma los pide, pero el motor ya no los aplica.
       ivaCobradoPendiente: summary.mxVatCollected,
       isrPendiente: summary.retainedIsr,
       ivaPendiente: summary.retainedIva,
@@ -1145,6 +1184,7 @@ export default function WalletFinanzasPage() {
          * mínimo, pero eso lo decide Finanzas, no la vista.
          */
         desgloseRetiro={loadingAmounts ? null : desgloseRetiro}
+        retencionesDeVentas={loadingAmounts ? null : retencionesDeVentas}
       />
 
       {/* Panel fiscal del retiro (creador mexicano). 🔁 El creador EXTRANJERO pasará

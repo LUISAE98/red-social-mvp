@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Faturamento automático ativado",
     "fiscalAutoInvoicingDone": "Vamos emitir por você a nota de cada venda e sua nota global do mês.",
     "fiscalSealExpiresOn": "Seu CSD vence em {date}.",
-    "fiscalDoneCta": "Pronto"
+    "fiscalDoneCta": "Pronto",
+    "salesRetainedTitle": "Já descontado das suas vendas",
+    "salesRetainedNote": "São os totais de todas as suas vendas, não só do que está disponível agora."
   },
   "services": {
     "confirmLabel": "Confirmar",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Não conseguimos consultar seu cadastro de recebimento.",
     "verifyIdentityFirst": "Primeiro verifique sua identidade.",
     "payoutCountryNotYet": "Ainda não conseguimos enviar dinheiro para o seu país. Avisamos assim que der.",
-    "payoutCountryOtherWay": "Seu país não recebe por esta via. Escreva para a gente e dizemos como te pagar."
+    "payoutCountryOtherWay": "Seu país não recebe por esta via. Escreva para a gente e dizemos como te pagar.",
+    "invoiceUnavailableNow": "Não conseguimos faturar esta compra agora, escreva para a gente que resolvemos.",
+    "invalidDayFormat": "A data vai no formato AAAA-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "Experiências pessoais",

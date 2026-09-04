@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Aktibo na ang automatic invoicing",
     "fiscalAutoInvoicingDone": "Maglalabas kami ng invoice para sa bawat benta mo at ang global invoice mo para sa buwan.",
     "fiscalSealExpiresOn": "Mag-e-expire ang CSD mo sa {date}.",
-    "fiscalDoneCta": "Tapos na"
+    "fiscalDoneCta": "Tapos na",
+    "salesRetainedTitle": "Nabawas na sa mga benta mo",
+    "salesRetainedNote": "Ito ang kabuuan ng lahat ng benta mo, hindi lang ng available ngayon."
   },
   "services": {
     "confirmLabel": "Kumpirmahin",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Hindi namin ma-check ang payout setup mo.",
     "verifyIdentityFirst": "I-verify muna ang pagkakakilanlan mo.",
     "payoutCountryNotYet": "Hindi pa kami makapagpadala ng pera sa bansa mo. Sasabihin namin agad kapag puwede na.",
-    "payoutCountryOtherWay": "Hindi ganito binabayaran ang bansa mo. Sulatan mo kami at sasabihin namin kung paano ka babayaran."
+    "payoutCountryOtherWay": "Hindi ganito binabayaran ang bansa mo. Sulatan mo kami at sasabihin namin kung paano ka babayaran.",
+    "invoiceUnavailableNow": "Hindi namin ma-invoice ang binili mong ito ngayon, sulatan mo kami at aayusin namin.",
+    "invalidDayFormat": "Ang petsa ay dapat nasa format na YYYY-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "Personal na karanasan",

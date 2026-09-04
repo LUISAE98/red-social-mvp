@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "自動開票已啟用",
     "fiscalAutoInvoicingDone": "我們會代你開立每一筆銷售的發票，以及你當月的彙總發票。",
     "fiscalSealExpiresOn": "你的 CSD 於 {date} 到期。",
-    "fiscalDoneCta": "完成"
+    "fiscalDoneCta": "完成",
+    "salesRetainedTitle": "已從你的銷售中扣除",
+    "salesRetainedNote": "這是所有銷售的總計，不只是目前可提領的金額。"
   },
   "services": {
     "confirmLabel": "確認",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "無法查詢你的收款登記狀態。",
     "verifyIdentityFirst": "請先驗證你的身分。",
     "payoutCountryNotYet": "我們還無法把錢送到你的國家，一旦可以就會通知你。",
-    "payoutCountryOtherWay": "你的國家不透過這個方式收款。來訊給我們，我們會告訴你怎麼付款給你。"
+    "payoutCountryOtherWay": "你的國家不透過這個方式收款。來訊給我們，我們會告訴你怎麼付款給你。",
+    "invoiceUnavailableNow": "目前無法為這筆消費開立發票，來訊告訴我們，我們會處理。",
+    "invalidDayFormat": "日期需為 YYYY-MM-DD 格式。"
   },
   "loginLanding": {
     "exp1Eyebrow": "專屬體驗",

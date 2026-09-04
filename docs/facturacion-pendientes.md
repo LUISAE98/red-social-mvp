@@ -111,7 +111,8 @@ calcula y registra el acumulado, pero **no timbra nada**.
 - ✅ **Clave de retención resuelta (2026-09-02):** es la `26` con el complemento «Servicios de
   Plataformas Tecnológicas», tipo de servicio `06`. ⚠️ El complemento exige un nodo por cada
   operación, no solo totales. Ver `pendientesimpuestos.md` §A4.
-- 🔴 Falta §A5: la constancia se arma desde las VENTAS y la retención ocurre en el RETIRO.
+- ✅ **§A5 resuelto (2026-09-03): la retención se movió a la VENTA.** El saldo de la wallet
+  viene neto y retirar solo mueve dinero. Revierte la decisión del 2026-08-26.
 
 ### Bloque 7 — Factura global ✅
 - `globalInvoice.ts`: agrupa por tipo de servicio y emite **a nombre del creador**, en su
@@ -132,7 +133,7 @@ Los detalles, el orden y las dependencias están en **`pendientesimpuestos.md`**
 
 | Grupo | Qué es | Bloquea |
 |---|---|---|
-| **A** | ✅ A0 moneda · A1 cadencia diaria · A2 marca · A3 exclusión mutua · A4 clave 26 y complemento. 🟠 Queda **A5** (constancia desde los retiros) | Encender `TIMBRAR` |
+| **A** | ✅ **COMPLETO** — A0 moneda · A1 cadencia diaria · A2 marca · A3 exclusión mutua · A4 clave 26 y complemento · A5 retención en la venta | Solo falta probarlo en sandbox |
 | **B** | ✅ B5 cola · B7 cancelación motivo 04. 🟡 Quedan B6 (botón y notificación) y B8 (recibo internacional) | Que la global salga correcta |
 | **C** | Siete preguntas abiertas del contador | Fuera de código |
 | **D** | Cutover a producción (`sk_live`, CSD real, `apikeys/live`) | Al final |
@@ -153,7 +154,7 @@ grupo A, porque comparte máquina con la cancelación motivo 04 (§B7).
 | 2 Factura comprador | ✅ Hecho (modo prueba) | — |
 | 3 Flujo de retiro | ✅ Cerrado 2026-09-01 | — |
 | 4 Comprobantes Vibra→creador | ✅ Construido, sin timbrar | `TIMBRAR` |
-| 5 Retenciones | ✅ Calculadas y aplicadas; clave y complemento correctos | 🔴 A5 |
+| 5 Retenciones | ✅ Calculadas, **aplicadas en la venta**, clave y complemento correctos | — |
 | 7 Factura global | ✅ **Diaria**, marca sus ventas, sin doble timbrado | 🟠 A4 y A5 |
 | 6 Notas de crédito | ⬜ | Comparte máquina con §B7, ya construida |
 | 8 Recibo internacional | ⬜ | — (§B8). Es del comprador extranjero; el creador extranjero ya tiene `payoutStatements` |

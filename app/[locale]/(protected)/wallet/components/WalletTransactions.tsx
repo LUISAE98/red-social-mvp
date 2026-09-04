@@ -12,6 +12,7 @@ import WalletTickets from "./WalletTickets";
 import WalletChannelFilter from "./WalletChannelFilter";
 import WalletMovementsChart, { type ChartBucket } from "./WalletMovementsChart";
 import WithdrawBreakdown, { type DesgloseRetiro } from "./WithdrawBreakdown";
+import RetencionesDeVentas, { type RetencionesVista } from "./RetencionesDeVentas";
 import {
   suscribirMisRetiros,
   type WithdrawalRequestDoc,
@@ -105,6 +106,7 @@ export default function WalletTransactions({
   mode,
   impuestosRecaudados,
   desgloseRetiro,
+  retencionesDeVentas,
 }: {
   uid: string | null | undefined;
   mode: "net" | "gross";
@@ -120,6 +122,8 @@ export default function WalletTransactions({
    * pinta, con el MISMO componente que usa el panel de retiro para no contradecirlo.
    */
   desgloseRetiro?: DesgloseRetiro | null;
+  /** Lo ya descontado de sus ventas. Histórico, no desglose del saldo. */
+  retencionesDeVentas?: RetencionesVista | null;
 }) {
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
@@ -592,6 +596,9 @@ export default function WalletTransactions({
             desglose={desgloseRetiro}
             impuestosRecaudados={impuestosRecaudados}
           />
+          {/* Lo que ya se le descontó. Va DEBAJO del disponible porque es donde el creador
+              mira cuando piensa en su dinero, y porque su contador lo va a pedir. */}
+          {retencionesDeVentas && <RetencionesDeVentas datos={retencionesDeVentas} />}
         </div>
       ) : null}
 

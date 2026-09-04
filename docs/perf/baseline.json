@@ -1,0 +1,305 @@
+{
+  "generado": "2026-09-04T01:08:47.389Z",
+  "buildId": "3TS0TQroBF-dLk-CLF3VL",
+  "compartido": {
+    "fragmentos": 21,
+    "bytes": 1720717,
+    "gzip": 488764
+  },
+  "rutas": [
+    {
+      "ruta": "/groups/[groupId]",
+      "rutaInterna": "/[locale]/groups/[groupId]/page",
+      "fragmentos": 45,
+      "bytes": 4061549,
+      "gzip": 1114749
+    },
+    {
+      "ruta": "/u/[handle]",
+      "rutaInterna": "/[locale]/(protected)/u/[handle]/page",
+      "fragmentos": 48,
+      "bytes": 3993441,
+      "gzip": 1103346
+    },
+    {
+      "ruta": "/",
+      "rutaInterna": "/[locale]/(protected)/page",
+      "fragmentos": 46,
+      "bytes": 3745214,
+      "gzip": 1043798
+    },
+    {
+      "ruta": "/saved",
+      "rutaInterna": "/[locale]/(protected)/saved/page",
+      "fragmentos": 42,
+      "bytes": 3638616,
+      "gzip": 1011221
+    },
+    {
+      "ruta": "/post/[postId]",
+      "rutaInterna": "/[locale]/(protected)/post/[postId]/page",
+      "fragmentos": 42,
+      "bytes": 3615600,
+      "gzip": 1004063
+    },
+    {
+      "ruta": "/wallet/finanzas",
+      "rutaInterna": "/[locale]/(protected)/wallet/finanzas/page",
+      "fragmentos": 44,
+      "bytes": 3410498,
+      "gzip": 954299
+    },
+    {
+      "ruta": "/p/[postId]",
+      "rutaInterna": "/[locale]/p/[postId]/page",
+      "fragmentos": 30,
+      "bytes": 2946042,
+      "gzip": 824359
+    },
+    {
+      "ruta": "/wallet/estadisticas",
+      "rutaInterna": "/[locale]/(protected)/wallet/estadisticas/page",
+      "fragmentos": 41,
+      "bytes": 2823097,
+      "gzip": 793151
+    },
+    {
+      "ruta": "/reels/[storyId]",
+      "rutaInterna": "/[locale]/(protected)/reels/[storyId]/page",
+      "fragmentos": 39,
+      "bytes": 2598696,
+      "gzip": 729750
+    },
+    {
+      "ruta": "/reels",
+      "rutaInterna": "/[locale]/(protected)/reels/page",
+      "fragmentos": 39,
+      "bytes": 2597952,
+      "gzip": 729391
+    },
+    {
+      "ruta": "/wallet/calendario",
+      "rutaInterna": "/[locale]/(protected)/wallet/calendario/page",
+      "fragmentos": 40,
+      "bytes": 2603212,
+      "gzip": 725189
+    },
+    {
+      "ruta": "/search",
+      "rutaInterna": "/[locale]/(protected)/search/page",
+      "fragmentos": 37,
+      "bytes": 2577550,
+      "gzip": 722585
+    },
+    {
+      "ruta": "/wallet/historial",
+      "rutaInterna": "/[locale]/(protected)/wallet/historial/page",
+      "fragmentos": 40,
+      "bytes": 2589839,
+      "gzip": 722585
+    },
+    {
+      "ruta": "/wallet/pendientes",
+      "rutaInterna": "/[locale]/(protected)/wallet/pendientes/page",
+      "fragmentos": 40,
+      "bytes": 2589017,
+      "gzip": 721675
+    },
+    {
+      "ruta": "/experiencias",
+      "rutaInterna": "/[locale]/(protected)/experiencias/page",
+      "fragmentos": 38,
+      "bytes": 2558367,
+      "gzip": 716740
+    },
+    {
+      "ruta": "/wallet",
+      "rutaInterna": "/[locale]/(protected)/wallet/page",
+      "fragmentos": 38,
+      "bytes": 2541955,
+      "gzip": 709247
+    },
+    {
+      "ruta": "/groups/new",
+      "rutaInterna": "/[locale]/groups/new/page",
+      "fragmentos": 33,
+      "bytes": 2495869,
+      "gzip": 697771
+    },
+    {
+      "ruta": "/sessions",
+      "rutaInterna": "/[locale]/(protected)/sessions/page",
+      "fragmentos": 36,
+      "bytes": 2480786,
+      "gzip": 696922
+    },
+    {
+      "ruta": "/mensajes/[conversationId]",
+      "rutaInterna": "/[locale]/(protected)/mensajes/[conversationId]/page",
+      "fragmentos": 36,
+      "bytes": 2476124,
+      "gzip": 695953
+    },
+    {
+      "ruta": "/mensajes",
+      "rutaInterna": "/[locale]/(protected)/mensajes/page",
+      "fragmentos": 36,
+      "bytes": 2471557,
+      "gzip": 694111
+    },
+    {
+      "ruta": "/notifications",
+      "rutaInterna": "/[locale]/(protected)/notifications/page",
+      "fragmentos": 36,
+      "bytes": 2471007,
+      "gzip": 693935
+    },
+    {
+      "ruta": "/sessions/[sessionId]/call",
+      "rutaInterna": "/[locale]/(protected)/sessions/[sessionId]/call/page",
+      "fragmentos": 36,
+      "bytes": 2470529,
+      "gzip": 693680
+    },
+    {
+      "ruta": "/menu",
+      "rutaInterna": "/[locale]/(protected)/menu/page",
+      "fragmentos": 36,
+      "bytes": 2468747,
+      "gzip": 692993
+    },
+    {
+      "ruta": "/groups",
+      "rutaInterna": "/[locale]/(protected)/groups/page",
+      "fragmentos": 36,
+      "bytes": 2468574,
+      "gzip": 692888
+    },
+    {
+      "ruta": "/express",
+      "rutaInterna": "/[locale]/(public)/express/page",
+      "fragmentos": 25,
+      "bytes": 1858000,
+      "gzip": 527480
+    },
+    {
+      "ruta": "/login",
+      "rutaInterna": "/[locale]/(public)/login/page",
+      "fragmentos": 23,
+      "bytes": 1846047,
+      "gzip": 520598
+    },
+    {
+      "ruta": "/admin/retiros",
+      "rutaInterna": "/[locale]/admin/retiros/page",
+      "fragmentos": 23,
+      "bytes": 1753219,
+      "gzip": 499331
+    },
+    {
+      "ruta": "/admin/refunds",
+      "rutaInterna": "/[locale]/admin/refunds/page",
+      "fragmentos": 23,
+      "bytes": 1746306,
+      "gzip": 497149
+    },
+    {
+      "ruta": "/admin/reports/[reportId]",
+      "rutaInterna": "/[locale]/admin/reports/[reportId]/page",
+      "fragmentos": 23,
+      "bytes": 1742640,
+      "gzip": 495939
+    },
+    {
+      "ruta": "/admin/profile",
+      "rutaInterna": "/[locale]/admin/profile/page",
+      "fragmentos": 23,
+      "bytes": 1741765,
+      "gzip": 495850
+    },
+    {
+      "ruta": "/admin/private-communities",
+      "rutaInterna": "/[locale]/admin/private-communities/page",
+      "fragmentos": 23,
+      "bytes": 1744302,
+      "gzip": 495833
+    },
+    {
+      "ruta": "/admin/migraciones",
+      "rutaInterna": "/[locale]/admin/migraciones/page",
+      "fragmentos": 23,
+      "bytes": 1745063,
+      "gzip": 495739
+    },
+    {
+      "ruta": "/admin/hidden-communities",
+      "rutaInterna": "/[locale]/admin/hidden-communities/page",
+      "fragmentos": 23,
+      "bytes": 1742360,
+      "gzip": 495585
+    },
+    {
+      "ruta": "/admin/reports",
+      "rutaInterna": "/[locale]/admin/reports/page",
+      "fragmentos": 23,
+      "bytes": 1738300,
+      "gzip": 494671
+    },
+    {
+      "ruta": "/admin/audit-log",
+      "rutaInterna": "/[locale]/admin/audit-log/page",
+      "fragmentos": 23,
+      "bytes": 1737886,
+      "gzip": 494459
+    },
+    {
+      "ruta": "/admin/other-reports",
+      "rutaInterna": "/[locale]/admin/other-reports/page",
+      "fragmentos": 23,
+      "bytes": 1737602,
+      "gzip": 494397
+    },
+    {
+      "ruta": "/admin/my-reports",
+      "rutaInterna": "/[locale]/admin/my-reports/page",
+      "fragmentos": 23,
+      "bytes": 1737480,
+      "gzip": 494346
+    },
+    {
+      "ruta": "/admin/users",
+      "rutaInterna": "/[locale]/admin/users/page",
+      "fragmentos": 23,
+      "bytes": 1736928,
+      "gzip": 494000
+    },
+    {
+      "ruta": "/invite/[token]",
+      "rutaInterna": "/[locale]/invite/[token]/page",
+      "fragmentos": 22,
+      "bytes": 1732646,
+      "gzip": 493004
+    },
+    {
+      "ruta": "/admin",
+      "rutaInterna": "/[locale]/admin/page",
+      "fragmentos": 22,
+      "bytes": 1733099,
+      "gzip": 492403
+    },
+    {
+      "ruta": "/live-overlay/[postId]",
+      "rutaInterna": "/[locale]/live-overlay/[postId]/page",
+      "fragmentos": 22,
+      "bytes": 1724978,
+      "gzip": 490605
+    },
+    {
+      "ruta": "/complete-profile",
+      "rutaInterna": "/[locale]/(public)/complete-profile/page",
+      "fragmentos": 22,
+      "bytes": 1722377,
+      "gzip": 489718
+    }
+  ]
+}

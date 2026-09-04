@@ -1,3 +1,4 @@
+import { resolveSettlement } from "../src/tax/fiscalEngine";
 import { describe, it, expect, beforeAll } from "vitest";
 import * as crypto from "crypto";
 import * as admin from "firebase-admin";
@@ -5,7 +6,6 @@ import {
   recordEarning,
   settleEarning,
   reverseEarning,
-  netFromGross,
 } from "../src/wallet/ledger";
 import { calcularRetiro } from "../src/tax/fiscalEngine";
 
@@ -19,6 +19,29 @@ import { calcularRetiro } from "../src/tax/fiscalEngine";
 
 if (admin.apps.length === 0) admin.initializeApp({ projectId: "demo-vibra" });
 const db = admin.firestore();
+
+/**
+ * Lo que le queda al creador de una venta, con el motor real (§A5).
+ *
+ * 🚨 Antes estos tests esperaban `netFromGross(100)` = 75, la participación pelada. Desde que
+ * la retención se aplica EN LA VENTA, el neto que se acredita es el de verdad: comisión, su
+ * impuesto y las retenciones ya restadas. Se calcula con `resolveSettlement` en vez de escribir
+ * el número, porque copiar la aritmética a mano es lo que hacía que estos tests dejaran de
+ * proteger nada cuando cambiaba una tasa.
+ *
+ * El perfil es el de respaldo: sin `creatorTaxProfiles` el ledger asume mexicano, que es la
+ * suposición conservadora. Y sin `taxCountry` la venta va a exportación 0%, así que no hay IVA
+ * mexicano ni retención de IVA — solo ISR y el impuesto de la comisión.
+ */
+function netoDeVenta(base: number): number {
+  return resolveSettlement({
+    base,
+    mxVatAmount: 0,
+    creador: { residency: "MX", hasTaxId: true, payoutAccountCountry: null },
+    ejercicio: 2026,
+    commissionRate: 0.25,
+  }).neto;
+}
 
 function newCreator(): string {
   return `creator_${crypto.randomUUID()}`;
@@ -62,14 +85,16 @@ describe("recordEarning", () => {
     const entry = await readEntry(creatorId, "superComment", "p1_sc1");
     expect(entry?.status).toBe("earned");
     expect(entry?.grossAmount).toBe(100);
-    expect(entry?.netAmount).toBe(netFromGross(100)); // 75
+    // 🚨 El neto REAL, no la participación del 75%: 100 − 25 de comisión − 4 de su IVA
+    //    − 2.5 de ISR = 68.50. Ver §A5.
+    expect(entry?.netAmount).toBe(netoDeVenta(100));
+    expect(entry?.netAmount).toBe(68.5);
 
     const s = await readSummary(creatorId);
     expect(s?.lifetimeEarnedGross).toBe(100);
-    // En duro a propósito: si alguien cambia WALLET_NET_RATE, este test debe
-    // fallar y obligar a una decisión, no adaptarse en silencio. 75 = neto tras
-    // la comisión unificada del 25% (antes 23%, de ahí el 77 que quedó viejo).
-    expect(s?.lifetimeEarnedNet).toBe(75);
+    // En duro a propósito: si alguien cambia una tasa, este test debe fallar y obligar a
+    // una decisión, no adaptarse en silencio.
+    expect(s?.lifetimeEarnedNet).toBe(68.5);
     expect(s?.pendingGross).toBe(0);
   });
 
@@ -85,7 +110,7 @@ describe("recordEarning", () => {
 
     const s = await readSummary(creatorId);
     expect(s?.pendingGross).toBe(200);
-    expect(s?.pendingNet).toBe(netFromGross(200)); // 154
+    expect(s?.pendingNet).toBe(netoDeVenta(200)); // 137, neto real
     expect(s?.lifetimeEarnedGross).toBe(0);
   });
 
@@ -103,7 +128,7 @@ describe("recordEarning", () => {
 
     const s = await readSummary(creatorId);
     expect(s?.lifetimeEarnedGross).toBe(50); // NO 100
-    expect(s?.lifetimeEarnedNet).toBe(netFromGross(50)); // NO el doble
+    expect(s?.lifetimeEarnedNet).toBe(netoDeVenta(50)); // NO el doble
 
     const entries = await db
       .collection(`users/${creatorId}/walletLedger`)
@@ -130,7 +155,7 @@ describe("settleEarning (pending -> earned)", () => {
     const s = await readSummary(creatorId);
     expect(s?.pendingGross).toBe(0);
     expect(s?.lifetimeEarnedGross).toBe(300);
-    expect(s?.lifetimeEarnedNet).toBe(netFromGross(300));
+    expect(s?.lifetimeEarnedNet).toBe(netoDeVenta(300));
   });
 
   it("liberar una venta suma sus retenciones a las PENDIENTES, no solo a las de por vida", async () => {
@@ -348,7 +373,7 @@ describe("reverseEarning (reembolsos / rechazos)", () => {
     const s = await readSummary(creatorId);
     expect(s?.lifetimeEarnedGross).toBe(0);
     expect(s?.refundedGross).toBe(100);
-    expect(s?.refundedNet).toBe(netFromGross(100));
+    expect(s?.refundedNet).toBe(netoDeVenta(100));
   });
 
   it("pending -> rejected: resta de pending y suma a rejected", async () => {

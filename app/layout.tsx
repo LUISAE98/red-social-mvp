@@ -9,6 +9,7 @@ import RootChrome from "./RootChrome";
 import VibraGlobalBackground from "./components/VibraGlobalBackground";
 import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 import DesktopRefreshSplash from "@/components/DesktopRefreshSplash";
+import FirestoreMeterHud from "@/components/dev/FirestoreMeterHud";
 import { CurrencyProvider } from "./components/CurrencyProvider";
 import { buildCollageTiles } from "@/lib/collage";
 import { localeDir } from "@/i18n/locales";
@@ -361,6 +362,10 @@ export default async function RootLayout({
       <VibraGlobalBackground />
 
       <Suspense fallback={null}><RootChrome>{children}</RootChrome></Suspense>
+
+      {/* Medidor de lecturas de Firestore. Devuelve null salvo que
+          NEXT_PUBLIC_FS_METER=1; ver lib/dev/firestoreMeter.ts. */}
+      <Suspense fallback={null}><FirestoreMeterHud /></Suspense>
     </CurrencyProvider>
   </AuthProvider>
 </NextIntlClientProvider>

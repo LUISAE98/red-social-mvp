@@ -440,11 +440,12 @@ export const requestWithdrawal = onCall(
       tx.set(
         sRef,
         {
+          /**
+           * Solo se aparta el dinero. **Las retenciones ya no se tocan aquí** (§A5): se
+           * aplicaron en la venta, y los `pending*` se quedan como registro de lo que se
+           * enteró al SAT por este creador. Restarlos ahora sería descontárselos dos veces.
+           */
           withdrawnNet: round2(num(s.withdrawnNet) + r.bruto),
-          pendingMxVatCollected: round2(Math.max(0, num(s.pendingMxVatCollected) - r.ivaCobrado)),
-          pendingRetainedIsr: round2(Math.max(0, num(s.pendingRetainedIsr) - r.isr)),
-          pendingRetainedIva: round2(Math.max(0, num(s.pendingRetainedIva) - r.iva)),
-          pendingCommissionVat: round2(Math.max(0, num(s.pendingCommissionVat) - r.ivaComision)),
           updatedAt: FieldValue.serverTimestamp(),
         },
         { merge: true }
@@ -547,11 +548,18 @@ export async function devolverSaldo(
   tx.set(
     sRef,
     {
+      /**
+       * 🚨 Devolver un retiro rechazado es devolver DINERO, nada más (§A5).
+       *
+       * Antes también restauraba las retenciones, porque se consumían al solicitar. Desde que
+       * se aplican en la venta no hay nada que restaurar: sumarlas aquí le regalaría al creador
+       * un impuesto que ya se enteró al SAT, y cada rechazo le inflaría el saldo.
+       *
+       * El `Math.max(0, …)` se queda: es la segunda mitad de la defensa contra un doble
+       * rechazo, que dejaría `withdrawnNet` en negativo y le dejaría retirar dinero que no
+       * tiene.
+       */
       withdrawnNet: round2(Math.max(0, num(s.withdrawnNet) - num(w.saldo))),
-      pendingMxVatCollected: round2(num(s.pendingMxVatCollected) + num(w.ivaCobrado)),
-      pendingRetainedIsr: round2(num(s.pendingRetainedIsr) + num(w.isr)),
-      pendingRetainedIva: round2(num(s.pendingRetainedIva) + num(w.iva)),
-      pendingCommissionVat: round2(num(s.pendingCommissionVat) + num(w.ivaComision)),
       updatedAt: FieldValue.serverTimestamp(),
     },
     { merge: true }

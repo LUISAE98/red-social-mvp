@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automatyczne fakturowanie włączone",
     "fiscalAutoInvoicingDone": "Będziemy wystawiać za ciebie fakturę do każdej sprzedaży oraz twoją zbiorczą fakturę miesięczną.",
     "fiscalSealExpiresOn": "Twój CSD wygasa {date}.",
-    "fiscalDoneCta": "Gotowe"
+    "fiscalDoneCta": "Gotowe",
+    "salesRetainedTitle": "Już potrącone z twojej sprzedaży",
+    "salesRetainedNote": "To sumy ze wszystkich twoich sprzedaży, nie tylko z tego, co masz teraz dostępne."
   },
   "services": {
     "confirmLabel": "Potwierdź",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Nie udało się sprawdzić twojej rejestracji wypłat.",
     "verifyIdentityFirst": "Najpierw zweryfikuj swoją tożsamość.",
     "payoutCountryNotYet": "Nie możemy jeszcze wysyłać pieniędzy do twojego kraju. Damy znać, gdy będzie to możliwe.",
-    "payoutCountryOtherWay": "Twój kraj nie jest wypłacany tą drogą. Napisz do nas, a powiemy, jak ci zapłacić."
+    "payoutCountryOtherWay": "Twój kraj nie jest wypłacany tą drogą. Napisz do nas, a powiemy, jak ci zapłacić.",
+    "invoiceUnavailableNow": "Na razie nie możemy wystawić faktury za ten zakup. Napisz do nas, a to rozwiążemy.",
+    "invalidDayFormat": "Data musi mieć format RRRR-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "Osobiste doświadczenia",

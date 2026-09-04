@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "自動請求書発行が有効です",
     "fiscalAutoInvoicingDone": "売上ごとの請求書と、月次のまとめ請求書をあなたに代わって発行します。",
     "fiscalSealExpiresOn": "あなたのCSDは{date}に有効期限が切れます。",
-    "fiscalDoneCta": "完了"
+    "fiscalDoneCta": "完了",
+    "salesRetainedTitle": "売上からすでに差し引かれた分",
+    "salesRetainedNote": "すべての売上の合計です。今すぐ引き出せる分だけではありません。"
   },
   "services": {
     "confirmLabel": "確定",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "送金登録の状態を確認できませんでした。",
     "verifyIdentityFirst": "まず本人確認をしてください。",
     "payoutCountryNotYet": "まだあなたの国へは送金できません。可能になり次第お知らせします。",
-    "payoutCountryOtherWay": "あなたの国はこの方法では受け取れません。ご連絡いただければお支払い方法をご案内します。"
+    "payoutCountryOtherWay": "あなたの国はこの方法では受け取れません。ご連絡いただければお支払い方法をご案内します。",
+    "invoiceUnavailableNow": "この購入は今すぐには請求書を発行できません。ご連絡いただければ対応します。",
+    "invalidDayFormat": "日付はYYYY-MM-DD形式で入力してください。"
   },
   "loginLanding": {
     "exp1Eyebrow": "パーソナルな体験",

@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "자동 인보이스 발행이 켜졌어요",
     "fiscalAutoInvoicingDone": "판매 건마다 인보이스와 월별 합산 인보이스를 회원님 대신 발행할게요.",
     "fiscalSealExpiresOn": "회원님의 CSD는 {date}에 만료돼요.",
-    "fiscalDoneCta": "완료"
+    "fiscalDoneCta": "완료",
+    "salesRetainedTitle": "판매에서 이미 차감된 금액",
+    "salesRetainedNote": "지금 출금 가능한 금액이 아니라 전체 판매의 합계입니다."
   },
   "services": {
     "confirmLabel": "확인",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "정산 등록 상태를 확인하지 못했어요.",
     "verifyIdentityFirst": "먼저 본인 확인을 완료하세요.",
     "payoutCountryNotYet": "아직 귀하의 국가로 송금할 수 없습니다. 가능해지면 알려드리겠습니다.",
-    "payoutCountryOtherWay": "귀하의 국가는 이 경로로 정산되지 않습니다. 연락 주시면 지급 방법을 안내해 드립니다."
+    "payoutCountryOtherWay": "귀하의 국가는 이 경로로 정산되지 않습니다. 연락 주시면 지급 방법을 안내해 드립니다.",
+    "invoiceUnavailableNow": "지금은 이 구매의 청구서를 발행할 수 없습니다. 연락해 주시면 해결해 드릴게요.",
+    "invalidDayFormat": "날짜는 YYYY-MM-DD 형식이어야 합니다."
   },
   "loginLanding": {
     "exp1Eyebrow": "개인적인 경험",

@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Otomatik faturalama etkin",
     "fiscalAutoInvoicingDone": "Her satışının faturasını ve ayın toplu faturasını senin adına keseceğiz.",
     "fiscalSealExpiresOn": "CSD'nin süresi {date} tarihinde doluyor.",
-    "fiscalDoneCta": "Tamam"
+    "fiscalDoneCta": "Tamam",
+    "salesRetainedTitle": "Satışlarından hâlihazırda kesilenler",
+    "salesRetainedNote": "Bunlar tüm satışlarının toplamıdır, sadece şu an çekilebilir olanın değil."
   },
   "services": {
     "confirmLabel": "Onayla",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Ödeme kaydını kontrol edemedik.",
     "verifyIdentityFirst": "Önce kimliğini doğrula.",
     "payoutCountryNotYet": "Ülkene henüz para gönderemiyoruz. Mümkün olur olmaz haber vereceğiz.",
-    "payoutCountryOtherWay": "Ülkene bu yolla ödeme yapılmıyor. Bize yaz, sana nasıl ödeyeceğimizi söyleyelim."
+    "payoutCountryOtherWay": "Ülkene bu yolla ödeme yapılmıyor. Bize yaz, sana nasıl ödeyeceğimizi söyleyelim.",
+    "invoiceUnavailableNow": "Bu satın alma için şu anda fatura kesemiyoruz, bize yaz, çözelim.",
+    "invalidDayFormat": "Tarih YYYY-AA-GG biçiminde olmalı."
   },
   "loginLanding": {
     "exp1Eyebrow": "Kişisel deneyimler",

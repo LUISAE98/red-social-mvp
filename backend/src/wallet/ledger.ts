@@ -479,8 +479,6 @@ export async function recordEarning(
    */
   const terms: Readonly<PayoutTerms> =
     payoutTermsOf(paisDeCobroDe(perfil)) ?? PAYOUT_TERMS_PROVISIONAL;
-  const net = netFromGross(gross, terms.commissionRate);
-
   /**
    * ⚠️ LA BASE DE LA RETENCIÓN ES LA VENTA DEL CREADOR, NO EL TOTAL COBRADO.
    *
@@ -516,6 +514,32 @@ export async function recordEarning(
     // de 30% se le calculaba el IVA de una comisión que no es la suya.
     commissionRate: terms.commissionRate,
   });
+
+  /**
+   * 🚨 EL NETO ES EL NETO DE VERDAD, con las retenciones ya restadas (§A5, 2026-09-03).
+   *
+   * Hasta ahora esto era `netFromGross(gross)` —la participación del 75% pelada— y las
+   * retenciones se aplicaban al RETIRAR. Se cambió por tres motivos, en orden de peso:
+   *
+   * 1. **El dinero ya está a disposición del creador desde la venta.** Vibra cobra por su
+   *    cuenta, y en cuanto se le abona el saldo puede disponer de él. Fiscalmente eso ya es un
+   *    pago, y el artículo 113-A retiene sobre los pagos que efectúa la plataforma. Retener
+   *    semanas después es retener tarde, y una retención extemporánea es pasivo de VIBRA.
+   * 2. **El complemento del SAT está construido para esto.** Cada nodo pide la fecha del
+   *    SERVICIO, y su periodicidad solo admite semanal o mensual. Una constancia armada desde
+   *    los retiros tendría que enumerar servicios de otros periodos.
+   * 3. Un solo momento en que se decide el dinero. Antes había dos y se desincronizaban.
+   *
+   * ⚠️ Se aplica IGUAL a todos, no solo a mexicanos. La frontera fiscal no es la nacionalidad
+   *    del creador sino si hay retención mexicana —un extranjero que vende a compradores
+   *    mexicanos también la tiene—, y partir el modelo en dos sería llevar dos contabilidades.
+   *    Para quien no tiene retención, esto resta cero y no nota nada.
+   *
+   * 👉 Lo que el creador ve en su wallet es ya su dinero. El desglose de por qué no es el 75%
+   *    se le enseña ahí, que era la preocupación real cuando esto se difirió al retiro.
+   */
+  const net = liquidacion.neto;
+
 
   /**
    * 🧾 Los PESOS de esta venta, congelados hoy y para siempre.

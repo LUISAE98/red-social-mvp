@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Automatisk fakturering aktiv",
     "fiscalAutoInvoicingDone": "Vi utsteder fakturaen for hvert salg for deg og samlefakturaen din for måneden.",
     "fiscalSealExpiresOn": "CSD-en din utløper {date}.",
-    "fiscalDoneCta": "Ferdig"
+    "fiscalDoneCta": "Ferdig",
+    "salesRetainedTitle": "Allerede trukket fra salgene dine",
+    "salesRetainedNote": "Dette er totalene for alt salget ditt, ikke bare det som er tilgjengelig nå."
   },
   "services": {
     "confirmLabel": "Bekreft",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Vi kunne ikke sjekke utbetalingsregistreringen din.",
     "verifyIdentityFirst": "Bekreft identiteten din først.",
     "payoutCountryNotYet": "Vi kan ikke sende penger til landet ditt ennå. Vi sier fra så snart det går.",
-    "payoutCountryOtherWay": "Landet ditt får ikke utbetalt på denne måten. Skriv til oss, så sier vi hvordan vi betaler deg."
+    "payoutCountryOtherWay": "Landet ditt får ikke utbetalt på denne måten. Skriv til oss, så sier vi hvordan vi betaler deg.",
+    "invoiceUnavailableNow": "Vi kan ikke fakturere dette kjøpet akkurat nå. Skriv til oss, så ordner vi det.",
+    "invalidDayFormat": "Datoen må være på formatet ÅÅÅÅ-MM-DD."
   },
   "loginLanding": {
     "exp1Eyebrow": "Personlige opplevelser",

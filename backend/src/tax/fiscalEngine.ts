@@ -418,18 +418,22 @@ export type ResultadoRetiro = {
 /**
  * Qué recibe el creador al retirar.
  *
- * ⚠️ DECISIÓN DE PRODUCTO (Luis, 2026-08-26): las retenciones NO bajan el saldo de la wallet.
- * El creador ve su 75% íntegro y los descuentos aparecen aquí, al pulsar «Retirar». Es lo que
- * dice la ley al pie de la letra —la retención ocurre cuando se paga, no cuando se vende— y
- * evita que el saldo baje sin explicación.
+ * ⚠️ **DESDE §A5 (2026-09-03) AQUÍ NO SE RETIENE NADA.** El saldo de la wallet ya viene neto:
+ * la retención se aplica EN LA VENTA, en `recordEarning`, que es donde el dinero queda a
+ * disposición del creador. Retirar es mover dinero que ya es suyo, no un hecho fiscal.
  *
- * El pago NO es solo el saldo menos retenciones: al saldo se le SUMA el IVA que el creador
- * cobró en esas ventas, porque ese dinero entró con el cobro y de él sale la retención.
- * Restar la retención sin sumar el IVA descuenta algo que nunca se sumó. Ver `ivaCobradoPendiente`.
+ * La decisión anterior (2026-08-26) difería las retenciones a este momento para que el creador
+ * viera su 75% íntegro en la wallet. Se revirtió al descubrir dos cosas: que retener después de
+ * haber puesto el dinero a su disposición es retener tarde —y eso es pasivo de Vibra—, y que el
+ * complemento del SAT pide la fecha del SERVICIO en cada nodo, así que una constancia armada
+ * desde los retiros no se puede expresar.
  *
- * **Los retiros parciales consumen las retenciones EN PROPORCIÓN.** Aplicarlas todas al primer
- * retiro dejaría a quien saca 10 de un saldo de 1,000 pagando el impuesto de los mil; dejarlas
- * todas para el final le regalaría el primer retiro y le cobraría el último de golpe.
+ * La preocupación de fondo de agosto —que el saldo no baje sin explicación— se resuelve donde
+ * corresponde: **explicándolo en la wallet**, no aplazándolo.
+ *
+ * 🔁 Los campos de retención se conservan en el resultado, siempre en cero, para no romper de
+ * golpe a los llamadores y a los documentos de retiro ya emitidos. Se retiran cuando el último
+ * deje de leerlos.
  */
 export function calcularRetiro(entrada: EntradaRetiro): ResultadoRetiro {
   const saldo = round2(entrada.saldo);
@@ -448,22 +452,23 @@ export function calcularRetiro(entrada: EntradaRetiro): ResultadoRetiro {
   }
 
   const proporcion = bruto / saldo;
-  // El IVA cobrado se consume en la misma proporción que todo lo demás: viene de las
-  // mismas ventas y no tendría sentido entregarlo entero en un retiro parcial.
-  const ivaCobrado = round2(entrada.ivaCobradoPendiente * proporcion);
-  const isr = round2(entrada.isrPendiente * proporcion);
-  const iva = round2(entrada.ivaPendiente * proporcion);
-  const ivaComision = round2(entrada.ivaComisionPendiente * proporcion);
 
-  // El neto nunca puede ser negativo: si las retenciones se comieran el retiro, lo que
-  // corresponde es no dejar retirar, no depositar en rojo.
-  const neto = round2(Math.max(0, bruto + ivaCobrado - isr - iva - ivaComision));
-
-  // Lo que del IVA cobrado no se retuvo y se va con él. Nunca negativo: si le retuvieron
-  // más de lo que cobró —imposible hoy, pero el redondeo existe— no hay nada que declarar.
-  const ivaPorDeclarar = round2(Math.max(0, ivaCobrado - iva));
-
-  return { bruto, ivaCobrado, isr, iva, ivaComision, ivaPorDeclarar, neto, proporcion };
+  /**
+   * 🚨 El neto ES el bruto. El saldo ya viene con todo restado desde la venta.
+   *
+   * Sumar aquí el IVA cobrado o restar retenciones sería contarlo dos veces: `recordEarning`
+   * ya acredita `base + ivaVenta − comisión − ivaComisión − ivaRetenido − isrRetenido`.
+   */
+  return {
+    bruto,
+    ivaCobrado: 0,
+    isr: 0,
+    iva: 0,
+    ivaComision: 0,
+    ivaPorDeclarar: 0,
+    neto: bruto,
+    proporcion,
+  };
 }
 
 /** ¿Corresponde emitir constancia de retenciones? Solo si hubo alguna retención mexicana. */

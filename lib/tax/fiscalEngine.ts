@@ -449,22 +449,26 @@ export function calcularRetiro(entrada: EntradaRetiro): ResultadoRetiro {
   }
 
   const proporcion = bruto / saldo;
-  // El IVA cobrado se consume en la misma proporción que todo lo demás: viene de las
-  // mismas ventas y no tendría sentido entregarlo entero en un retiro parcial.
-  const ivaCobrado = round2(entrada.ivaCobradoPendiente * proporcion);
-  const isr = round2(entrada.isrPendiente * proporcion);
-  const iva = round2(entrada.ivaPendiente * proporcion);
-  const ivaComision = round2(entrada.ivaComisionPendiente * proporcion);
 
-  // El neto nunca puede ser negativo: si las retenciones se comieran el retiro, lo que
-  // corresponde es no dejar retirar, no depositar en rojo.
-  const neto = round2(Math.max(0, bruto + ivaCobrado - isr - iva - ivaComision));
-
-  // Lo que del IVA cobrado no se retuvo y se va con él. Nunca negativo: si le retuvieron
-  // más de lo que cobró —imposible hoy, pero el redondeo existe— no hay nada que declarar.
-  const ivaPorDeclarar = round2(Math.max(0, ivaCobrado - iva));
-
-  return { bruto, ivaCobrado, isr, iva, ivaComision, ivaPorDeclarar, neto, proporcion };
+  /**
+   * 🚨 El neto ES el bruto. El saldo ya viene con todo restado desde la venta (§A5).
+   *
+   * Sumar aquí el IVA cobrado o restar retenciones sería contarlo dos veces: el ledger ya
+   * acredita `base + ivaVenta − comisión − ivaComisión − ivaRetenido − isrRetenido`.
+   *
+   * ⚠️ ESPEJO DEL BACKEND. Este archivo existe para que la wallet enseñe exactamente lo mismo
+   * que se va a pagar; hay un test que compara las dos implementaciones y falla si divergen.
+   */
+  return {
+    bruto,
+    ivaCobrado: 0,
+    isr: 0,
+    iva: 0,
+    ivaComision: 0,
+    ivaPorDeclarar: 0,
+    neto: bruto,
+    proporcion,
+  };
 }
 
 /** ¿Corresponde emitir constancia de retenciones? Solo si hubo alguna retención mexicana. */

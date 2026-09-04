@@ -309,14 +309,6 @@ export type ResumenDeDocumento = {
   base: number;
 };
 
-/**
- * 🚧 La constancia de retenciones no se emite hasta §A5 de `pendientesimpuestos.md`.
- *
- * Se anota como `boolean` y no como literal a propósito: con `true` literal, TypeScript da por
- * muerto todo el cuerpo de la función y deja de comprobarlo, que es justo lo que no se quiere de
- * un código que se va a reactivar.
- */
-const CONSTANCIA_BLOQUEADA: boolean = true;
 
 /**
  * Emite el CFDI de la COMISIÓN del mes. Emisor Vibra, receptor el creador.
@@ -389,15 +381,12 @@ export async function emitirCfdiComision(
  * ⚠️ El receptor puede ser EXTRANJERO. Es el caso del creador de fuera que vende a comprador
  * mexicano: se le retiene el 100% del IVA y hay que entregarle su constancia.
  *
- * 🚧 **BLOQUEADO hasta §A5.** Los importes que recibe salen de las VENTAS del mes, pero la
- * retención ocurre en el RETIRO: el ledger solo las acumula como pendientes al vender y las
- * materializa al pagar. Tal cual está, esta constancia documentaría una retención que quizá no
- * ha ocurrido, y en dólares etiquetados como pesos.
+ * ✅ **DESBLOQUEADA (§A5, 2026-09-03).** Estuvo cerrada mientras la retención se aplicaba en el
+ * RETIRO y esta constancia se armaba desde las VENTAS: documentaba algo que quizá no había
+ * ocurrido. Al mover la retención a la venta, las dos cosas pasan en el mismo momento y el
+ * documento vuelve a decir la verdad.
  *
- * La solución elegida es armarla desde los retiros del periodo, con el tipo de cambio del
- * retiro —que la solicitud ya guarda—, a la espera de que el contador confirme cuándo se causa
- * la retención (§C8). Hasta entonces **no se emite**: mejor un mes sin constancia que una
- * constancia falsa, que el creador usa para acreditar y el SAT cruza con la informativa.
+ * El único gate que queda es `TIMBRAR`, como para todos los demás comprobantes.
  */
 export async function emitirCfdiRetenciones(
   acc: AcumuladoMensual,
@@ -405,11 +394,6 @@ export async function emitirCfdiRetenciones(
   /** El detalle operación por operación, que el complemento exige. */
   servicios: ServicioDelComplemento[]
 ): Promise<FacturapiDoc> {
-  if (CONSTANCIA_BLOQUEADA) {
-    throw new Error(
-      `constancia de retenciones bloqueada hasta pendientesimpuestos.md §A5 (creador ${acc.creatorId}, ${acc.periodo})`
-    );
-  }
   const { desde, hasta } = rangoDelPeriodo(acc.periodo);
   const totalRetenido = round2(acc.isrRetenido + acc.ivaRetenido);
 

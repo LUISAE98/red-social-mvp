@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "Invois automatik aktif",
     "fiscalAutoInvoicingDone": "Kami akan mengeluarkan invois setiap jualan bagi pihak anda dan invois global bulanan anda.",
     "fiscalSealExpiresOn": "CSD anda tamat tempoh pada {date}.",
-    "fiscalDoneCta": "Selesai"
+    "fiscalDoneCta": "Selesai",
+    "salesRetainedTitle": "Sudah ditolak daripada jualan anda",
+    "salesRetainedNote": "Ini jumlah keseluruhan semua jualan anda, bukan hanya yang tersedia sekarang."
   },
   "services": {
     "confirmLabel": "Sahkan",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "Kami tidak dapat menyemak pendaftaran pembayaran anda.",
     "verifyIdentityFirst": "Sahkan identiti anda dahulu.",
     "payoutCountryNotYet": "Kami belum boleh menghantar wang ke negara anda. Kami akan maklumkan sebaik sahaja boleh.",
-    "payoutCountryOtherWay": "Negara anda tidak dibayar melalui jalan ini. Tulis kepada kami dan kami beritahu cara membayar anda."
+    "payoutCountryOtherWay": "Negara anda tidak dibayar melalui jalan ini. Tulis kepada kami dan kami beritahu cara membayar anda.",
+    "invoiceUnavailableNow": "Kami belum boleh mengeluarkan invois untuk pembelian ini, hubungi kami dan kami akan selesaikan.",
+    "invalidDayFormat": "Tarikh mesti dalam format TTTT-BB-HH."
   },
   "loginLanding": {
     "exp1Eyebrow": "Pengalaman peribadi",

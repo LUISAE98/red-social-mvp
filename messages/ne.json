@@ -1717,7 +1717,9 @@
     "fiscalAutoInvoicingActive": "स्वचालित बिलिङ सक्रिय छ",
     "fiscalAutoInvoicingDone": "हामी तपाईंको तर्फबाट हरेक बिक्रीको बिल र महिनाको समग्र बिल जारी गर्नेछौं।",
     "fiscalSealExpiresOn": "तपाईंको CSD को म्याद {date} मा सकिन्छ।",
-    "fiscalDoneCta": "भयो"
+    "fiscalDoneCta": "भयो",
+    "salesRetainedTitle": "तपाईंको बिक्रीबाट पहिले नै कटाइएको",
+    "salesRetainedNote": "यी सबै बिक्रीको कुल हो, अहिले उपलब्ध रकमको मात्र होइन।"
   },
   "services": {
     "confirmLabel": "पुष्टि गर्नुहोस्",
@@ -3171,7 +3173,9 @@
     "payoutSetupStatusFailed": "तपाईंको भुक्तानी दर्ता जाँच्न सकिएन।",
     "verifyIdentityFirst": "पहिले आफ्नो पहिचान प्रमाणित गर्नुहोस्।",
     "payoutCountryNotYet": "हामी अझै तपाईंको देशमा पैसा पठाउन सक्दैनौं। सम्भव भएपछि तुरुन्तै जानकारी दिनेछौं।",
-    "payoutCountryOtherWay": "तपाईंको देशमा यसरी भुक्तानी हुँदैन। हामीलाई लेख्नुहोस्, कसरी भुक्तानी गर्ने भन्नेछौं।"
+    "payoutCountryOtherWay": "तपाईंको देशमा यसरी भुक्तानी हुँदैन। हामीलाई लेख्नुहोस्, कसरी भुक्तानी गर्ने भन्नेछौं।",
+    "invoiceUnavailableNow": "यो खरिदको बीजक अहिले जारी गर्न सकिँदैन, हामीलाई लेख्नुहोस् र समाधान गर्छौं।",
+    "invalidDayFormat": "मिति YYYY-MM-DD ढाँचामा हुनुपर्छ।"
   },
   "loginLanding": {
     "exp1Eyebrow": "व्यक्तिगत अनुभव",

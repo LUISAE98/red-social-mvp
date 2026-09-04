@@ -41,6 +41,7 @@ import {
 } from "./emitirNominativa";
 import { leerImporteFiscal } from "./importeFiscal";
 import { FORMA_PAGO } from "./formaDePago";
+import { requirePlatformMod } from "../authz";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -341,12 +342,12 @@ export const onCsdValidoEmitirCola = onDocumentWritten(
 export const reintentarColaDeFacturas = onCall(
   { region: REGION, cors: true, secrets: [facturapiTestKey, facturapiUserKey] },
   async (request) => {
-    const uid = request.auth?.uid;
-    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-    const userSnap = await db.doc(`users/${uid}`).get();
-    if (userSnap.get("isPlatformMod") !== true) {
-      throw new HttpsError("permission-denied", "Solo administración.");
-    }
+    /**
+     * 🚨 El supermoderador se identifica por el claim `role=moderator` MÁS sesión de Google,
+     * no por un campo de Firestore. Aquí había un `userSnap.get("isPlatformMod")` que leía
+     * un campo que no existe, así que esta función estaba cerrada para todo el mundo.
+     */
+    requirePlatformMod(request);
     const creatorId = String((request.data ?? {}).creatorId ?? "").trim();
     if (!creatorId) throw new HttpsError("invalid-argument", "Falta el creador.");
     return await procesarColaDeCreador(creatorId);
