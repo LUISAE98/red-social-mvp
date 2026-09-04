@@ -284,7 +284,8 @@
     "imageTooLarge": "De afbeelding mag niet groter zijn dan 150 MB.",
     "imageUnreadable": "Deze afbeelding kon niet worden geopend, mogelijk is die beschadigd of onvolledig. Sla hem opnieuw op als JPG of PNG.",
     "imageFormatUnsupported": "Dit formaat kan hier niet worden gebruikt. Probeer JPG, PNG, WebP of AVIF.",
-    "imageProcessFailed": "De afbeelding kon niet worden verwerkt, probeer het opnieuw."
+    "imageProcessFailed": "De afbeelding kon niet worden verwerkt, probeer het opnieuw.",
+    "uploadingVideoPct": "Video uploaden… {progress} %"
   },
   "groups": {
     "title": "Community's",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Antwoord annuleren",
     "imageFailed": "De afbeelding kon niet worden geladen",
     "copy": "Kopiëren",
-    "messageCopied": "Bericht gekopieerd"
+    "messageCopied": "Bericht gekopieerd",
+    "newMessages": "Nieuwe berichten",
+    "jumpToLatest": "Ga naar het nieuwste bericht"
   },
   "cf": {
     "mustBeAuthenticated": "Je moet geverifieerd zijn.",

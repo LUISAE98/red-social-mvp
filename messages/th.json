@@ -284,7 +284,8 @@
     "imageTooLarge": "รูปภาพต้องมีขนาดไม่เกิน 150 MB",
     "imageUnreadable": "เปิดรูปนี้ไม่ได้ อาจเสียหายหรือไม่สมบูรณ์ ลองบันทึกใหม่เป็น JPG หรือ PNG",
     "imageFormatUnsupported": "ใช้รูปแบบไฟล์นี้ที่นี่ไม่ได้ ลองใช้ JPG, PNG, WebP หรือ AVIF",
-    "imageProcessFailed": "ประมวลผลรูปภาพไม่ได้ ลองอีกครั้ง"
+    "imageProcessFailed": "ประมวลผลรูปภาพไม่ได้ ลองอีกครั้ง",
+    "uploadingVideoPct": "กำลังอัปโหลดวิดีโอ… {progress}%"
   },
   "groups": {
     "title": "ชุมชน",
@@ -3098,7 +3099,9 @@
     "cancelReply": "ยกเลิกการตอบกลับ",
     "imageFailed": "โหลดรูปภาพไม่ได้",
     "copy": "คัดลอก",
-    "messageCopied": "คัดลอกข้อความแล้ว"
+    "messageCopied": "คัดลอกข้อความแล้ว",
+    "newMessages": "ข้อความใหม่",
+    "jumpToLatest": "ไปที่ข้อความล่าสุด"
   },
   "cf": {
     "mustBeAuthenticated": "คุณต้องผ่านการยืนยันตัวตน",

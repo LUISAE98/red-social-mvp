@@ -284,7 +284,8 @@
     "imageTooLarge": "Ní féidir leis an íomhá a bheith níos mó ná 150 MB.",
     "imageUnreadable": "Níorbh fhéidir an íomhá seo a oscailt, seans go bhfuil sí damáiste nó neamhiomlán. Bain triail as í a shábháil arís mar JPG nó PNG.",
     "imageFormatUnsupported": "Ní féidir an fhormáid seo a úsáid anseo. Bain triail as JPG, PNG, WebP nó AVIF.",
-    "imageProcessFailed": "Níorbh fhéidir an íomhá a phróiseáil, bain triail eile as."
+    "imageProcessFailed": "Níorbh fhéidir an íomhá a phróiseáil, bain triail eile as.",
+    "uploadingVideoPct": "Físeán á uaslódáil… {progress}%"
   },
   "groups": {
     "title": "Pobail",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Cealaigh an freagra",
     "imageFailed": "Níorbh fhéidir an íomhá a lódáil",
     "copy": "Cóipeáil",
-    "messageCopied": "Cóipeáladh an teachtaireacht"
+    "messageCopied": "Cóipeáladh an teachtaireacht",
+    "newMessages": "Teachtaireachtaí nua",
+    "jumpToLatest": "Téigh go dtí an teachtaireacht is déanaí"
   },
   "cf": {
     "mustBeAuthenticated": "Caithfidh tú a bheith fíordheimhnithe.",

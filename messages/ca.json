@@ -284,7 +284,8 @@
     "imageTooLarge": "La imatge no pot pesar més de 150 MB.",
     "imageUnreadable": "No s'ha pogut obrir aquesta imatge, pot estar malmesa o incompleta. Prova a desar-la de nou com a JPG o PNG.",
     "imageFormatUnsupported": "Aquest format no es pot fer servir aquí. Prova amb JPG, PNG, WebP o AVIF.",
-    "imageProcessFailed": "No s'ha pogut processar la imatge, torna-ho a provar."
+    "imageProcessFailed": "No s'ha pogut processar la imatge, torna-ho a provar.",
+    "uploadingVideoPct": "S'està pujant el vídeo… {progress}%"
   },
   "groups": {
     "title": "Comunitats",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Cancel·la la resposta",
     "imageFailed": "No s'ha pogut carregar la imatge",
     "copy": "Copia",
-    "messageCopied": "Missatge copiat"
+    "messageCopied": "Missatge copiat",
+    "newMessages": "Missatges nous",
+    "jumpToLatest": "Ves al darrer missatge"
   },
   "cf": {
     "mustBeAuthenticated": "Has d’estar autenticat.",

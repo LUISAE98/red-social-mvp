@@ -496,6 +496,40 @@ Antes de desplegar se comprueba que **cada elemento y cada atributo del XML gene
 el XSD**. Es una comparación de conjuntos, tarda un segundo y habría atrapado siete de los ocho
 defectos sin gastar un solo viaje al PAC.
 
+### 🚨 Las REGLAS DE VALIDACIÓN del SAT, que no habíamos leído (2026-09-04)
+
+El XSD dice qué **puede** llevar el documento. Las reglas de validación dicen qué **debe** llevar,
+y viven en otro sitio, el documento «Contenido Complemento de Servicios Plataformas
+Tecnológicas» del SAT. Leerlas destapó tres defectos que en sandbox **timbraban igual**, porque
+el modo prueba no las corre. En producción sí.
+
+| # | Regla literal del SAT | Lo que mandábamos |
+|---|---|---|
+| 1 | «El valor de `montoTotOperacion` debe ser igual al valor registrado en `MonTotServSIVA`» | Base **más** IVA |
+| 2 | «Cuando `Impuesto` contenga `02` (IVA), `BaseRet` debe ser igual a la suma de los `Importe` del nodo `ImpuestosTrasladadosdelServicio`» | La base de la venta |
+| 3 | Los nodos `ImpuestosTrasladadosdelServicio` y `ComisionDelServicio` son obligatorios salvo que `FormaPagoServ` sea `09` | Los omitíamos cuando el importe era cero |
+
+Del defecto 2 sale un matiz que conviene retener: la base del ISR **sí** es el total sin IVA
+(«`BaseRet` debe ser igual a `montoTotOperacion`»), así que ahí coincidíamos por casualidad. Las
+dos bases se parecen y son cosas distintas.
+
+Del defecto 3 sale el cambio de criterio: **una exportación no es un caso a omitir**. `c_TasaCuota`
+tiene el `0.000000` en el catálogo precisamente para declararla como operación a tasa cero.
+
+⚠️ **Dos riesgos abiertos que estas reglas dejan ver, y que no son defectos de hoy:**
+
+1. «Cuando el `RFCEmisor` tenga 13 posiciones (persona física) **no deberá existir** el nodo de
+   `ImpRetenidos` con `Impuesto` `01` (ISR)». El RFC de pruebas que usamos tiene 13. El RFC real
+   de Vibra tendrá 12, así que en producción no aplica — pero explica por qué en sandbox pasa
+   cualquier cosa.
+2. La regla dice que el IVA retenido debe ser **exactamente el 50% de la base**. La reforma del
+   18-J vigente desde el 1 de enero de 2026 obliga al **100%** cuando el creador cobra en una
+   cuenta en el extranjero. Es un choque entre una regla nueva y una validación escrita antes.
+   **Hay que probarlo con un creador de ese perfil antes del cutover.**
+
+👉 **La lección de método:** el XSD y las reglas de validación son dos documentos distintos, y el
+segundo es el que rechaza. Con cualquier complemento nuevo hay que leer los dos.
+
 ### Catálogos, ya confirmados contra fuente oficial
 
 | Campo | Valor | Nota |
@@ -514,8 +548,11 @@ Lo arma `complementoComoXml` en `complementoPlataformas.ts`, con **19 pruebas** 
 forma. Al ser texto a mano, los dos decimales exactos importan: `462.5` donde el XSD espera
 `462.50` tumba el timbrado aunque el número sea correcto.
 
-🚧 **Sigue bloqueada por §A5.** `CONSTANCIA_BLOQUEADA` no se quita: A4 arregla la FORMA del
-documento, A5 decide de dónde salen los números.
+✅ **Timbrada en sandbox el 2026-09-04**, UUID `b9510aed-4f4f-4a75-9d6a-259383338b79`. A4 arregló
+la forma del documento y A5 resolvió de dónde salen los números, así que `CONSTANCIA_BLOQUEADA`
+ya no aplica al modelo. Lo que queda antes de producción son las dos decisiones del contador
+marcadas 🔁 en la tabla de catálogos, que no impiden timbrar pero sí cambian qué declara el
+documento.
 
 ---
 
@@ -628,9 +665,9 @@ desglose del saldo sería enseñarle una resta que no da.
 | Colocado bajo el disponible en la pestaña de Retiros | `wallet/components/WalletTransactions.tsx` |
 | Dos cadenas nuevas en los 47 idiomas; las cuatro filas reusan copia que ya existía | `messages/*.json` |
 
-🚧 **`CONSTANCIA_BLOQUEADA` sigue puesta.** El modelo ya encaja, pero la constancia no se ha
-probado nunca contra Facturapi y el nombre del complemento está sin confirmar. Se quita cuando
-se timbre una en sandbox.
+✅ **Desbloqueada el 2026-09-04.** Se timbró una constancia en sandbox con su complemento, UUID
+`b9510aed-4f4f-4a75-9d6a-259383338b79`. La condición que se puso aquí —«se quita cuando se timbre
+una en sandbox»— está cumplida.
 
 - **Depende de:** A0 (la convención de moneda) y de una respuesta del **contador** sobre cuándo se
   causa la retención.
@@ -639,7 +676,44 @@ se timbre una en sandbox.
 
 ---
 
-# PRUEBA EN SANDBOX ✅ — la global TIMBRA (2026-09-03)
+# PRUEBA EN SANDBOX ✅ — LOS TRES DOCUMENTOS TIMBRAN (2026-09-04)
+
+El modelo está probado de punta a punta contra Facturapi en modo prueba. Los tres comprobantes
+que emite Vibra existen con folio y UUID del SAT.
+
+| Documento | Quién a quién | Folio | UUID |
+|---|---|---|---|
+| Factura global | Creador → público en general | `6a9a29628b210e6a3a85b887` | `b268e9eb-be02-436b-bcb0-0ccf19a7e6dc` |
+| CFDI de comisión | Vibra → creador | `6a9a5223a4408158883ff18e` | `95796BED-CE26-478B-B9DB-8A95ED591E16` |
+| **Constancia de retenciones** | Vibra → creador, con complemento de plataformas | `6a9b4f34f8ab5a0b1b4b6bbd` | `6d8ee293-042f-4323-90d1-10fe4d9decb5` |
+
+Los otros dos creadores del mes quedaron **registrados sin timbrar**, que es el comportamiento
+correcto: les faltan RFC, razón social, régimen fiscal y código postal. Se comprueba con
+`scripts/estado-constancia.mjs`, que distingue lo timbrado de lo meramente registrado.
+
+⚠️ **Esta constancia es la SEGUNDA.** La primera (`b9510aed…`) se emitió antes de corregir los
+tres defectos contra las reglas de validación, se anuló su registro y se reemitió. La primera
+sigue viva en el sandbox de Facturapi, huérfana.
+
+🚨 **Que timbre no demuestra que esté bien.** El modo prueba **no corre** las reglas de
+validación del SAT — la versión con los tres defectos también timbraba. Lo que sostiene que
+ahora es correcto es que coincide con las reglas escritas, no que el PAC lo aceptara.
+
+## ⚠️ Reemitir un comprobante mensual, y lo que todavía NO se puede
+
+`scripts/anular-comprobante-mensual.mjs` quita el candado que impide volver a emitir un mes, y
+archiva el registro en `creatorMonthlyDocsAnulados` con el motivo.
+
+🚨 **No cancela el CFDI en Facturapi.** La llave vive como secreto de Firebase, no en
+`.env.local`, así que un script local no puede hablar con Facturapi. En sandbox el comprobante
+viejo queda huérfano y da igual; **en producción esto dejaría dos comprobantes vivos del mismo
+periodo**, que es justo lo que el candado existe para evitar.
+
+👉 **Pendiente para producción:** una cancelación de verdad de los comprobantes mensuales, con
+su función desplegada. Existe la de la factura global (`cancelacionGlobal.ts`, motivo 04) pero
+**no la de la comisión ni la de la constancia**. Es trabajo del grupo B, no del A.
+
+## La global
 
 **Primer CFDI global emitido de verdad**, contra Facturapi en modo prueba.
 
@@ -1058,21 +1132,44 @@ falló, y entonces mete un importe aproximado en un CFDI real — justo lo que �
 
 ---
 
-# GRUPO C — Preguntas abiertas del contador 🟠
+# GRUPO C — Las 17 preguntas fiscales, investigadas 🟢 (2026-09-04)
 
-Fuera de código. Se pueden mover en paralelo a A y B. Fuente: `docs/legal/fiscal-iva-isr-plataforma.md` §0.6.
+Investigadas una por una contra ley, catálogos del SAT y sus documentos técnicos. Diez tenían
+respuesta **objetiva**; el resto son de criterio y llevan las opciones que se barajaron.
 
-| # | Pregunta | Por qué importa |
+## Resueltas con fuente de ley o catálogo
+
+| # | Pregunta | Respuesta | Fuente |
+|---|---|---|---|
+| 1 | Clave de pago del ISR retenido | **`04` provisional** | LISR 113-A, «esta retención tendrá el carácter de pago provisional». El `03` definitivo solo aplica a quien ejerció la opción del 113-B (≤300 000 el año anterior, aviso presentado, irrevocable 5 años) |
+| 3 | Clave de producto de la comisión | **`80141600`, unidad `E48`** — ya era la que mandábamos | Guía de claves sugeridas del SAT para servicios de comisión, que dice que sirve «indistintamente del origen de la comisión» |
+| 5 | Periodicidad de la constancia | **Mensual**, a más tardar el día 5 del mes siguiente | RMF. También se admite semanal, con su tabla |
+| 6 | ¿Retención al vender o al pagar? | **Al vender**, sobre «los ingresos que efectivamente perciban» | LISR 113-A y las preguntas frecuentes del SAT. **Confirma §A5** |
+| 7 | ¿Se retiene sobre exportaciones? | **Sí, ISR sobre todas.** De IVA nada, porque a tasa 0% no hay impuesto que retener | 113-A no distingue por residencia del comprador |
+| 9 | IVA al 100% con cuenta de cobro en el extranjero | **Correcto, y es nuevo** | Reforma al 18-J de la LIVA vigente desde el 1-1-2026, que añade ese supuesto exacto |
+| 13 | Receptor de «público en general» | `XAXX010101000`, `PUBLICO EN GENERAL`, régimen `616`, uso `S01`, código postal **del emisor** | RMF 2.7.1.21 |
+| 14 | Regla de emisión por cuenta de terceros | **2.7.1.3** de la RMF, apoyada en contrato de mandato (CCF 2546, 2550 y 2552) | ⚠️ Ojo con la nueva fracción IX del artículo 83 del CFF (2026), que hace infracción expedir facturas a nombre de terceros. Nuestro modelo emite con el sello DEL CREADOR, así que probablemente no cae ahí, pero conviene confirmarlo por escrito |
+| 16 | ¿El ingreso es la comisión? | **Sí, si el mandato está documentado** | LISR 18-VIII: lo percibido por cuenta de terceros es acumulable **salvo** que se respalde con CFDI a nombre del mandante. Lo que sostiene el asiento son los papeles |
+| — | Tasa de ISR en 2026 | **2.5%**, no 1% | La LIF 2026 la subió. El motor ya usa 2.5% |
+
+## De criterio, con la decisión tomada
+
+| # | Pregunta | Decisión | Por qué |
+|---|---|---|---|
+| 4 | ¿La clave `90131500` («actuaciones en vivo») arrastra impuesto estatal? | **No causa** | El hecho imponible de las leyes estatales es la entrada a un recinto. Sin recinto ni boleto no hay espectáculo público gravable |
+| 8 | Dos tipos de cambio para la misma venta | **Cada documento con la tasa de su realidad** — cobro real en la global, FIX en la constancia | La factura al comprador dice lo que el comprador pagó. Coste asumido: los dos documentos no cuadran al peso |
+| 10 | ¿La comisión al creador extranjero es exportación al 0%? | **Sí califica** | Hay que **documentar el aprovechamiento** — contrato, residencia acreditada, pago rastreable. Si no calificara, el 16% lo absorbe Vibra |
+| 12 | Videollamadas 1-a-1 con creador extranjero | **Régimen de plataformas** | Coherente con el resto del modelo: Vibra intermedia y retiene igual |
+
+## Sin resolver
+
+| # | Pregunta | Estado |
 |---|---|---|
-| C1 | **Exportación 0% de la COMISIÓN** de Vibra al creador extranjero | Es **otra operación**, distinta de la venta. Que los 11 servicios califiquen como exportación **no basta**. Si no califica, la comisión lleva 16% y **lo absorbe Vibra**, porque el creador extranjero no lo acredita. |
-| C2 | Numeración exacta de la regla de **emisión por cuenta de terceros** | Se va a citar en el contrato marco |
-| C3 | **Residencia fiscal de la LLC** y doble residencia | Decide si la comisión del caso extranjero-extranjero paga ISR mexicano |
-| C4 | **Videollamadas 1-a-1** con creador extranjero | ¿Régimen de plataformas o importación de servicios? |
-| C5 | **Altas de IVA fuera de México** | Vibra es proveedor considerado en varias jurisdicciones |
-| C6 | Contabilidad: **ingreso = comisión**, no el 100% | Confirmar el asiento |
-| C7 | La clave `90131500` está en la familia de **espectáculos públicos** | En México llevan impuestos **estatales**. Una transmisión por internet no es un espectáculo presencial, pero hay que confirmarlo. |
-| C8 | **¿Cuándo se causa la retención del art. 113-A: al vender o al pagarle al creador?** | Decide si la constancia se arma desde las ventas o desde los retiros, y con qué tipo de cambio. Ver §A5, donde ya está elegida la opción del retiro a la espera de su confirmación. |
-| C9 | **El comprador mexicano paga a Vibra un cargo de servicio (0.40 USD + 2% FX) y hoy no recibe ningún comprobante por él** | Encontrado el 2026-09-02. El CFDI del creador cubre **su precio**, no ese cargo, que según `impuestos.md` §1-2 es contraprestación de **Vibra** al comprador. ¿Hace falta un comprobante aparte? No bloquea §A0. |
+| 11 | El cargo de servicio al comprador mexicano (0.40 USD + 2% FX) sin comprobante | ⬜ **Pendiente de explicar y decidir.** No es solo el comprobante: activa el régimen de proveedor extranjero de servicios digitales (LIVA 18-B y siguientes) |
+| 15 | Residencia fiscal de la LLC | ⬜ **En duda.** Si la dirección efectiva está en México, México puede considerarla residente aquí y cambia todo el modelo |
+| 17 | Altas de IVA fuera de México | ⬜ Depende de dónde haya volumen. Se pide un **orden de trabajo**, no una respuesta |
+| 2 | `FormaPagoServ 08` | 🔁 No rompe ninguna validación, pero es la única clave que no pude anclar a una tabla oficial con descripciones |
+| 1b | ¿Preguntarle al creador si optó por el 113-B? | 🔁 Hoy se manda `04` a todos. Distinguirlo pide un campo en el perfil fiscal |
 
 ---
 

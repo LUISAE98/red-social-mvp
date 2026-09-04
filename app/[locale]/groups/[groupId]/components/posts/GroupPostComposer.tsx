@@ -34,6 +34,7 @@ import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import PostComposerDesktopOverlay from "./PostComposerDesktopOverlay";
 import PostComposerMobileOverlay from "./PostComposerMobileOverlay";
 import { useComposerPremium } from "./useComposerPremium";
+import { useAvancePublicacion } from "@/lib/posts/useAvancePublicacion";
 import {
   Avatar, MAX_POST_VIDEOS, fontStack,
   captureFirstVideoFrame, createLocalMediaId, readVideoDurationFromUrl,
@@ -59,6 +60,17 @@ export default function GroupPostComposer({
   const isEditMode = !!editPost;
   const [text, setText] = useState(() => editPost?.text ?? "");
   const [creating, setCreating] = useState(false);
+
+  /**
+   * Con qué se llena el botón de publicar. Se pasa a los dos overlays, que
+   * son quienes lo pintan; aquí solo se lleva la cuenta.
+   */
+  const {
+    avance: publishProgress,
+    reportar: reportarAvance,
+    completar: completarAvance,
+    reiniciar: reiniciarAvance,
+  } = useAvancePublicacion(creating);
   const [isComposerOverlayOpen, setIsComposerOverlayOpen] = useState(() => isEditMode);
   const [isMobileComposer, setIsMobileComposer] = useState(false);
   const [currentUserHandle, setCurrentUserHandle] = useState<string | null>(
@@ -757,14 +769,24 @@ export default function GroupPostComposer({
         return;
       }
 
-      await onSubmit({
-        text: text.trim(),
-        contextType,
-        imageFiles: selectedImages,
-        videoFiles: selectedVideos,
-        mediaItems: orderedSubmitMediaItems,
-        premium: composerPremium.premium,
-      });
+      await onSubmit(
+        {
+          text: text.trim(),
+          contextType,
+          imageFiles: selectedImages,
+          videoFiles: selectedVideos,
+          mediaItems: orderedSubmitMediaItems,
+          premium: composerPremium.premium,
+        },
+        // El botón se llena con esto. Quien publica llama cuando puede; si no
+        // llama nunca, el arrastre de `useAvancePublicacion` sigue avanzando
+        // solo y la barra no se queda parada.
+        reportarAvance
+      );
+
+      // El 100% se pinta AQUÍ y en ningún otro sitio: cuando la publicación
+      // ya está hecha de verdad, no cuando se cree que va a estarlo.
+      completarAvance();
 
       if (isEditMode) {
         setIsComposerOverlayOpen(false);
@@ -782,6 +804,9 @@ export default function GroupPostComposer({
     } catch (error: unknown) {
       // `cfError` y no `.message`: los avisos de `image-normalizer` se lanzan
       // en español y es este mapa el que los traduce a los 47 idiomas.
+      // La barra se va con el aviso de error: dejarla a medias pintada
+      // sugiere que algo quedo a medio publicar, y no es el caso.
+      reiniciarAvance();
       setLocalError((error instanceof Error ? cfError(error) : null) ?? tGroups("couldNotPublish"));
     } finally {
       setCreating(false);
@@ -1073,6 +1098,7 @@ const launcherButtonStyle: CSSProperties = {
 
       {isMobileComposer ? (
         <PostComposerMobileOverlay
+          publishProgress={publishProgress}
           localError={localError}
           open={isComposerOverlayOpen}
           isEditMode={isEditMode}
@@ -1110,6 +1136,7 @@ const launcherButtonStyle: CSSProperties = {
         />
       ) : (
         <PostComposerDesktopOverlay
+          publishProgress={publishProgress}
           open={isComposerOverlayOpen}
           isEditMode={isEditMode}
           onClose={() => {

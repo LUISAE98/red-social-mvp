@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { IconButton } from "@/components/ui";
+import { GlassEdge, IconButton } from "@/components/ui";
 import Link from "next/link";
 import {
   useEffect,
@@ -68,6 +68,9 @@ export default function PostComposerMobileOverlay({
   const publishSuccessTimerRef = useRef<number | null>(null);
   const publishWasRequestedRef = useRef(false);
   const onCloseRef = useRef(onClose);
+
+  /** Hueco de la cabecera flotante; el scroller lo repone con relleno. */
+  const [topInset, setTopInset] = useState(0);
 
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
@@ -453,6 +456,9 @@ export default function PostComposerMobileOverlay({
     willChange: "transform",
   }}
 >
+  {/* Cabecera flotante: lo que se escribe se disuelve al subir por detrás en
+      vez de cortarse contra el canto. */}
+  <GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)" zIndex={4}>
   <header
     onPointerDown={handlePanelPointerDown}
     onPointerMove={handlePanelPointerMove}
@@ -464,7 +470,6 @@ export default function PostComposerMobileOverlay({
       gridTemplateColumns: "72px 1fr 72px",
       alignItems: "center",
       padding: "0 12px",
-      borderBottom: "1px solid transparent",
       touchAction: "none",
       userSelect: "none",
       WebkitUserSelect: "none",
@@ -566,16 +571,19 @@ export default function PostComposerMobileOverlay({
       )}
     </button>
   </header>
+  </GlassEdge>
 
         <div
           className="vibra-composer-mobile-scroll"
           style={{
-            height: "calc(100% - 56px)",
-            maxHeight: "calc(100% - 56px)",
+            /* La cabecera ya no ocupa sitio: el scroll usa el alto entero y le
+               repone el hueco con su relleno. */
+            height: "100%",
+            maxHeight: "100%",
             overflowY: "auto",
           }}
         >
-          <div style={{ padding: "18px 20px calc(8px + var(--vb-safe-bottom, 0px))" }}>
+          <div style={{ padding: `${topInset + 18}px 20px calc(8px + var(--vb-safe-bottom, 0px))` }}>
             <div
               style={
                 premiumComposer.premiumEnabled

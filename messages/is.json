@@ -284,7 +284,8 @@
     "imageTooLarge": "Myndin má ekki vera stærri en 150 MB.",
     "imageUnreadable": "Ekki tókst að opna þessa mynd, hún gæti verið skemmd eða ófullgerð. Prófaðu að vista hana aftur sem JPG eða PNG.",
     "imageFormatUnsupported": "Þetta snið er ekki hægt að nota hér. Prófaðu JPG, PNG, WebP eða AVIF.",
-    "imageProcessFailed": "Ekki tókst að vinna myndina, reyndu aftur."
+    "imageProcessFailed": "Ekki tókst að vinna myndina, reyndu aftur.",
+    "uploadingVideoPct": "Hleð upp myndbandi… {progress}%"
   },
   "groups": {
     "title": "Samfélög",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Hætta við svar",
     "imageFailed": "Ekki tókst að hlaða myndina",
     "copy": "Afrita",
-    "messageCopied": "Skilaboðin voru afrituð"
+    "messageCopied": "Skilaboðin voru afrituð",
+    "newMessages": "Ný skilaboð",
+    "jumpToLatest": "Fara í nýjustu skilaboðin"
   },
   "cf": {
     "mustBeAuthenticated": "Þú þarft að vera auðkenndur.",

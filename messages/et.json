@@ -284,7 +284,8 @@
     "imageTooLarge": "Pilt ei tohi olla suurem kui 150 MB.",
     "imageUnreadable": "Seda pilti ei õnnestunud avada, see võib olla rikutud või poolik. Proovi see uuesti salvestada JPG- või PNG-vormingus.",
     "imageFormatUnsupported": "Seda vormingut ei saa siin kasutada. Proovi JPG, PNG, WebP või AVIF.",
-    "imageProcessFailed": "Pildi töötlemine ebaõnnestus, proovi uuesti."
+    "imageProcessFailed": "Pildi töötlemine ebaõnnestus, proovi uuesti.",
+    "uploadingVideoPct": "Laadin videot üles… {progress}%"
   },
   "groups": {
     "title": "Kogukonnad",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Tühista vastamine",
     "imageFailed": "Pilti ei õnnestunud laadida",
     "copy": "Kopeeri",
-    "messageCopied": "Sõnum kopeeritud"
+    "messageCopied": "Sõnum kopeeritud",
+    "newMessages": "Uued sõnumid",
+    "jumpToLatest": "Mine viimase sõnumi juurde"
   },
   "cf": {
     "mustBeAuthenticated": "Pead olema autenditud.",

@@ -1,4 +1,5 @@
 "use client";
+import { GlassEdge } from "@/components/ui";
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
@@ -34,6 +35,9 @@ export default function ProfileFollowersOverlay({
 }: ProfileFollowersOverlayProps) {
   const tCommon = useTranslations("common");
   const tProfile = useTranslations("profile");
+  /** Hueco de la cabecera flotante; el scroller lo repone con relleno. */
+  const [topInset, setTopInset] = useState(0);
+
   const [followers, setFollowers] = useState<ProfileFollowerListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -352,7 +356,10 @@ export default function ProfileFollowersOverlay({
             willChange: "transform",
           }}
         >
-          {/* Zona de arrastre unificada: pill + header */}
+          {/* Zona de arrastre unificada: pill + header.
+              Flota sobre la lista: los seguidores se disuelven al pasarle por
+              detrás en vez de cortarse contra una línea. */}
+          <GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)" zIndex={4}>
           <div
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -381,7 +388,6 @@ export default function ProfileFollowersOverlay({
                 gridTemplateColumns: "48px 1fr 48px",
                 alignItems: "center",
                 padding: "0 12px",
-                borderBottom: "1px solid rgba(255,255,255,0.08)",
               }}
             >
               <div style={{ display: "flex", justifyContent: "flex-start" }}>
@@ -407,8 +413,9 @@ export default function ProfileFollowersOverlay({
               <div />
             </div>
           </div>
+          </GlassEdge>
 
-          <div style={{ padding: "14px 14px calc(14px + var(--vb-safe-bottom, 0px))", overflowY: "auto", flex: 1, minHeight: 0 }}>
+          <div style={{ padding: `${topInset + 14}px 14px calc(14px + var(--vb-safe-bottom, 0px))`, overflowY: "auto", flex: 1, minHeight: 0 }}>
             {listEl}
           </div>
         </div>
@@ -449,6 +456,7 @@ export default function ProfileFollowersOverlay({
                 : "vbFollowersIn 0.18s ease-out",
             }}
           >
+            <GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)">
             <header
               style={{
                 height: 56,
@@ -456,7 +464,6 @@ export default function ProfileFollowersOverlay({
                 gridTemplateColumns: "48px 1fr 48px",
                 alignItems: "center",
                 padding: "0 12px",
-                borderBottom: "1px solid rgba(255,255,255,0.08)",
                 flexShrink: 0,
               }}
             >
@@ -482,8 +489,9 @@ export default function ProfileFollowersOverlay({
                 </button>
               </div>
             </header>
+            </GlassEdge>
 
-            <div style={{ padding: 14, maxHeight: 450, overflowY: "auto" }}>
+            <div style={{ padding: `${topInset + 14}px 14px 14px`, maxHeight: 450 + topInset, overflowY: "auto" }}>
               {listEl}
             </div>
           </section>

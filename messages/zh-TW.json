@@ -284,7 +284,8 @@
     "imageTooLarge": "圖片不能超過 150 MB。",
     "imageUnreadable": "無法開啟這張圖片，可能已損毀或不完整。請試著重新存成 JPG 或 PNG。",
     "imageFormatUnsupported": "這裡不能使用這種格式。請試試 JPG、PNG、WebP 或 AVIF。",
-    "imageProcessFailed": "無法處理圖片，請再試一次。"
+    "imageProcessFailed": "無法處理圖片，請再試一次。",
+    "uploadingVideoPct": "上傳影片中… {progress}%"
   },
   "groups": {
     "title": "社群",
@@ -3098,7 +3099,9 @@
     "cancelReply": "取消回覆",
     "imageFailed": "無法載入圖片",
     "copy": "複製",
-    "messageCopied": "訊息已複製"
+    "messageCopied": "訊息已複製",
+    "newMessages": "新訊息",
+    "jumpToLatest": "前往最新訊息"
   },
   "cf": {
     "mustBeAuthenticated": "你需要通過驗證。",

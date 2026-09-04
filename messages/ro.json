@@ -284,7 +284,8 @@
     "imageTooLarge": "Imaginea nu poate depăși 150 MB.",
     "imageUnreadable": "Această imagine nu a putut fi deschisă, poate fi deteriorată sau incompletă. Încearcă să o salvezi din nou ca JPG sau PNG.",
     "imageFormatUnsupported": "Acest format nu poate fi folosit aici. Încearcă JPG, PNG, WebP sau AVIF.",
-    "imageProcessFailed": "Imaginea nu a putut fi procesată, încearcă din nou."
+    "imageProcessFailed": "Imaginea nu a putut fi procesată, încearcă din nou.",
+    "uploadingVideoPct": "Se încarcă videoclipul… {progress} %"
   },
   "groups": {
     "title": "Comunități",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Anulează răspunsul",
     "imageFailed": "Imaginea nu a putut fi încărcată",
     "copy": "Copiază",
-    "messageCopied": "Mesaj copiat"
+    "messageCopied": "Mesaj copiat",
+    "newMessages": "Mesaje noi",
+    "jumpToLatest": "Mergi la ultimul mesaj"
   },
   "cf": {
     "mustBeAuthenticated": "Trebuie să fii autentificat.",

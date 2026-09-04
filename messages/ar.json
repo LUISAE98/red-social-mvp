@@ -284,7 +284,8 @@
     "imageTooLarge": "لا يمكن أن يتجاوز حجم الصورة 150 ميغابايت.",
     "imageUnreadable": "تعذّر فتح هذه الصورة، قد تكون تالفة أو غير مكتملة. جرّب حفظها من جديد بصيغة JPG أو PNG.",
     "imageFormatUnsupported": "لا يمكن استخدام هذه الصيغة هنا. جرّب JPG أو PNG أو WebP أو AVIF.",
-    "imageProcessFailed": "تعذّرت معالجة الصورة، حاول مرة أخرى."
+    "imageProcessFailed": "تعذّرت معالجة الصورة، حاول مرة أخرى.",
+    "uploadingVideoPct": "جارٍ رفع الفيديو… {progress}%"
   },
   "groups": {
     "title": "المجتمعات",
@@ -3098,7 +3099,9 @@
     "cancelReply": "إلغاء الرد",
     "imageFailed": "تعذّر تحميل الصورة",
     "copy": "نسخ",
-    "messageCopied": "تم نسخ الرسالة"
+    "messageCopied": "تم نسخ الرسالة",
+    "newMessages": "رسائل جديدة",
+    "jumpToLatest": "الانتقال إلى آخر رسالة"
   },
   "cf": {
     "mustBeAuthenticated": "يجب أن تكون مصادقًا.",

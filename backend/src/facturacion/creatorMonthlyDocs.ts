@@ -459,7 +459,11 @@ export async function emitirCfdiComision(
           quantity: 1,
           product: {
             description: `Comisión por servicios de intermediación · ${acc.periodo}`,
-            // 🔁 FISCALISTA: clave de producto/servicio de la comisión de intermediación.
+            /*
+             * ✅ Confirmada contra la guía de claves sugeridas del SAT para servicios de
+             * comisión, que además dice que sirve «indistintamente del origen de la comisión
+             * que percibas». La unidad `E48` es la que esa misma guía indica.
+             */
             product_key: "80141600",
             unit_key: "E48",
             price: acc.comision, // 💵 en dólares; la moneda del comprobante es USD
@@ -571,10 +575,15 @@ export async function emitirCfdiRetenciones(
         ejerc: desde.getUTCFullYear(),
       },
       totales: {
-        // 💱 Todo en PESOS, sumado del detalle para que no pueda discrepar de él.
-        monto_tot_operacion: round2(
-          complemento.MonTotServSIVA + complemento.TotalIVATrasladado
-        ),
+        /*
+         * 💱 En PESOS, y tomado TAL CUAL del complemento.
+         *
+         * 🚨 Es el total SIN IVA, no la suma de base más impuesto. La regla de validación del
+         *    SAT es literal, «el valor de este atributo debe ser igual al valor registrado en
+         *    el atributo MonTotServSIVA». Antes se mandaba base + IVA, que es lo que dicta la
+         *    intuición y lo que el SAT rechaza.
+         */
+        monto_tot_operacion: complemento.MonTotServSIVA,
         /**
          * Cero, y no es lo mismo que las exportaciones.
          *
@@ -588,11 +597,17 @@ export async function emitirCfdiRetenciones(
             ? [{
                 monto_ret: round2(acc.isrRetenido * tasaRet),
                 /*
-                 * La base de las DOS retenciones es la misma, el precio sin impuesto: el ISR
-                 * es el 2.5% de ella y el IVA retenido es la mitad del 16%, o sea el 8% de
-                 * ella. No es el importe del impuesto, es la base sobre la que se calculó.
+                 * 🚨 LAS DOS BASES SON DISTINTAS, Y NINGUNA ES «la base de la venta».
+                 *
+                 * El SAT las valida con dos reglas separadas. La del ISR es «BaseRet debe ser
+                 * igual a montoTotOperacion», o sea el total sin IVA. La del IVA es «BaseRet
+                 * debe ser igual a la suma de los Importe del nodo
+                 * ImpuestosTrasladadosdelServicio», o sea el IVA trasladado, no la venta.
+                 *
+                 * Se mandaba la base de la venta en las dos. Coincidía con la del ISR por
+                 * casualidad y era falsa en la del IVA.
                  */
-                base_ret: round2(acc.base * tasaRet),
+                base_ret: complemento.MonTotServSIVA,
                 /*
                  * 🚨 `04`, no `02`. El catálogo `c_TipoPagoRet` es 01 IVA definitivo, 02 IEPS
                  * definitivo, 03 ISR plataformas DEFINITIVO y 04 ISR PROVISIONAL. Mandábamos
@@ -609,7 +624,8 @@ export async function emitirCfdiRetenciones(
           ...(acc.ivaRetenido > 0
             ? [{
                 monto_ret: round2(acc.ivaRetenido * tasaRet),
-                base_ret: round2(acc.base * tasaRet),
+                /* La base del IVA retenido es el IVA TRASLADADO, no la venta. Ver arriba. */
+                base_ret: complemento.TotalIVATrasladado,
                 // 🔁 FISCALISTA: la retención de IVA es pago DEFINITIVO. `01` en el catálogo.
                 tipo_pago_ret: "01",
                 impuesto: "IVA",

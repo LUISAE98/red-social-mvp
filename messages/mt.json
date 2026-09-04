@@ -284,7 +284,8 @@
     "imageTooLarge": "L-immaġni ma tistax tkun akbar minn 150 MB.",
     "imageUnreadable": "Din l-immaġni ma setgħetx tinfetaħ, jista' jkun li hija bil-ħsara jew mhux kompluta. Ipprova ssalvaha mill-ġdid bħala JPG jew PNG.",
     "imageFormatUnsupported": "Dan il-format ma jistax jintuża hawn. Ipprova JPG, PNG, WebP jew AVIF.",
-    "imageProcessFailed": "L-immaġni ma setgħetx tiġi pproċessata, erġa' pprova."
+    "imageProcessFailed": "L-immaġni ma setgħetx tiġi pproċessata, erġa' pprova.",
+    "uploadingVideoPct": "Qed jittella' l-vidjo… {progress}%"
   },
   "groups": {
     "title": "Komunitajiet",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Ikkanċella r-risposta",
     "imageFailed": "Ma setgħetx titgħabba l-istampa",
     "copy": "Ikkopja",
-    "messageCopied": "Il-messaġġ ġie kkupjat"
+    "messageCopied": "Il-messaġġ ġie kkupjat",
+    "newMessages": "Messaġġi ġodda",
+    "jumpToLatest": "Mur għall-aħħar messaġġ"
   },
   "cf": {
     "mustBeAuthenticated": "Trid tkun awtentikat.",

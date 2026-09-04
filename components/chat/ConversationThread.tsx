@@ -204,9 +204,23 @@ const SCROLL_SETTLE_MS = 280;
  */
 const LONG_PRESS_MS = 480;
 
-/** Corazón: relleno para la marca del mensaje, contorno para el botón. */
+/**
+ * Corazón: relleno para la marca del mensaje, contorno para el botón.
+ *
+ * ⚠️ El trazo es SIMÉTRICO respecto a x=12, y hay que mantenerlo así. El
+ * anterior no lo era y por eso la punta de abajo no cuadraba: los lóbulos iban
+ * de x=2 a x=20 —o sea, centrados en x=11— mientras que el pico estaba clavado
+ * en x=12. Un píxel entero de desfase sobre un icono de diecisiete.
+ *
+ * Y el cierre de abajo era peor: el lado izquierdo bajaba hasta x=10,4 y el
+ * derecho volvía por x=11,6 en vez de por su espejo, x=13,6. Con relleno se leía
+ * como una punta torcida y con contorno, como una uve mal cerrada.
+ *
+ * Cada número tiene su espejo: 3↔21, 8,3↔15,7, 5,4↔18,6, 10,4↔13,6. Al tocarlo,
+ * moverlos de dos en dos.
+ */
 const HEART_PATH =
-  "M12 20.5l-1.6-1.45C5.1 14.5 2 11.7 2 8.2 2 5.4 4.2 3.2 7 3.2c1.6 0 3.1.74 4 1.9.9-1.16 2.4-1.9 4-1.9 2.8 0 5 2.2 5 5 0 3.5-3.1 6.3-8.4 10.85L12 20.5z";
+  "M12 21C10.4 19.6 3 13.9 3 8.8 3 5.6 5.4 3.2 8.3 3.2 10 3.2 11.3 4.1 12 5.2 12.7 4.1 14 3.2 15.7 3.2 18.6 3.2 21 5.6 21 8.8 21 13.9 13.6 19.6 12 21Z";
 
 /**
  * Fondos de los globos, sobre negro.
@@ -476,6 +490,17 @@ export default function ConversationThread({
   const STICK_TO_BOTTOM_SLACK = 90;
   /** ¿Seguimos pegados al final? Si te fuiste a leer historia, no se te arrastra. */
   const stickToBottomRef = useRef(true);
+  /**
+   * Lo mismo, pero como ESTADO, porque el botón de volver al final sí se pinta.
+   *
+   * Son dos cosas y no una duplicada: el `ref` lo lee el scroll en caliente sin
+   * provocar renders, y este solo cambia al cruzar el umbral. Poner el botón a
+   * depender del ref no funcionaría —no repinta— y poner el scroll a depender
+   * del estado repintaría el hilo entero en cada fotograma de arrastre.
+   */
+  const [alFinal, setAlFinal] = useState(true);
+  /** Mensajes del otro que entraron mientras estabas arriba, sin verlos. */
+  const [nuevosAbajo, setNuevosAbajo] = useState(0);
 
   /**
    * El criterio de "esto ya se ha visto de verdad", guardado en un ref.
@@ -1100,6 +1125,47 @@ export default function ConversationThread({
     return readAt ? readAt.toMillis() : null;
   }, [conversation?.lastReadAt, otherUid]);
 
+  /**
+   * Hasta dónde había leído YO al abrir el hilo. CONGELADO a propósito.
+   *
+   * ⚠️ Abrir el hilo lo marca como leído, así que este dato se destruye a sí
+   * mismo: un segundo después de entrar, `lastReadAt` ya dice "ahora" y la línea
+   * de mensajes nuevos no tendría dónde ponerse. Por eso se guarda el PRIMER
+   * valor que se ve de cada conversación y no se vuelve a tocar mientras el hilo
+   * siga abierto — que es además el comportamiento que se espera: la línea se
+   * queda donde estaba aunque sigas leyendo, y solo se recoloca al volver a
+   * entrar.
+   *
+   * Si el acuse de lectura gana la carrera al primer snapshot, no hay línea.
+   * Se pierde la marca, no se rompe nada.
+   */
+  const miLecturaFijadaRef = useRef<number | null>(null);
+  const [miLecturaFijada, setMiLecturaFijada] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (miLecturaFijadaRef.current !== null) return;
+    const readAt = selfUid ? conversation?.lastReadAt?.[selfUid] : null;
+    if (!readAt) return;
+    miLecturaFijadaRef.current = readAt.toMillis();
+    setMiLecturaFijada(readAt.toMillis());
+  }, [conversation?.lastReadAt, selfUid]);
+
+  /**
+   * El primer mensaje del otro que llegó DESPUÉS de esa marca: encima de él va
+   * la línea. Se recalcula al cambiar los mensajes, pero como la marca está
+   * congelada el resultado no se mueve — salvo que cargues más historial y
+   * aparezca uno anterior que tampoco habías leído, que es lo correcto.
+   */
+  const idPrimerNoLeido = useMemo(() => {
+    if (miLecturaFijada === null || !selfUid) return null;
+    for (const message of messages) {
+      if (message.senderId === selfUid) continue;
+      const at = message.createdAt;
+      if (at && at.toMillis() > miLecturaFijada) return message.id;
+    }
+    return null;
+  }, [messages, miLecturaFijada, selfUid]);
+
   /** URL para pintar: la firmada, o la permanente si es un mensaje antiguo. */
   function imageUrl(image: ChatImage, variant: "thumb" | "full"): string | null {
     if (variant === "thumb") {
@@ -1358,7 +1424,35 @@ export default function ConversationThread({
     setError(null);
     setReplyingTo(null);
     lastMessageIdRef.current = null;
+    // Otro hilo, otra cuenta de nuevos y otra marca de por dónde ibas.
+    setNuevosAbajo(0);
+    setAlFinal(true);
+    ultimoContadoRef.current = null;
+    miLecturaFijadaRef.current = null;
+    setMiLecturaFijada(null);
   }, [conversationId]);
+
+  /**
+   * Cuenta lo que entra mientras estás arriba.
+   *
+   * Solo lo del otro y solo si NO estás abajo: lo tuyo ya lo ves, y estando al
+   * final el mensaje entra en pantalla solo. La primera tanda tampoco cuenta —
+   * abrir un hilo no es "te han llegado cinco mientras leías".
+   */
+  const ultimoContadoRef = useRef<string | null>(null);
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (!last) return;
+    if (ultimoContadoRef.current === last.id) return;
+
+    const esLaPrimeraTanda = ultimoContadoRef.current === null;
+    ultimoContadoRef.current = last.id;
+    if (esLaPrimeraTanda) return;
+    if (last.senderId === selfUid) return;
+    if (stickToBottomRef.current) return;
+
+    setNuevosAbajo((n) => n + 1);
+  }, [messages, selfUid]);
 
   /**
    * Abrir el hilo lo deja SIEMPRE en los mensajes recientes.
@@ -1663,6 +1757,15 @@ export default function ConversationThread({
     const bareImage = !message.isDeleted && !!message.image && !message.text && !message.replyTo;
 
     /**
+     * ¿Este mensaje lleva me gusta?
+     *
+     * De CUALQUIERA de los dos, no solo mío: en un hilo de dos, que la otra
+     * persona marque algo tuyo es justo lo que quieres ver. `isLikedByMe` es
+     * otra cosa y solo decide qué hace el botón al pulsarlo.
+     */
+    const hayCorazon = (message.likedBy ?? []).length > 0;
+
+    /**
      * La foto ya se puede enseñar: o la pintó el navegador, o es una que se
      * mandó desde aquí y sigue en memoria.
      *
@@ -1708,6 +1811,42 @@ export default function ConversationThread({
         }
         style={{ display: "flex", flexDirection: "column" }}
       >
+        {/* Por aquí ibas. Va ENCIMA del separador de día (`order: -1`) porque
+            marca un punto de tu lectura, no un cambio de fecha: si el primero
+            sin leer estrena día, primero se dice que ahí empieza lo nuevo y
+            después de qué día es. */}
+        {idPrimerNoLeido === message.id ? (
+          <div
+            style={{
+              order: -1,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              margin: "16px 2px 8px",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{ flex: 1, height: 1, background: "rgba(168,85,247,0.35)" }}
+            />
+            <span
+              style={{
+                fontSize: 10.5,
+                fontWeight: 600,
+                letterSpacing: "0.02em",
+                color: "#c99bf5",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {tChat("newMessages")}
+            </span>
+            <span
+              aria-hidden
+              style={{ flex: 1, height: 1, background: "rgba(168,85,247,0.35)" }}
+            />
+          </div>
+        ) : null}
+
         {showDaySeparator && date ? (
           <div
             style={{
@@ -1791,7 +1930,12 @@ export default function ConversationThread({
                 al lado del globo, así queda pegado a él sea cual sea su ancho.
                 Va en la esquina de dentro — la que mira al centro de la
                 pantalla — y por eso cambia de lado según quién escribe. */}
-            {!message.isDeleted ? (
+            {/* ⚠️ Solo en TÁCTIL. Con puntero, el corazón rojo lo pinta el propio
+                botón de al lado, que ocupa este mismo sitio: mantener además
+                esta marca era lo que enseñaba dos corazones seguidos. En táctil
+                no hay botón —el me gusta se pone desde el menú—, así que aquí
+                sigue siendo la única forma de verlo. */}
+            {!message.isDeleted && !pointerActions ? (
               <span
                 aria-hidden
                 style={{
@@ -1809,16 +1953,28 @@ export default function ConversationThread({
                     encima quedaban por debajo de la foto del mensaje siguiente.
                     Va siempre montado y se enciende con el atributo, para que el
                     pop de entrada y el de salida sean la misma transición. */}
+                {/* ⚠️ CENTRADO en vertical, no colgado de la esquina de abajo.
+                    Ahí quedaba a caballo entre el globo y el vacío, sin alinearse
+                    con nada, y en un mensaje alto se perdía. Ahora cae justo
+                    donde con puntero sale el corazón de pasar el cursor, o sea
+                    en el mismo sitio en celular y en laptop.
+
+                    El centrado NO lleva `translateY`: lo hace el `align-items`
+                    del hueco, porque un absoluto sin `top` ni `bottom` se coloca
+                    en su posición estática, y ahí sí manda el flex del padre.
+                    Así el `transform` queda libre para el pop, que es de quien
+                    es — mezclarlos haría que al animar se descolocara. */}
                 <span
                   className="vibra-msg-heart"
-                  data-on={(message.likedBy ?? []).length > 0 ? "" : undefined}
+                  data-on={hayCorazon ? "" : undefined}
                   style={{
                     position: "absolute",
-                    bottom: -7,
-                    ...(mine ? { insetInlineStart: -5 } : { insetInlineEnd: -5 }),
+                    // 4,5 px + medio icono = 13 px afuera, que es exactamente
+                    // donde cae el centro del botón de pasar el cursor.
+                    ...(mine ? { insetInlineStart: -4.5 } : { insetInlineEnd: -4.5 }),
                   }}
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#ff3040">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="#ff3040">
                     <path d={HEART_PATH} />
                   </svg>
                 </span>
@@ -1838,6 +1994,10 @@ export default function ConversationThread({
             {pointerActions ? (
             <span
               className="vibra-msg-actions"
+              // Con me gusta puesto, el corazón se queda a la vista aunque el
+              // cursor no esté encima: ahí ya no es una acción escondida, es la
+              // marca del mensaje.
+              data-on={hayCorazon ? "" : undefined}
               style={{
                 order: mine ? 0 : 6,
                 // Pegado AL GLOBO, no centrado en el hueco reservado: centrar
@@ -1846,9 +2006,12 @@ export default function ConversationThread({
                 justifyContent: mine ? "flex-end" : "flex-start",
               }}
             >
-              {/* Corazón: mismo gesto que el doble toque de celular, aquí con
-                  su propio botón. Contorno cuando no está puesto, relleno y
-                  rosa cuando sí. */}
+              {/* ⚠️ UN corazón, no dos.
+                  Este botón es a la vez la acción y el indicador: vacío cuando
+                  no hay me gusta, ROJO en el mismo sitio cuando lo hay, y volver
+                  a pulsarlo lo quita. Antes el rojo era una marca aparte que se
+                  pintaba al lado, así que un mensaje con me gusta enseñaba dos
+                  corazones seguidos al pasar el cursor. */}
               {!message.isDeleted && conversationId ? (
                 <button
                   type="button"
@@ -1857,17 +2020,39 @@ export default function ConversationThread({
                     e.stopPropagation();
                     toggleLike(message);
                   }}
-                  aria-label={tChat("like")}
-                  title={tChat("like")}
-                  // El estado sí se anuncia a lectores de pantalla, aunque el
-                  // icono no cambie: quien no ve el corazón del globo necesita
-                  // saber si ya está puesto.
+                  aria-label={isLikedByMe(message) ? tChat("unlike") : tChat("like")}
+                  title={isLikedByMe(message) ? tChat("unlike") : tChat("like")}
                   aria-pressed={isLikedByMe(message)}
                 >
-                  {/* Siempre de contorno, esté puesto o no. Es un botón de
-                      acción, no un indicador: el corazón rojo del globo ya dice
-                      si está puesto, y rellenar también el botón lo repetía. */}
-                  <ActionIcon path={<path d={HEART_PATH} />} />
+                  {/* Los DOS corazones van siempre montados, uno encima del
+                      otro, y solo cambia cuál está encendido. Es lo que da el
+                      pop en las dos direcciones: al poner el me gusta, el rojo
+                      entra con rebote mientras el vacío se va, y al quitarlo,
+                      al revés. Montar y desmontar sería un corte seco. */}
+                  <span
+                    style={{
+                      position: "relative",
+                      width: 17,
+                      height: 17,
+                      display: "grid",
+                      placeItems: "center",
+                    }}
+                  >
+                    <span
+                      className="vibra-msg-heart"
+                      data-on={hayCorazon ? undefined : ""}
+                      style={{ position: "absolute" }}
+                    >
+                      <ActionIcon path={<path d={HEART_PATH} />} />
+                    </span>
+                    <span
+                      className="vibra-msg-heart"
+                      data-on={hayCorazon ? "" : undefined}
+                      style={{ position: "absolute", color: "#ff3040" }}
+                    >
+                      <ActionIcon path={<path d={HEART_PATH} />} fill="#ff3040" />
+                    </span>
+                  </span>
                 </button>
               ) : null}
             </span>
@@ -3040,7 +3225,9 @@ export default function ConversationThread({
         /* Visibles también mientras el foco esté dentro: si no, tabular hasta
            ellas las apagaría justo al llegar. */
         .vibra-msg-row:hover .vibra-msg-actions,
-        .vibra-msg-actions:focus-within {
+        .vibra-msg-actions:focus-within,
+        /* Con me gusta puesto ya no se esconde: es la marca del mensaje. */
+        .vibra-msg-actions[data-on] {
           opacity: 1;
         }
         .vibra-msg-action {
@@ -3067,6 +3254,75 @@ export default function ConversationThread({
           color: #fff;
           transform: scale(1.12);
         }
+
+        /* Botón de volver al final. Redondo, sobre el hilo y pegado al lado de
+           dentro, para no taparle nada al último mensaje. */
+        .vibra-chat-jump {
+          position: absolute;
+          inset-inline-end: 14px;
+          width: 36px;
+          height: 36px;
+          border-radius: 999px;
+          border: none;
+          /* Opaco: va por encima de los mensajes y con alfa se leía el texto de
+             debajo a través del botón. */
+          background: #26262c;
+          color: rgba(255, 255, 255, 0.92);
+          display: grid;
+          place-items: center;
+          cursor: pointer;
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+          z-index: 3;
+          -webkit-tap-highlight-color: transparent;
+          /* Apagado: ni se ve ni se puede pulsar. La transición es la MISMA de
+             ida y de vuelta, así que aparecer y desaparecer se ven igual. */
+          opacity: 0;
+          transform: translateY(6px) scale(0.9);
+          pointer-events: none;
+          transition:
+            opacity var(--duration-fast, 150ms) ease,
+            transform var(--duration-normal, 250ms)
+              var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+        }
+        .vibra-chat-jump[data-on] {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+          pointer-events: auto;
+        }
+        @media (hover: hover) {
+          .vibra-chat-jump[data-on]:hover {
+            background: #303038;
+            color: #fff;
+          }
+        }
+        /* Cuántos han entrado mientras estabas arriba. Morado de marca: es un
+           aviso, no un adorno del botón. */
+        .vibra-chat-jump-badge {
+          position: absolute;
+          top: -3px;
+          inset-inline-end: -3px;
+          min-width: 18px;
+          height: 18px;
+          padding: 0 5px;
+          box-sizing: border-box;
+          border-radius: 999px;
+          background: #a855f7;
+          color: #fff;
+          font-size: 10.5px;
+          font-weight: 700;
+          font-variant-numeric: tabular-nums;
+          line-height: 18px;
+          text-align: center;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vibra-chat-jump {
+            transition: opacity var(--duration-fast, 150ms) ease;
+            transform: none;
+          }
+          .vibra-chat-jump[data-on] {
+            transform: none;
+          }
+        }
         @media (prefers-reduced-motion: reduce) {
           .vibra-msg-action {
             transition: color var(--duration-fast, 150ms) ease;
@@ -3082,8 +3338,13 @@ export default function ConversationThread({
         ref={scrollRef}
         onScroll={(e) => {
           const el = e.currentTarget;
-          stickToBottomRef.current =
+          const abajo =
             el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_TO_BOTTOM_SLACK;
+          stickToBottomRef.current = abajo;
+          // React descarta el render si el valor no cambió, así que llamar en
+          // cada evento de scroll no cuesta nada.
+          setAlFinal(abajo);
+          if (abajo) setNuevosAbajo(0);
           // Bajar hasta verlo ES leer: aquí sale el recibo que se quedó guardado
           // mientras se estaba arriba. Se pregunta en cada scroll y no solo al
           // cruzar el umbral de "pegado al final", porque un mensaje muy alto se
@@ -3140,6 +3401,51 @@ export default function ConversationThread({
       >
         {renderBody()}
       </div>
+
+      {/* Volver al final del hilo.
+          Solo aparece si te has ido a leer historia, y con la cuenta de lo que
+          ha entrado mientras tanto. Sin esto, estar arriba era un estado sin
+          salida ni aviso: nada te decía que había mensajes nuevos abajo, y
+          menos desde que el acuse de lectura exige llegar hasta ellos.
+
+          Va SIEMPRE montado y se enciende con el atributo, para que entre y
+          salga con la misma transición. Se coloca sobre el compositor, cuyo
+          alto se mide en vivo. */}
+      <button
+        type="button"
+        className="vibra-chat-jump vibra-msg-dimmable"
+        data-on={!alFinal ? "" : undefined}
+        data-dimmed={expandedMessage ? "" : undefined}
+        aria-hidden={alFinal}
+        tabIndex={alFinal ? -1 : 0}
+        aria-label={tChat("jumpToLatest")}
+        title={tChat("jumpToLatest")}
+        onClick={() => {
+          setNuevosAbajo(0);
+          stickToBottomRef.current = true;
+          scrollToBottom(true);
+        }}
+        style={{ bottom: composerHeight + 10 }}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M6 10l6 6 6-6" />
+        </svg>
+        {nuevosAbajo > 0 ? (
+          <span className="vibra-chat-jump-badge">
+            {nuevosAbajo > 99 ? "99+" : nuevosAbajo}
+          </span>
+        ) : null}
+      </button>
 
       {/* Superpuesto al hilo, no en su propia fila: así los mensajes se ven
           pasar por detrás al scrollear. El campo lleva desenfoque para seguir

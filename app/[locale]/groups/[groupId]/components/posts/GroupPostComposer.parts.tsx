@@ -52,8 +52,81 @@ export type GroupPostComposerSubmitPayload = {
 };
 
 
+/**
+ * En qué anda una publicación. Decide el TEXTO del botón.
+ */
+export type PublishPhase = "preparando" | "subiendoVideo" | "publicando";
+
+/**
+ * Avance de una publicación, para el relleno del botón.
+ *
+ * 🚨 `ratio` ES DEL CONJUNTO, de 0 a 1. Preparar las imágenes, subir cada video
+ * y escribir la publicación NO son tres barras seguidas: son tramos de la misma.
+ * El botón se llena una sola vez de vacío a lleno, pase lo que pase por dentro.
+ *
+ * Quien publica reparte el peso de cada tramo; el botón solo pinta lo que le
+ * llega. Por eso el reparto vive en `repartirAvance`, aquí abajo, y no en cada
+ * una de las cuatro pantallas que publican.
+ */
+export type PublishProgress = {
+  ratio: number;
+  phase: PublishPhase;
+  /** Solo en `subiendoVideo`, para poder decir "Subiendo video 23%". */
+  videoPct?: number;
+};
+
+/**
+ * Reparto de la barra entre los tramos de una publicación.
+ *
+ * Los pesos salen de lo que tarda cada cosa de verdad: subir el video a Mux se
+ * lleva la mayor parte del tiempo cuando hay video, y escribir el documento es
+ * casi instantáneo. Sin video, preparar las imágenes ocupa su hueco.
+ */
+export function repartirAvance(params: {
+  phase: PublishPhase;
+  /** 0..100 de la subida del video en curso. */
+  videoPct?: number;
+  /** Cuál de los videos va, empezando en 0. */
+  videoIndex?: number;
+  videoTotal?: number;
+  hayVideo: boolean;
+}): PublishProgress {
+  const { phase, videoPct = 0, videoIndex = 0, videoTotal = 1, hayVideo } = params;
+
+  // Sin video la preparación es lo único que lleva tiempo, así que se le da casi
+  // toda la barra; con video, el video manda.
+  const pesoPreparar = hayVideo ? 0.12 : 0.85;
+  const pesoVideo = hayVideo ? 0.8 : 0;
+
+  if (phase === "preparando") {
+    return { ratio: pesoPreparar * 0.9, phase };
+  }
+
+  if (phase === "subiendoVideo") {
+    const total = Math.max(1, videoTotal);
+    const hechos = Math.min(videoIndex, total - 1);
+    const dentro = (hechos + Math.min(100, Math.max(0, videoPct)) / 100) / total;
+    return {
+      ratio: pesoPreparar + pesoVideo * dentro,
+      phase,
+      videoPct: Math.round(videoPct),
+    };
+  }
+
+  // Escribir la publicación. Se deja en 0.97 y NO en 1: el 100 se reserva para
+  // cuando la promesa resuelve de verdad, que es lo que la persona espera ver.
+  return { ratio: 0.97, phase };
+}
+
 export type GroupPostComposerProps = {
-  onSubmit: (payload: GroupPostComposerSubmitPayload) => Promise<void>;
+  /**
+   * Publica. El segundo argumento sirve para ir contando el avance; quien no
+   * suba nada pesado puede ignorarlo y el botón se llenará por estimación.
+   */
+  onSubmit: (
+    payload: GroupPostComposerSubmitPayload,
+    onProgress?: (progreso: PublishProgress) => void
+  ) => Promise<void>;
   onLiveClick?: () => void;
   contextType?: ComposerContextType;
   groupVisibility?: GroupVisibility | null;

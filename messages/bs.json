@@ -284,7 +284,8 @@
     "imageTooLarge": "Slika ne smije biti veća od 150 MB.",
     "imageUnreadable": "Ovu sliku nije bilo moguće otvoriti, možda je oštećena ili nepotpuna. Pokušaj je ponovo sačuvati kao JPG ili PNG.",
     "imageFormatUnsupported": "Ovaj format se ovdje ne može koristiti. Pokušaj sa JPG, PNG, WebP ili AVIF.",
-    "imageProcessFailed": "Sliku nije bilo moguće obraditi, pokušaj ponovo."
+    "imageProcessFailed": "Sliku nije bilo moguće obraditi, pokušaj ponovo.",
+    "uploadingVideoPct": "Prenosi se video… {progress} %"
   },
   "groups": {
     "title": "Zajednice",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Odustani od odgovora",
     "imageFailed": "Slika se nije učitala",
     "copy": "Kopiraj",
-    "messageCopied": "Poruka je kopirana"
+    "messageCopied": "Poruka je kopirana",
+    "newMessages": "Nove poruke",
+    "jumpToLatest": "Idi na posljednju poruku"
   },
   "cf": {
     "mustBeAuthenticated": "Moraš biti autentifikovan.",

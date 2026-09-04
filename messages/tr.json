@@ -284,7 +284,8 @@
     "imageTooLarge": "Görsel 150 MB'tan büyük olamaz.",
     "imageUnreadable": "Bu görsel açılamadı, bozuk veya eksik olabilir. JPG ya da PNG olarak yeniden kaydetmeyi dene.",
     "imageFormatUnsupported": "Bu biçim burada kullanılamaz. JPG, PNG, WebP veya AVIF dene.",
-    "imageProcessFailed": "Görsel işlenemedi, tekrar dene."
+    "imageProcessFailed": "Görsel işlenemedi, tekrar dene.",
+    "uploadingVideoPct": "Video yükleniyor… %{progress}"
   },
   "groups": {
     "title": "Topluluklar",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Yanıtı iptal et",
     "imageFailed": "Görsel yüklenemedi",
     "copy": "Kopyala",
-    "messageCopied": "Mesaj kopyalandı"
+    "messageCopied": "Mesaj kopyalandı",
+    "newMessages": "Yeni mesajlar",
+    "jumpToLatest": "Son mesaja git"
   },
   "cf": {
     "mustBeAuthenticated": "Kimliğin doğrulanmalı.",

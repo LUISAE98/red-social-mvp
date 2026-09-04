@@ -71,10 +71,13 @@ const IMPUESTO_IVA = "02";
 const TIPO_FACTOR = "Tasa";
 
 /**
- * `c_TasaCuota` es una enumeración cerrada, no un decimal libre. Estas son las tasas que el SAT
- * admite para un traslado; cualquier otra tumba el timbrado.
+ * `c_TasaCuota` es una enumeración cerrada, no un decimal libre. Estas son las cuatro tasas que
+ * el SAT admite; cualquier otra tumba el timbrado.
+ *
+ * ⚠️ El **cero está en el catálogo**. Una exportación no es un caso a omitir, es una operación
+ *    con tasa 0% que se declara como tal.
  */
-const TASAS_ADMITIDAS = [0.16, 0.08, 0.5] as const;
+const TASAS_ADMITIDAS = [0.16, 0.08, 0.5, 0] as const;
 
 /**
  * Identidad del complemento, del registro de espacios de nombres del SAT.
@@ -150,7 +153,11 @@ export type DetalleDelServicio = {
   TipoDeServ: string;
   FechaServ: string;
   PrecioServSinIVA: number;
-  /** Condicional. No va cuando la operación no trasladó IVA, como en una exportación. */
+  /**
+   * Obligatorio en la práctica: el SAT solo lo dispensa con `FormaPagoServ` `09`. Una
+   * exportación lo lleva con `TasaCuota` 0.000000. Opcional en el tipo solo por la venta sin
+   * precio, que no tiene base posible.
+   */
   ImpuestosTrasladadosdelServicio?: {
     Base: number;
     Impuesto: string;
@@ -158,7 +165,10 @@ export type DetalleDelServicio = {
     TasaCuota: number;
     Importe: number;
   };
-  /** Condicional. No va cuando Vibra no cobró comisión por esa operación. */
+  /**
+   * Obligatorio igual que el anterior. Una operación sin comisión lo lleva con `Importe` 0.00
+   * y sin `Porcentaje`.
+   */
   ComisionDelServicio?: { Base: number; Porcentaje?: number; Importe: number };
 };
 
@@ -208,7 +218,20 @@ export function armarComplemento(
       PrecioServSinIVA: s.precioSinIva,
     };
 
-    if (s.ivaTrasladado > 0) {
+    /*
+     * 🚨 LOS DOS NODOS SON OBLIGATORIOS, NO CONDICIONALES A QUE HAYA IMPORTE.
+     *
+     * El XSD los marca `minOccurs="0"`, que invita a omitirlos cuando valen cero. Pero la
+     * regla de validación del SAT dice que **son obligatorios salvo que `FormaPagoServ` sea
+     * `09`**, «otros ingresos por premios, bonificaciones o análogos», que no es nuestro caso.
+     *
+     * Así que una exportación lleva su nodo de impuestos con `TasaCuota` 0.000000 e `Importe`
+     * 0.00 — declarada como operación a tasa cero, que es lo que es— en vez de desaparecer.
+     *
+     * Lo único que los quita es que la venta no tenga precio: `Base` exige un valor mayor que
+     * cero, así que un precio de cero no tiene nodo posible.
+     */
+    if (s.precioSinIva > 0) {
       detalle.ImpuestosTrasladadosdelServicio = {
         Base: s.precioSinIva,
         Impuesto: IMPUESTO_IVA,
@@ -216,9 +239,7 @@ export function armarComplemento(
         TasaCuota: tasaDeLaOperacion(s.precioSinIva, s.ivaTrasladado),
         Importe: s.ivaTrasladado,
       };
-    }
 
-    if (s.comision > 0) {
       /*
        * `Porcentaje` es opcional y su rango es 0.001 a 1.0 con tres decimales. Se manda solo si
        * cae dentro; fuera de rango se omite en vez de recortarlo, porque el importe ya lleva el

@@ -284,7 +284,8 @@
     "imageTooLarge": "Obraz nie może ważyć więcej niż 150 MB.",
     "imageUnreadable": "Nie udało się otworzyć tego obrazu, może być uszkodzony lub niekompletny. Spróbuj zapisać go ponownie jako JPG lub PNG.",
     "imageFormatUnsupported": "Tego formatu nie można tu użyć. Spróbuj JPG, PNG, WebP lub AVIF.",
-    "imageProcessFailed": "Nie udało się przetworzyć obrazu, spróbuj ponownie."
+    "imageProcessFailed": "Nie udało się przetworzyć obrazu, spróbuj ponownie.",
+    "uploadingVideoPct": "Przesyłanie filmu… {progress} %"
   },
   "groups": {
     "title": "Społeczności",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Anuluj odpowiedź",
     "imageFailed": "Nie udało się wczytać obrazu",
     "copy": "Kopiuj",
-    "messageCopied": "Skopiowano wiadomość"
+    "messageCopied": "Skopiowano wiadomość",
+    "newMessages": "Nowe wiadomości",
+    "jumpToLatest": "Przejdź do najnowszej wiadomości"
   },
   "cf": {
     "mustBeAuthenticated": "Musisz być uwierzytelniony.",

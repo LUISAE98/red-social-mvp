@@ -284,7 +284,8 @@
     "imageTooLarge": "Ảnh không được lớn hơn 150 MB.",
     "imageUnreadable": "Không mở được ảnh này, có thể ảnh bị hỏng hoặc chưa tải xong. Hãy thử lưu lại thành JPG hoặc PNG.",
     "imageFormatUnsupported": "Không dùng được định dạng này ở đây. Hãy thử JPG, PNG, WebP hoặc AVIF.",
-    "imageProcessFailed": "Không xử lý được ảnh, hãy thử lại."
+    "imageProcessFailed": "Không xử lý được ảnh, hãy thử lại.",
+    "uploadingVideoPct": "Đang tải video lên… {progress}%"
   },
   "groups": {
     "title": "Cộng đồng",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Hủy trả lời",
     "imageFailed": "Không thể tải ảnh",
     "copy": "Sao chép",
-    "messageCopied": "Đã sao chép tin nhắn"
+    "messageCopied": "Đã sao chép tin nhắn",
+    "newMessages": "Tin nhắn mới",
+    "jumpToLatest": "Đến tin nhắn mới nhất"
   },
   "cf": {
     "mustBeAuthenticated": "Bạn cần được xác thực.",

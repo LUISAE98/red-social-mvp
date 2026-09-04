@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { IconButton } from "@/components/ui";
+import { GlassEdge, IconButton } from "@/components/ui";
 import Link from "next/link";
 import {
   useEffect,
@@ -63,6 +63,13 @@ export default function PostComposerDesktopOverlay({
   const tLive = useTranslations("live");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const onCloseRef = useRef(onClose);
+  /**
+   * Hueco de las barras flotantes. GlassEdge se mide sola y lo avisa; el
+   * contenido lo repone con relleno.
+   */
+  const [topInset, setTopInset] = useState(0);
+  const [footInset, setFootInset] = useState(0);
+
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
   const [textareaHeight, setTextareaHeight] = useState(58);
@@ -285,6 +292,9 @@ const removeMediaButtonStyle: CSSProperties = {
       : "vibraComposerDesktopOut 180ms ease-in forwards",
   }}
 >
+{/* Cabecera flotante: lo que se escribe se disuelve al subir por detrás en
+    vez de cortarse contra una línea. */}
+<GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)">
 <header
   style={{
     height: 56,
@@ -292,7 +302,6 @@ const removeMediaButtonStyle: CSSProperties = {
     gridTemplateColumns: "48px 1fr 48px",
     alignItems: "center",
     padding: "0 12px",
-    borderBottom: "1px solid rgba(255,255,255,0.12)",
     flexShrink: 0,
   }}
 >
@@ -309,12 +318,13 @@ const removeMediaButtonStyle: CSSProperties = {
             </svg>
           </IconButton>
         </header>
+</GlassEdge>
 
 <div
   className="vibra-composer-desktop-scroll"
   style={{ flex: 1, overflowY: "auto", minHeight: 0 }}
 >
-  <div style={{ padding: "18px 20px 8px" }}>
+  <div style={{ padding: `${topInset + 18}px 20px ${footInset + 8}px` }}>
             <div
               style={
                 premiumComposer.premiumEnabled
@@ -809,10 +819,10 @@ borderRadius: 14,
 
           </div>
         </div>
+        <GlassEdge side="bottom" onHeight={setFootInset} veil="rgba(10,10,10,0.68)">
         <div
           style={{
             padding: "14px 20px 18px",
-            borderTop: "1px solid rgba(255,255,255,0.12)",
           }}
         >
 <button
@@ -848,6 +858,7 @@ style={{
                     : (isEditMode ? tCommon("saveChanges") : tCommon("publish"))}
             </button>
         </div>
+        </GlassEdge>
       </section>
     </div>,
     document.body,

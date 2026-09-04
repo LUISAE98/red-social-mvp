@@ -1,4 +1,5 @@
 "use client";
+import { GlassEdge } from "@/components/ui";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -77,6 +78,9 @@ export default function PostFlamesPanel({
   const { toast: flameToast, showToast: showFlameToast } = useVibraToast();
   useEffect(() => { if (error) showFlameToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   // mounted gate — prevents portal on server
+  /** Hueco de la cabecera flotante; el scroller lo repone con relleno. */
+  const [topInset, setTopInset] = useState(0);
+
   const [mounted, setMounted] = useState(false);
   // closing animation state
   const [closing, setClosing] = useState(false);
@@ -205,7 +209,7 @@ export default function PostFlamesPanel({
   );
 
   const bodyEl = (
-    <div style={{ padding: "8px 14px calc(16px + var(--vb-safe-bottom, 0px))", overflowY: "auto", flex: 1, minHeight: 0 }}>
+    <div style={{ padding: `${topInset + 8}px 14px calc(16px + var(--vb-safe-bottom, 0px))`, overflowY: "auto", flex: 1, minHeight: 0 }}>
       {loading && <ListSkeleton rows={6} avatarSize={42} padding="0" />}
 
       <VibraToast toast={flameToast} />
@@ -301,6 +305,9 @@ export default function PostFlamesPanel({
           }}
         >
           {/* Drag zone: pill + header */}
+          {/* Agarradera y cabecera flotan sobre la lista: los nombres se
+              disuelven al pasar por detrás en vez de cortarse. */}
+          <GlassEdge side="top" onHeight={setTopInset} veil="rgba(8,9,11,0.68)" zIndex={4}>
           <div
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -311,12 +318,13 @@ export default function PostFlamesPanel({
             <div style={{ padding: "12px 0 4px", cursor: "grab" }}>
               <div style={{ width: 38, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "0 auto" }} />
             </div>
-            <div style={{ height: 56, display: "grid", gridTemplateColumns: "48px 1fr 48px", alignItems: "center", padding: "0 12px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ height: 56, display: "grid", gridTemplateColumns: "48px 1fr 48px", alignItems: "center", padding: "0 12px" }}>
               <div />
               {titleEl}
               <div style={{ display: "flex", justifyContent: "flex-end" }}>{closeBtn}</div>
             </div>
           </div>
+          </GlassEdge>
           {bodyEl}
         </div>
         </>
@@ -345,11 +353,13 @@ export default function PostFlamesPanel({
               animation: closing ? "vbFPanelOut 0.18s ease-in forwards" : "vbFPanelIn 0.18s ease-out",
             }}
           >
-            <header style={{ height: 56, display: "grid", gridTemplateColumns: "48px 1fr 48px", alignItems: "center", padding: "0 12px", borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
+            <GlassEdge side="top" onHeight={setTopInset} veil="rgba(8,9,11,0.68)">
+            <header style={{ height: 56, display: "grid", gridTemplateColumns: "48px 1fr 48px", alignItems: "center", padding: "0 12px", flexShrink: 0 }}>
               <div />
               {titleEl}
               <div style={{ display: "flex", justifyContent: "flex-end" }}>{closeBtn}</div>
             </header>
+            </GlassEdge>
             {bodyEl}
           </section>
         </div>

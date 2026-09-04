@@ -111,13 +111,29 @@ describe("armado del complemento", () => {
     ).toThrow(/fuera del catálogo/);
   });
 
-  it("exportación a 0%: se omite el nodo de impuestos trasladados", () => {
-    // El nodo es condicional en el XSD. Sin IVA trasladado no hay nada que declarar, y `Base`
-    // exige un valor mayor que cero.
+  it("🚨 una exportación SÍ lleva su nodo de impuestos, con tasa cero", () => {
+    /*
+     * El XSD marca el nodo `minOccurs="0"`, que invita a omitirlo cuando el IVA vale cero. La
+     * regla de validación del SAT dice lo contrario: es obligatorio salvo con `FormaPagoServ`
+     * `09`. Una exportación se declara como operación a tasa 0%, no como operación sin nodo.
+     */
     const c = armarComplemento([venta({ ivaTrasladado: 0 })], { iva: 0, isr: 46.25 });
-    expect(c.Servicios[0].ImpuestosTrasladadosdelServicio).toBeUndefined();
+    expect(c.Servicios[0].ImpuestosTrasladadosdelServicio).toEqual({
+      Base: 1850,
+      Impuesto: "02",
+      TipoFactor: "Tasa",
+      TasaCuota: 0,
+      Importe: 0,
+    });
     expect(c.TotalIVATrasladado).toBe(0);
     expect(c.DifIVAEntregadoPrestServ).toBe(0);
+  });
+
+  it("🚨 una venta sin comisión SÍ lleva su nodo, con importe cero y sin porcentaje", () => {
+    // Mismo motivo: obligatorio. Y `Porcentaje` tiene mínimo 0.001, así que un cero no cabe
+    // ahí y el atributo se omite en vez de mandarse fuera de rango.
+    const c = armarComplemento([venta({ comision: 0 })], { iva: 148, isr: 46.25 });
+    expect(c.Servicios[0].ComisionDelServicio).toEqual({ Base: 1850, Importe: 0 });
   });
 
   it("la comisión lleva base, porcentaje e importe, y NO su impuesto", () => {

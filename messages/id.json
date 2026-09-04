@@ -284,7 +284,8 @@
     "imageTooLarge": "Gambar tidak boleh lebih dari 150 MB.",
     "imageUnreadable": "Gambar ini tidak bisa dibuka, mungkin rusak atau tidak lengkap. Coba simpan lagi sebagai JPG atau PNG.",
     "imageFormatUnsupported": "Format ini tidak bisa dipakai di sini. Coba JPG, PNG, WebP, atau AVIF.",
-    "imageProcessFailed": "Gambar tidak bisa diproses, coba lagi."
+    "imageProcessFailed": "Gambar tidak bisa diproses, coba lagi.",
+    "uploadingVideoPct": "Mengunggah video… {progress}%"
   },
   "groups": {
     "title": "Komunitas",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Batalkan balasan",
     "imageFailed": "Gambar tidak bisa dimuat",
     "copy": "Salin",
-    "messageCopied": "Pesan disalin"
+    "messageCopied": "Pesan disalin",
+    "newMessages": "Pesan baru",
+    "jumpToLatest": "Ke pesan terbaru"
   },
   "cf": {
     "mustBeAuthenticated": "Kamu harus terautentikasi.",

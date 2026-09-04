@@ -284,7 +284,8 @@
     "imageTooLarge": "Billedet må ikke fylde mere end 150 MB.",
     "imageUnreadable": "Billedet kunne ikke åbnes, det kan være beskadiget eller ufuldstændigt. Prøv at gemme det igen som JPG eller PNG.",
     "imageFormatUnsupported": "Dette format kan ikke bruges her. Prøv JPG, PNG, WebP eller AVIF.",
-    "imageProcessFailed": "Billedet kunne ikke behandles, prøv igen."
+    "imageProcessFailed": "Billedet kunne ikke behandles, prøv igen.",
+    "uploadingVideoPct": "Uploader videoen… {progress} %"
   },
   "groups": {
     "title": "Communities",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Annullér svar",
     "imageFailed": "Billedet kunne ikke indlæses",
     "copy": "Kopiér",
-    "messageCopied": "Beskeden er kopieret"
+    "messageCopied": "Beskeden er kopieret",
+    "newMessages": "Nye beskeder",
+    "jumpToLatest": "Gå til seneste besked"
   },
   "cf": {
     "mustBeAuthenticated": "Du skal være godkendt.",

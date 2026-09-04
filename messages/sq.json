@@ -284,7 +284,8 @@
     "imageTooLarge": "Imazhi nuk mund të jetë më i madh se 150 MB.",
     "imageUnreadable": "Ky imazh nuk mund të hapej, mund të jetë i dëmtuar ose i paplotë. Provo ta ruash përsëri si JPG ose PNG.",
     "imageFormatUnsupported": "Ky format nuk mund të përdoret këtu. Provo JPG, PNG, WebP ose AVIF.",
-    "imageProcessFailed": "Imazhi nuk mund të përpunohej, provo përsëri."
+    "imageProcessFailed": "Imazhi nuk mund të përpunohej, provo përsëri.",
+    "uploadingVideoPct": "Duke ngarkuar videon… {progress}%"
   },
   "groups": {
     "title": "Komunitete",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Anulo përgjigjen",
     "imageFailed": "Imazhi nuk mund të ngarkohej",
     "copy": "Kopjo",
-    "messageCopied": "Mesazhi u kopjua"
+    "messageCopied": "Mesazhi u kopjua",
+    "newMessages": "Mesazhe të reja",
+    "jumpToLatest": "Shko te mesazhi i fundit"
   },
   "cf": {
     "mustBeAuthenticated": "Duhet të jesh i vërtetuar.",

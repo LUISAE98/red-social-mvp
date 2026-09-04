@@ -284,7 +284,8 @@
     "imageTooLarge": "Vaizdas negali būti didesnis nei 150 MB.",
     "imageUnreadable": "Nepavyko atidaryti šio vaizdo, jis gali būti sugadintas arba nepilnas. Pabandyk jį iš naujo įrašyti kaip JPG arba PNG.",
     "imageFormatUnsupported": "Šio formato čia naudoti negalima. Pabandyk JPG, PNG, WebP arba AVIF.",
-    "imageProcessFailed": "Nepavyko apdoroti vaizdo, bandyk dar kartą."
+    "imageProcessFailed": "Nepavyko apdoroti vaizdo, bandyk dar kartą.",
+    "uploadingVideoPct": "Įkeliamas vaizdo įrašas… {progress} %"
   },
   "groups": {
     "title": "Bendruomenės",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Atšaukti atsakymą",
     "imageFailed": "Nepavyko įkelti vaizdo",
     "copy": "Kopijuoti",
-    "messageCopied": "Žinutė nukopijuota"
+    "messageCopied": "Žinutė nukopijuota",
+    "newMessages": "Naujos žinutės",
+    "jumpToLatest": "Eiti į naujausią žinutę"
   },
   "cf": {
     "mustBeAuthenticated": "Turi būti autentifikuotas.",

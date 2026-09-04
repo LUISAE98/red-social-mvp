@@ -284,7 +284,8 @@
     "imageTooLarge": "රූපය 150 MB ට වඩා විශාල විය නොහැක.",
     "imageUnreadable": "මෙම රූපය විවෘත කළ නොහැකි විය, එය හානි වී හෝ අසම්පූර්ණ විය හැක. එය නැවත JPG හෝ PNG ලෙස සුරකින්න.",
     "imageFormatUnsupported": "මෙම ආකෘතිය මෙහි භාවිත කළ නොහැක. JPG, PNG, WebP හෝ AVIF උත්සාහ කරන්න.",
-    "imageProcessFailed": "රූපය සැකසිය නොහැකි විය, නැවත උත්සාහ කරන්න."
+    "imageProcessFailed": "රූපය සැකසිය නොහැකි විය, නැවත උත්සාහ කරන්න.",
+    "uploadingVideoPct": "වීඩියෝව උඩුගත කරමින්… {progress}%"
   },
   "groups": {
     "title": "ප්‍රජාවන්",
@@ -3098,7 +3099,9 @@
     "cancelReply": "පිළිතුර අවලංගු කරන්න",
     "imageFailed": "රූපය පූරණය කළ නොහැකි විය",
     "copy": "පිටපත් කරන්න",
-    "messageCopied": "පණිවිඩය පිටපත් කරන ලදී"
+    "messageCopied": "පණිවිඩය පිටපත් කරන ලදී",
+    "newMessages": "නව පණිවිඩ",
+    "jumpToLatest": "නවතම පණිවිඩයට යන්න"
   },
   "cf": {
     "mustBeAuthenticated": "ඔබ සත්‍යාපනය විය යුතුයි.",

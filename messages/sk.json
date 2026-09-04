@@ -284,7 +284,8 @@
     "imageTooLarge": "Obrázok nesmie mať viac ako 150 MB.",
     "imageUnreadable": "Tento obrázok sa nepodarilo otvoriť, môže byť poškodený alebo neúplný. Skús ho uložiť znova ako JPG alebo PNG.",
     "imageFormatUnsupported": "Tento formát sa tu nedá použiť. Skús JPG, PNG, WebP alebo AVIF.",
-    "imageProcessFailed": "Obrázok sa nepodarilo spracovať, skús to znova."
+    "imageProcessFailed": "Obrázok sa nepodarilo spracovať, skús to znova.",
+    "uploadingVideoPct": "Nahráva sa video… {progress} %"
   },
   "groups": {
     "title": "Komunity",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Zrušiť odpoveď",
     "imageFailed": "Obrázok sa nepodarilo načítať",
     "copy": "Kopírovať",
-    "messageCopied": "Správa skopírovaná"
+    "messageCopied": "Správa skopírovaná",
+    "newMessages": "Nové správy",
+    "jumpToLatest": "Prejsť na najnovšiu správu"
   },
   "cf": {
     "mustBeAuthenticated": "Musíš byť overený.",

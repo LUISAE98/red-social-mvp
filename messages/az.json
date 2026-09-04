@@ -284,7 +284,8 @@
     "imageTooLarge": "Şəkil 150 MB-dan böyük ola bilməz.",
     "imageUnreadable": "Bu şəkli açmaq mümkün olmadı, zədələnmiş və ya natamam ola bilər. Onu yenidən JPG və ya PNG kimi saxlamağa çalış.",
     "imageFormatUnsupported": "Bu format burada istifadə edilə bilməz. JPG, PNG, WebP və ya AVIF yoxla.",
-    "imageProcessFailed": "Şəkli emal etmək mümkün olmadı, yenidən cəhd et."
+    "imageProcessFailed": "Şəkli emal etmək mümkün olmadı, yenidən cəhd et.",
+    "uploadingVideoPct": "Video yüklənir… {progress}%"
   },
   "groups": {
     "title": "İcmalar",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Cavabı ləğv et",
     "imageFailed": "Şəkil yüklənmədi",
     "copy": "Kopyala",
-    "messageCopied": "Mesaj kopyalandı"
+    "messageCopied": "Mesaj kopyalandı",
+    "newMessages": "Yeni mesajlar",
+    "jumpToLatest": "Son mesaja keç"
   },
   "cf": {
     "mustBeAuthenticated": "Kimliyin doğrulanmalıdır.",

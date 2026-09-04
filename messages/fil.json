@@ -284,7 +284,8 @@
     "imageTooLarge": "Hindi puwedeng lumampas sa 150 MB ang larawan.",
     "imageUnreadable": "Hindi mabuksan ang larawang ito, baka sira o kulang ito. Subukang i-save ulit bilang JPG o PNG.",
     "imageFormatUnsupported": "Hindi puwedeng gamitin dito ang format na ito. Subukan ang JPG, PNG, WebP, o AVIF.",
-    "imageProcessFailed": "Hindi ma-proseso ang larawan, subukan ulit."
+    "imageProcessFailed": "Hindi ma-proseso ang larawan, subukan ulit.",
+    "uploadingVideoPct": "Ina-upload ang video… {progress}%"
   },
   "groups": {
     "title": "Mga komunidad",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Kanselahin ang tugon",
     "imageFailed": "Hindi ma-load ang larawan",
     "copy": "Kopyahin",
-    "messageCopied": "Nakopya ang mensahe"
+    "messageCopied": "Nakopya ang mensahe",
+    "newMessages": "Mga bagong mensahe",
+    "jumpToLatest": "Pumunta sa pinakabagong mensahe"
   },
   "cf": {
     "mustBeAuthenticated": "Kailangan mong ma-authenticate.",

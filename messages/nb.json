@@ -284,7 +284,8 @@
     "imageTooLarge": "Bildet kan ikke være større enn 150 MB.",
     "imageUnreadable": "Bildet kunne ikke åpnes, det kan være skadet eller ufullstendig. Prøv å lagre det på nytt som JPG eller PNG.",
     "imageFormatUnsupported": "Dette formatet kan ikke brukes her. Prøv JPG, PNG, WebP eller AVIF.",
-    "imageProcessFailed": "Bildet kunne ikke behandles, prøv igjen."
+    "imageProcessFailed": "Bildet kunne ikke behandles, prøv igjen.",
+    "uploadingVideoPct": "Uploader videoen… {progress} %"
   },
   "groups": {
     "title": "Communities",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Annuller svar",
     "imageFailed": "Bildet kunne ikke lastes",
     "copy": "Kopier",
-    "messageCopied": "Meldingen er kopiert"
+    "messageCopied": "Meldingen er kopiert",
+    "newMessages": "Nye meldinger",
+    "jumpToLatest": "Gå til siste melding"
   },
   "cf": {
     "mustBeAuthenticated": "Du må være autentisert.",

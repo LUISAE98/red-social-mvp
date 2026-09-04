@@ -4,7 +4,7 @@ import Image from "next/image";
 import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_LABEL, FIXED_SERVICE_FEE_NOTE } from "@/lib/currency/catalog";
 import { LocalPriceHint } from "@/components/services/config/serviceConfigKit";
 import { formatCurrency } from "@/lib/currency/format";
-import { TextButton, IconButton } from "@/components/ui";
+import { GlassEdge, TextButton, IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -50,6 +50,9 @@ export default function LiveComposerModal({
   const tCommon = useTranslations("common");
   // Fecha y hora en paneles SEPARADOS: seis tambores a la vez son un muro, y
   // casi siempre se cambia una cosa o la otra, no las dos.
+  /** Hueco de la cabecera flotante; el scroller lo repone con relleno. */
+  const [topInset, setTopInset] = useState(0);
+
   const [wheelOpen, setWheelOpen] = useState<"date" | "time" | null>(null);
   const tLive = useTranslations("live");
   const locale = useLocale();
@@ -549,7 +552,7 @@ export default function LiveComposerModal({
   const ticketEarningsVisible = ticketEarnings != null && ticketEarnings > 0 && !ticketBelowMin;
 
   const scrollContent = (
-    <div className="vibra-live-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 8px" }}>
+    <div className="vibra-live-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: `${topInset + 18}px 20px 8px` }}>
 
       {/* Ticket */}
       <label style={{ ...labelStyle, marginTop: 2 }}>{tServices("liveAccessTicketLabel")}</label>
@@ -1239,13 +1242,15 @@ export default function LiveComposerModal({
                 : "vibraLiveModalOut 180ms ease-in forwards",
             }}
           >
+            {/* Cabecera flotante: el formulario se disuelve al subir por detrás
+                en vez de cortarse contra una línea. */}
+            <GlassEdge side="top" onHeight={setTopInset} veil="rgba(10,10,10,0.68)">
             <header style={{
               height: 56,
               display: "grid",
               gridTemplateColumns: "48px 1fr 48px",
               alignItems: "center",
               padding: "0 12px",
-              borderBottom: "1px solid rgba(255,255,255,0.12)",
               flexShrink: 0,
             } as CSSProperties}>
               <div />
@@ -1259,6 +1264,7 @@ export default function LiveComposerModal({
                 </svg>
               </IconButton>
             </header>
+            </GlassEdge>
             {scrollContent}
             {footerContent}
           </section>
@@ -1296,6 +1302,8 @@ export default function LiveComposerModal({
                 display: "flex",
                 flexDirection: "column",
               }}>
+                {/* Cabecera flotante, igual que en escritorio. */}
+                <GlassEdge side="top" onHeight={setTopInset} veil="rgba(8,9,11,0.68)" zIndex={4}>
                 <header
                   onPointerDown={handleDragStart}
                   onPointerMove={handleDragMove}
@@ -1307,7 +1315,6 @@ export default function LiveComposerModal({
                     gridTemplateColumns: "72px 1fr 72px",
                     alignItems: "center",
                     padding: "0 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.07)",
                     flexShrink: 0,
                     touchAction: "none",
                     userSelect: "none",
@@ -1331,6 +1338,7 @@ export default function LiveComposerModal({
                     ×
                   </button>
                 </header>
+                </GlassEdge>
                 {scrollContent}
               </section>
             </div>

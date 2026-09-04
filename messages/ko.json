@@ -284,7 +284,8 @@
     "imageTooLarge": "이미지는 150 MB를 넘을 수 없어요.",
     "imageUnreadable": "이 이미지를 열지 못했어요. 손상되었거나 일부만 저장된 파일일 수 있어요. JPG나 PNG로 다시 저장해 보세요.",
     "imageFormatUnsupported": "이 형식은 여기서 사용할 수 없어요. JPG, PNG, WebP, AVIF를 사용해 보세요.",
-    "imageProcessFailed": "이미지를 처리하지 못했어요. 다시 시도해 주세요."
+    "imageProcessFailed": "이미지를 처리하지 못했어요. 다시 시도해 주세요.",
+    "uploadingVideoPct": "영상 업로드 중… {progress}%"
   },
   "groups": {
     "title": "커뮤니티",
@@ -3098,7 +3099,9 @@
     "cancelReply": "답장 취소",
     "imageFailed": "이미지를 불러오지 못했어요",
     "copy": "복사",
-    "messageCopied": "메시지를 복사했습니다"
+    "messageCopied": "메시지를 복사했습니다",
+    "newMessages": "새 메시지",
+    "jumpToLatest": "최근 메시지로 이동"
   },
   "cf": {
     "mustBeAuthenticated": "인증이 필요합니다.",

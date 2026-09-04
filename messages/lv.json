@@ -284,7 +284,8 @@
     "imageTooLarge": "Attēls nedrīkst būt lielāks par 150 MB.",
     "imageUnreadable": "Šo attēlu neizdevās atvērt, tas var būt bojāts vai nepilnīgs. Mēģini to saglabāt vēlreiz kā JPG vai PNG.",
     "imageFormatUnsupported": "Šo formātu šeit nevar izmantot. Izmēģini JPG, PNG, WebP vai AVIF.",
-    "imageProcessFailed": "Attēlu neizdevās apstrādāt, mēģini vēlreiz."
+    "imageProcessFailed": "Attēlu neizdevās apstrādāt, mēģini vēlreiz.",
+    "uploadingVideoPct": "Augšupielādē video… {progress}%"
   },
   "groups": {
     "title": "Kopienas",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Atcelt atbildi",
     "imageFailed": "Neizdevās ielādēt attēlu",
     "copy": "Kopēt",
-    "messageCopied": "Ziņa nokopēta"
+    "messageCopied": "Ziņa nokopēta",
+    "newMessages": "Jaunas ziņas",
+    "jumpToLatest": "Pāriet uz jaunāko ziņu"
   },
   "cf": {
     "mustBeAuthenticated": "Tev jābūt autentificētam.",

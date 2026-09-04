@@ -284,7 +284,8 @@
     "imageTooLarge": "Kuva ei voi olla yli 150 Mt.",
     "imageUnreadable": "Kuvaa ei voitu avata, se voi olla vioittunut tai keskeneräinen. Tallenna se uudelleen JPG- tai PNG-muotoon.",
     "imageFormatUnsupported": "Tätä muotoa ei voi käyttää täällä. Kokeile JPG, PNG, WebP tai AVIF.",
-    "imageProcessFailed": "Kuvan käsittely ei onnistunut, yritä uudelleen."
+    "imageProcessFailed": "Kuvan käsittely ei onnistunut, yritä uudelleen.",
+    "uploadingVideoPct": "Lähetetään videota… {progress} %"
   },
   "groups": {
     "title": "Yhteisöt",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Peruuta vastaus",
     "imageFailed": "Kuvaa ei voitu ladata",
     "copy": "Kopioi",
-    "messageCopied": "Viesti kopioitu"
+    "messageCopied": "Viesti kopioitu",
+    "newMessages": "Uudet viestit",
+    "jumpToLatest": "Siirry uusimpaan viestiin"
   },
   "cf": {
     "mustBeAuthenticated": "Sinun täytyy olla todennettu.",

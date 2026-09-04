@@ -284,7 +284,8 @@
     "imageTooLarge": "Slika ne sme biti večja od 150 MB.",
     "imageUnreadable": "Te slike ni bilo mogoče odpreti, morda je poškodovana ali nepopolna. Poskusi jo znova shraniti kot JPG ali PNG.",
     "imageFormatUnsupported": "Tega formata tukaj ni mogoče uporabiti. Poskusi JPG, PNG, WebP ali AVIF.",
-    "imageProcessFailed": "Slike ni bilo mogoče obdelati, poskusi znova."
+    "imageProcessFailed": "Slike ni bilo mogoče obdelati, poskusi znova.",
+    "uploadingVideoPct": "Nalaganje videa… {progress} %"
   },
   "groups": {
     "title": "Skupnosti",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Prekliči odgovor",
     "imageFailed": "Slike ni bilo mogoče naložiti",
     "copy": "Kopiraj",
-    "messageCopied": "Sporočilo je kopirano"
+    "messageCopied": "Sporočilo je kopirano",
+    "newMessages": "Nova sporočila",
+    "jumpToLatest": "Pojdi na zadnje sporočilo"
   },
   "cf": {
     "mustBeAuthenticated": "Biti moraš overjen.",

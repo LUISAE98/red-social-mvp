@@ -284,7 +284,8 @@
     "imageTooLarge": "La imagen no puede pesar más de 150 MB.",
     "imageUnreadable": "No se pudo abrir esta imagen, puede estar dañada o incompleta. Prueba a guardarla otra vez como JPG o PNG.",
     "imageFormatUnsupported": "Este formato no se puede usar aquí. Prueba con JPG, PNG, WebP o AVIF.",
-    "imageProcessFailed": "No se pudo procesar la imagen, inténtalo otra vez."
+    "imageProcessFailed": "No se pudo procesar la imagen, inténtalo otra vez.",
+    "uploadingVideoPct": "Subiendo video… {progress}%"
   },
   "groups": {
     "title": "Comunidades",
@@ -3098,7 +3099,9 @@
     "cancelReply": "Cancelar respuesta",
     "imageFailed": "No se pudo cargar la imagen",
     "copy": "Copiar",
-    "messageCopied": "Mensaje copiado"
+    "messageCopied": "Mensaje copiado",
+    "newMessages": "Mensajes nuevos",
+    "jumpToLatest": "Ir al último mensaje"
   },
   "cf": {
     "mustBeAuthenticated": "Debes estar autenticado.",

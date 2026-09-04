@@ -284,7 +284,8 @@
     "imageTooLarge": "រូបភាពមិនអាចធំជាង 150 MB បានទេ។",
     "imageUnreadable": "មិនអាចបើករូបភាពនេះបានទេ វាអាចខូច ឬមិនពេញលេញ។ សាកល្បងរក្សាទុកជា JPG ឬ PNG ម្តងទៀត។",
     "imageFormatUnsupported": "មិនអាចប្រើទម្រង់នេះនៅទីនេះបានទេ។ សាកល្បង JPG, PNG, WebP ឬ AVIF។",
-    "imageProcessFailed": "មិនអាចដំណើរការរូបភាពបានទេ សូមព្យាយាមម្តងទៀត។"
+    "imageProcessFailed": "មិនអាចដំណើរការរូបភាពបានទេ សូមព្យាយាមម្តងទៀត។",
+    "uploadingVideoPct": "កំពុងផ្ទុកវីដេអូឡើង… {progress}%"
   },
   "groups": {
     "title": "សហគមន៍",
@@ -3098,7 +3099,9 @@
     "cancelReply": "បោះបង់ការឆ្លើយតប",
     "imageFailed": "មិនអាចផ្ទុករូបភាពបានទេ",
     "copy": "ចម្លង",
-    "messageCopied": "បានចម្លងសារ"
+    "messageCopied": "បានចម្លងសារ",
+    "newMessages": "សារថ្មី",
+    "jumpToLatest": "ទៅកាន់សារចុងក្រោយ"
   },
   "cf": {
     "mustBeAuthenticated": "អ្នកត្រូវបានផ្ទៀងផ្ទាត់។",
