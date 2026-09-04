@@ -160,6 +160,66 @@ usar** —el árbol entero del menú, Firestore, auth— en un archivo que solo 
 tres componentes de presentación y tipos. Quedaron ahí al partir el componente
 original.
 
+### Bloque 3 — la caché que sobrevive a la recarga
+
+**Los TTL viven ahora en un solo sitio: [`lib/cache/ttl.ts`](../../lib/cache/ttl.ts).**
+Antes cada lista declaraba el suyo y ninguno decía por qué; el resultado era que
+volver recargaba en unas pantallas y en otras no, sin patrón. El criterio no es
+lo cara que sea la consulta, es **quién puede cambiar el dato**:
+
+| Nivel | Dura | Para qué |
+| --- | ---: | --- |
+| `CONTENIDO_PROPIO` | 30 min | Feeds: inicio, guardados, perfil, comunidad |
+| `CATALOGO` | 10 min | Búsqueda de comunidades, recomendaciones, a quién sigues |
+| `TERCEROS` | 1 min | Membresía, solicitud pendiente, bloqueos |
+
+Lo que se corrigió, con los valores que tenía antes:
+
+| | antes | ahora |
+| --- | ---: | ---: |
+| Búsqueda de comunidades | **30 s** | 10 min |
+| Perfiles del rail de recomendaciones | **90 s** | 10 min |
+| Comunidades de un perfil · badge de comunes | 3 min | 10 min |
+| A quién sigues (historias) | 5 min | 10 min |
+| Feed de perfil · de comunidad · guardados | **5 min** | 30 min |
+| Inicio | 30 min | 30 min (sin cambio) |
+| Estado de membresía en el buscador | 60 s | **60 s — no se toca** |
+
+🚨 **Un TTL corto no es siempre un error.** El estado de membresía lo cambia
+*otra persona* —un moderador aprueba tu solicitud desde su teléfono— y esta
+pestaña no se entera. Subirlo no haría la app más rápida, la haría mentir.
+
+Subir los feeds a 30 min es seguro porque **los cinco están suscritos al bus de
+`lib/posts/post-feed-cache.ts`**: publicar, editar o borrar se propaga al
+instante a todas las listas abiertas, caduque o no la caché.
+
+**La caché baja a disco:** [`lib/cache/persistentCache.ts`](../../lib/cache/persistentCache.ts),
+sobre IndexedDB. El `Map` de módulo sigue siendo el primer nivel; esto se lee
+cuando está vacío, que es exactamente el caso de una recarga o de volver de una
+pasarela de pago. El feed se pinta al instante con lo guardado y la consulta sale
+detrás para refrescar.
+
+- **Se guardan las publicaciones, no el cursor.** El cursor de Firestore es una
+  instantánea viva, no un dato: no se serializa. Por eso al restaurar se lanza
+  igualmente la primera página — esa consulta trae el cursor y con él vuelve el
+  desplazamiento infinito.
+- **Los `Timestamp` se marcan y se reconstruyen a mano.** IndexedDB clona con el
+  algoritmo estructurado, que no sabe de clases: un `Timestamp` entraría y
+  saldría sin `toDate()`, y reventaría al pintar una fecha — solo en la segunda
+  visita, que es el fallo más difícil de reproducir. Cubierto por 8 tests.
+- **Se vacía al cerrar sesión**, en `clearClientSession`. En un equipo compartido
+  el feed de quien acaba de salir no puede quedarse en disco.
+
+**El scroll se restaura al volver atrás.** Antes solo lo guardaba el nav inferior
+al tocarlo, y solo se restauraba en el subnav — así que la vía más común de
+todas (bajar por el feed, abrir una publicación, volver) dejaba la lista arriba
+del todo. Ahora la posición se guarda de forma continua y el «atrás» la
+recupera.
+
+⚠️ **Pendiente del bloque 3:** el cliente de datos único (3.2). Sigue habiendo
+un `useEffect` por lista en vez de una capa que deduplique y revalide sola. Es
+un refactor grande y va aparte.
+
 ⚠️ **El bloque 1.1 (partir las traducciones) se pospone hasta después del resto
 del bloque 2.** Los espacios de nombres pesados —`services` 38,5 KB y `wallet`
 32,5 KB— se usan dentro de `OwnerSidebar`. Ahora que no se monta en celular, el

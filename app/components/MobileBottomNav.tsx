@@ -664,7 +664,7 @@ export default function MobileBottomNav({
              el punto. Lo que antes hacía la opacidad —que los iconos blancos no
              se pierdan sobre una foto clara— ahora lo hace el brightness del
              filtro, que oscurece el FONDO en vez de taparlo. */
-          background: rgba(6, 6, 8, 0.40);
+          background: rgba(6, 6, 8, 0.46);
           /* Borde casi invisible. Su trabajo ya no es dibujar el canto —de eso
              se encargan las luces interiores de abajo— sino evitar que sobre un
              fondo muy claro la cápsula se quede sin límite. Al 4% cumple sin
@@ -721,13 +721,52 @@ export default function MobileBottomNav({
              iPhone. Se haría con un filtro SVG de desplazamiento dentro de
              backdrop-filter, y Safari no admite url() ahí — solo Chrome. Lo que
              hay aquí es desenfoque y color, que es todo lo que WebKit ofrece. */
-          backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
-          -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
+          backdrop-filter: blur(40px) saturate(150%);
+          -webkit-backdrop-filter: blur(40px) saturate(150%);
           /* SIN overflow:hidden. Los globos de aviso se dibujan fuera de su
              icono (top:-5px, inset-inline-end:-8px) y en el primer y el ultimo
              elemento caerian justo sobre el borde: recortarlos los partiria por
              la mitad. Los hijos no tienen fondo, asi que no hay nada que la
              curva del borde necesite recortar. */
+        }
+
+        /* 🍏 DOS RECETAS, UNA POR MOTOR. Y no es capricho.
+           ===============================================
+           La de ARRIBA (la base) es la de Chromium: blur y saturate, sin mas.
+           Esta de aqui le devuelve a WebKit el brightness y el tinte exactos que
+           tenia, para que en iPhone NO cambie ni un pixel.
+
+           El motivo: en Chromium Android la capsula salia como un vidrio limpio,
+           sin difuminar, mientras el resto de la plataforma si difuminaba. Tras
+           descartar una por una view-transition-name, el transform propio, el
+           border-radius, las sombras, el borde, el sitio en el arbol, el fondo
+           en el mismo elemento, la mascara y el radio del desenfoque, la unica
+           variable que quedaba en pie es esta: brightness() estaba en el 100% de
+           las configuraciones que fallaban y en ninguna de las que funcionaban.
+           components/ui/BlurFade.tsx, que difumina bien en los dos telefonos,
+           usa solo blur y saturate — y por eso los otros cinco sitios del
+           producto nunca dieron problema.
+
+           Ese brightness lo introdujo el cambio que volvio translucida la
+           pildora: antes la base estaba al 92% y tapaba el fallo. O sea que el
+           cristal probablemente llevaba bien en Android desde siempre.
+
+           El tinte compensa: sin brightness la capsula aclara, asi que la base
+           sube de 0,40 a 0,46. Es el mismo punto de oscuridad por otra via.
+
+           -webkit-touch-callout solo lo entiende WebKit, asi que este bloque lo
+           toma Safari de iPhone (y Chrome de iPhone, que tambien es WebKit) y no
+           lo toca Android. El nav solo se pinta por debajo de 768px, asi que no
+           hay que preocuparse por Safari de escritorio.
+
+           ⚠️ Si algun dia se toca el filtro, hay que tocar LOS DOS bloques y
+           volver a mirarlo en los dos telefonos. */
+        @supports (-webkit-touch-callout: none) {
+          .navShell {
+            background: rgba(6, 6, 8, 0.40);
+            backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
+            -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
+          }
         }
 
         /* Sin backdrop-filter no hay nada que difuminar, y una base al 40% se

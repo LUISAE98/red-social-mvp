@@ -54,10 +54,11 @@ describe("Timestamps", () => {
       meta: { revisadoEn: t },
     });
 
-    expect(vuelta.posts[0].createdAt).toBeInstanceOf(Timestamp);
-    expect(vuelta.posts[0].media[0].subidoEn).toBeInstanceOf(Timestamp);
+    const primero = vuelta.posts[0]!;
+    expect(primero.createdAt).toBeInstanceOf(Timestamp);
+    expect(primero.media![0]!.subidoEn).toBeInstanceOf(Timestamp);
     expect(vuelta.meta.revisadoEn).toBeInstanceOf(Timestamp);
-    expect(vuelta.posts[1].createdAt).toBeNull();
+    expect(vuelta.posts[1]!.createdAt).toBeNull();
   });
 });
 
