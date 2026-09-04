@@ -19,6 +19,7 @@ import type { LiveVisibilityMode, Post, PostLiveData } from "@/lib/posts/types";
 import { useAuth } from "@/app/providers";
 import { useOwnerWalletData, getWalletScheduleConflictResult } from "@/lib/wallet/ownerWallet";
 import ScheduleCalendarOverlay from "@/app/(protected)/wallet/components/ScheduleCalendarOverlay";
+import { IMAGE_CACHE_CONTROL } from "@/lib/storage/cacheControl";
 
 export type GroupForBroadcast = {
   id: string;
@@ -101,6 +102,7 @@ export async function uploadLiveCover(file: File, signInMsg: string): Promise<st
   const storageRef = ref(storage, path);
   await uploadBytes(storageRef, normalized.file, {
     contentType: normalized.file.type,
+    cacheControl: IMAGE_CACHE_CONTROL,
     customMetadata: { uploadedBy: uid, usage: "live_cover" },
   });
   return getDownloadURL(storageRef);

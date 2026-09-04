@@ -20,6 +20,7 @@ import {
   type PublishableGreeting,
 } from "@/lib/stories/usePublishableGreetings";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
+import { IMAGE_CACHE_CONTROL } from "@/lib/storage/cacheControl";
 
 const fontStack =
   'inherit';
@@ -258,7 +259,7 @@ export default function StoryCoverPicker({
     setUploading(true);
     try {
       const storageRef = ref(storage, uploadStoragePath);
-      await uploadBytes(storageRef, file, { contentType });
+      await uploadBytes(storageRef, file, { contentType, cacheControl: IMAGE_CACHE_CONTROL });
       const url = await getDownloadURL(storageRef);
       await onUploadPhoto(url);
     } catch (err) {

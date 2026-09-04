@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
+import { IMAGE_CACHE_CONTROL } from "@/lib/storage/cacheControl";
 import { useCfError } from "@/lib/i18n/cfError";
 import { capitalizeFirst, intlLocale } from "@/i18n/locales";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -1607,7 +1608,7 @@ async function handleSendPasswordReset() {
           : `users/${uid}/cover/cover.jpg`;
 
       const fileRef = ref(storage, path);
-      await uploadBytes(fileRef, blob, { contentType: "image/jpeg" });
+      await uploadBytes(fileRef, blob, { contentType: "image/jpeg", cacheControl: IMAGE_CACHE_CONTROL });
 
       const rawUrl = await getDownloadURL(fileRef);
       const freshUrl = `${rawUrl}${rawUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;

@@ -24,6 +24,7 @@ import type { LiveKitSessionRecordingStatus } from "@/types/livekit";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { CardsSkeleton } from "@/components/ui/ListSkeleton";
+import { useScreenReady } from "@/lib/useScreenReady";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -421,6 +422,8 @@ export default function SessionsPage() {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<BuyerSession[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useScreenReady(!loading);
 
   useEffect(() => {
     if (!user?.uid) {

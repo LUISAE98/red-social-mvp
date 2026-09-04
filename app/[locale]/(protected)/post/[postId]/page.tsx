@@ -24,6 +24,7 @@ import {
 import type { Post, Comment, CommentImage, CommentMention } from "@/lib/posts/types";
 import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 import PostSkeleton from "@/app/components/PostSkeleton/PostSkeleton";
+import { useScreenReady } from "@/lib/useScreenReady";
 
 interface ViewerContext {
   isProfilePost: boolean;
@@ -87,6 +88,10 @@ export default function SinglePostPage() {
   const [post, setPost] = useState<Post | null>(null);
   const [ctx, setCtx] = useState<ViewerContext | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "notfound">("loading");
+
+  // También cuando la publicación no existe: ahí ya hay algo que enseñar, y
+  // dejar el splash puesto sería tapar el mensaje de "no está".
+  useScreenReady(state !== "loading");
 
   useEffect(() => {
     if (authLoading) return;

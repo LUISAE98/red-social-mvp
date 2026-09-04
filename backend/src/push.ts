@@ -83,13 +83,36 @@ export async function sendPushToUser(
     resp.responses.forEach((r, i) => {
       if (r.success) return;
       const code = r.error?.code;
+      /**
+       * ⚠️ Solo se borra por códigos que hablan DEL TOKEN.
+       *
+       * `messaging/invalid-argument` estaba en esta lista y no debía: FCM lo
+       * devuelve también cuando el problema es el MENSAJE —un campo que no es
+       * texto, un dato de más, una carga demasiado grande—. Y si el mensaje está
+       * mal, falla para todos los tokens a la vez, así que un solo aviso
+       * defectuoso borraba TODOS los dispositivos de esa persona.
+       *
+       * A partir de ahí no le llegaba nada de nada: ni mensajes, ni ninguna otra
+       * notificación, y para siempre, porque el token se registraba una sola vez
+       * al crear la cuenta. Encajaba con "se desactivan todas en general".
+       *
+       * Un token malo se sigue limpiando con los dos códigos de abajo, que son
+       * los que de verdad dicen que ese destino ya no existe.
+       */
       if (
         code === "messaging/registration-token-not-registered" ||
-        code === "messaging/invalid-registration-token" ||
-        code === "messaging/invalid-argument"
+        code === "messaging/invalid-registration-token"
       ) {
         batch.delete(tokensSnap.docs[i].ref);
         removed += 1;
+      } else {
+        // Se deja rastro: si esto aparece, el defecto está en la carga y hay que
+        // arreglarlo ahí, no borrando destinos.
+        logger.warn("sendPushToUser: fallo que NO es del token", {
+          uid,
+          tag: payload.tag,
+          code,
+        });
       }
     });
     if (removed > 0) await batch.commit();

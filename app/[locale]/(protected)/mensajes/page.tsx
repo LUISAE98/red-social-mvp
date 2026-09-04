@@ -10,6 +10,7 @@ import { useChatDock } from "@/components/chat/ChatDockProvider";
 import ConversationList from "@/components/chat/ConversationList";
 import { ConversationListSkeleton } from "@/components/chat/ChatSkeletons";
 import { useProfileMinis } from "@/lib/chat/useProfileMinis";
+import { useScreenReady } from "@/lib/useScreenReady";
 
 /**
  * Todos los chats, en su propia página (el "Ver todos" del sidebar).
@@ -26,6 +27,9 @@ export default function MessagesPage() {
   const { conversations, loading, hasMore, loadingMore, loadMore } = useInbox(selfUid);
   const { conversations: requests } = useInbox(selfUid, ["request"]);
   const { openChat, activeConversationIds } = useChatDock();
+
+  // La bandeja avisa en cuanto deja de cargar; su lista ya tiene esqueleto.
+  useScreenReady(!loading);
 
   const counterpartIds = useMemo(() => {
     if (!selfUid) return [];

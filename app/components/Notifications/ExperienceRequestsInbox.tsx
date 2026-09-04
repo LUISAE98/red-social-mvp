@@ -104,6 +104,33 @@ const styles: Record<string, CSSProperties> = {
     minWidth: 0,
   },
   row: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 },
+  /**
+   * Botón de acción de la fila. Lo comparten los cuatro tipos de experiencia;
+   * cada uno le pone encima su color y su etiqueta.
+   *
+   * ⚠️ EL ANCHO MÍNIMO ES LO QUE LOS IGUALA. Las etiquetas no miden lo mismo
+   * —"Ver solicitud" contra "Agendar"— y como las filas se apilan en columna,
+   * los botones quedaban de anchos distintos y el borde derecho bailaba de una
+   * fila a otra.
+   *
+   * Es MÍNIMO y no fijo a propósito: en un idioma donde la etiqueta no quepa,
+   * el botón crece en vez de recortar el texto.
+   */
+  accion: {
+    height: 30,
+    minWidth: 120,
+    padding: "0 14px",
+    borderRadius: 8,
+    border: "none",
+    fontWeight: 520,
+    fontSize: 12,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
   avatarFallback: {
     width: 28,
     height: 28,
@@ -621,16 +648,9 @@ export default function ExperienceRequestsInbox({
                         });
                       }}
                       style={{
-                        height: 30,
-                        padding: "0 14px",
-                        borderRadius: 8,
-                        border: "none",
+                        ...styles.accion,
                         background: isConsejo ? "rgba(250,204,21,0.18)" : "rgba(168,85,255,0.18)",
                         color: isConsejo ? "#fde047" : "#d8b4fe",
-                        fontWeight: 520,
-                        fontSize: 12,
-                        cursor: "pointer",
-                        fontFamily: "inherit",
                       }}
                     >
                       {tServices("viewRequest")}
@@ -727,19 +747,12 @@ export default function ExperienceRequestsInbox({
                         setBusy(false);
                       }}
                       style={{
-                        height: 30,
-                        padding: "0 14px",
-                        borderRadius: 8,
-                        border: "none",
+                        ...styles.accion,
                         background:
                           r.kind === "exclusive_session"
                             ? "rgba(236,72,153,0.18)"
                             : "rgba(59,130,246,0.18)",
                         color: r.kind === "exclusive_session" ? "#f9a8d4" : "#93c5fd",
-                        fontWeight: 520,
-                        fontSize: 12,
-                        cursor: "pointer",
-                        fontFamily: "inherit",
                       }}
                     >
                       {req.status === "reschedule_requested"
@@ -801,7 +814,11 @@ export default function ExperienceRequestsInbox({
            comentario lo parte en seco. */
         .expInbox {
           display: grid;
-          gap: 0;
+          /* Pegadas NO: cada fila trae su propia foto de fondo, y sin aire entre
+             ellas las fotos se tocan y las filas se leen como un bloque unico
+             encimado. Con la lista social esto no pasa porque ahi el fondo es
+             plano. 8px basta para separarlas sin que parezcan tarjetas sueltas. */
+          gap: 8px;
           padding: 0;
         }
         .expInboxState {

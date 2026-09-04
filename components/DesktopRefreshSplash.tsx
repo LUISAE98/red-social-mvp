@@ -19,6 +19,29 @@ import { hideSplash } from "@/lib/splash";
  */
 const SPLASH_MIN_MS = 0;
 
+/**
+ * Cuánto se espera a una pantalla que NO avisa de que ya pintó.
+ *
+ * 🚨 Estuvo en 12 SEGUNDOS, y eso no era una red de seguridad: era un cuelgue.
+ *
+ * `useScreenReady` es opt-in por pantalla, y solo lo llaman siete: inicio,
+ * reels (×2), perfil, comunidad, express y login. Cualquier otra se queda
+ * esperando aquí hasta que salte este respaldo. El caso que lo destapó: tocar
+ * la notificación de un mensaje abre `/mensajes/<id>`, que no avisa — así que
+ * entrar desde un aviso significaba mirar el splash doce segundos.
+ *
+ * Que sea opt-in tiene sentido —hay pantallas que prefieren retener el splash
+ * hasta tener contenido, como login con sus videos— pero el precio de olvidarse
+ * no puede ser ese. Con este tope, una pantalla sin instrumentar enseña el
+ * splash un instante y sigue; las instrumentadas lo quitan antes, en cuanto
+ * pintan.
+ *
+ * ⚠️ Al añadir una pantalla nueva a la que se pueda llegar desde una
+ * notificación o un enlace directo, llamar a `useScreenReady()`. Esto es el
+ * suelo, no el camino previsto.
+ */
+const SPLASH_FALLBACK_MS = 1500;
+
 export default function DesktopRefreshSplash() {
   const { loading, authTransitionMode } = useAuth();
   const [minimumTimeDone, setMinimumTimeDone] = useState(false);
@@ -36,9 +59,8 @@ export default function DesktopRefreshSplash() {
   useEffect(() => {
     const onReady = () => setScreenReady(true);
     window.addEventListener("vibra:screen-ready", onReady);
-    // Safety: si por alguna razón la pantalla no avisa (ruta no instrumentada),
-    // no dejamos el splash colgado indefinidamente.
-    const fallback = window.setTimeout(() => setScreenReady(true), 12000);
+    // Respaldo para las rutas que no avisan. Ver SPLASH_FALLBACK_MS.
+    const fallback = window.setTimeout(() => setScreenReady(true), SPLASH_FALLBACK_MS);
     return () => {
       window.removeEventListener("vibra:screen-ready", onReady);
       window.clearTimeout(fallback);

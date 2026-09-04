@@ -3,7 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { ProfileMini } from "@/components/chat/ConversationList";
-import { leerMinisCacheados, traerMinis } from "./profileMiniCache";
+import {
+  leerMinisCacheados,
+  traerMinis,
+  uidsPorRefrescar,
+} from "./profileMiniCache";
 
 /**
  * Perfiles (nombre, avatar, handle) de varios interlocutores, por uid.
@@ -29,8 +33,14 @@ export function useProfileMinis(uids: string[]): Record<string, ProfileMini> {
     // La caché pudo llenarse desde otro componente después del primer render.
     const cacheados = leerMinisCacheados(todos);
 
-    const faltan = todos.filter(
-      (uid) => !cacheados[uid] && !pedidosRef.current.has(uid)
+    /**
+     * Los que hay que volver a pedir: los que no están y los que llevan rato
+     * guardados. Estos últimos YA se están enseñando, así que pedirlos no
+     * retiene nada — es lo que permite que la caché dure meses sin que el
+     * avatar se quede viejo.
+     */
+    const porRefrescar = uidsPorRefrescar(todos).filter(
+      (uid) => !pedidosRef.current.has(uid)
     );
 
     let cancelado = false;
@@ -44,10 +54,10 @@ export function useProfileMinis(uids: string[]): Record<string, ProfileMini> {
         setProfiles((prev) => ({ ...cacheados, ...prev }));
       }
 
-      if (faltan.length === 0) return;
-      faltan.forEach((uid) => pedidosRef.current.add(uid));
+      if (porRefrescar.length === 0) return;
+      porRefrescar.forEach((uid) => pedidosRef.current.add(uid));
 
-      const deRed = await traerMinis(faltan);
+      const deRed = await traerMinis(porRefrescar);
       if (cancelado) return;
 
       setProfiles((prev) => ({ ...prev, ...deRed }));

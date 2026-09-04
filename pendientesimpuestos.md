@@ -446,34 +446,73 @@ que explica que la tasa vive en la Ley de Ingresos y no en el 113-A. Nada que to
 | `serviciosDelPeriodo`, el detalle sacado de los asientos; clave `26`; totales en pesos | `backend/src/facturacion/creatorMonthlyDocs.ts` |
 | 17 pruebas, 5 de ellas sobre la forma del XML | 🆕 `backend/test/complementoPlataformas.pure.test.ts` |
 
-✅ **Resuelto en sandbox (2026-09-03): el complemento va como XML, no como objeto.** No era el
-nombre lo que fallaba. **Facturapi no tiene un tipo con nombre para este complemento**: su
-documentación enumera siete de retenciones —dividendos, intereses, premios, fideicomisos,
-arrendamiento en fideicomiso, planes de retiro y enajenación de acciones— y plataformas
-tecnológicas no es ninguno. Mandar `{ type, data }` devolvía «El campo complements.0 tiene un
-tipo inválido». La salida es la que su propia documentación describe para cualquier complemento
-sin tipo propio: **meter el XML en `complements`**, que se inserta tal cual al timbrar.
+## Auditoría del 2026-09-04 — por qué costó cuatro intentos
 
-Lo arma `complementoComoXml` en `complementoPlataformas.ts`. Al ser texto a mano, **el orden de
-los nodos y los dos decimales exactos importan**: el XSD del SAT valida las dos cosas, y
-`462.5` donde espera `462.50` tumba el timbrado aunque el número sea correcto. Hay 5 pruebas
-que fijan la forma.
+El complemento se escribió **tres veces**. Las dos primeras deduciendo nombres a partir de la
+descripción del complemento y de resúmenes de terceros; la tercera transcribiendo el XSD. Vale
+la pena dejar el inventario, porque el patrón se va a repetir con el próximo complemento.
 
-🚨 **Y el espacio de nombres NO se deduce, se consulta.** El primer XML llevaba
-`.../retencionpago/1/servicios/plataformastecnologicas`, deducido del nombre del complemento.
-Parece razonable y no existe: el validador del SAT contestó `cvc-complex-type.2.4.c: the
-matching wildcard is strict, but no declaration can be found for element`, que es lo que dice
-cuando no hay esquema publicado para ese espacio de nombres. El bueno lleva el nombre pegado y
-versionado:
+### Lo que estaba mal
 
-| Pieza | Valor |
+| # | Defecto | Cómo se descubrió |
+|---|---|---|
+| 1 | **El `schemaLocation` iba dentro del complemento**, y el PAC lo busca en el nodo raíz `retenciones:Retenciones`, que construye Facturapi | Especificación OpenAPI de Facturapi |
+| 2 | Espacio de nombres inventado (`.../servicios/plataformastecnologicas`) | Registro de espacios de nombres del SAT |
+| 3 | **Faltaba un nivel entero**: la jerarquía es raíz → `Servicios` (envoltorio único) → `DetallesDelServicio` (uno por venta). Se ponía un `Servicios` por venta | XSD |
+| 4 | Cinco atributos con la capitalización cambiada — `MontToServSIva` por `MonTotServSIVA`, y así con los cuatro que llevan siglas | XSD |
+| 5 | `PrecioServSinIva` por `PrecioServSinIVA` | XSD |
+| 6 | `ImpuestosTrasladadosdelServicio` con atributos inventados (`BaseIva`, `ImpuestoIva`) en vez de los cinco reales | XSD |
+| 7 | `ComisionDelServicio` con atributos inventados (`MontoComision`, `ImpuestoIvaComision`) en vez de `Base`, `Porcentaje` e `Importe` | XSD |
+| 8 | **`tipo_pago_ret: "02"` para el ISR**, que en el catálogo es *IEPS definitivo* — un impuesto que Vibra no retiene | Especificación OpenAPI de Facturapi |
+
+El defecto 8 no tiene nada que ver con el XML y llevaba ahí desde §A4. Habría timbrado una
+constancia declarando un impuesto equivocado, que es peor que no timbrar.
+
+### La causa raíz, y no es el complemento
+
+El PAC valida el complemento con `processContents="strict"`, o sea que **necesita el esquema de
+su espacio de nombres**, y lo busca en el `xsi:schemaLocation` del nodo raíz. Esa raíz la
+construye Facturapi, así que declararlo dentro de nuestro fragmento no servía de nada.
+
+Facturapi tiene un campo para eso, **`namespaces`**, descrito como «namespaces to insert in the
+root node». No aparece en su guía de complementos; está solo en la especificación OpenAPI
+descargable, `https://docs.facturapi.io/en/redocusaurus/api-en.yaml`. Se le pasa
+`{ prefix, uri, schema_location }` y él lo declara arriba.
+
+👉 **La especificación OpenAPI es la fuente de verdad de Facturapi, no su guía.** Ahí estaban
+también el tipo real de `complements` (array de strings) y el catálogo de `tipo_pago_ret`.
+
+### Cómo se resolvió, y cómo hacerlo la próxima vez
+
+| Necesidad | Fuente |
 |---|---|
-| Prefijo | `plataformasTecnologicas` |
-| Espacio de nombres | `http://www.sat.gob.mx/esquemas/retencionpago/1/PlataformasTecnologicas10` |
-| XSD | `.../PlataformasTecnologicas10/ServiciosPlataformasTecnologicas10.xsd` |
+| Estructura y nombres del complemento | Descargar el XSD del SAT y leerlo |
+| Espacio de nombres, prefijo y ruta del XSD | Registro `phpcfdi/sat-ns-registry` |
+| Valores de catálogo | `CatPlataformasTecnologicas.xsd` y `catRetenciones.xsd` |
+| Campos y catálogos de Facturapi | Su especificación OpenAPI |
+| El error real | Cloud Logging — en pantalla sale cortado a 200 caracteres |
 
-Sale del **registro de espacios de nombres del SAT** (`phpcfdi/sat-ns-registry`), que es la
-fuente a la que hay que ir la próxima vez que haga falta un complemento, en lugar de inferirlo.
+Antes de desplegar se comprueba que **cada elemento y cada atributo del XML generado existe en
+el XSD**. Es una comparación de conjuntos, tarda un segundo y habría atrapado siete de los ocho
+defectos sin gastar un solo viaje al PAC.
+
+### Catálogos, ya confirmados contra fuente oficial
+
+| Campo | Valor | Nota |
+|---|---|---|
+| `CveRetenc` | `26` | Inseparable del complemento |
+| `TipoDeServ` | `06` | «Otro tipo de servicios» |
+| `Periodicidad` | `02` | Mensual. ⚠️ El XSD tiene CINCO valores; `03`, `04` y `05` se añadieron en 2020. No es el catálogo de la factura global, donde `04` es mensual |
+| `Impuesto` (traslado) | `02` | IVA en el catálogo de RETENCIONES. ⚠️ No es el `002` del CFDI normal |
+| `TipoFactor` | `Tasa` | Valor prefijado en el XSD |
+| `TasaCuota` | `0.160000` / `0.080000` / `0.000000` / `0.500000` | Enumeración cerrada. Se despeja de la operación, no se asume 16% |
+| `tipo_pago_ret` IVA | `01` | IVA definitivo |
+| `tipo_pago_ret` ISR | `04` | 🔁 Provisional. `03` sería el definitivo de plataformas, para quien optó por el 113-B |
+| `FormaPagoServ` | `08` | 🔁 Sin confirmar con el contador |
+
+Lo arma `complementoComoXml` en `complementoPlataformas.ts`, con **19 pruebas** que fijan la
+forma. Al ser texto a mano, los dos decimales exactos importan: `462.5` donde el XSD espera
+`462.50` tumba el timbrado aunque el número sea correcto.
 
 🚧 **Sigue bloqueada por §A5.** `CONSTANCIA_BLOQUEADA` no se quita: A4 arregla la FORMA del
 documento, A5 decide de dónde salen los números.

@@ -1,4 +1,5 @@
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { IMAGE_CACHE_CONTROL } from "@/lib/storage/cacheControl";
 
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db, storage } from "@/lib/firebase";
@@ -119,6 +120,7 @@ export async function uploadPostImage(params: {
 
   await uploadBytes(imageRef, fileToUpload, {
     contentType: fileToUpload.type,
+    cacheControl: IMAGE_CACHE_CONTROL,
     customMetadata: {
       groupId: params.groupId,
       uploadedBy: uid,
@@ -131,6 +133,7 @@ export async function uploadPostImage(params: {
 
   await uploadBytes(thumbnailRef, thumbnailFile, {
     contentType: thumbnailFile.type,
+    cacheControl: IMAGE_CACHE_CONTROL,
     customMetadata: {
       groupId: params.groupId,
       uploadedBy: uid,
@@ -321,6 +324,7 @@ export async function uploadCommentImage(params: {
 
   await uploadBytes(imageRef, fileToUpload, {
     contentType: fileToUpload.type,
+    cacheControl: IMAGE_CACHE_CONTROL,
     customMetadata: {
       postId: params.postId,
       uploadedBy: uid,
@@ -333,6 +337,7 @@ export async function uploadCommentImage(params: {
 
   await uploadBytes(thumbnailRef, thumbnailFile, {
     contentType: thumbnailFile.type,
+    cacheControl: IMAGE_CACHE_CONTROL,
     customMetadata: {
       postId: params.postId,
       uploadedBy: uid,
@@ -436,6 +441,7 @@ export async function uploadDirectMessageImage(params: {
 
   await uploadBytes(imageRef, fileToUpload, {
     contentType: fileToUpload.type,
+    cacheControl: IMAGE_CACHE_CONTROL,
     customMetadata: {
       conversationId: params.conversationId,
       uploadedBy: uid,
@@ -448,6 +454,7 @@ export async function uploadDirectMessageImage(params: {
 
   await uploadBytes(thumbnailRef, thumbnailFile, {
     contentType: thumbnailFile.type,
+    cacheControl: IMAGE_CACHE_CONTROL,
     customMetadata: {
       conversationId: params.conversationId,
       uploadedBy: uid,

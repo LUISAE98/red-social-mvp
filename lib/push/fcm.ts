@@ -120,6 +120,68 @@ export async function enablePush(uid: string): Promise<EnablePushResult> {
   }
 }
 
+/**
+ * Vuelve a sellar el token de ESTE dispositivo, sin pedir permiso a nadie.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 🚨 Por qué las notificaciones "a veces" dejaban de llegar.
+ *
+ * El token de FCM se registraba UNA vez —al crear la cuenta o en el onboarding—
+ * y no se volvía a mirar. Pero un token no es eterno: rota cuando el navegador
+ * limpia datos del sitio, cuando caduca la suscripción push, al reinstalar la
+ * app o al cambiar el service worker. Cuando eso pasaba, el de Firestore
+ * quedaba muerto, nadie escribía el nuevo, y esa persona dejaba de recibir
+ * avisos para siempre — sin ningún error, sin nada que mirar. La única forma de
+ * revivirlo era apagar y encender los avisos a mano.
+ *
+ * El backend ya limpia los tokens que rebotan, así que el muerto desaparece
+ * solo; lo que faltaba era volver a escribir el vivo.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * Se llama en cada arranque con sesión. NO pide permiso: si no está concedido,
+ * sale sin hacer nada, así que no puede provocar un diálogo inesperado.
+ * `getToken` devuelve el token que ya tiene el service worker, o uno nuevo si el
+ * anterior caducó, y en los dos casos se guarda.
+ */
+export async function resyncPushToken(uid: string): Promise<void> {
+  if (!uid) return;
+  if (currentPushPermission() !== "granted") return;
+  if (!(await isPushSupported())) return;
+
+  try {
+    const swReg = await navigator.serviceWorker.register(swUrlWithConfig(), {
+      scope: SW_SCOPE,
+    });
+    const messaging = getMessaging(app);
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: swReg,
+    });
+    if (!token) return;
+
+    // `createdAt` solo si el documento es nuevo; `updatedAt` en cada arranque,
+    // que es lo que permite distinguir un dispositivo vivo de uno abandonado.
+    await setDoc(
+      doc(db, "users", uid, "fcmTokens", token),
+      {
+        token,
+        platform: navigator.platform ?? null,
+        userAgent: navigator.userAgent ?? null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+    try {
+      window.localStorage.setItem(TOKEN_LS_KEY, token);
+    } catch {
+      /* localStorage no disponible */
+    }
+  } catch {
+    // Que no se pueda refrescar el token no puede tumbar el arranque de la app.
+  }
+}
+
 /** Revoca el token de este dispositivo y borra su doc en Firestore. */
 export async function disablePush(uid: string): Promise<void> {
   let token: string | null = null;

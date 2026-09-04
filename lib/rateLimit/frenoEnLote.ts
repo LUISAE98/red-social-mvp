@@ -31,6 +31,19 @@ export type AccionConFreno = "comment" | "story" | "dm";
 type Config = {
   /** Mínimo entre dos acciones. 0 = sin espera. */
   esperaMs: number;
+  /**
+   * Qué hacer si aún no ha pasado ese mínimo.
+   *
+   *  - `"error"`: se corta y se avisa. Vale para acciones sueltas y deliberadas,
+   *    donde volver a intentarlo en tres segundos no molesta a nadie.
+   *  - `"aguantar"`: se espera lo que falte y se sigue. Es lo que necesita un
+   *    chat, donde mandar dos mensajes seguidos es lo normal y no un abuso.
+   *
+   * ⚠️ Aguantar NO afloja el freno: el tope por ventana es el mismo y la regla
+   * de Firestore lo sigue exigiendo igual. Lo único que cambia es que un humano
+   * escribiendo deprisa espera medio segundo en vez de perder el mensaje.
+   */
+  modoEspera: "error" | "aguantar";
   /** Cuánto dura la ventana antes de reiniciarse. */
   ventanaMs: number;
   /** Cuántas acciones caben en una ventana. */
@@ -44,6 +57,7 @@ const HORA = 60 * 60 * 1000;
 const CONFIG: Record<AccionConFreno, Config> = {
   comment: {
     esperaMs: 3_000,
+    modoEspera: "error",
     ventanaMs: HORA,
     tope: 60,
     mensajeEspera: (s) => `Espera ${s}s antes de comentar de nuevo.`,
@@ -51,6 +65,8 @@ const CONFIG: Record<AccionConFreno, Config> = {
   },
   dm: {
     esperaMs: 1_000,
+    // Un chat no puede perder un mensaje por escribir deprisa.
+    modoEspera: "aguantar",
     ventanaMs: HORA,
     // Holgado a propósito: una conversación viva no se acerca. Lo que corta es
     // el chorro automático, no la charla.
@@ -62,6 +78,7 @@ const CONFIG: Record<AccionConFreno, Config> = {
     // Sin espera entre una y otra: publicar dos seguidas es normal. Quien manda
     // aquí es el tope diario.
     esperaMs: 0,
+    modoEspera: "error",
     ventanaMs: 24 * HORA,
     tope: 20,
     mensajeEspera: (s) => `Espera ${s}s antes de publicar otra historia.`,
@@ -102,8 +119,29 @@ export async function prepararFreno(
   const desde = ahoraMs - lastAt;
 
   if (config.esperaMs > 0 && desde < config.esperaMs) {
-    const segundos = Math.ceil((config.esperaMs - desde) / 1000);
-    throw new LimiteDeRitmoError(config.mensajeEspera(segundos));
+    if (config.modoEspera === "error") {
+      const segundos = Math.ceil((config.esperaMs - desde) / 1000);
+      throw new LimiteDeRitmoError(config.mensajeEspera(segundos));
+    }
+
+    /**
+     * ⚠️ Aquí se PERDÍAN mensajes.
+     *
+     * Escribir dos mensajes en menos de un segundo es lo más normal del mundo en
+     * un chat, y esto lo cortaba con un error. Arriba, la vista lo enseñaba como
+     * un "no se pudo enviar" genérico y devolvía el texto al campo, así que el
+     * mensaje simplemente no aparecía y no había forma de saber por qué.
+     *
+     * Ahora se espera lo que falte —medio segundo malo— y se sigue. El tope de
+     * la ventana no se toca, y la regla de Firestore sigue exigiendo lo mismo:
+     * lo único que cambia es que un humano deja de pagar por escribir deprisa.
+     *
+     * Los 60 ms de más cubren el desfase entre el reloj de aquí y el del
+     * servidor, que es quien decide con `lastAt`.
+     */
+    await new Promise((listo) =>
+      setTimeout(listo, config.esperaMs - desde + 60)
+    );
   }
 
   // Un documento del formato viejo no tiene ventana: cuenta como ventana nueva.

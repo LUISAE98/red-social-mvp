@@ -29,6 +29,7 @@ import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNav
 import SearchDateFilterMenu from "@/app/components/SearchToolbar/SearchDateFilterMenu";
 import type { PostsSearchFilter } from "@/app/components/SearchToolbar/SearchPostsResults";
 import { CACHE_TTL } from "@/lib/cache/ttl";
+import { useScreenReady } from "@/lib/useScreenReady";
 
 import type {
   CanonicalMemberStatus,
@@ -246,6 +247,11 @@ function SearchPageContent() {
       ? urlTab
       : "groups"
   );
+
+  // El buscador avisa al montar, sin esperar a nada: no hay contenido inicial
+  // que cargar — se usa escribiendo, y los resultados llegan después con sus
+  // propios esqueletos. Aquí retener el splash sería tapar un campo ya usable.
+  useScreenReady();
 
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [communities, setCommunities] = useState<Community[]>([]);

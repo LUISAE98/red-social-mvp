@@ -8,6 +8,7 @@ import { WalletDataContext } from "./components/WalletDataContext";
 import { useOwnerWalletData } from "@/lib/wallet/ownerWallet";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { useAuth } from "@/app/providers";
+import { useScreenReady } from "@/lib/useScreenReady";
 
 function pathToTab(pathname: string): WalletTabKey {
   if (pathname.includes("/estadisticas")) return "statistics";
@@ -22,6 +23,10 @@ export default function WalletLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Va en el layout y no en cada pestaña: las cinco pintan sus propios
+  // esqueletos mientras llegan las cifras, así que no hay nada que esperar
+  // aquí — lo que había que quitar era el splash por encima de ellos.
+  useScreenReady();
   const { user } = useAuth();
   const walletData = useOwnerWalletData(user?.uid);
 

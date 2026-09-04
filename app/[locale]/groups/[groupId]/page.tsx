@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { IMAGE_CACHE_CONTROL } from "@/lib/storage/cacheControl";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import GroupImageCropModal from "./components/GroupImageCropModal";
 import OwnerAdminServices from "./components/owner-admin-panel/OwnerAdminServices";
@@ -1557,7 +1558,7 @@ const openCropWithFile = useCallback(
 
       const fileRef = ref(storage, path);
 
-      await uploadBytes(fileRef, blob, { contentType: "image/jpeg" });
+      await uploadBytes(fileRef, blob, { contentType: "image/jpeg", cacheControl: IMAGE_CACHE_CONTROL });
       const rawUrl = await getDownloadURL(fileRef);
       const url = `${rawUrl}${rawUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
 

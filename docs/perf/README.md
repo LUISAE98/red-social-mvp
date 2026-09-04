@@ -263,6 +263,36 @@ lleva es lo que iba por otro camino:
   a firmar todo. Ahora se guarda un registro por conversación. Quien decide si
   una URL sirve es su propio `expiresAt`, no la edad del registro.
 
+🚨 **El splash esperaba 12 segundos a las pantallas sin instrumentar.**
+`useScreenReady` es opt-in y solo lo llamaban siete pantallas. Entrar desde la
+notificación de un mensaje abre `/mensajes/<id>`, que no avisaba, así que el
+splash se quedaba hasta que saltaba el respaldo de `DesktopRefreshSplash`. Ese
+respaldo baja a **1,5 s** y las dos pantallas de mensajes ya avisan.
+
+⚠️ **Al añadir una pantalla a la que se pueda llegar desde una notificación o un
+enlace directo, llamar a `useScreenReady()`.** El respaldo es el suelo, no el
+camino previsto.
+
+**Ya están instrumentadas todas las pantallas autenticadas.** Cada una espera a
+lo suyo, no a un `true` genérico — avisar antes de tener con qué pintar solo
+cambia un splash de más por una pantalla vacía:
+
+| Pantalla | Espera a |
+| --- | --- |
+| Inicio · perfil · comunidad · reels · express · login | (ya estaban) |
+| Avisos · sesiones · bandeja de mensajes | que su lista deje de cargar |
+| Experiencias | sus DOS fuentes — el subnav se arma con ambas |
+| Guardados | `loadingInitial` del feed (el aviso vive en el feed, no en la página) |
+| Detalle de publicación | que resuelva, **incluido "no existe"** — si no, el splash taparía ese mensaje |
+| Hilo de mensaje | que la cabecera tenga nombre |
+| Videollamada | que la sesión esté resuelta; va **antes** de las guardas, que hacen returns |
+| Wallet | nada: va en el layout y cubre las cinco pestañas, que ya traen esqueleto |
+| Buscador | nada: se usa escribiendo, y el campo ya es usable |
+
+`/groups` y `/wallet` se quedan **sin** avisar a propósito: son redirecciones que
+pintan `null`. Avisar ahí apagaría el splash sobre la nada; el destino es quien
+debe hacerlo.
+
 **Regla general que se siguió:** `onSnapshot` ya está cubierto por Firestore;
 lo que merece caché nuestra es lo que se pide con `getDoc`, `getDocs`,
 `getCountFromServer` o una llamada a una función.

@@ -29,6 +29,7 @@ import { fixParaOperacion } from "./tipoCambioDof";
 import {
   armarComplemento,
   complementoComoXml,
+  NS_PLATAFORMAS,
   CVE_RETENC_PLATAFORMAS,
   type ServicioDelComplemento,
 } from "./complementoPlataformas";
@@ -571,7 +572,9 @@ export async function emitirCfdiRetenciones(
       },
       totales: {
         // 💱 Todo en PESOS, sumado del detalle para que no pueda discrepar de él.
-        monto_tot_operacion: round2(complemento.MontToServSIva + complemento.TotalIvaTrasladado),
+        monto_tot_operacion: round2(
+          complemento.MonTotServSIVA + complemento.TotalIVATrasladado
+        ),
         /**
          * Cero, y no es lo mismo que las exportaciones.
          *
@@ -584,15 +587,30 @@ export async function emitirCfdiRetenciones(
           ...(acc.isrRetenido > 0
             ? [{
                 monto_ret: round2(acc.isrRetenido * tasaRet),
-                // 🔁 FISCALISTA: el ISR del 113-A es pago PROVISIONAL para la persona física.
-                tipo_pago_ret: "02",
+                /*
+                 * La base de las DOS retenciones es la misma, el precio sin impuesto: el ISR
+                 * es el 2.5% de ella y el IVA retenido es la mitad del 16%, o sea el 8% de
+                 * ella. No es el importe del impuesto, es la base sobre la que se calculó.
+                 */
+                base_ret: round2(acc.base * tasaRet),
+                /*
+                 * 🚨 `04`, no `02`. El catálogo `c_TipoPagoRet` es 01 IVA definitivo, 02 IEPS
+                 * definitivo, 03 ISR plataformas DEFINITIVO y 04 ISR PROVISIONAL. Mandábamos
+                 * `02`, que declara un pago de IEPS, un impuesto que Vibra no retiene.
+                 *
+                 * 🔁 FISCALISTA: se manda `04` porque la retención del 113-A es provisional
+                 * salvo que el creador opte por el pago definitivo del 113-B. Vibra no sabe
+                 * quién optó; si hubiera que distinguirlo, el valor sería `03` para esos.
+                 */
+                tipo_pago_ret: "04",
                 impuesto: "ISR",
               }]
             : []),
           ...(acc.ivaRetenido > 0
             ? [{
                 monto_ret: round2(acc.ivaRetenido * tasaRet),
-                // 🔁 FISCALISTA: la retención de IVA es pago DEFINITIVO.
+                base_ret: round2(acc.base * tasaRet),
+                // 🔁 FISCALISTA: la retención de IVA es pago DEFINITIVO. `01` en el catálogo.
                 tipo_pago_ret: "01",
                 impuesto: "IVA",
               }]
@@ -612,6 +630,19 @@ export async function emitirCfdiRetenciones(
        * `complementoPlataformas.ts`, donde los nombres sí son los del Anexo 20.
        */
       complements: [complementoComoXml(complemento)],
+      /**
+       * 🚨 SIN ESTO EL COMPLEMENTO NO TIMBRA, POR BIEN FORMADO QUE ESTÉ.
+       *
+       * El PAC valida el complemento con `processContents="strict"`, o sea que necesita el
+       * esquema de su espacio de nombres. Y lo busca en el `xsi:schemaLocation` del nodo RAÍZ
+       * `retenciones:Retenciones`, no dentro del complemento. Esa raíz la construye Facturapi,
+       * así que declararlo en nuestro XML no servía de nada: el PAC devolvía
+       * `cvc-complex-type.2.4.c: no declaration can be found for element`.
+       *
+       * Este campo existe precisamente para eso, «namespaces to insert in the root node», y
+       * está en su especificación OpenAPI aunque su guía de complementos no lo mencione.
+       */
+      namespaces: [NS_PLATAFORMAS],
     },
     auth: "secret",
   });

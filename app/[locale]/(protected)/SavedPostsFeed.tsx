@@ -39,6 +39,7 @@ import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNav
 import { motion } from "framer-motion";
 import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "@/app/groups/[groupId]/components/posts/PostsMediaSubnav";
 import MediaGallery, { clearMediaGalleryCache, type GalleryTile } from "@/app/groups/[groupId]/components/posts/MediaGallery";
+import { useScreenReady } from "@/lib/useScreenReady";
 import {
   claveDeFeed,
   leerFeedPersistido,
@@ -70,6 +71,10 @@ export default function SavedPostsFeed() {
   const { toast: feedToast, showToast: showFeedToast } = useVibraToast();
   useEffect(() => { if (error) showFeedToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [loadingInitial, setLoadingInitial] = useState(true);
+
+  // El aviso vive aquí y no en saved/page.tsx: esa es un envoltorio sin estado,
+  // y quien sabe cuándo hay algo que enseñar es el feed.
+  useScreenReady(!loadingInitial);
   const [loadingMore, setLoadingMore] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [searchInput, setSearchInput] = useState("");

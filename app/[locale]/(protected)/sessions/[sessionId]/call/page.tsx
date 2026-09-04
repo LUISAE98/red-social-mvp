@@ -9,12 +9,24 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 import LiveKitVideoRoom from "@/app/components/liveKit/LiveKitVideoRoom";
 import type { LivekitSessionType } from "@/lib/liveKit/getLivekitToken";
+import { useScreenReady } from "@/lib/useScreenReady";
 
 export default function SessionCallPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+
+  /**
+   * Va ANTES de las guardas de abajo, que hacen returns tempranos: un hook no
+   * puede quedar detrás de un return.
+   *
+   * Espera a que la sesión esté resuelta, no a tener sala: sin eso, `user` es
+   * null durante un instante y apagar el splash ahí enseñaría el mensaje de
+   * "inicia sesión" a quien sí la tiene. Con la sesión resuelta ya hay algo
+   * correcto que pintar, sea la llamada o el aviso.
+   */
+  useScreenReady(!authLoading);
 
   const tSessions = useTranslations("sessions");
   const tCommon = useTranslations("common");

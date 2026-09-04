@@ -110,6 +110,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // remoto). Se activa mientras haya usuario autenticado.
   useSessionRegistry(user);
 
+  /**
+   * Vuelve a sellar el token de avisos en cada arranque con sesión.
+   *
+   * ⚠️ Antes solo se registraba al crear la cuenta. Los tokens de FCM rotan —
+   * limpieza de datos, suscripción caducada, service worker nuevo—, y cuando eso
+   * pasaba el guardado en Firestore quedaba muerto sin que nadie escribiera el
+   * nuevo: esa persona dejaba de recibir avisos en silencio. De ahí que
+   * funcionaran "a veces".
+   *
+   * No pide permiso: si no está concedido, sale sin tocar nada.
+   */
+  useEffect(() => {
+    if (!user || user.isAnonymous) return;
+    let cancelado = false;
+    void import("@/lib/push/fcm").then(({ resyncPushToken }) => {
+      if (!cancelado) void resyncPushToken(user.uid);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [user]);
+
   const startAuthTransition = (mode: "entering" | "exiting") => {
     // El splash cubre TODA la transición de sesión, entrando y saliendo. Va aquí
     // y no en cada botón porque todos los caminos —el de salir, los cuatro de

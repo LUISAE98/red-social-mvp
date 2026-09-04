@@ -22,6 +22,7 @@ import {
 import { useConversationDoc } from "@/lib/chat/useConversationDoc";
 import { useProfileMini } from "@/lib/chat/useProfileMini";
 import { getOtherParticipant } from "@/lib/chat/types";
+import { useScreenReady } from "@/lib/useScreenReady";
 
 /**
  * Conversación a pantalla completa (celular).
@@ -72,6 +73,35 @@ function guardarLector(valor: boolean): void {
   }
 }
 
+/**
+ * ¿Este elemento hace salir el teclado?
+ *
+ * Solo lo que acepta texto: un `<textarea>`, un `<input>` de escribir o algo
+ * editable. Un botón, un enlace o un globo de mensaje con `tabIndex` reciben el
+ * foco igual, pero NO abren teclado, y confundirlos con el campo de escritura es
+ * lo que dejaba la pantalla calzada a media altura.
+ *
+ * `input type="file"` queda fuera a propósito: es el botón de la foto.
+ */
+const TIPOS_SIN_TECLADO = new Set([
+  "button",
+  "submit",
+  "reset",
+  "checkbox",
+  "radio",
+  "file",
+  "range",
+  "color",
+  "image",
+]);
+
+function abreTeclado(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLInputElement) return !TIPOS_SIN_TECLADO.has(target.type);
+  return target.isContentEditable;
+}
+
 export default function ConversationPage() {
   const params = useParams<{ conversationId?: string | string[] }>();
   const router = useRouter();
@@ -91,6 +121,17 @@ export default function ConversationPage() {
   // Solo para saber si el hilo está silenciado; el propio hilo ya se suscribe
   // por su cuenta y el listener es el mismo documento.
   const { conversation } = useConversationDoc(conversationId);
+
+  /**
+   * Avisa al splash de arranque en cuanto la cabecera tiene nombre.
+   *
+   * Es la pantalla a la que lleva la notificación de un mensaje, así que es
+   * también la que más se abre en frío. Sin este aviso el splash esperaba al
+   * respaldo de DesktopRefreshSplash, y entrar desde un aviso era mirar el
+   * splash sin motivo. No se espera a los mensajes: llegan por onSnapshot y el
+   * hilo ya tiene su propio esqueleto.
+   */
+  useScreenReady(!!profile || !conversationId);
   const displayName = profile?.displayName || tCommon("user");
 
   /**
@@ -581,8 +622,24 @@ export default function ConversationPage() {
       data-nav-enter={closing ? undefined : "right"}
       // `onFocus`/`onBlur` de React son focusin/focusout: burbujean, así que se
       // enteran del campo de escritura sin tener que pasarle nada al hilo.
-      onFocus={() => setComposerFocused(true)}
-      onBlur={() => setComposerFocused(false)}
+      //
+      // ⚠️ Y justo por eso hay que filtrar QUÉ recibió el foco. Burbujea TODO lo
+      // enfocable del hilo, y cada globo de mensaje es un `role="button"` con
+      // `tabIndex={0}`: tocar un mensaje contaba como "el campo tiene el foco".
+      //
+      // El daño estaba al cerrar el teclado tocando un mensaje. Salía
+      // `focusout` del campo y acto seguido `focusin` del globo, así que la
+      // bandera volvía a `true` mientras el teclado se iba: la pantalla seguía
+      // calzada al área visible de cuando el teclado estaba abierto y se quedaba
+      // a MEDIA PANTALLA hasta que algo más forzara otra medición. Y de paso
+      // cada toque en un mensaje disparaba una ráfaga de relecturas de
+      // geometría, que es parte de lo que se sentía como tirones.
+      onFocus={(e) => {
+        if (abreTeclado(e.target)) setComposerFocused(true);
+      }}
+      onBlur={(e) => {
+        if (abreTeclado(e.target)) setComposerFocused(false);
+      }}
       style={{
         // La salida va inline para que gane a la regla del atributo.
         ...(closing

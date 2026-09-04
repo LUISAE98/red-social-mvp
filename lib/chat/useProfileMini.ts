@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 
 import type { ProfileMini } from "@/components/chat/ConversationList";
-import { leerMinisCacheados, traerMinis } from "./profileMiniCache";
+import {
+  leerMinisCacheados,
+  traerMinis,
+  uidsPorRefrescar,
+} from "./profileMiniCache";
 
 /**
  * Nombre, avatar y handle de un perfil, para la cabecera de un hilo abierto
@@ -36,10 +40,11 @@ export function useProfileMini(uid: string | null) {
       // hace falta — el inicializador ya cubrió el caso normal. Esta rama solo
       // cubre el cambio de `uid` sin desmontar.
       const cacheado = leerMinisCacheados([uid])[uid];
-      if (cacheado) {
-        if (!cancelado) setState({ profile: cacheado, loading: false });
-        return;
-      }
+      if (cacheado && !cancelado) setState({ profile: cacheado, loading: false });
+
+      // Se refresca aunque ya se esté enseñando: la caché dura meses, y esto es
+      // lo que evita que el nombre o la foto se queden congelados ahí.
+      if (uidsPorRefrescar([uid]).length === 0) return;
 
       const deRed = (await traerMinis([uid]))[uid];
       if (cancelado) return;

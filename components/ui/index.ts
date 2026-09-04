@@ -48,3 +48,8 @@ export type { MenuLinesIconProps } from "./MenuLinesIcon";
 // disuelve al pasar por debajo, sin el canto duro de un `backdrop-filter` suelto.
 export { default as BlurFade } from "./BlurFade";
 export type { BlurFadeProps } from "./BlurFade";
+
+// Cabecera o pie flotante con el cristal detrás. Se mide sola y devuelve su alto
+// para que el scroller le reserve el hueco.
+export { default as GlassEdge } from "./GlassEdge";
+export type { GlassEdgeProps } from "./GlassEdge";

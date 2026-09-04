@@ -23,9 +23,23 @@
  * en ~30 KB. Leer eso de forma síncrona no se nota, y evita el parpadeo.
  * ─────────────────────────────────────────────────────────────────────────────
  *
- * Se cachea con `CATALOGO` porque es lo que es: si alguien se cambia el avatar,
- * verlo unos minutos después no rompe nada. Un mensaje nuevo NO pasa por aquí —
- * eso va por `onSnapshot` y llega al instante.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Dos plazos, no uno
+ *
+ * `TTL_SERVIBLE` (60 días) es cuánto se puede SEGUIR ENSEÑANDO una entrada.
+ * `FRESCURA_MS` (10 min) es a partir de cuándo, además de enseñarla, se vuelve a
+ * pedir por detrás.
+ *
+ * Con un solo plazo largo habría que elegir entre parpadeo y datos viejos: a 60
+ * días sin revalidar, quien se cambie el avatar seguiría saliendo con el
+ * anterior durante dos meses. Separándolos no hay que elegir — se pinta siempre
+ * al instante desde la caché, y lo que se enseñó se refresca en segundo plano
+ * sin que la pantalla espere a nada.
+ *
+ * Un mensaje nuevo NO pasa por aquí: eso va por `onSnapshot` y llega al
+ * instante. Esto es solo el nombre y la foto de con quién hablas, que es
+ * justo lo que casi nunca cambia.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import { doc, getDoc } from "firebase/firestore";
@@ -44,12 +58,24 @@ export const CLAVE_PERFILES_CHAT = "vibra:chat:perfiles";
  */
 const MAX_GUARDADOS = 200;
 
+/** Cuánto se puede seguir ENSEÑANDO una entrada guardada. */
+const TTL_SERVIBLE = 60 * 24 * 60 * 60 * 1000;
+
+/** A partir de aquí se sigue enseñando, pero además se vuelve a pedir. */
+const FRESCURA_MS = CACHE_TTL.CATALOGO;
+
 const memoria = new Map<string, Entrada>();
 
 let volcado = false;
 
-function estaFresca(entrada: Entrada | undefined): entrada is Entrada {
-  return !!entrada && Date.now() - entrada.guardadoEn <= CACHE_TTL.CATALOGO;
+/** ¿Se puede enseñar? Plazo largo: lo que manda es que exista y no sea antigua. */
+function esServible(entrada: Entrada | undefined): entrada is Entrada {
+  return !!entrada && Date.now() - entrada.guardadoEn <= TTL_SERVIBLE;
+}
+
+/** ¿Hace falta volver a pedirla? Plazo corto, y NO impide enseñarla mientras. */
+function necesitaRefresco(entrada: Entrada | undefined): boolean {
+  return !entrada || Date.now() - entrada.guardadoEn > FRESCURA_MS;
 }
 
 /**
@@ -68,7 +94,7 @@ function volcarDeDisco(): void {
     const guardado = JSON.parse(crudo) as Record<string, Entrada>;
 
     for (const [uid, entrada] of Object.entries(guardado)) {
-      if (estaFresca(entrada)) memoria.set(uid, entrada);
+      if (esServible(entrada)) memoria.set(uid, entrada);
     }
   } catch {
     // JSON corrupto, modo privado o sin cuota: se sigue sin caché.
@@ -90,7 +116,7 @@ function programarGuardado(): void {
 
     try {
       const entradas = [...memoria.entries()]
-        .filter(([, entrada]) => estaFresca(entrada))
+        .filter(([, entrada]) => esServible(entrada))
         // Los más recientes primero, para que el recorte tire los viejos.
         .sort((a, b) => b[1].guardadoEn - a[1].guardadoEn)
         .slice(0, MAX_GUARDADOS);
@@ -128,10 +154,20 @@ export function leerMinisCacheados(uids: string[]): Record<string, ProfileMini> 
 
   for (const uid of uids) {
     const entrada = memoria.get(uid);
-    if (estaFresca(entrada)) salida[uid] = entrada.mini;
+    if (esServible(entrada)) salida[uid] = entrada.mini;
   }
 
   return salida;
+}
+
+/**
+ * De los uids dados, cuáles conviene volver a pedir: los que no están y los que
+ * llevan más de `FRESCURA_MS` guardados. Los segundos YA se están enseñando, así
+ * que pedirlos no bloquea nada — solo mantiene la caché al día.
+ */
+export function uidsPorRefrescar(uids: string[]): string[] {
+  volcarDeDisco();
+  return uids.filter((uid) => necesitaRefresco(memoria.get(uid)));
 }
 
 /** Pide a Firestore los que falten y los guarda. */

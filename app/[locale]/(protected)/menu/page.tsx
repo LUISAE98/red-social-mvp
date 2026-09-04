@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useState } from "react";
 import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
+import { useScreenReady } from "@/lib/useScreenReady";
 
 /**
  * Tu espacio personal en celular: la tarjeta de tu perfil, a quién sigues y tus
@@ -12,6 +13,11 @@ import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
  * tarjeta de arriba es lo que lleva al perfil de verdad, `/u/{handle}`.
  */
 export default function MenuMobilePage() {
+  // Avisa al montar: el menú es el OwnerSidebar, que trae sus propios estados
+  // de carga por sección. Retener el splash por encima solo taparía la tarjeta
+  // del perfil, que ya se puede pintar.
+  useScreenReady();
+
   const [isEmbed, setIsEmbed] = useState(false);
 
   useLayoutEffect(() => {

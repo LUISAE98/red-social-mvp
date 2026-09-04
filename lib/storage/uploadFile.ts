@@ -6,6 +6,7 @@ import {
 
 import { storage } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
+import { IMAGE_CACHE_CONTROL } from "@/lib/storage/cacheControl";
 
 type UploadOptions = {
   file: File;
@@ -40,6 +41,7 @@ export async function uploadFile({ file, path, onProgress }: UploadOptions) {
 
     const uploadTask = uploadBytesResumable(storageRef, fileToUpload, {
       contentType: fileToUpload.type || undefined,
+      cacheControl: IMAGE_CACHE_CONTROL,
     });
 
     uploadTask.on(

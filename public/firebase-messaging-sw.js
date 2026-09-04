@@ -36,14 +36,32 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   messaging.onBackgroundMessage((payload) => {
     const d = (payload && payload.data) || {};
     const title = d.title || "Vibra";
+    const tag = d.tag || undefined;
     self.registration.showNotification(title, {
       body: d.body || "",
       icon: d.icon || "/favicons/android-chrome-192x192.png?v=3",
       badge: d.badge || "/favicons/android-chrome-192x192.png?v=3",
       // Imagen grande bajo el cuerpo (miniatura del post) — Android/desktop.
       image: d.image || undefined,
-      tag: d.tag || undefined,
-      // renotify default false: al reemplazar por tag no re-vibra en cada update.
+      tag: tag,
+      /**
+       * ⚠️ Aquí estaba el "dejaron de llegarme".
+       *
+       * Con `tag` y SIN `renotify`, el segundo aviso del mismo hilo reemplaza al
+       * primero EN SILENCIO: sin sonido, sin vibración y sin banner. Y como el
+       * aviso anterior se queda en la bandeja del sistema hasta que lo tocas o
+       * lo descartas, a partir del primer mensaje de una conversación todos los
+       * demás entraban mudos. Se nota muchísimo después de silenciar y volver a
+       * activar, porque el que quedó en la bandeja es de antes de silenciar y
+       * sigue ahí para que el nuevo lo reemplace sin avisar.
+       *
+       * Con `renotify`, el aviso sigue colapsando en UNA sola entrada por hilo
+       * —que es para lo que está el `tag`— pero vuelve a sonar. Que es
+       * exactamente lo que se espera de un chat.
+       *
+       * Solo cuando hay `tag`: `renotify: true` sin `tag` lanza en Chrome.
+       */
+      renotify: tag ? true : undefined,
       data: { link: d.link || "/" },
     });
   });

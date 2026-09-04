@@ -30,6 +30,7 @@ import { requestCashout, dismissCashoutNotice } from "@/lib/wallet/cashout";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useConfirm } from "@/lib/hooks/useConfirm";
 import ListSkeleton from "@/components/ui/ListSkeleton";
+import { useScreenReady } from "@/lib/useScreenReady";
 
 type Tab = "requested" | "rejected" | "delivered";
 
@@ -380,6 +381,10 @@ export default function ExperienciasPage() {
 
   // ── Disponibilidad de las pestañas del subnav principal ────────────────────
   const dataLoading = exp.loading || allPurchases.loading;
+
+  // Espera a las dos fuentes: el subnav se arma con ambas, y avisar antes
+  // dejaría ver las pestañas cambiando solas justo al entrar.
+  useScreenReady(!dataLoading);
   const hasPending = pendingCount > 0;
   const hasRejected = rejectedCount > 0;
   const hasDeliveredExp = deliveredCount > 0; // experiencias entregadas (las 4)

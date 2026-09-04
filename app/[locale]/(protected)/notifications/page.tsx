@@ -14,6 +14,7 @@ import NotificationTabs, { type NotifTab } from "@/app/components/Notifications/
 import ExperienceRequestsInbox from "@/app/components/Notifications/ExperienceRequestsInbox";
 import { AppNotification, isExperienceNotification } from "@/lib/notifications/types";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
+import { useScreenReady } from "@/lib/useScreenReady";
 
 export default function NotificationsPage() {
   const t = useTranslations("notifications");
@@ -21,6 +22,10 @@ export default function NotificationsPage() {
   const { items, loading, unreadCount, badgeCount, latestMs, markSeen, markAllRead, markRead, refresh } =
     useNotifications(user?.uid ?? null);
   const selfHandle = useSelfHandle(user?.uid ?? null);
+
+  // El splash se va en cuanto la lista deja de cargar; su vacío ya tiene
+  // su propio estado dibujado.
+  useScreenReady(!loading);
 
   // El subnav aparece SOLO mientras haya experiencias vivas (por atender o
   // agendadas). `useWalletVisibility` (barato, cacheado) filtra primero a quien
