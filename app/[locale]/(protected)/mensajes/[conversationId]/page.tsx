@@ -313,6 +313,12 @@ export default function ConversationPage() {
     eventos: number;
     desdeUltimoMs: number;
     foco: string;
+    /** `env(safe-area-inset-top)` y `-bottom`, medidos con una sonda. */
+    segArriba: number;
+    segAbajo: number;
+    /** Lo que CSS cree que mide la pantalla, frente a `window.innerHeight`. */
+    lvh: number;
+    dvh: number;
   } | null>(null);
 
   useEffect(() => {
@@ -329,6 +335,31 @@ export default function ConversationPage() {
     vv.addEventListener("resize", marcar);
     vv.addEventListener("scroll", marcar);
 
+    /**
+     * Sonda para leer desde JavaScript cosas que solo existen en CSS.
+     *
+     * Los `env(safe-area-inset-*)` y las unidades `lvh`/`dvh` no se pueden
+     * consultar con ninguna API; la única forma de saber cuánto valen es
+     * pintarlas en un elemento y medirlo. Va oculto y fuera del flujo, así que
+     * no puede mover nada de lo que se está midiendo.
+     *
+     * Son los números que separan las dos formas del fallo: si el inset de
+     * ARRIBA vale lo mismo que le falta a `window.innerHeight` para llegar a la
+     * pantalla, el viewport está anclado bajo la barra de estado y lo que sobra
+     * queda fuera POR ABAJO.
+     */
+    const sonda = document.createElement("div");
+    sonda.style.cssText =
+      "position:fixed;top:0;left:0;width:0;visibility:hidden;pointer-events:none;" +
+      "padding-top:env(safe-area-inset-top,0px);" +
+      "padding-bottom:env(safe-area-inset-bottom,0px);";
+    const sondaLvh = document.createElement("div");
+    sondaLvh.style.cssText = "width:0;height:100lvh;";
+    const sondaDvh = document.createElement("div");
+    sondaDvh.style.cssText = "width:0;height:100dvh;";
+    sonda.append(sondaLvh, sondaDvh);
+    document.body.appendChild(sonda);
+
     const id = setInterval(() => {
       const activo = document.activeElement;
       setVvVivo({
@@ -337,11 +368,16 @@ export default function ConversationPage() {
         eventos,
         desdeUltimoMs: Math.round(performance.now() - ultimo),
         foco: activo ? activo.tagName.toLowerCase() : "—",
+        segArriba: Math.round(parseFloat(getComputedStyle(sonda).paddingTop) || 0),
+        segAbajo: Math.round(parseFloat(getComputedStyle(sonda).paddingBottom) || 0),
+        lvh: Math.round(sondaLvh.getBoundingClientRect().height),
+        dvh: Math.round(sondaDvh.getBoundingClientRect().height),
       });
     }, 250);
 
     return () => {
       clearInterval(id);
+      sonda.remove();
       vv.removeEventListener("resize", marcar);
       vv.removeEventListener("scroll", marcar);
     };
@@ -550,6 +586,18 @@ export default function ConversationPage() {
             // "pantalla" con el teclado ya cerrado, el viewport de LAYOUT sigue
             // encogido y ese es el hueco negro de abajo.
             `pantalla ${typeof window !== "undefined" ? window.screen.height : "—"}`,
+            // LO QUE DECIDE DÓNDE ESTÁ ANCLADO EL VIEWPORT. Si el inset de
+            // arriba vale lo mismo que "pantalla - alto win", el área de dibujo
+            // empieza DEBAJO de la barra de estado y lo que le falta se queda
+            // fuera por abajo: ese es el escalón negro, y el número viene de
+            // ARRIBA aunque se vea abajo.
+            `seguro ↑${vvVivo?.segArriba ?? "—"} ↓${vvVivo?.segAbajo ?? "—"}`,
+            `lvh ${vvVivo?.lvh ?? "—"}  dvh ${vvVivo?.dvh ?? "—"}`,
+            `falta ${
+              typeof window !== "undefined"
+                ? window.screen.height - window.innerHeight
+                : "—"
+            }`,
             // Modo real en el que se esta ejecutando la app instalada. Si aqui
             // pone "standalone" cuando el manifest pide "fullscreen", el
             // WebAPK de Android sigue con la copia vieja del manifest y ningun
