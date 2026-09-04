@@ -493,8 +493,13 @@ export default function ExperienceRequestsInbox({
                 // Mismo trato que una notificación social: la fila va de lado a
                 // lado y el aire lo pone su propio relleno, no un margen. Sin
                 // radio, porque no hay tarjeta que recortar. Ver `.expInbox`.
+                //
+                // El aire vertical es MENOR que en las sociales (7 y no 12): la
+                // fila de experiencia ya trae su foto de fondo, su avatar y su
+                // botón, así que es bastante más alta de por sí. Con los 12 de
+                // allí, las filas quedaban despegadas unas de otras.
                 borderRadius: 0,
-                padding: "12px 16px",
+                padding: "7px 16px",
                 minWidth: 0,
                 boxSizing: "border-box",
                 display: "flex",
@@ -649,7 +654,7 @@ export default function ExperienceRequestsInbox({
               const cardStyle: CSSProperties = {
                 // Igual que la de saludo/consejo, de lado a lado y sin radio.
                 borderRadius: 0,
-                padding: "12px 16px",
+                padding: "7px 16px",
                 minWidth: 0,
                 boxSizing: "border-box",
                 display: "flex",
