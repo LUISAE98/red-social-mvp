@@ -24,7 +24,7 @@
 1. Laptop Chrome (≥1180px)
 2. Laptop angosta (769–900px — el header de escritorio se oculta, aparece el móvil)
 3. Celular navegador (Safari iOS + Chrome Android)
-4. **PWA instalada en iOS** (safe-area, `--vb-safe-bottom`, scroll-lock — históricamente frágil)
+4. **PWA instalada en iOS** (geometría del viewport y scroll-lock — históricamente frágil; ver `docs/ios-pwa-viewport.md`). ⚠️ iOS guarda la configuración de pantalla **al instalar**: si se toca `appleWebApp` o el manifest, hay que borrar la app de la pantalla de inicio y volver a añadirla — recargar no basta
 5. PWA instalada en Android
 6. Embebido en iframe (`isEmbed` cambia el layout en `app/[locale]/(protected)/layout.tsx`)
 
@@ -552,7 +552,8 @@ cuenta aparte (`globalesSinSello`), no como error.
 ## 23. PWA, responsive y rendimiento
 
 23.1 Instalar la PWA en iOS y Android
-23.2 🟠 **Safe-area inferior**: `--vb-safe-bottom` fijo en 20px solo con `body.vb-authed`, **nunca `env()`**. Probar cada modal y panel en PWA iOS
+23.2 ✅ **Safe-area inferior**: ya no existe ninguno — el subnav es flotante. `--vb-safe-bottom` vale `0px`, se define una sola vez y no se redefine; `env(safe-area-inset-bottom)` no se usa en ningún sitio activo. `test/unit/pantallaCompleta.test.ts` lo vigila. ⛔ Este punto decía "fijo en 20px con `body.vb-authed`": **falso**, corregido el 2026-09-03
+23.2b 🟠 **Escalón negro abajo en PWA iOS**: si reaparece, **NO buscarlo en el safe-area inferior** — ahí no hay nada. Viene del inset de ARRIBA. Medir con el lector de geometría (pulsado largo en la cabecera de un DM); sano es `alto win == pantalla`, `falta 0`, `PEOR win` sin bajar. Historia completa y causa en `docs/ios-pwa-viewport.md`
 23.3 🟠 **Scroll-lock**: todos los paneles deben usar `useBodyScrollLock` (overflow + touchmove, **nunca `position:fixed`** en el body). ~39 paneles migrados; probar los que no
 23.4 Excepciones deliberadas: los locks de gesto de `GroupPostCard` y `GroupPostComposer` no se tocan
 23.5 Rotación de pantalla en celular durante un live y durante una videollamada
