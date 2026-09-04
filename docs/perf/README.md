@@ -89,11 +89,48 @@ Lo que se movió, y por qué estaba donde estaba:
   `StripePaymentModal`, `LiveComposerModal` y `LiveStreamSetup`. Todos reciben
   `open` y arrancan cerrados.
 
-⚠️ **El bloque 1.1 (partir las traducciones) se pospone hasta después del bloque
-2.** Los espacios de nombres pesados —`services` 38,5 KB y `wallet` 32,5 KB— se
-usan dentro de `OwnerSidebar`, que vive en el layout autenticado: mientras ese
-componente siga en el camino crítico, cortarlos por ruta no ahorra nada en la
-app logueada. El bloque 2 lo saca de ahí y entonces el corte sí rinde.
+### Después del bloque 2.1 — el envoltorio deja de montarse en celular
+
+| | línea base | ahora | |
+| --- | ---: | ---: | ---: |
+| **Compartido por todas** | 477 KB | **319 KB** | −33 % |
+| Inicio (`/`) | 1 019 KB | **589 KB** | −42 % |
+| Perfil (`/u/[handle]`) | 1 077 KB | 808 KB | −25 % |
+| Wallet (`/wallet/finanzas`) | 932 KB | 721 KB | −23 % |
+| Comunidad (`/groups/[groupId]`) | 1 089 KB | 866 KB | −20 % |
+
+Paquete inicial real del inicio, medido sobre el HTML servido:
+**1 242 KB → 864 KB** comprimidos.
+
+`OwnerSidebar` y `WalletDesktopRail` ya no se montan en celular ni tablet. Antes
+se montaban siempre y en compacto se ocultaban con `display: none` — pero oculto
+costaba lo mismo: unas veinte escuchas de Firestore por pantalla para una
+interfaz que en el teléfono no se ve nunca.
+
+⚠️ **Lo que había que comprobar antes de desmontarlo:** el sidebar sacaba dos
+cosas fuera de su columna por portal, los banners de cuenta atrás de sesión, y
+esos SÍ se veían en celular pese al `display: none`. No se pierden:
+`GlobalSessionCard` —montado en `app/[locale]/layout.tsx`— renderiza esos mismos
+dos banners y lo hace exactamente cuando el viewport es compacto. El reparto ya
+estaba pensado así en el código.
+
+También `useWalletVisibility`, que cuesta **seis consultas por montaje**, pasa a
+recibir `null` en celular: su único consumidor es el `showWallet` del rail de
+escritorio.
+
+Se mantienen en celular, porque el header móvil los usa de verdad:
+`useHasPurchasedExperiences` y el badge de la estrella
+(`useBuyerExperienceActivity` + `useBuyerExperiencesSeen`).
+
+> La bajada de **consultas** no está medida todavía: hace falta el medidor con
+> una sesión real en el navegador. Lo de arriba es la bajada de **bytes**, que sí
+> está medida.
+
+⚠️ **El bloque 1.1 (partir las traducciones) se pospone hasta después del resto
+del bloque 2.** Los espacios de nombres pesados —`services` 38,5 KB y `wallet`
+32,5 KB— se usan dentro de `OwnerSidebar`. Ahora que no se monta en celular, el
+corte por ruta empieza a tener sentido, pero conviene hacerlo cuando 2.2 y 2.4
+hayan terminado de mover lo que queda.
 
 ---
 

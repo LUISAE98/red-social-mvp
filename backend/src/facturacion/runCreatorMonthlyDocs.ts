@@ -60,7 +60,15 @@ function periodoAnterior(hoy: Date): string {
  *
  * Devuelve el resumen de lo hecho para poder revisarlo antes de encender el timbrado.
  */
-export async function procesarPeriodo(periodo: string): Promise<{
+export async function procesarPeriodo(
+  periodo: string,
+  /**
+   * 🧪 Timbrar de verdad en ESTA pasada, sin tocar el interruptor global. Mismo criterio que
+   * en la global diaria: encender y apagar el cron con un despliegue en medio es la maniobra
+   * en la que se queda encendido por accidente.
+   */
+  timbrar: boolean = TIMBRAR
+): Promise<{
   periodo: string;
   creadores: number;
   comision: number;
@@ -68,6 +76,8 @@ export async function procesarPeriodo(periodo: string): Promise<{
   liquidaciones: number;
   saltados: number;
   errores: number;
+  /** QUÉ falló, no solo cuántos. Un panel que dice «Errores: 1» y se calla el motivo no sirve. */
+  detalles: string[];
   timbrado: boolean;
 }> {
   // Solo creadores con perfil fiscal: sin él no hay a quién emitirle.
@@ -80,7 +90,8 @@ export async function procesarPeriodo(periodo: string): Promise<{
     liquidaciones: 0,
     saltados: 0,
     errores: 0,
-    timbrado: TIMBRAR,
+    detalles: [] as string[],
+    timbrado: timbrar,
   };
 
   for (const p of perfiles.docs) {
@@ -116,7 +127,7 @@ export async function procesarPeriodo(periodo: string): Promise<{
           );
         }
 
-        if (TIMBRAR && tipo !== "liquidacion") {
+        if (timbrar && tipo !== "liquidacion") {
           if (!customerId) {
             logger.warn("monthly_docs_sin_customer", { creatorId, periodo, tipo });
             r.errores++;
@@ -139,11 +150,9 @@ export async function procesarPeriodo(periodo: string): Promise<{
     } catch (err) {
       // Un creador que falla no detiene a los demás: son documentos independientes.
       r.errores++;
-      logger.error("monthly_docs_creator_failed", {
-        creatorId,
-        periodo,
-        err: err instanceof Error ? err.message : String(err),
-      });
+      const detalle = err instanceof Error ? err.message : String(err);
+      logger.error("monthly_docs_creator_failed", { creatorId, periodo, err: detalle });
+      r.detalles.push(`${creatorId.slice(0, 8)}… — ${detalle.slice(0, 400)}`);
     }
   }
 

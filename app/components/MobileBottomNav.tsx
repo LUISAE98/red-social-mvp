@@ -1,5 +1,4 @@
 "use client";
-import { BlurFade } from "@/components/ui";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -717,13 +716,78 @@ export default function MobileBottomNav({
              curva del borde necesite recortar. */
         }
 
+        /* 🚨 EL FILTRO Y EL TINTE VAN EN CAPAS SEPARADAS, Y NO ES POR GUSTO.
+           ==================================================================
+           Estuvieron juntos en .navShell, un solo elemento con background y
+           backdrop-filter a la vez. En iPhone se veia perfecto; en Android, la
+           capsula salia como un vidrio limpio, con el contenido de detras
+           nitido. Se aislo con cuatro sondas en pantalla y el resultado fue
+           tajante: un elemento con fondo Y filtro pierde el filtro en ese
+           Chromium, y uno con el filtro SOLO (sin fondo y con mascara, que es
+           como lo hace components/ui/BlurFade.tsx) si difumina.
+
+           Asi que ahora son dos hermanas, en este orden:
+             .navGlass — solo el filtro. Sin fondo. Con una mascara que no
+                         recorta nada, puesta a proposito para calcar la
+                         configuracion de BlurFade, que es la unica que se
+                         comprobo que funciona en los dos telefonos.
+             .navTint  — el tinte y las sombras interiores, ENCIMA del filtro.
+                         Mismo reparto que el velo de BlurFade.
+
+           🗑️ Si algun dia se unifican otra vez en un solo elemento, hay que
+           volver a probarlo en Android. No basta con mirarlo en iPhone. */
+        .navGlass,
+        .navTint {
+          position: absolute;
+          inset: 0;
+          border-radius: 999px;
+          pointer-events: none;
+        }
+
+        .navGlass {
+          /* El efecto optico.
+
+             · blur(40px): el fondo llega en manchas grandes, sin una sola forma
+               reconocible. Es desenfoque de material, no de suavizado.
+             · saturate(150%): el color hay que exagerarlo para que se note al
+               atravesar el tinte.
+             · brightness(0.92): ESTE es el que sustituye a la opacidad que se
+               quito en su dia. Oscurece lo que pasa por detras en vez de
+               taparlo, asi que la capsula sigue siendo traslucida —se ve el
+               movimiento y el color— pero un video claro ya no se come los
+               iconos blancos. Tapar da negro; oscurecer da cristal ahumado.
+
+             🚨 DEFORMAR el fondo, como la lupa de iOS, NO se puede desde CSS en
+             iPhone. Se haria con un filtro SVG de desplazamiento dentro de
+             backdrop-filter, y Safari no admite url() ahi — solo Chrome. Lo que
+             hay aqui es desenfoque y color, que es todo lo que WebKit ofrece. */
+          backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
+          -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
+          /* Mascara que deja pasar TODO. No recorta nada: esta para que el
+             elemento tome la misma ruta de pintado que las capas de BlurFade,
+             que es la que se comprobo que difumina en Android. */
+          mask-image: linear-gradient(#000, #000);
+          -webkit-mask-image: linear-gradient(#000, #000);
+        }
+
+        .navTint {
+          background: rgba(6, 6, 8, 0.40);
+          /* Las cuatro interiores que vivian en .navShell. Aqui caen SOBRE el
+             cristal, que es donde tienen que verse. */
+          box-shadow:
+            inset 0 2px 3px -2px rgba(255, 255, 255, 0.38),
+            inset 0 -2px 3px -2px rgba(0, 0, 0, 0.80),
+            inset 0 -16px 26px -16px rgba(0, 0, 0, 0.45),
+            inset 0 14px 24px -18px rgba(255, 255, 255, 0.12);
+        }
+
         /* Sin backdrop-filter no hay nada que difuminar, y una base al 40% se
            vería como una barra medio transparente con el contenido CRUDO detrás
            —peor que no intentarlo—. Ahí la cápsula se cierra y se comporta como
            lo que aparenta: negra. Este respaldo es justo por eso el único sitio
            donde la opacidad NO baja. */
         @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-          .navShell {
+          .navTint {
             background: rgba(6, 6, 8, 0.96);
           }
         }
@@ -738,8 +802,10 @@ export default function MobileBottomNav({
           padding: calc(7px * var(--nav-scale, 1)) calc(6px * var(--nav-scale, 1));
           background: transparent;
           box-sizing: border-box;
-          /* Ancla de la burbuja, que va en posición absoluta dentro. */
+          /* Ancla de la burbuja, que va en posición absoluta dentro. Y por
+             encima de las dos capas de cristal, que son hermanas suyas. */
           position: relative;
+          z-index: 1;
           /* Esto y el alto de .item son el encogimiento entero de la píldora.
              Mismos tiempos y curva que tenia el scale al que sustituyen. */
           transition: padding 350ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -1024,6 +1090,11 @@ export default function MobileBottomNav({
             ["--nav-scale" as string]: navScale,
           } as React.CSSProperties}
         >
+          {/* Las dos capas del cristal, por debajo de los iconos. Ver la nota
+              larga junto a .navGlass: separadas a proposito. */}
+          <div className="navGlass" aria-hidden="true" />
+          <div className="navTint" aria-hidden="true" />
+
           <div
             className="nav"
             style={{

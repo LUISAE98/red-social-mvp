@@ -1151,17 +1151,29 @@ export default function ConversationThread({
    * (`--vb-thread-scroll`) y la herencia de CSS reposiciona los globos sola. Si
    * hubiera que recorrer los nodos en cada fotograma, esto no se podría hacer.
    *
-   * `offsetTop` sale del scroller porque es el ancestro posicionado más cercano
-   * (`position: relative` allí, y nada posicionado en medio).
+   * Se mide con rectángulos y no con `offsetTop` porque el difuminado del menú
+   * abierto es un `filter`, y un ancestro con filtro cambia contra quién se
+   * calcula ese `offsetTop`. El rectángulo no se entera de nada de eso.
+   *
+   * Todas las lecturas van antes que las escrituras: así el navegador recalcula
+   * el layout UNA vez y no una por globo.
    */
   const measureBubbleTints = useCallback(() => {
     const container = scrollRef.current;
     if (!container) return;
 
-    container.style.setProperty("--vb-thread-h", `${container.clientHeight}px`);
-    container.style.setProperty("--vb-thread-scroll", `${container.scrollTop}px`);
+    const scrollTop = container.scrollTop;
+    // Y del contenido = Y en pantalla − Y del scroller + lo ya scrolleado.
+    const origin = container.getBoundingClientRect().top - scrollTop;
+    const medidas: Array<[HTMLElement, number]> = [];
     for (const node of bubbleNodes.current.values()) {
-      node.style.setProperty("--vb-bubble-y", `${node.offsetTop}px`);
+      medidas.push([node, node.getBoundingClientRect().top - origin]);
+    }
+
+    container.style.setProperty("--vb-thread-h", `${container.clientHeight}px`);
+    container.style.setProperty("--vb-thread-scroll", `${scrollTop}px`);
+    for (const [node, y] of medidas) {
+      node.style.setProperty("--vb-bubble-y", `${y}px`);
     }
   }, []);
 
@@ -1173,6 +1185,10 @@ export default function ConversationThread({
    */
   useEffect(() => {
     measureBubbleTints();
+    // Y otra vez pasada la transición: el menú se despliega en 250 ms y los
+    // globos de debajo terminan en un sitio distinto del que tenían al abrirlo.
+    const timer = window.setTimeout(measureBubbleTints, 320);
+    return () => window.clearTimeout(timer);
   }, [messages, loadedImages, expandedMessage, measureBubbleTints]);
 
   useEffect(() => {
@@ -2750,10 +2766,6 @@ export default function ConversationThread({
         style={{
           flex: 1,
           minHeight: 0,
-          // Ancestro posicionado de los globos: es lo que hace que su
-          // `offsetTop` sea su altura DENTRO del hilo, que es la que necesita el
-          // barrido de color.
-          position: "relative",
           overflowY: "auto",
           // Explícito: al deslizar un mensaje se sale de la caja, y sin esto el
           // navegador convertiría ese desbordamiento en scroll horizontal.

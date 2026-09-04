@@ -574,6 +574,78 @@ se timbre una en sandbox.
 
 ---
 
+# PRUEBA EN SANDBOX ✅ — la global TIMBRA (2026-09-03)
+
+**Primer CFDI global emitido de verdad**, contra Facturapi en modo prueba.
+
+| | |
+|---|---|
+| Creador | `OrW9osodagdjexu6riTo8P4ADJG3` |
+| Día | 2026-08-31 |
+| Folio de Facturapi | `6a9a29628b210e6a3a85b887` |
+| **UUID del SAT** | `b268e9eb-be02-436b-bcb0-0ccf19a7e6dc` |
+| Base | **5 868.69 MXN** + 939.07 de IVA |
+
+Verificado con `scripts/verificar-global.ts`, que comprueba lo que costó el grupo A entero:
+folio y UUID, que las ventas queden marcadas con ESE folio, que el importe esté en pesos y
+**cuadre exactamente** con los `fiscalMxn` congelados, y que ninguna quedara a medias.
+
+🚨 **Lo que demuestra:** sin §A0 ese CFDI habría salido por unos **317** —los dólares del ledger
+etiquetados como pesos— y con UUID del SAT encima. Las dos ventas llevan `fuente: "cobro"`, o
+sea el tipo de cambio real de cada operación, no una tasa de tabla.
+
+## 🚨 La trampa que costó tres intentos: Facturapi NO habla el catálogo del SAT
+
+El campo `global.periodicity` de la API de Facturapi **no admite las claves de**
+**`c_Periodicidad`**. Mandarle `"01"` —que es lo correcto según el Anexo 20— devuelve un 400:
+*«El campo global.periodicity no tiene un valor permitido»*. Facturapi usa palabras en inglés y
+traduce ella al código cuando arma el XML:
+
+| Facturapi | SAT |
+|---|---|
+| `day` | 01 Diaria |
+| `week` | 02 Semanal |
+| `fortnight` | 03 Quincenal |
+| `month` | 04 Mensual |
+| `two_month` | 05 Bimestral |
+
+⚠️ El valor viejo, el mensual, **también estaba mal** por lo mismo. Llevaba ahí desde antes de
+§A1 y nunca se había notado porque nunca se había timbrado. Es el argumento a favor de probar
+en sandbox antes de encender nada.
+
+👉 **Regla general:** los campos de la API de Facturapi tienen su propio vocabulario. Los del
+complemento (`complements[].data`) sí son los del SAT, porque viajan tal cual al XML. No dar por
+hecho que un catálogo del Anexo 20 se manda literal.
+
+## El hueco que destapó la prueba
+
+Cada intento de timbrado **aparta las ventas antes** de llamar a Facturapi, y si la llamada
+falla se quedan en `emitiendo` y fuera de toda global. Es el estado seguro —evita el doble
+timbrado— pero **le faltaba la salida**: no había forma de desatascarlas sin entrar a la base de
+datos a mano. Pasó dos veces seguidas.
+
+Resuelto con `soltarAtascadasSinFolio`, el callable `liberarVentasAtascadas` y el botón
+«Liberar atascadas» del panel. 🚨 **Nunca toca las que ya tienen folio**: ahí el CFDI existe y
+soltarlas lo duplicaría; se saltan y se avisa.
+
+## Herramientas que quedaron
+
+| Qué | Dónde |
+|---|---|
+| Panel para disparar y ver el resultado con sus errores | `app/[locale]/admin/facturacion/page.tsx` |
+| Verificar que una global quedó bien | `scripts/verificar-global.ts` |
+| Medir si hay con qué probar | `scripts/estado-timbrado.ts` |
+| Soltar atascadas desde consola | `scripts/liberar-ventas-atascadas.ts` |
+
+## Lo que falta probar
+
+1. **La constancia de retenciones** con su complemento — el último `🔁`: el nombre del tipo de
+   complemento en Facturapi está sin verificar, y acabamos de aprender que su vocabulario no es
+   el del SAT.
+2. **La cancelación motivo 04** (AUD-11). Ahora ya hay una global sobre la que ejercitarla.
+
+---
+
 # PRUEBA EN SANDBOX 🧪
 
 Con el grupo A cerrado, lo único que falta para encender `TIMBRAR` es **verlo timbrar**. Nunca se
