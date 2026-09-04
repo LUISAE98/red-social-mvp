@@ -193,7 +193,7 @@ export default function InviteLinkModal({ groupId, onClose, onCreated }: Props) 
     padding: "16px 16px calc(16px + var(--vb-safe-bottom, 0px))",
     boxSizing: "border-box",
     fontFamily: fontStack,
-    minHeight: "100dvh",
+    minHeight: "var(--vb-alto-pantalla)",
     backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
   };
 

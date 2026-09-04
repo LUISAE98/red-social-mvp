@@ -305,7 +305,7 @@ export default function SuperCommentModal({
                 }
               : {
                   width: "100%", maxWidth: 480,
-                  maxHeight: "calc(100dvh - 72px)", overflowY: "auto",
+                  maxHeight: "calc(var(--vb-alto-pantalla) - 72px)", overflowY: "auto",
                   WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-y",
                   borderRadius: "22px 22px 0 0",
                   background: "rgba(8,9,11,0.96)",

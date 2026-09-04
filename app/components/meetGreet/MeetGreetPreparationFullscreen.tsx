@@ -178,7 +178,7 @@ export default function MeetGreetPreparationFullscreen({
         position: "absolute",
         top: 0,
         insetInlineStart: "100dvw",
-        width: "100dvh",
+        width: "var(--vb-alto-pantalla)",
         height: "100dvw",
         transformOrigin: "top left",
         transform: "rotate(90deg)",
@@ -189,7 +189,7 @@ export default function MeetGreetPreparationFullscreen({
         position: "absolute",
         inset: 0,
         width: "100dvw",
-        height: "100dvh",
+        height: "var(--vb-alto-pantalla)",
         overflow: "hidden",
         flexShrink: 0,
       };

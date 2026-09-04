@@ -243,7 +243,7 @@ export default function ReelFeed({
           inset-inline-start: 0;
           inset-inline-end: 0;
           top: 0;
-          bottom: 0;
+          bottom: calc(0px - var(--vb-lienzo-extra));
           /* Por debajo del nav inferior (9999), que va encima del video. Sin esto,
              al montarse en un portal DESPUÉS del layout, el feed taparía el nav. */
           z-index: 1;

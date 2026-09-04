@@ -45,6 +45,7 @@ const MAX_AUTHOR_PHOTOS = 40;
 const fullScreenCenter: React.CSSProperties = {
   position: "fixed",
   inset: 0,
+  height: "var(--vb-alto-pantalla)",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",

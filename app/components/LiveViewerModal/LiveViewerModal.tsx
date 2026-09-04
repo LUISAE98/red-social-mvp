@@ -2620,7 +2620,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       <>
         {/* lvm-hz-inner: centra y rota el contenido landscape en pantalla portrait.
             vh/vw = fallback iOS ≤ 15; dvh/dvw = iOS 16+ / Android. */}
-        <style>{`${keyframes}.lvm-hz-inner{position:absolute;top:50%;left:50%;width:100dvh;width:100dvh;height:100vw;height:100dvw;transform:translate(-50%,-50%) rotate(90deg);will-change:transform;}`}</style>
+        <style>{`${keyframes}.lvm-hz-inner{position:absolute;top:50%;left:50%;width:var(--vb-alto-pantalla);width:var(--vb-alto-pantalla);height:100vw;height:100dvw;transform:translate(-50%,-50%) rotate(90deg);will-change:transform;}`}</style>
         {/* Exterior: fijo, inset 0, nunca transformado → overflow:hidden fiable */}
         <div style={{ position: "fixed", inset: 0, background: "#000", overflow: "hidden", zIndex: 10001 }}>
           {/* Interior: rotado en portrait, normal en landscape */}

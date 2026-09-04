@@ -372,7 +372,7 @@ export default function ConversationPage() {
     const sondaLvh = document.createElement("div");
     sondaLvh.style.cssText = "width:0;height:100lvh;";
     const sondaDvh = document.createElement("div");
-    sondaDvh.style.cssText = "width:0;height:100dvh;";
+    sondaDvh.style.cssText = "width:0;height:var(--vb-alto-pantalla);";
     sonda.append(sondaLvh, sondaDvh);
     document.body.appendChild(sonda);
 
@@ -591,7 +591,13 @@ export default function ConversationPage() {
               height: viewport.height,
               bottom: "auto" as const,
             }
-          : { inset: 0 }),
+          : {
+              inset: 0,
+              // `inset: 0` se resuelve contra el área de dibujo, que en la PWA
+              // de iPhone mide menos que el lienzo. Con el alto puesto gana el
+              // alto, y el borde inferior cae donde de verdad acaba la pantalla.
+              height: "var(--vb-alto-pantalla)",
+            }),
         // Por encima de MobileBottomNav (9999): la barra inferior taparía justo
         // el campo de escritura.
         zIndex: 10000,

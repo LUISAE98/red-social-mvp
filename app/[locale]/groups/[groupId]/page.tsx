@@ -1608,7 +1608,7 @@ const openCropWithFile = useCallback(
     return (
       <main
         style={{
-          minHeight: "100dvh",
+          minHeight: "var(--vb-alto-pantalla)",
           background: "#000",
           fontFamily: groupPageFontStack,
         }}

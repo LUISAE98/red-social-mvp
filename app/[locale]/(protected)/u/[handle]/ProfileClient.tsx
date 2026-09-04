@@ -1780,7 +1780,7 @@ const res = (await createExclusiveSessionRequest({
     // .vb-skel. Al llegar los datos, el contenido real entra con fade (ver
     // .profile-card en el styled-jsx del render principal).
     return (
-      <main style={{ minHeight: "100dvh", background: "#000", fontFamily: fontStack }}>
+      <main style={{ minHeight: "var(--vb-alto-pantalla)", background: "#000", fontFamily: fontStack }}>
         <ProfileHeaderSkeleton maxWidth={ui.pageMaxWidth} />
       </main>
     );
@@ -1790,7 +1790,7 @@ const res = (await createExclusiveSessionRequest({
     return (
       <main
         style={{
-          minHeight: "100dvh",
+          minHeight: "var(--vb-alto-pantalla)",
           background: "#000",
           color: "#fff",
           // Clearance del bottom-nav lo aporta `.mainCol` del layout; no duplicar.
@@ -3100,7 +3100,7 @@ const res = (await createExclusiveSessionRequest({
   }}
   serviceModalCardStyle={{
   width: "min(720px, calc(100vw - 28px))",
-  maxHeight: "calc(100dvh - 28px)",
+  maxHeight: "calc(var(--vb-alto-pantalla) - 28px)",
   background:
     "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))",
   border: "1px solid rgba(255,255,255,0.16)",

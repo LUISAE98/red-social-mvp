@@ -288,7 +288,7 @@ export default function PostFlamesPanel({
           style={{
             position: "fixed", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0,
             zIndex: 2147483641,
-            maxHeight: "calc(100dvh - 72px)",
+            maxHeight: "calc(var(--vb-alto-pantalla) - 72px)",
             borderRadius: "22px 22px 0 0",
             border: "1px solid transparent",
             background: "rgba(8,9,11,0.96)",
@@ -334,7 +334,7 @@ export default function PostFlamesPanel({
             style={{
               pointerEvents: "auto",
               width: "min(520px, calc(100vw - 28px))",
-              maxHeight: "calc(100dvh - 28px)",
+              maxHeight: "calc(var(--vb-alto-pantalla) - 28px)",
               overflow: "hidden",
               display: "flex", flexDirection: "column",
               borderRadius: 12,

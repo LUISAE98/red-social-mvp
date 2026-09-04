@@ -103,7 +103,7 @@ export default function VibraToast({ toast }: Props) {
           position: "fixed",
           insetInlineStart: 0,
           insetInlineEnd: 0,
-          bottom: 0,
+          bottom: "calc(0px - var(--vb-lienzo-extra))",
           // Alto generoso: el degradado necesita recorrido para apagarse sin
           // que se vea el canto donde termina.
           height: 260,

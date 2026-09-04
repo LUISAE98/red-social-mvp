@@ -124,7 +124,7 @@ export default function PostPinchZoomImage({
     display: "block",
     width: "100%",
     height: "100%",
-    minHeight: disableMinHeight ? undefined : "100dvh",
+    minHeight: disableMinHeight ? undefined : "var(--vb-alto-pantalla)",
     objectFit: "contain",
     background: "#000",
     transform: "translate3d(0px, 0px, 0) scale(1)",

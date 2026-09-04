@@ -616,7 +616,7 @@ export default function LiveStreamSetup({
           <div
             style={{
               width: "100%",
-              maxHeight: "calc(100dvh - 72px)",
+              maxHeight: "calc(var(--vb-alto-pantalla) - 72px)",
               display: "flex",
               flexDirection: "column",
               background: "rgba(8,9,11,0.96)",
@@ -641,7 +641,7 @@ export default function LiveStreamSetup({
               {/* Capa 3 — section: header + contenido, overflow hidden */}
               <section
                 style={{
-                  maxHeight: "calc(100dvh - 72px)",
+                  maxHeight: "calc(var(--vb-alto-pantalla) - 72px)",
                   borderRadius: "22px 22px 0 0",
                   background: "rgba(8,9,11,0.96)",
                   boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",

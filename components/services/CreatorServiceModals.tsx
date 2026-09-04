@@ -189,7 +189,7 @@ const PANEL_CSS = `
       backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     }
     .vibra-svc-panel {
-      width: 100%; max-height: calc(100dvh - 72px);
+      width: 100%; max-height: calc(var(--vb-alto-pantalla) - 72px);
       border-radius: 22px 22px 0 0;
       box-shadow: 0 -24px 80px rgba(0,0,0,0.56);
     }

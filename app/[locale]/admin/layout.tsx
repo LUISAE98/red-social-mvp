@@ -121,7 +121,7 @@ export default function AdminLayout({
     return (
       <div
         style={{
-          minHeight: "100dvh",
+          minHeight: "var(--vb-alto-pantalla)",
           background: "#000",
           display: "flex",
           alignItems: "center",
@@ -139,7 +139,7 @@ export default function AdminLayout({
     return (
       <div
         style={{
-          minHeight: "100dvh",
+          minHeight: "var(--vb-alto-pantalla)",
           background: "#000",
           display: "flex",
           alignItems: "center",
@@ -169,7 +169,7 @@ export default function AdminLayout({
     return (
       <div
         style={{
-          minHeight: "100dvh",
+          minHeight: "var(--vb-alto-pantalla)",
           background: "#000",
           display: "flex",
           alignItems: "center",
@@ -216,7 +216,7 @@ export default function AdminLayout({
         <style jsx>{`
           .shell {
             display: flex;
-            height: 100dvh;
+            height: var(--vb-alto-pantalla);
             overflow: hidden;
             background: #0a0a0a;
             color: #fff;
@@ -230,7 +230,7 @@ export default function AdminLayout({
             display: flex;
             flex-direction: column;
             padding: 24px 0 16px;
-            height: 100dvh;
+            height: var(--vb-alto-pantalla);
             overflow-y: auto;
           }
 
@@ -270,7 +270,7 @@ export default function AdminLayout({
             width: 400px;
             flex-shrink: 0;
             border-inline-end: 1px solid #1a1a1a;
-            height: 100dvh;
+            height: var(--vb-alto-pantalla);
             overflow-y: auto;
             padding: 0;
             display: flex;
@@ -298,7 +298,7 @@ export default function AdminLayout({
           .preview {
             flex: 1;
             min-width: 0;
-            height: 100dvh;
+            height: var(--vb-alto-pantalla);
             position: relative;
             background: #050505;
             display: flex;

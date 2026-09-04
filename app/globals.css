@@ -21,6 +21,45 @@
      Nada más. */
   --vb-safe-bottom: 0px;
 
+  /* 🚨 CUÁNTO MÁS ALTO ES EL LIENZO QUE EL ÁREA DE DIBUJO.
+     ====================================================
+     Vale 0 en todas partes menos en la PWA instalada de iPhone, donde vale lo
+     que ocupa la barra de estado (62px en un iPhone 16 Pro).
+
+     `black-translucent` mete el lienzo por debajo de la barra de estado —es lo
+     que hace que `.safeAreaGlass` pueda pintar el cristal detrás del reloj— pero
+     iOS NO le suma esos píxeles al área de dibujo. Medido en el aparato:
+
+         pantalla 874   lvh 874    ← el lienzo ocupa la pantalla entera
+         alto win 812   dvh 812    ← el área de dibujo mide 62px menos
+
+     Como todo lo que se ancla con `inset: 0`, `bottom: 0` o `100dvh` se resuelve
+     contra el área de dibujo, se queda 62px corto y deja ver el fondo negro del
+     lienzo por abajo. Ese es el escalón negro. No es safe-area: el número viene
+     de ARRIBA aunque el hueco se vea abajo.
+
+     `lvh` sí midió el lienzo de verdad en TODAS las lecturas, incluso con el
+     teclado abierto y el área hundida a 471. Por eso la diferencia se puede
+     calcular, y por eso esto se arregla sumando en vez de adivinando.
+
+     ⚠️ VA ACOTADO A `display-mode: standalone` A PROPÓSITO. En Safari normal
+     `lvh` ignora la barra del navegador, así que fuera de la app instalada esta
+     resta valdría el alto de esa barra y escondería el contenido por debajo.
+
+     Se cura sola: el día que Apple cuadre las dos cuentas, la resta da 0 y no
+     hay nada que revertir. Historia completa en `docs/ios-pwa-viewport.md`.
+
+     Se usa de dos formas:
+       · `--vb-alto-pantalla`, aquí debajo, para todo lo que quiera medir la
+         pantalla entera. Es lo que sustituye a `100dvh`.
+       · directamente, para lo que se ancle con `bottom`, que no se arregla
+         creciendo sino bajando: `bottom: calc(0px - var(--vb-lienzo-extra))`. */
+  --vb-lienzo-extra: 0px;
+
+  /* El alto de la pantalla, para lo que deba llegar de borde a borde. Fuera de
+     la app instalada es exactamente `100dvh` y no cambia nada. */
+  --vb-alto-pantalla: calc(100dvh + var(--vb-lienzo-extra));
+
   /* Sentido de lectura, como NÚMERO, para las animaciones.
      Las propiedades lógicas (margin-inline-start y compañía) se voltean solas en
      RTL, pero `translateX` no: es geometría pura y no tiene versión lógica. Así que
@@ -63,6 +102,15 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out:    cubic-bezier(0, 0, 0.2, 1);
   --ease-in:     cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* Solo dentro de la app instalada. Ahí no hay barra de navegador, así que `lvh`
+   es el lienzo de verdad; en Safari sería el alto sin su barra y escondería
+   contenido. Ver la explicación larga en `--vb-lienzo-extra`, arriba. */
+@media (display-mode: standalone) {
+  :root {
+    --vb-lienzo-extra: calc(100lvh - 100dvh);
+  }
 }
 
 @theme inline {

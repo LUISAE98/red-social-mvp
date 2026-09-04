@@ -999,9 +999,9 @@ return (
     <section ref={shellRef} style={shellStyle}>
       <VibraToast toast={feedToast} />
 
-      {/* min-height: 100dvh → la página nunca colapsa al remontar la pestaña,
+      {/* min-height: var(--vb-alto-pantalla) → la página nunca colapsa al remontar la pestaña,
           así el scroll no se recorta hasta el título. */}
-      <div style={{ overflow: "hidden", width: "100%", minWidth: 0, minHeight: "100dvh" }}>
+      <div style={{ overflow: "hidden", width: "100%", minWidth: 0, minHeight: "var(--vb-alto-pantalla)" }}>
       <motion.div
         key={effectiveMediaTab}
         initial={{ x: mediaSlideDir > 0 ? "100%" : mediaSlideDir < 0 ? "-100%" : 0 }}

@@ -11,7 +11,7 @@ import ProfileHeaderSkeleton from "@/components/profile/ProfileHeaderSkeleton";
  */
 export default function Loading() {
   return (
-    <main style={{ minHeight: "100dvh", background: "#000" }}>
+    <main style={{ minHeight: "var(--vb-alto-pantalla)", background: "#000" }}>
       <ProfileHeaderSkeleton />
     </main>
   );

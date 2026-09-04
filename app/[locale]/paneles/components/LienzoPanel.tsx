@@ -88,7 +88,7 @@ const MUESTRAS = [
 ];
 
 const fondo: React.CSSProperties = {
-  minHeight: "100dvh",
+  minHeight: "var(--vb-alto-pantalla)",
   background: "#000",
   color: "#fff",
   fontFamily: "inherit",

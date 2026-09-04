@@ -210,6 +210,7 @@ const isOverlayRoute =
       style={{
         position: "fixed",
         inset: 0,
+        height: "var(--vb-alto-pantalla)",
         background: "#000",
         zIndex: 999999,
         pointerEvents: "none",
@@ -262,8 +263,8 @@ if (renderUser && isAuthPage && hasProfile === true) {
 
         .rootChromePublicLayout {
           --shell-gutter: 16px;
-          min-height: 100dvh;
-          min-height: 100dvh;
+          min-height: var(--vb-alto-pantalla);
+          min-height: var(--vb-alto-pantalla);
           background: transparent;
           color: #ffffff;
           display: flex;

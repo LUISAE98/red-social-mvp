@@ -598,7 +598,7 @@ export default function MobileBottomNav({
           position: fixed;
           inset-inline-start: 0;
           inset-inline-end: 0;
-          bottom: 0;
+          bottom: calc(0px - var(--vb-lienzo-extra));
           z-index: 9999;
           display: none;
           width: 100%;
@@ -670,7 +670,7 @@ export default function MobileBottomNav({
              se encargan las luces interiores de abajo— sino evitar que sobre un
              fondo muy claro la cápsula se quede sin límite. Al 4% cumple sin
              leerse como una línea. */
-          border: 1px solid rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.02);
           /* VOLUMEN SIN CANTO GRUESO.
              =========================
              El grosor que se veía no era el borde: eran TRES líneas duras
@@ -693,12 +693,15 @@ export default function MobileBottomNav({
              DENTRO, subiendo 16px desde el canto de abajo, que en una píldora de
              unos 70px es buena parte de su cara. Con la base casi opaca no se
              notaba, porque caía sobre negro; sobre cristal sí. Se queda, porque
-             es de donde sale el labio inferior sombreado, pero a la mitad. */
+             es de donde sale el labio inferior sombreado, pero a la mitad.
+
+             ⚠️ Las INTERIORES se fueron a la rama de WebKit. Una sombra interior
+             se pinta por DEBAJO de los hijos, y en Chromium el cristal es un
+             hijo translucido al 46%: la luz blanca de 0,38 se colaba a traves y
+             se leia como una linea viva en todo el contorno. En WebKit el
+             cristal esta en el propio .navShell y no hay hijo que la atraviese,
+             asi que alli siguen igual. */
           box-shadow:
-            inset 0 2px 3px -2px rgba(255, 255, 255, 0.38),
-            inset 0 -2px 3px -2px rgba(0, 0, 0, 0.80),
-            inset 0 -16px 26px -16px rgba(0, 0, 0, 0.45),
-            inset 0 14px 24px -18px rgba(255, 255, 255, 0.12),
             0 1px 2px rgba(0, 0, 0, 0.45),
             0 6px 14px rgba(0, 0, 0, 0.44),
             0 18px 36px rgba(0, 0, 0, 0.56),
@@ -765,6 +768,16 @@ export default function MobileBottomNav({
         @supports (-webkit-touch-callout: none) {
           .navShell {
             background: rgba(6, 6, 8, 0.40);
+            border-color: rgba(255, 255, 255, 0.04);
+            box-shadow:
+              inset 0 2px 3px -2px rgba(255, 255, 255, 0.38),
+              inset 0 -2px 3px -2px rgba(0, 0, 0, 0.80),
+              inset 0 -16px 26px -16px rgba(0, 0, 0, 0.45),
+              inset 0 14px 24px -18px rgba(255, 255, 255, 0.12),
+              0 1px 2px rgba(0, 0, 0, 0.45),
+              0 6px 14px rgba(0, 0, 0, 0.44),
+              0 18px 36px rgba(0, 0, 0, 0.56),
+              0 38px 76px rgba(0, 0, 0, 0.66);
             backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
             -webkit-backdrop-filter: blur(40px) saturate(150%) brightness(0.92);
           }
@@ -774,13 +787,11 @@ export default function MobileBottomNav({
           position: absolute;
           inset: 0;
           border-radius: 999px;
-          /* CON overflow:hidden, al reves que .navShell.
-             BlurFade solo le pone el radio a su envoltorio; sus capas de dentro
-             —las del filtro y la del tinte— se pintan CUADRADAS, y asomaban por
-             las cuatro esquinas dejando ademas un canto vivo abajo. Aqui recortar
-             es seguro: dentro solo vive el cristal, no hay globos de aviso que
-             se salgan (esos cuelgan de .nav, que es hermana). */
-          overflow: hidden;
+          /* SIN overflow:hidden. Recortar aqui redondeaba las capas, si, pero
+             dejaba un canto vivo en todo el contorno: el desenfoque se cortaba
+             de golpe contra el fondo nitido. Ahora el radio se lo pasa BlurFade
+             a cada una de sus capas (la prop radius), que se pintan redondas de
+             origen y se desvanecen en el borde sin ninguna arista. */
           pointer-events: none;
         }
 
@@ -1148,10 +1159,10 @@ export default function MobileBottomNav({
             <BlurFade
               uniform
               size="100%"
-              blur={22}
+              blur={36}
               saturate={150}
               veil="rgba(6,6,8,0.46)"
-              style={{ borderRadius: 999 }}
+              radius={999}
             />
           </div>
 

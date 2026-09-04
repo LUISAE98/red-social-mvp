@@ -153,7 +153,7 @@ function Pantalla({
 /* ── Estilos de la página ──────────────────────────────────────────────── */
 
 const pagina: React.CSSProperties = {
-  minHeight: "100dvh",
+  minHeight: "var(--vb-alto-pantalla)",
   background: "#0a0a0c",
   color: "#fff",
   padding: "24px 20px 60px",

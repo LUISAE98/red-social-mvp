@@ -42,7 +42,7 @@ export default function CompleteProfileClient() {
   }, [nextPath, router]);
 
   const pageStyle: React.CSSProperties = {
-    minHeight: "100dvh",
+    minHeight: "var(--vb-alto-pantalla)",
     display: "grid",
     placeItems: "start center",
     background: "transparent",
@@ -59,7 +59,7 @@ export default function CompleteProfileClient() {
   };
 
   if (checkingAuth || !user) {
-    return <main style={{ minHeight: "100dvh", background: "transparent" }} />;
+    return <main style={{ minHeight: "var(--vb-alto-pantalla)", background: "transparent" }} />;
   }
 
   return (

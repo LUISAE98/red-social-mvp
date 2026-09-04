@@ -280,8 +280,8 @@ const contentAreaClassName = isEmbed
           --desktop-search-gap: 8px;
           --desktop-create-size: 35px;
 
-          min-height: 100dvh;
-          min-height: 100dvh;
+          min-height: var(--vb-alto-pantalla);
+          min-height: var(--vb-alto-pantalla);
           background: transparent;
           color: #fff;
           display: flex;
@@ -1127,6 +1127,7 @@ const contentAreaClassName = isEmbed
              style={{
                position: "fixed",
                inset: 0,
+               height: "var(--vb-alto-pantalla)",
                zIndex: 200,
                background: "#000",
                display: "flex",
@@ -1174,7 +1175,7 @@ export default function GroupsLayout({
   const { user, authTransitionMode } = useAuth();
 
   if (authTransitionMode === "exiting") {
-    return <div style={{ minHeight: "100dvh", background: "#000" }} />;
+    return <div style={{ minHeight: "var(--vb-alto-pantalla)", background: "#000" }} />;
   }
 
   if (user) {

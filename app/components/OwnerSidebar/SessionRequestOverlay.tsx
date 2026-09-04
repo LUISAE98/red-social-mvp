@@ -921,7 +921,7 @@ export default function SessionRequestOverlay({
             style={{
               position: "relative",
               width: "100%",
-              maxHeight: "calc(100dvh - 72px)",
+              maxHeight: "calc(var(--vb-alto-pantalla) - 72px)",
               display: "flex",
               flexDirection: "column",
               background: "#0a0a0a",

@@ -27,7 +27,7 @@ export const groupPageUi = {
 };
 
 export const pageWrap: CSSProperties = {
-  minHeight: "calc(100dvh - 70px)",
+  minHeight: "calc(var(--vb-alto-pantalla) - 70px)",
   // Clearance del bottom-nav lo aporta `.mainCol` del layout de grupos; no duplicar.
   padding: "0 0 0",
   background: "#000",

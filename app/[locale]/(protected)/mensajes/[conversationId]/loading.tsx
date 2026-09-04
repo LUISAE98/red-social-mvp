@@ -10,7 +10,7 @@ import { MessageThreadSkeleton } from "@/components/chat/ChatSkeletons";
  */
 export default function Loading() {
   return (
-    <main style={{ minHeight: "100dvh", width: "100%" }}>
+    <main style={{ minHeight: "var(--vb-alto-pantalla)", width: "100%" }}>
       <div style={{ width: "100%", maxWidth: 720, margin: "0 auto", padding: "14px" }}>
         <MessageThreadSkeleton bubbles={7} />
       </div>

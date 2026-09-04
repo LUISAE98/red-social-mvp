@@ -1,10 +1,15 @@
 # El escalón negro de la PWA iOS
 
-Resuelto el **2026-09-03**, tras cuatro intentos fallidos.
+Resuelto el **2026-09-03**, tras cuatro intentos fallidos previos y dos diagnósticos
+equivocados durante el propio arreglo.
 
 Este documento existe porque el fallo se arregló cuatro veces y volvió cuatro veces. Los tres
 primeros intentos están documentados en comentarios del código. Todos buscaron en el sitio
 equivocado, y por una razón que merece quedar escrita.
+
+Se deja también constancia de los dos diagnósticos que fallaron **dentro** de esta sesión, con
+lo que los desmintió. Son más útiles que el resultado: enseñan qué clase de evidencia parecía
+concluyente y no lo era.
 
 ---
 
@@ -82,81 +87,126 @@ Y 874 − 812 = **62**, que es exactamente lo que ocupa la barra de estado.
 
 ## La causa
 
-**`public/manifest.json` pedía `display: "fullscreen"`, un modo que iOS no implementa.**
+**`statusBarStyle: "black-translucent"` mete el lienzo por debajo de la barra de estado, y iOS
+no le suma esos píxeles al área de dibujo.**
 
-iOS lo reportaba por `display-mode` —el lector lo dejó por escrito— mientras seguía enseñando
-la barra de estado. Ese estado a medias es exactamente lo que miden los números:
+Es un solo interruptor con dos consecuencias, y ahí está el nudo del problema: **es
+exactamente el mismo que da el efecto traslúcido de arriba.** No son dos ajustes peleándose;
+son la misma decisión vista por sus dos caras.
 
-* **daba al lienzo el tamaño de fullscreen** (874, la pantalla entera),
-* **pero hacía las cuentas de standalone** para el área de dibujo (812),
-* y reportaba los márgenes del primero (↑62).
+* **El lienzo** —la superficie física donde se pinta— pasa a medir la pantalla entera, 874.
+  Eso es lo que le da a `.safeAreaGlass` un inset que cubrir, y lo que hace que el reloj y la
+  batería se lean sobre el cristal.
+* **El área de dibujo** —contra la que resuelven `inset: 0`, `bottom: 0` y `100dvh`— se queda
+  en 812.
 
-El área quedaba anclada arriba, así que esos 62px huérfanos **se caían por abajo** y dejaban
-ver el fondo negro del lienzo.
+Los 62px de diferencia son la barra de estado. Como el área queda anclada arriba, sobran por
+abajo y dejan ver el lienzo desnudo, que es negro.
 
 Era pasajero porque iOS rehace esa cuenta en cada transición —el splash al refrescar, abrir
 un panel, cerrar el teclado— y tarda unos fotogramas en cuadrarla. Lo que se pintara dentro
 de esa ventana salía 62px corto y se quedaba así.
 
-### El desvío: por qué la primera versión de este documento culpaba a otra cosa
+### La tabla de verdad, medida en el aparato
 
-El primer arreglo fue quitar `statusBarStyle: "black-translucent"` y dejar `"black"`. **El
-escalón desapareció**, y este documento llegó a afirmar que ahí estaba la causa.
+Tres ciclos de instalación, tres experimentos:
 
-Era un falso positivo. `black-translucent` es lo que mete el lienzo por debajo de la barra de
-estado; al quitarlo, iOS pasó a insetar el lienzo bajo una barra opaca y todo quedó coherente
-—pero por reducción, no por arreglo. Y se llevó por delante un diseño deliberado:
-`.safeAreaGlass`, en `app/[locale]/(protected)/layout.tsx`, pinta el cristal detrás del reloj
-y la batería con `height: calc(env(safe-area-inset-top) + 22px)`. Con la barra opaca ese inset
-vale 0, el cristal se quedó en 22px sueltos y el contenido pasó a cortarse en seco.
+| | `display` | `statusBarStyle` | Traslúcido | Escalón |
+|---|---|---|---|---|
+| **A** (original) | `fullscreen` | `black-translucent` | ✅ | ❌ |
+| **B** | `fullscreen` | `black` | ❌ | ✅ sin escalón |
+| **C** | `standalone` | `black-translucent` | ✅ | ❌ |
 
-La lección: **que un síntoma desaparezca no demuestra que hayas encontrado la causa.** Quitar
-`black-translucent` también habría "funcionado" desactivando media pantalla.
+**El manifest no era la causa.** C lo demuestra: `fullscreen` → `standalone` y el escalón
+volvió igual. Lo que manda es `black-translucent`, y las dos columnas de la derecha se mueven
+siempre juntas.
+
+### Dos diagnósticos equivocados por el camino, y por qué
+
+Este documento llegó a afirmar, en dos versiones distintas, dos causas que no lo eran:
+
+1. **«Es `black-translucent`, sobra el mecanismo viejo.»** Quitarlo (estado B) hizo
+   desaparecer el escalón, y eso se tomó por prueba. Pero funcionó por reducción, no por
+   arreglo: al quitarlo iOS pasó a insetar el lienzo bajo una barra opaca y todo quedó
+   coherente **a costa de media pantalla**. Se llevó por delante `.safeAreaGlass`, que es
+   diseño deliberado, y el traslúcido de arriba se cortó en seco.
+2. **«Es el `display: fullscreen` del manifest.»** Encajaba bien con los números —iOS daba al
+   lienzo el tamaño de fullscreen y hacía las cuentas de standalone— y además era un residual
+   que este mismo documento había descartado por inofensivo. El estado C lo desmintió.
+
+**La lección, dos veces aprendida: que un síntoma desaparezca no demuestra que hayas
+encontrado la causa.** La primera vez pasó por exceso —el arreglo apagaba de más—, la segunda
+por coincidencia.
 
 ## El arreglo
 
-Dos declaraciones que **van emparejadas**:
+Se conserva `black-translucent`, y se compensa la diferencia donde importa. En
+`app/globals.css`:
 
-```jsonc
-// public/manifest.json
-"display": "standalone",          // era "fullscreen"
-"display_override": ["standalone"]
+```css
+:root {
+  --vb-lienzo-extra: 0px;
+  --vb-alto-pantalla: calc(100dvh + var(--vb-lienzo-extra));
+}
+
+@media (display-mode: standalone) {
+  :root { --vb-lienzo-extra: calc(100lvh - 100dvh); }
+}
 ```
 
-```ts
-// app/layout.tsx
-appleWebApp: {
-  capable: true,
-  statusBarStyle: "black-translucent",   // se conserva: es lo que da el lienzo a pantalla completa
-  title: "Vibra",
-},
-```
+Funciona porque **`lvh` sí midió el lienzo de verdad en todas las lecturas**: 874 incluso con
+el teclado abierto y el área hundida a 471. No se movió ni una vez. Por eso la diferencia se
+puede calcular en vez de adivinar, y por eso esto no es un número mágico.
 
-`standalone` sí lo implementa iOS, así que las dos cuentas —lienzo y área de dibujo— vuelven a
-ser la misma, y `black-translucent` puede seguir metiendo el contenido por debajo de la barra
-sin que nada se descuadre.
+Se aplica de dos formas, según cómo esté anclada cada superficie:
 
-⚠️ **iOS guarda esto al INSTALAR.** Para ver un cambio aquí hay que borrar la app de la
-pantalla de inicio y volver a añadirla. Recargar no basta, y eso hizo perder tiempo dos veces.
+| Anclaje | Antes | Ahora |
+|---|---|---|
+| Por alto | `100dvh` | `var(--vb-alto-pantalla)` — 76 sitios en 45 archivos |
+| Por abajo | `bottom: 0` | `bottom: calc(0px - var(--vb-lienzo-extra))` — 7 sitios |
+| Con `inset: 0` | *(nada)* | se le añade `height: var(--vb-alto-pantalla)` — 7 superficies estructurales |
 
-**Coste asumido:** en Android la app deja de ser fullscreen y reaparece la barra de estado.
-Se aceptó a cambio de recuperar el cristal traslúcido en iOS, que es diseño deliberado.
+En el tercer caso el elemento queda sobre-restringido —`top`, `bottom` y `height` a la vez— y
+CSS descarta `bottom`. Es justo lo que se busca: manda el alto, y el borde inferior cae donde
+de verdad acaba la pantalla.
+
+⚠️ **La compensación va acotada a `display-mode: standalone` a propósito.** En Safari normal
+`lvh` ignora la barra del navegador, así que fuera de la app instalada esa resta valdría el
+alto de esa barra y escondería contenido por debajo. Fuera de la PWA, `--vb-alto-pantalla` es
+exactamente `100dvh` y no cambia absolutamente nada.
+
+**Se cura sola.** El día que Apple cuadre las dos cuentas, la resta da 0 y no hay nada que
+revertir.
+
+### El splash, que es la excepción
+
+`#desktop-refresh-splash` se pinta desde un `<style>` en el `<head>`, **antes de que cargue
+`globals.css`**. Ahí la variable llegaría vacía, así que lleva su propia
+`@media (display-mode: standalone)` escrita a mano. Es el único sitio donde la regla está
+duplicada, y es donde más falta hace que valga desde el primer fotograma.
+
+⚠️ Ese bloque vive dentro de un template literal: **un acento invertido en un comentario lo
+parte en seco.** Ya pasó al escribir esto.
 
 ### Si el escalón vuelve
 
-El estado conocido-bueno alternativo es `statusBarStyle: "black"` con el manifest en
-`standalone`: quita el escalón con seguridad, a cambio de perder el traslúcido y dejar el
-corte en seco arriba. Es una línea. Antes de tocar nada, **medir con el lector** (abajo) y
-comprobar si `alto win` volvió a separarse de `pantalla`.
+Medir primero con el lector (abajo). Si `alto win` se separa de `pantalla`, la compensación
+dejó de aplicarse: comprobar que la pantalla en cuestión no use `100dvh` suelto ni
+`bottom: 0` sin la resta. La prueba automática cubre el primer caso.
+
+El estado de emergencia conocido es `statusBarStyle: "black"`: quita el escalón con
+seguridad, a costa del traslúcido. Es una línea, y requiere reinstalar.
 
 ## Lo que deliberadamente NO se hizo
 
-**No se convirtieron a `100lvh` las 127 superficies `position: fixed` con `inset: 0`**
-repartidas en 70 archivos, ni las ~60 lecturas de `window.innerHeight`. `lvh` sí se mantuvo
-fiable en las medidas (874 incluso con el teclado abierto), así que la conversión habría
-funcionado — y habría sido un parche en 70 archivos que deja el viewport mal por debajo. Esas
-superficies eran **víctimas, no causas**: con la raíz arreglada, `inset: 0` vuelve a
-significar "la pantalla".
+**No se convirtieron las 127 superficies `position: fixed` con `inset: 0`** que encontró el
+barrido, solo 7. Un scrim de modal que quede 62px corto deja ver lo que hay detrás, no negro;
+las que se tocaron son las que SON la pantalla —el shell, los overlays de pantalla completa y
+el panel compartido— porque esas dejan ver el lienzo.
+
+Tampoco se tocaron las ~60 lecturas de `window.innerHeight`. Sirven para medir el área de
+dibujo, que es lo que quieren medir.
+
 
 ## Auditoría posterior (2026-09-03)
 
@@ -174,13 +224,17 @@ contradigan sobre geometría:
 | `env(safe-area-inset-bottom)` activo | ✅ ninguno |
 | Código que consulta `display-mode` | ✅ ninguno, aparte del propio lector |
 
-> ⚠️ Esta tabla se levantó cuando aún se creía que la causa era `black-translucent`. El
-> `display: "fullscreen"` aparecía abajo como residual "sin tocar"; resultó ser **la causa**.
-> Se deja constancia: un residual descartado por parecer inofensivo era el culpable.
+Ninguna de esas comprobaciones destapó un segundo caso: el fallo tenía **una sola fuente**.
+Las 127 superficies y las ~60 lecturas de `innerHeight` eran víctimas.
 
 ### Residuales conocidos, a propósito sin tocar
 
-1. ~~**`display: "fullscreen"`**~~ → **era la causa.** Corregido a `standalone`. Ver arriba.
+1. **`display` del manifest.** Está en `standalone`. Se cambió desde `fullscreen` creyendo
+   que era la causa; no lo era (ver la tabla de verdad), pero se deja así porque iOS nunca
+   implementó `fullscreen` —lo reportaba por `display-mode` mientras enseñaba la barra de
+   estado— y `standalone` es el valor honesto. **Coste:** en Android la app deja de ser
+   fullscreen y reaparece la barra de estado allí. Volver a `fullscreen` es seguro para el
+   escalón; es una decisión de producto sobre Android, no técnica.
 2. **`orientation: "portrait"` en el manifest** frente al código que sí maneja horizontal
    (`LiveViewerModal`, `PostImageViewer`, `MeetGreetPreparationFullscreen`, `ReelStorySlide`).
    Android respeta el bloqueo y iOS no, así que ese código solo corre en iOS. Es una decisión
@@ -190,8 +244,10 @@ contradigan sobre geometría:
 
 `test/unit/pantallaCompleta.test.ts` falla si:
 
-* el manifest vuelve a pedir `fullscreen`, en `display` o en `display_override`,
-* se desemparejan `black-translucent` y `standalone` — van los dos o ninguno,
+* alguien reintroduce `100dvh` suelto en vez de `var(--vb-alto-pantalla)`,
+* la compensación deja de definirse una sola vez, o de valer `0px` por defecto,
+* la compensación deja de estar acotada a `display-mode: standalone`,
+* desaparece `black-translucent`, que es lo que da el traslúcido de arriba,
 * se declara `viewport` o `appleWebApp` fuera de `app/layout.tsx`,
 * desaparece `viewportFit: "cover"`,
 * alguien vuelve a usar `env(safe-area-inset-bottom)`,

@@ -339,7 +339,7 @@ const data = snap.data() as {
 
   const modalCardStyle: React.CSSProperties = {
     width: "min(560px, calc(100vw - 32px))",
-    maxHeight: "calc(100dvh - 32px)",
+    maxHeight: "calc(var(--vb-alto-pantalla) - 32px)",
     overflowY: "auto",
     borderRadius: 20,
     border: "1px solid rgba(255,255,255,0.16)",

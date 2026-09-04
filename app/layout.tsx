@@ -148,6 +148,17 @@ export default async function RootLayout({
               #desktop-refresh-splash {
                 position: fixed;
                 inset: 0;
+                /* El lienzo de la PWA de iPhone es más alto que el área de
+                   dibujo contra la que resuelve inset: 0. Sin este alto el
+                   splash se queda corto y por debajo asoma el lienzo en negro:
+                   es el escalón que se veía "poner y quitar" durante el fundido.
+
+                   ⚠️ Aquí NO se puede usar --vb-alto-pantalla. Este bloque se
+                   pinta antes de que cargue globals.css, que es donde vive la
+                   variable, así que llegaría vacía y caería al respaldo. Se
+                   escribe entero, que es la única forma de que valga desde el
+                   primer fotograma — y este es justo el sitio donde eso importa. */
+                height: 100dvh;
                 z-index: 2147483647;
                 display: flex;
                 flex-direction: column;
@@ -156,6 +167,16 @@ export default async function RootLayout({
                 background: #000;
                 overflow: hidden;
                 pointer-events: none;
+              }
+
+              /* Dentro de la app instalada lvh SÍ mide el lienzo entero, y no
+                 hay barra de navegador que dejar a la vista. Es la misma regla
+                 que --vb-lienzo-extra en globals.css, escrita a mano porque
+                 aquí la variable todavía no existe. */
+              @media (display-mode: standalone) {
+                #desktop-refresh-splash {
+                  height: 100lvh;
+                }
               }
 
               #desktop-refresh-splash.desktop-refresh-splash-hidden {

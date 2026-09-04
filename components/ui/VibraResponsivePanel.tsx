@@ -371,6 +371,7 @@ export default function VibraResponsivePanel({
         style={{
           position: "fixed",
           inset: 0,
+          height: "var(--vb-alto-pantalla)",
           zIndex: zIndexBase,
           background: backdrop === "none" ? "transparent" : "rgba(0,0,0,0.52)",
           backdropFilter: backdrop === "none" ? "none" : "blur(10px)",
@@ -392,12 +393,12 @@ export default function VibraResponsivePanel({
           onKeyDown={handleTrapKeyDown}
           style={{
             position: "fixed",
-            bottom: 0,
+            bottom: "calc(0px - var(--vb-lienzo-extra))",
             insetInlineStart: 0,
             insetInlineEnd: 0,
             zIndex: zIndexBase + 1,
             outline: "none",
-            maxHeight: "calc(100dvh - 72px)",
+            maxHeight: "calc(var(--vb-alto-pantalla) - 72px)",
             borderRadius: bareSurface ? 0 : "22px 22px 0 0",
             border: "1px solid transparent",
             background: bareSurface ? "transparent" : "rgba(8,9,11,0.96)",
@@ -489,6 +490,7 @@ export default function VibraResponsivePanel({
           style={{
             position: "fixed",
             inset: 0,
+            height: "var(--vb-alto-pantalla)",
             zIndex: zIndexBase + 1,
             display: "grid",
             placeItems: "center",
@@ -512,7 +514,7 @@ export default function VibraResponsivePanel({
             style={{
               pointerEvents: "auto",
               width: `min(${maxWidthDesktop}px, calc(100vw - 28px))`,
-              maxHeight: "calc(100dvh - 28px)",
+              maxHeight: "calc(var(--vb-alto-pantalla) - 28px)",
               outline: "none",
               overflow: "hidden",
               display: "flex",

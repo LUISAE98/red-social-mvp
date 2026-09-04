@@ -6,7 +6,7 @@ import ListSkeleton from "@/components/ui/ListSkeleton";
  */
 export default function Loading() {
   return (
-    <main style={{ minHeight: "100dvh", width: "100%" }}>
+    <main style={{ minHeight: "var(--vb-alto-pantalla)", width: "100%" }}>
       <ListSkeleton rows={5} avatarSize={56} avatarShape="square" />
     </main>
   );

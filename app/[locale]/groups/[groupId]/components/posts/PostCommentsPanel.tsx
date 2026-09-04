@@ -739,7 +739,7 @@ export default function PostCommentsPanel({
       <div
         style={{
           width: "100%",
-          maxHeight: `calc(100dvh - 72px - ${keyboardPx}px)`,
+          maxHeight: `calc(var(--vb-alto-pantalla) - 72px - ${keyboardPx}px)`,
           display: "flex",
           flexDirection: "column",
           background: "rgba(8,9,11,0.96)",
@@ -765,7 +765,7 @@ export default function PostCommentsPanel({
         >
           <section
             style={{
-              maxHeight: `calc(100dvh - 140px - ${keyboardPx}px)`,
+              maxHeight: `calc(var(--vb-alto-pantalla) - 140px - ${keyboardPx}px)`,
               borderRadius: "22px 22px 0 0",
               background: "rgba(8,9,11,0.96)",
               boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",

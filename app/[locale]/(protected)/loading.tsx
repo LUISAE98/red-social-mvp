@@ -20,7 +20,7 @@ import { PostSkeleton } from "@/app/components/PostSkeleton/PostSkeleton";
  */
 export default function Loading() {
   return (
-    <main style={{ minHeight: "100dvh", width: "100%" }}>
+    <main style={{ minHeight: "var(--vb-alto-pantalla)", width: "100%" }}>
       <div style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}>
         {Array.from({ length: 3 }).map((_, i) => (
           <PostSkeleton key={i} />

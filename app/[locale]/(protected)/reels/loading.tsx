@@ -9,7 +9,7 @@ export default function Loading() {
       style={{
         position: "relative",
         width: "100%",
-        height: "100dvh",
+        height: "var(--vb-alto-pantalla)",
         background: "#000",
         overflow: "hidden",
       }}

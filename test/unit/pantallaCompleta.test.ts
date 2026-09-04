@@ -6,14 +6,16 @@ import { describe, it, expect } from "vitest";
 /**
  * Seguro contra el escalón negro de la PWA iOS.
  *
- * Este fallo se intentó arreglar cuatro veces y volvió cuatro veces, porque cada
- * intento fue a buscarlo al safe-area INFERIOR, donde no había nada que tocar.
- * Salía de tener declarados a la vez los DOS mecanismos de pantalla completa:
- * `black-translucent` (el viejo de Apple) y `viewport-fit: cover` (el moderno).
+ * En la app instalada de iPhone el LIENZO mide la pantalla entera pero el ÁREA
+ * DE DIBUJO mide menos, exactamente lo que ocupa la barra de estado. Todo lo que
+ * se ancle con `100dvh`, `inset: 0` o `bottom: 0` se resuelve contra la segunda
+ * y se queda corto, dejando ver el lienzo en negro por abajo.
  *
- * La historia completa, con las medidas del aparato, está en
- * `docs/ios-pwa-viewport.md`. Estas comprobaciones son para que no vuelva por
- * quinta vez sin que nadie se entere.
+ * La compensación vive en `app/globals.css` (`--vb-lienzo-extra` y
+ * `--vb-alto-pantalla`) y vale 0 en todas partes menos ahí.
+ *
+ * Historia completa, con las medidas del aparato y los cuatro intentos que
+ * buscaron en el sitio equivocado, en `docs/ios-pwa-viewport.md`.
  */
 
 const root = (p: string) => fileURLToPath(new URL(`../../${p}`, import.meta.url));
@@ -38,32 +40,51 @@ const FUENTES: ReadonlyArray<{ ruta: string; texto: string }> = (() => {
   return out;
 })();
 
-describe("pantalla completa en la PWA de iOS", () => {
-  it("no pide un modo de pantalla que iOS no implementa", () => {
-    // `fullscreen` es de donde salía el escalón. iOS lo reportaba por
-    // `display-mode` mientras enseñaba la barra de estado: daba al lienzo el
-    // tamaño de fullscreen y hacía las cuentas de standalone, y los 62px de la
-    // barra se caían por abajo. `standalone` sí lo implementa.
-    const manifest = JSON.parse(readFileSync(root("public/manifest.json"), "utf8"));
-    expect(manifest.display).toBe("standalone");
-    expect(manifest.display_override ?? []).not.toContain("fullscreen");
+const GLOBALS = readFileSync(root("app/globals.css"), "utf8");
+
+describe("alto de pantalla en la PWA de iOS", () => {
+  it("define la compensación una sola vez y en cero por defecto", () => {
+    // Vale 0 fuera de la app instalada: si alguien la pone a otra cosa en el
+    // caso general, se descuadra toda la plataforma en navegador.
+    const extra = [...GLOBALS.matchAll(/--vb-lienzo-extra\s*:\s*([^;]+);/g)].map((m) =>
+      m[1].trim()
+    );
+    expect(extra).toEqual(["0px", "calc(100lvh - 100dvh)"]);
+
+    const alto = [...GLOBALS.matchAll(/--vb-alto-pantalla\s*:\s*([^;]+);/g)].map((m) =>
+      m[1].trim()
+    );
+    expect(alto).toEqual(["calc(100dvh + var(--vb-lienzo-extra))"]);
   });
 
-  it("mantiene emparejados el lienzo a pantalla completa y `standalone`", () => {
-    // Van juntos o no van. `black-translucent` mete el lienzo por debajo de la
-    // barra de estado, que es lo que hace que `.safeAreaGlass` tenga un inset
-    // que cubrir; sin él ese cristal se queda en 22px y el contenido se corta
-    // en seco. Y con `fullscreen` en vez de `standalone`, vuelve el escalón.
-    const layout = readFileSync(root("app/layout.tsx"), "utf8");
-    const manifest = JSON.parse(readFileSync(root("public/manifest.json"), "utf8"));
-
-    expect(layout).toMatch(/statusBarStyle:\s*"black-translucent"/);
-    expect(manifest.display).toBe("standalone");
+  it("acota la compensación a la app instalada", () => {
+    // 🚨 Sin acotar, en Safari `lvh` ignora la barra del navegador y la resta
+    // valdría el alto de esa barra, escondiendo contenido por debajo.
+    expect(GLOBALS).toMatch(
+      /@media\s*\(\s*display-mode:\s*standalone\s*\)\s*\{\s*:root\s*\{\s*--vb-lienzo-extra/
+    );
   });
 
-  it("declara la configuración de pantalla en un solo sitio", () => {
-    // Dos declaraciones es exactamente como empezó el problema: cada una manda
-    // sobre una parte de la geometría y nadie ve la contradicción.
+  it("no reintroduce `100dvh` suelto", () => {
+    // `100dvh` es el área de dibujo, que en la PWA de iPhone NO es la pantalla.
+    // Lo que quiera medir la pantalla usa `var(--vb-alto-pantalla)`.
+    //
+    // Dos excepciones, las dos en `app/`: `globals.css`, que es donde se define
+    // la variable a partir de `100dvh`; y `layout.tsx`, cuyo splash se pinta
+    // ANTES de que cargue la hoja de estilos y por eso lleva su propia regla
+    // `@media (display-mode: standalone)` escrita a mano.
+    const PERMITIDOS = new Set(["app/globals.css", "app/layout.tsx"]);
+    const culpables = FUENTES.filter(
+      (f) => !PERMITIDOS.has(f.ruta) && /\b100dvh\b/.test(sinComentarios(f.texto))
+    ).map((f) => f.ruta);
+    expect(culpables).toEqual([]);
+  });
+});
+
+describe("configuración de pantalla completa", () => {
+  it("declara `viewport` y `appleWebApp` en un solo sitio", () => {
+    // Dos declaraciones es como empezó todo: cada una manda sobre una parte de
+    // la geometría y nadie ve la contradicción.
     const conViewport = FUENTES.filter((f) =>
       /export const viewport\b/.test(sinComentarios(f.texto))
     ).map((f) => f.ruta);
@@ -75,8 +96,14 @@ describe("pantalla completa en la PWA de iOS", () => {
     expect(conApple).toEqual(["app/layout.tsx"]);
   });
 
-  it("mantiene `viewport-fit: cover`, que es el mecanismo bueno", () => {
+  it("mantiene el lienzo por debajo de la barra de estado", () => {
+    // `black-translucent` es lo que da el traslúcido de arriba: sin él,
+    // `env(safe-area-inset-top)` vale 0, `.safeAreaGlass` se queda en 22px
+    // sueltos y el contenido se corta en seco contra una barra negra opaca.
+    // Es también lo que descuadra el área de dibujo — por eso existe
+    // `--vb-lienzo-extra`, para poder tener las dos cosas.
     const layout = readFileSync(root("app/layout.tsx"), "utf8");
+    expect(layout).toMatch(/statusBarStyle:\s*"black-translucent"/);
     expect(layout).toMatch(/viewportFit:\s*"cover"/);
   });
 });

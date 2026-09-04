@@ -711,7 +711,7 @@ function EventsOverlay({
           <div
             style={{
               width: "100%",
-              maxHeight: "calc(100dvh - 72px)",
+              maxHeight: "calc(var(--vb-alto-pantalla) - 72px)",
               display: "flex",
               flexDirection: "column",
               background: "rgba(8,9,11,0.96)",
@@ -732,7 +732,7 @@ function EventsOverlay({
             >
               <section
                 style={{
-                  maxHeight: "calc(100dvh - 140px)",
+                  maxHeight: "calc(var(--vb-alto-pantalla) - 140px)",
                   borderRadius: "22px 22px 0 0",
                   background: "rgba(8,9,11,0.96)",
                   boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",
