@@ -278,7 +278,9 @@
     "removeFlameFromStory": "මෙම කතාවේ කැමැත්ත ඉවත් කරන්න",
     "following": "අනුගමනය කරමින්",
     "send": "යවන්න",
-    "start": "අරඹන්න"
+    "start": "අරඹන්න",
+    "showPassword": "මුරපදය පෙන්වන්න",
+    "hidePassword": "මුරපදය සඟවන්න"
   },
   "groups": {
     "title": "ප්‍රජාවන්",

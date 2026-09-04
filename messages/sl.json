@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Odstrani všeček s te zgodbe",
     "following": "Spremljate",
     "send": "Pošlji",
-    "start": "Začni"
+    "start": "Začni",
+    "showPassword": "Pokaži geslo",
+    "hidePassword": "Skrij geslo"
   },
   "groups": {
     "title": "Skupnosti",

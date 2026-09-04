@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Eemalda meeldimine sellelt loolt",
     "following": "Jälgid",
     "send": "Saada",
-    "start": "Alusta"
+    "start": "Alusta",
+    "showPassword": "Näita parooli",
+    "hidePassword": "Peida parool"
   },
   "groups": {
     "title": "Kogukonnad",

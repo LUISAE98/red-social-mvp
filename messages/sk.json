@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Odobrať lajk tomuto príbehu",
     "following": "Sledujete",
     "send": "Odoslať",
-    "start": "Začať"
+    "start": "Začať",
+    "showPassword": "Zobraziť heslo",
+    "hidePassword": "Skryť heslo"
   },
   "groups": {
     "title": "Komunity",

@@ -278,7 +278,9 @@
     "removeFlameFromStory": "이 스토리의 좋아요 취소",
     "following": "팔로잉",
     "send": "보내기",
-    "start": "시작"
+    "start": "시작",
+    "showPassword": "비밀번호 표시",
+    "hidePassword": "비밀번호 숨기기"
   },
   "groups": {
     "title": "커뮤니티",

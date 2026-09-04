@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Ukloni sviđanje s ove priče",
     "following": "Pratite",
     "send": "Pošalji",
-    "start": "Počni"
+    "start": "Počni",
+    "showPassword": "Prikaži lozinku",
+    "hidePassword": "Sakrij lozinku"
   },
   "groups": {
     "title": "Zajednice",

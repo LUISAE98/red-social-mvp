@@ -278,7 +278,9 @@
     "removeFlameFromStory": "މި ވާހަކައިން ލައިކް ނަގާ",
     "following": "ފޮލޯކުރަނީ",
     "send": "ފޮނުވާ",
-    "start": "ފަށާ"
+    "start": "ފަށާ",
+    "showPassword": "ޕާސްވޯޑް ދައްކާ",
+    "hidePassword": "ޕާސްވޯޑް ފޮރުވާ"
   },
   "groups": {
     "title": "ކޮމިއުނިޓީތައް",

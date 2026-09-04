@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Remover curtida desta história",
     "following": "Seguindo",
     "send": "Enviar",
-    "start": "Começar"
+    "start": "Começar",
+    "showPassword": "Mostrar senha",
+    "hidePassword": "Ocultar senha"
   },
   "groups": {
     "title": "Comunidades",

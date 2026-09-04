@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Уклони свиђање са ове приче",
     "following": "Пратите",
     "send": "Pošalji",
-    "start": "Počni"
+    "start": "Počni",
+    "showPassword": "Прикажи лозинку",
+    "hidePassword": "Сакриј лозинку"
   },
   "groups": {
     "title": "Zajednice",

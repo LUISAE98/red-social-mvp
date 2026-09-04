@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Bu hekayənin bəyənməsini götür",
     "following": "İzlənilir",
     "send": "Göndər",
-    "start": "Başla"
+    "start": "Başla",
+    "showPassword": "Parolu göstər",
+    "hidePassword": "Parolu gizlət"
   },
   "groups": {
     "title": "İcmalar",

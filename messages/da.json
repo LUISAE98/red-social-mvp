@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Fjern synes godt om fra denne historie",
     "following": "Følger",
     "send": "Send",
-    "start": "Start"
+    "start": "Start",
+    "showPassword": "Vis adgangskode",
+    "hidePassword": "Skjul adgangskode"
   },
   "groups": {
     "title": "Communities",

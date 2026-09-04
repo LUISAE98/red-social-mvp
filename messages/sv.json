@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Ta bort gilla från den här storyn",
     "following": "Följer",
     "send": "Skicka",
-    "start": "Börja"
+    "start": "Börja",
+    "showPassword": "Visa lösenord",
+    "hidePassword": "Dölj lösenord"
   },
   "groups": {
     "title": "Communities",

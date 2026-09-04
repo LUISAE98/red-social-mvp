@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Quitar flamita de esta historia",
     "following": "Siguiendo",
     "send": "Enviar",
-    "start": "Comenzar"
+    "start": "Comenzar",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña"
   },
   "groups": {
     "title": "Comunidades",

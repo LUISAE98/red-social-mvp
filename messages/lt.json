@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Pašalinti patinka nuo šios istorijos",
     "following": "Sekate",
     "send": "Siųsti",
-    "start": "Pradėti"
+    "start": "Pradėti",
+    "showPassword": "Rodyti slaptažodį",
+    "hidePassword": "Slėpti slaptažodį"
   },
   "groups": {
     "title": "Bendruomenės",

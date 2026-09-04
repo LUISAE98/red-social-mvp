@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Retirer le j'aime de cette story",
     "following": "Abonné",
     "send": "Envoyer",
-    "start": "Commencer"
+    "start": "Commencer",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe"
   },
   "groups": {
     "title": "Communautés",

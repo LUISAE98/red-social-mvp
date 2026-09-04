@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Poista tykkäys tästä tarinasta",
     "following": "Seuraat",
     "send": "Lähetä",
-    "start": "Aloita"
+    "start": "Aloita",
+    "showPassword": "Näytä salasana",
+    "hidePassword": "Piilota salasana"
   },
   "groups": {
     "title": "Yhteisöt",

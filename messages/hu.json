@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Tetszés visszavonása",
     "following": "Követed",
     "send": "Küldés",
-    "start": "Kezdés"
+    "start": "Kezdés",
+    "showPassword": "Jelszó megjelenítése",
+    "hidePassword": "Jelszó elrejtése"
   },
   "groups": {
     "title": "Közösségek",

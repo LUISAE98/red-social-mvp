@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Retrage aprecierea acestei povești",
     "following": "Urmărești",
     "send": "Trimite",
-    "start": "Începe"
+    "start": "Începe",
+    "showPassword": "Arată parola",
+    "hidePassword": "Ascunde parola"
   },
   "groups": {
     "title": "Comunități",

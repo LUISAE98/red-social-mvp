@@ -21,6 +21,11 @@ export type { InputProps } from "./Input";
 export { TextArea } from "./TextArea";
 export type { TextAreaProps } from "./TextArea";
 
+// Contraseña con ojo para revelarla. Hereda el aspecto de quien lo usa, así que
+// vale igual en el alta, en el login y en cualquier formulario con estilo propio.
+export { PasswordInput } from "./PasswordInput";
+export type { PasswordInputProps } from "./PasswordInput";
+
 export { Avatar } from "./Avatar";
 export type { AvatarProps } from "./Avatar";
 

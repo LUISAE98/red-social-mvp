@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Bain an moladh den scéal seo",
     "following": "Á leanúint",
     "send": "Seol",
-    "start": "Tosaigh"
+    "start": "Tosaigh",
+    "showPassword": "Taispeáin an pasfhocal",
+    "hidePassword": "Folaigh an pasfhocal"
   },
   "groups": {
     "title": "Pobail",

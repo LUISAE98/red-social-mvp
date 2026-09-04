@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Noņemt patīk no šī stāsta",
     "following": "Sekojat",
     "send": "Sūtīt",
-    "start": "Sākt"
+    "start": "Sākt",
+    "showPassword": "Rādīt paroli",
+    "hidePassword": "Paslēpt paroli"
   },
   "groups": {
     "title": "Kopienas",

@@ -278,7 +278,9 @@
     "removeFlameFromStory": "このストーリーのいいねを取り消す",
     "following": "フォロー中",
     "send": "送信",
-    "start": "始める"
+    "start": "始める",
+    "showPassword": "パスワードを表示",
+    "hidePassword": "パスワードを隠す"
   },
   "groups": {
     "title": "コミュニティ",

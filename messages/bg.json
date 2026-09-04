@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Премахни харесването на тази история",
     "following": "Следвате",
     "send": "Изпрати",
-    "start": "Започни"
+    "start": "Започни",
+    "showPassword": "Покажи паролата",
+    "hidePassword": "Скрий паролата"
   },
   "groups": {
     "title": "Общности",

@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Hapus suka dari cerita ini",
     "following": "Mengikuti",
     "send": "Kirim",
-    "start": "Mulai"
+    "start": "Mulai",
+    "showPassword": "Tampilkan kata sandi",
+    "hidePassword": "Sembunyikan kata sandi"
   },
   "groups": {
     "title": "Komunitas",

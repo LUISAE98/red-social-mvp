@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Fjern liker fra denne historien",
     "following": "Følger",
     "send": "Send",
-    "start": "Start"
+    "start": "Start",
+    "showPassword": "Vis passord",
+    "hidePassword": "Skjul passord"
   },
   "groups": {
     "title": "Communities",

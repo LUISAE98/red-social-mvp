@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Bu hikâyenin beğenisini kaldır",
     "following": "Takip ediliyor",
     "send": "Gönder",
-    "start": "Başla"
+    "start": "Başla",
+    "showPassword": "Parolayı göster",
+    "hidePassword": "Parolayı gizle"
   },
   "groups": {
     "title": "Topluluklar",

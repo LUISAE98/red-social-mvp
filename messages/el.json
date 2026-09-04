@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Αφαίρεση από τα αγαπημένα",
     "following": "Ακολουθείτε",
     "send": "Στείλε",
-    "start": "Ξεκίνα"
+    "start": "Ξεκίνα",
+    "showPassword": "Εμφάνιση κωδικού",
+    "hidePassword": "Απόκρυψη κωδικού"
   },
   "groups": {
     "title": "Κοινότητες",

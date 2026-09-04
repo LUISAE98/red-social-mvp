@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Neħħi l-like minn din l-istorja",
     "following": "Qed issegwi",
     "send": "Ibgħat",
-    "start": "Ibda"
+    "start": "Ibda",
+    "showPassword": "Uri l-password",
+    "hidePassword": "Aħbi l-password"
   },
   "groups": {
     "title": "Komunitajiet",

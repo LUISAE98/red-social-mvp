@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Энэ түүхээс таалагдсаныг арилгах",
     "following": "Дагаж байна",
     "send": "Илгээх",
-    "start": "Эхлэх"
+    "start": "Эхлэх",
+    "showPassword": "Нууц үгийг харуулах",
+    "hidePassword": "Нууц үгийг нуух"
   },
   "groups": {
     "title": "Нийгэмлэгүүд",

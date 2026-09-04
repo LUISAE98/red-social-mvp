@@ -278,7 +278,9 @@
     "removeFlameFromStory": "เอาถูกใจออกจากสตอรีนี้",
     "following": "กำลังติดตาม",
     "send": "ส่ง",
-    "start": "เริ่ม"
+    "start": "เริ่ม",
+    "showPassword": "แสดงรหัสผ่าน",
+    "hidePassword": "ซ่อนรหัสผ่าน"
   },
   "groups": {
     "title": "ชุมชน",

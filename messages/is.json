@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Fjarlægja læk af þessari sögu",
     "following": "Fylgist með",
     "send": "Senda",
-    "start": "Byrja"
+    "start": "Byrja",
+    "showPassword": "Sýna lykilorð",
+    "hidePassword": "Fela lykilorð"
   },
   "groups": {
     "title": "Samfélög",

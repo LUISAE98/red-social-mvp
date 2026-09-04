@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Bỏ thích câu chuyện này",
     "following": "Đang theo dõi",
     "send": "Gửi",
-    "start": "Bắt đầu"
+    "start": "Bắt đầu",
+    "showPassword": "Hiện mật khẩu",
+    "hidePassword": "Ẩn mật khẩu"
   },
   "groups": {
     "title": "Cộng đồng",

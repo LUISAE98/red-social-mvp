@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Buang suka daripada cerita ini",
     "following": "Mengikuti",
     "send": "Hantar",
-    "start": "Mula"
+    "start": "Mula",
+    "showPassword": "Tunjukkan kata laluan",
+    "hidePassword": "Sembunyikan kata laluan"
   },
   "groups": {
     "title": "Komuniti",

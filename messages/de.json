@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Like von dieser Story entfernen",
     "following": "Folgst du",
     "send": "Senden",
-    "start": "Starten"
+    "start": "Starten",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort verbergen"
   },
   "groups": {
     "title": "Communitys",

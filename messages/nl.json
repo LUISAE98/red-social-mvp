@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Vind-ik-leuk verwijderen",
     "following": "Volgend",
     "send": "Verzenden",
-    "start": "Beginnen"
+    "start": "Beginnen",
+    "showPassword": "Wachtwoord tonen",
+    "hidePassword": "Wachtwoord verbergen"
   },
   "groups": {
     "title": "Community's",

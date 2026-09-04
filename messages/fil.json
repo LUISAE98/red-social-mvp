@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Alisin ang like sa kuwentong ito",
     "following": "Sinusundan",
     "send": "Ipadala",
-    "start": "Simulan"
+    "start": "Simulan",
+    "showPassword": "Ipakita ang password",
+    "hidePassword": "Itago ang password"
   },
   "groups": {
     "title": "Mga komunidad",

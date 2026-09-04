@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Treu el m'agrada d'aquesta història",
     "following": "Seguint",
     "send": "Envia",
-    "start": "Comença"
+    "start": "Comença",
+    "showPassword": "Mostra la contrasenya",
+    "hidePassword": "Amaga la contrasenya"
   },
   "groups": {
     "title": "Comunitats",

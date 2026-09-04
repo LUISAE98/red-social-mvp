@@ -278,7 +278,9 @@
     "removeFlameFromStory": "ដកការចូលចិត្តចេញពីរឿងនេះ",
     "following": "កំពុងតាមដាន",
     "send": "ផ្ញើ",
-    "start": "ចាប់ផ្តើម"
+    "start": "ចាប់ផ្តើម",
+    "showPassword": "បង្ហាញពាក្យសម្ងាត់",
+    "hidePassword": "លាក់ពាក្យសម្ងាត់"
   },
   "groups": {
     "title": "សហគមន៍",

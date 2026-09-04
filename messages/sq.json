@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Hiq pëlqimin nga kjo histori",
     "following": "Duke ndjekur",
     "send": "Dërgo",
-    "start": "Fillo"
+    "start": "Fillo",
+    "showPassword": "Shfaq fjalëkalimin",
+    "hidePassword": "Fshih fjalëkalimin"
   },
   "groups": {
     "title": "Komunitete",

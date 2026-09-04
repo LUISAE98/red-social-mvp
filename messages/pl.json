@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Usuń polubienie tej historii",
     "following": "Obserwujesz",
     "send": "Wyślij",
-    "start": "Zacznij"
+    "start": "Zacznij",
+    "showPassword": "Pokaż hasło",
+    "hidePassword": "Ukryj hasło"
   },
   "groups": {
     "title": "Społeczności",

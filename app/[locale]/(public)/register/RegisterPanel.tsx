@@ -18,7 +18,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { createUserProfileDoc } from "@/lib/auth/profileOnboarding";
 import { isPasswordAcceptable } from "@/lib/auth/passwordPolicy";
-import { TextButton } from "@/components/ui";
+import { PasswordInput, TextButton } from "@/components/ui";
 import { enablePush, isPushSupported } from "@/lib/push/fcm";
 import ImageCropperModal from "@/components/media/ImageCropperModal";
 import { uploadProfileImage } from "@/lib/storage/uploadProfileImage";
@@ -791,8 +791,7 @@ export default function RegisterPanel({
 
         <label style={{ display: "grid", gap: 4 }}>
           <span style={labelTextStyle}>{t("passwordLabel")}{req}</span>
-          <input
-            type="password"
+          <PasswordInput
             required
             value={password}
             autoComplete="new-password"
@@ -819,8 +818,7 @@ export default function RegisterPanel({
 
         <label style={{ display: "grid", gap: 4 }}>
           <span style={labelTextStyle}>{t("confirmPasswordLabel")}{req}</span>
-          <input
-            type="password"
+          <PasswordInput
             required
             value={password2}
             autoComplete="new-password"

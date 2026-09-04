@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Togli mi piace da questa storia",
     "following": "Segui",
     "send": "Invia",
-    "start": "Inizia"
+    "start": "Inizia",
+    "showPassword": "Mostra password",
+    "hidePassword": "Nascondi password"
   },
   "groups": {
     "title": "Community",

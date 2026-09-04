@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
+import { PasswordInput } from "@/components/ui";
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -1003,8 +1004,7 @@ body.loginPageBg {
 
               <label style={{ display: "grid", gap: 4 }}>
                 <span style={labelTextStyle}>{t("passwordLabel")}</span>
-                <input
-                  type="password"
+                <PasswordInput
                   required
                   autoComplete="current-password"
                   value={password}

@@ -278,7 +278,9 @@
     "removeFlameFromStory": "Remover gosto desta história",
     "following": "A seguir",
     "send": "Enviar",
-    "start": "Começar"
+    "start": "Começar",
+    "showPassword": "Mostrar palavra-passe",
+    "hidePassword": "Ocultar palavra-passe"
   },
   "groups": {
     "title": "Comunidades",

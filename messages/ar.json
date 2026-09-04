@@ -278,7 +278,9 @@
     "removeFlameFromStory": "إزالة الإعجاب من هذه القصة",
     "following": "تتابعه",
     "send": "إرسال",
-    "start": "ابدأ"
+    "start": "ابدأ",
+    "showPassword": "إظهار كلمة المرور",
+    "hidePassword": "إخفاء كلمة المرور"
   },
   "groups": {
     "title": "المجتمعات",
