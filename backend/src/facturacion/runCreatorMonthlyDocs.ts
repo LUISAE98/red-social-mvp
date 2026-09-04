@@ -34,6 +34,7 @@ import {
   yaEmitido,
 } from "./creatorMonthlyDocs";
 import { armarComprobante, guardarComprobante } from "./comprobanteLiquidacion";
+import { requirePlatformMod } from "../authz";
 import { SETTLEMENT_CURRENCY } from "../wallet/ledger";
 
 if (admin.apps.length === 0) {
@@ -181,17 +182,22 @@ export const creatorMonthlyDocsCron = onSchedule(
 export const runCreatorMonthlyDocs = onCall(
   { region: REGION, cors: true, secrets: [facturapiTestKey, facturapiUserKey] },
   async (request) => {
-    const uid = request.auth?.uid;
-    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-    const userSnap = await db.collection("users").doc(uid).get();
-    if (userSnap.get("role") !== "superadmin") {
-      throw new HttpsError("permission-denied", "Solo un superadministrador puede ejecutarlo.");
-    }
+    /**
+     * 🚨 El supermoderador se identifica por el claim `role=moderator` MÁS sesión de Google.
+     *
+     * Aquí había un `userSnap.get("role") !== "superadmin"` que leía un campo de Firestore que
+     * no existe —el rol vive en los claims del token, no en el documento del usuario—, así que
+     * esta función estaba cerrada para todo el mundo. Mismo fallo que tenían las tres
+     * herramientas nuevas de facturación.
+     */
+    requirePlatformMod(request);
 
-    const periodo = String((request.data as { periodo?: unknown })?.periodo ?? "").trim();
+    const data = (request.data ?? {}) as Record<string, unknown>;
+    const periodo = String(data.periodo ?? "").trim();
     if (!/^\d{4}-\d{2}$/.test(periodo)) {
-      throw new HttpsError("invalid-argument", "Periodo inválido. Usa YYYY-MM.");
+      throw new HttpsError("invalid-argument", "El periodo va en formato AAAA-MM.");
     }
-    return await procesarPeriodo(periodo);
+    // 🧪 Igual que en la global: emite de verdad solo en esta pasada.
+    return await procesarPeriodo(periodo, data.timbrar === true || TIMBRAR);
   }
 );

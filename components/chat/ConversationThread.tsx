@@ -2063,6 +2063,22 @@ export default function ConversationThread({
                     </button>
                   ) : null}
 
+                  {/* Editar solo el autor, con texto y dentro de la ventana de
+                      10 minutos: pasado ese punto las rules lo rechazan, así que
+                      ni se ofrece. Va ANTES de las de eliminar — lo que borra se
+                      queda al final, que es donde no se pulsa sin querer. */}
+                  {mine && withinWindow && message.text ? (
+                    <button
+                      type="button"
+                      className="vibra-msg-menu-item"
+                      onClick={() => startEdit(message)}
+                      tabIndex={expanded ? 0 : -1}
+                    >
+                      <MenuIcon path={ICON_PENCIL} />
+                      {tCommon("edit")}
+                    </button>
+                  ) : null}
+
                   <button
                     type="button"
                     className="vibra-msg-menu-item"
@@ -2077,37 +2093,22 @@ export default function ConversationThread({
                     {tChat("deleteForMe")}
                   </button>
 
-                  {/* Retirar y editar solo el autor, y solo dentro de la
-                      ventana de 10 minutos: pasado ese punto las rules lo
-                      rechazan, así que ni se ofrecen. */}
+                  {/* Retirar de los dos lados: solo el autor y solo dentro de la
+                      misma ventana de 10 minutos. */}
                   {mine && withinWindow ? (
-                    <>
-                      <button
-                        type="button"
-                        className="vibra-msg-menu-item"
-                        onClick={() =>
-                          runMessageAction(() =>
-                            deleteMessageForEveryone(conversationId!, message.id)
-                          )
-                        }
-                        tabIndex={expanded ? 0 : -1}
-                      >
-                        <MenuIcon path={ICON_TRASH} />
-                        {tChat("deleteForEveryone")}
-                      </button>
-
-                      {message.text ? (
-                        <button
-                          type="button"
-                          className="vibra-msg-menu-item"
-                          onClick={() => startEdit(message)}
-                          tabIndex={expanded ? 0 : -1}
-                        >
-                          <MenuIcon path={ICON_PENCIL} />
-                          {tCommon("edit")}
-                        </button>
-                      ) : null}
-                    </>
+                    <button
+                      type="button"
+                      className="vibra-msg-menu-item"
+                      onClick={() =>
+                        runMessageAction(() =>
+                          deleteMessageForEveryone(conversationId!, message.id)
+                        )
+                      }
+                      tabIndex={expanded ? 0 : -1}
+                    >
+                      <MenuIcon path={ICON_TRASH} />
+                      {tChat("deleteForEveryone")}
+                    </button>
                   ) : null}
                 </div>
               ) : null}

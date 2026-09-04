@@ -699,7 +699,8 @@ export default function MobileBottomNav({
              DENTRO, subiendo 16px desde el canto de abajo, que en una píldora de
              unos 70px es buena parte de su cara. Con la base casi opaca no se
              notaba, porque caía sobre negro; sobre cristal sí. Se queda, porque
-             es de donde sale el labio inferior sombreado, pero a la mitad. */
+             es de donde sale el labio inferior sombreado, pero a la mitad.
+
              Las INTERIORES se mudaron a .navTint, porque tienen que caer sobre
              el cristal y no por debajo de el; aqui solo quedan las de fuera. */
           box-shadow:

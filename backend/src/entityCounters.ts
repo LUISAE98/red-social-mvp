@@ -26,6 +26,7 @@ import {
   onDocumentCreated,
   onDocumentDeleted,
   onDocumentUpdated,
+  onDocumentWritten,
 } from "firebase-functions/v2/firestore";
 
 if (!admin.apps.length) {
@@ -134,5 +135,47 @@ export const onMembersCountDeleted = onDocumentDeleted(
   { document: "groups/{groupId}/members/{userId}", region: REGION },
   async (event) => {
     await bump(db.collection("groups").doc(event.params.groupId), "membersCount", -1);
+  }
+);
+
+/**
+ * Solicitudes de ingreso PENDIENTES, contadas en el documento de la comunidad.
+ *
+ * Por qué: el menú lateral del creador abría UNA escucha por comunidad sobre
+ * `groups/{id}/joinRequests` solo para pintar el globito de «hay solicitudes».
+ * Quien administra veinte comunidades pagaba veinte escuchas en cada pantalla,
+ * y las abría de nuevo al navegar. Con el número en el documento del grupo el
+ * globo sale gratis: el menú YA escucha los grupos del creador, así que son
+ * veinte escuchas menos y ninguna nueva.
+ *
+ * La lista de quién pidió entrar se sigue leyendo de la subcolección, pero solo
+ * cuando el creador abre esa comunidad — que es cuando de verdad hace falta.
+ *
+ * Un solo `onDocumentWritten` en vez de tres funciones porque aquí lo que cuenta
+ * no es que el documento exista, sino que exista Y esté pendiente. Con triggers
+ * separados esa condición habría que repetirla en los tres, y un rechazo (que
+ * BORRA el documento) y una aprobación (que le cambia el estado) tendrían que
+ * mantenerse en sintonía por separado. Comparar el antes y el después en un solo
+ * sitio lo resuelve para los tres casos a la vez.
+ */
+function esPendiente(data: admin.firestore.DocumentData | undefined): boolean {
+  return data?.status === "pending";
+}
+
+export const onJoinRequestsPendingCount = onDocumentWritten(
+  { document: "groups/{groupId}/joinRequests/{userId}", region: REGION },
+  async (event) => {
+    const antes = esPendiente(event.data?.before.data());
+    const despues = esPendiente(event.data?.after.data());
+
+    // Ni entró ni salió del estado que se cuenta: no hay nada que mover. Cubre
+    // también las ediciones que no tocan `status`.
+    if (antes === despues) return;
+
+    await bump(
+      db.collection("groups").doc(event.params.groupId),
+      "pendingJoinRequestsCount",
+      despues ? 1 : -1
+    );
   }
 );

@@ -38,7 +38,26 @@ type ResumenDelDia = {
   timbrado: boolean;
 };
 
+/** Lo que devuelve `runCreatorMonthlyDocs`. */
+type ResumenDelMes = {
+  periodo: string;
+  creadores: number;
+  comision: number;
+  retenciones: number;
+  liquidaciones: number;
+  saltados: number;
+  errores: number;
+  detalles?: string[];
+  timbrado: boolean;
+};
+
 type Phase = "idle" | "running" | "done" | "error";
+
+/** El mes mexicano de hoy. */
+function mesMx(): string {
+  const l = new Date(Date.now() - 6 * 3_600_000);
+  return `${l.getUTCFullYear()}-${String(l.getUTCMonth() + 1).padStart(2, "0")}`;
+}
 
 /** El día mexicano de hoy. México es UTC-6 fijo desde que quitaron el horario de verano. */
 function hoyMx(): string {
@@ -260,6 +279,8 @@ export default function AdminFacturacionPage() {
         )}
       </section>
 
+      <ComprobantesDelMes onError={setError} showToast={showToast} />
+
       <VibraToast toast={toast} />
 
       <style jsx>{`
@@ -431,5 +452,263 @@ function Fila({ k, v, hint }: { k: string; v: number; hint?: string }) {
         }
       `}</style>
     </div>
+  );
+}
+
+/**
+ * Los comprobantes que Vibra emite AL CREADOR cada mes.
+ *
+ * Van aparte de la global porque tienen otra cadencia y otro emisor: la global la emite el
+ * creador con su sello y sale a diario; estos los emite Vibra con el suyo y son mensuales,
+ * porque la comisión es un servicio continuado y la constancia de retenciones es periódica
+ * por naturaleza.
+ */
+function ComprobantesDelMes({
+  onError,
+  showToast,
+}: {
+  onError: (e: string | null) => void;
+  showToast: (m: string, t: "success" | "error" | "info") => void;
+}) {
+  const [periodo, setPeriodo] = useState(mesMx);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [result, setResult] = useState<ResumenDelMes | null>(null);
+  const [seenSeco, setSeenSeco] = useState<string | null>(null);
+
+  const valido = /^\d{4}-\d{2}$/.test(periodo);
+  const secoListo = seenSeco === periodo;
+  const corriendo = phase === "running";
+
+  async function correr(timbrar: boolean) {
+    if (corriendo || !valido) return;
+    if (timbrar && !secoListo) return;
+
+    setPhase("running");
+    onError(null);
+    setResult(null);
+
+    try {
+      const fn = httpsCallable<{ periodo: string; timbrar?: boolean }, ResumenDelMes>(
+        functions,
+        "runCreatorMonthlyDocs"
+      );
+      const res = await fn(timbrar ? { periodo, timbrar: true } : { periodo });
+      setResult(res.data);
+      setPhase("done");
+      if (!timbrar) setSeenSeco(periodo);
+      showToast(
+        timbrar
+          ? `Emitidos ${res.data.comision} de comisión y ${res.data.retenciones} constancia(s).`
+          : `En seco: ${res.data.creadores} creador(es) con movimiento en ${periodo}.`,
+        timbrar ? "success" : "info"
+      );
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+      setPhase("error");
+    }
+  }
+
+  return (
+    <section className="card">
+      <span className="badge">Comisión y constancia de retenciones</span>
+      <p className="desc">
+        Los dos comprobantes que Vibra le emite al creador cada mes, con su propio sello. Son
+        mensuales a propósito, no diarios como la global.
+      </p>
+
+      <div className="warn">
+        🚨 La constancia de retenciones es el documento con el que el creador acredita ante el
+        SAT lo que se le retuvo, y el SAT lo cruza con la declaración informativa. Cuenta en seco
+        y revisa antes de emitir.
+      </div>
+
+      <label className="label" htmlFor="periodo">
+        Mes
+      </label>
+      <input
+        id="periodo"
+        className="input"
+        type="month"
+        value={periodo}
+        disabled={corriendo}
+        onChange={(e) => setPeriodo(e.target.value)}
+      />
+
+      <div className="actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={corriendo || !valido}
+          onClick={() => correr(false)}
+        >
+          {corriendo ? "Contando…" : "Contar en seco"}
+        </button>
+        <button
+          type="button"
+          className="btn btnDanger"
+          disabled={corriendo || !valido || !secoListo}
+          onClick={() => correr(true)}
+        >
+          Emitir de verdad
+        </button>
+      </div>
+
+      {result && (
+        <>
+          <div className="rows">
+            <Fila
+              k="Creadores con movimiento"
+              v={result.creadores}
+              hint="Con al menos una venta ganada en el mes."
+            />
+            <Fila
+              k="CFDI de comisión"
+              v={result.comision}
+              hint="Vibra le factura su 25% más el impuesto de esa comisión."
+            />
+            <Fila
+              k="Constancias de retenciones"
+              v={result.retenciones}
+              hint="Con el complemento de plataformas tecnológicas. Solo si hubo retención mexicana."
+            />
+            <Fila
+              k="Comprobantes de liquidación"
+              v={result.liquidaciones}
+              hint="Para el creador extranjero sin retención mexicana. No es un CFDI, se genera siempre."
+            />
+            <Fila
+              k="Saltados"
+              v={result.saltados}
+              hint="Ya se habían emitido ese mes. No se duplican."
+            />
+            <Fila k="Errores" v={result.errores} />
+          </div>
+
+          {result.detalles && result.detalles.length > 0 && (
+            <div className="errores">
+              {result.detalles.map((d, i) => (
+                <p key={i} className="errorLinea">
+                  {d}
+                </p>
+              ))}
+            </div>
+          )}
+
+          <p className="hint">
+            {result.timbrado
+              ? "Esta pasada TIMBRÓ. Los documentos existen."
+              : "Pasada en seco. No se timbró nada."}
+          </p>
+        </>
+      )}
+
+      <style jsx>{`
+        .card {
+          margin-top: 18px;
+          border: 1px solid #1a1a1a;
+          border-radius: 12px;
+          padding: 18px;
+          background: #0a0a0a;
+        }
+        .badge {
+          display: inline-block;
+          margin-bottom: 10px;
+          padding: 3px 9px;
+          border-radius: 999px;
+          font-size: 10.5px;
+          font-weight: 700;
+          letter-spacing: 0.4px;
+          text-transform: uppercase;
+          background: #17111f;
+          color: #a855f7;
+        }
+        .desc {
+          font-size: 13px;
+          color: #999;
+          line-height: 1.55;
+        }
+        .warn {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: #181004;
+          color: #d9a441;
+          font-size: 12px;
+          line-height: 1.5;
+        }
+        .label {
+          display: block;
+          margin-top: 16px;
+          margin-bottom: 6px;
+          font-size: 12px;
+          color: #777;
+        }
+        .input {
+          width: 100%;
+          padding: 9px 12px;
+          border-radius: 8px;
+          border: 1px solid #2a2a2a;
+          background: #141414;
+          color: #eee;
+          font-size: 13px;
+          font-family: inherit;
+        }
+        .actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 14px;
+        }
+        .btn {
+          padding: 8px 14px;
+          border-radius: 8px;
+          border: 1px solid #2a2a2a;
+          background: #141414;
+          color: #ddd;
+          font-size: 12.5px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+        .btnDanger {
+          border-color: #3d1515;
+          color: #f87171;
+        }
+        .rows {
+          margin-top: 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          background: #1a1a1a;
+          border: 1px solid #1a1a1a;
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .errores {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: #1a0808;
+          border: 1px solid #3d1515;
+        }
+        .errorLinea {
+          font-size: 11.5px;
+          color: #fca5a5;
+          line-height: 1.55;
+          word-break: break-word;
+        }
+        .errorLinea + .errorLinea {
+          margin-top: 8px;
+        }
+        .hint {
+          margin-top: 10px;
+          font-size: 11.5px;
+          color: #666;
+          line-height: 1.5;
+        }
+      `}</style>
+    </section>
   );
 }

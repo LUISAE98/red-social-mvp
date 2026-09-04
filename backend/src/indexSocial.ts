@@ -88,6 +88,7 @@ export {
   onPostsCountDeleted,
   onMembersCountCreated,
   onMembersCountDeleted,
+  onJoinRequestsPendingCount,
 } from "./entityCounters";
 export { onPostViewed } from "./postViews";
 export { onPremiumUnlockCount } from "./premiumUnlockCount";
