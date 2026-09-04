@@ -319,6 +319,22 @@ export default function ConversationPage() {
     /** Lo que CSS cree que mide la pantalla, frente a `window.innerHeight`. */
     lvh: number;
     dvh: number;
+    /**
+     * La PEOR lectura vista, retenida.
+     *
+     * 🚨 ES LA ÚNICA FORMA DE VER ESTE FALLO. El encogimiento dura unos pocos
+     * fotogramas: para cuando el dedo llega al botón de capturar, el viewport ya
+     * volvió a su sitio y la foto sale limpia. Reteniendo el mínimo, basta con
+     * provocar el fallo y capturar cuando se pueda.
+     */
+    peor: {
+      win: number;
+      lvh: number;
+      dvh: number;
+      vv: number;
+      corrido: number;
+      haceMs: number;
+    } | null;
   } | null>(null);
 
   useEffect(() => {
@@ -360,6 +376,38 @@ export default function ConversationPage() {
     sonda.append(sondaLvh, sondaDvh);
     document.body.appendChild(sonda);
 
+    /**
+     * Vigilancia fotograma a fotograma.
+     *
+     * Se mira en cada `requestAnimationFrame` y no en el temporizador de 250ms
+     * porque el encogimiento puede durar menos que un tic: muestreando cada
+     * cuarto de segundo se cuela entre dos medidas y parece que nunca pasó.
+     */
+    let peor: {
+      win: number;
+      lvh: number;
+      dvh: number;
+      vv: number;
+      corrido: number;
+      cuando: number;
+    } | null = null;
+    let raf = 0;
+    const vigilar = () => {
+      const win = window.innerHeight;
+      if (!peor || win < peor.win) {
+        peor = {
+          win,
+          lvh: Math.round(sondaLvh.getBoundingClientRect().height),
+          dvh: Math.round(sondaDvh.getBoundingClientRect().height),
+          vv: Math.round(vv.height),
+          corrido: Math.round(vv.offsetTop),
+          cuando: performance.now(),
+        };
+      }
+      raf = requestAnimationFrame(vigilar);
+    };
+    raf = requestAnimationFrame(vigilar);
+
     const id = setInterval(() => {
       const activo = document.activeElement;
       setVvVivo({
@@ -372,11 +420,22 @@ export default function ConversationPage() {
         segAbajo: Math.round(parseFloat(getComputedStyle(sonda).paddingBottom) || 0),
         lvh: Math.round(sondaLvh.getBoundingClientRect().height),
         dvh: Math.round(sondaDvh.getBoundingClientRect().height),
+        peor: peor
+          ? {
+              win: peor.win,
+              lvh: peor.lvh,
+              dvh: peor.dvh,
+              vv: peor.vv,
+              corrido: peor.corrido,
+              haceMs: Math.round(performance.now() - peor.cuando),
+            }
+          : null,
       });
     }, 250);
 
     return () => {
       clearInterval(id);
+      cancelAnimationFrame(raf);
       sonda.remove();
       vv.removeEventListener("resize", marcar);
       vv.removeEventListener("scroll", marcar);
@@ -598,6 +657,17 @@ export default function ConversationPage() {
                 ? window.screen.height - window.innerHeight
                 : "—"
             }`,
+            // LA LÍNEA QUE DECIDE EL ARREGLO. Si en el peor momento `lvh` se
+            // mantuvo en el alto de la pantalla mientras `win` se hundía, basta
+            // con anclar las superficies a `lvh`. Si `lvh` se hundió también,
+            // no hay unidad que salve nada y hay que quitar el conflicto de
+            // raíz, en el manifest y en la barra de estado.
+            `PEOR win ${vvVivo?.peor?.win ?? "—"} lvh ${
+              vvVivo?.peor?.lvh ?? "—"
+            } dvh ${vvVivo?.peor?.dvh ?? "—"}`,
+            `     vv ${vvVivo?.peor?.vv ?? "—"}@${
+              vvVivo?.peor?.corrido ?? "—"
+            } hace ${vvVivo?.peor?.haceMs ?? "—"}ms`,
             // Modo real en el que se esta ejecutando la app instalada. Si aqui
             // pone "standalone" cuando el manifest pide "fullscreen", el
             // WebAPK de Android sigue con la copia vieja del manifest y ningun
