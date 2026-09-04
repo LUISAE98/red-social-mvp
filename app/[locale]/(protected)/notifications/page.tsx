@@ -18,7 +18,7 @@ import RefreshableArea from "@/components/refresh/RefreshableArea";
 export default function NotificationsPage() {
   const t = useTranslations("notifications");
   const { user } = useAuth();
-  const { items, loading, unreadCount, badgeCount, markSeen, markAllRead, markRead, refresh } =
+  const { items, loading, unreadCount, badgeCount, latestMs, markSeen, markAllRead, markRead, refresh } =
     useNotifications(user?.uid ?? null);
   const selfHandle = useSelfHandle(user?.uid ?? null);
 
@@ -76,11 +76,13 @@ export default function NotificationsPage() {
   // Espera a que la pestaña por defecto esté decidida: marcar antes pondría los
   // contadores en 0 y la prioridad (Experiencias nuevas → Sociales nuevas) se
   // decidiría siempre sobre cero.
+  // `latestMs` va en las dependencias: `markSeen` no puede marcar nada mientras
+  // la bandeja esté vacía, así que si llega tarde hay que volver a intentarlo.
   useEffect(() => {
     if (decidedTab === null) return;
     markSeen();
     markExpSeen(expLatestMs);
-  }, [decidedTab, markSeen, markExpSeen, expLatestMs]);
+  }, [decidedTab, markSeen, markExpSeen, expLatestMs, latestMs]);
 
   // Cambiar de pestaña desliza el contenido (mismas keyframes que el nav de
   // rutas): a la pestaña de la derecha entra desde la derecha, y viceversa.

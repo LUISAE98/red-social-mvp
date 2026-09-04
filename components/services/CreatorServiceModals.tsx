@@ -2,7 +2,9 @@
 
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
+import { BlurFade } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import { useVisualViewport } from "@/lib/hooks/useVisualViewport";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -99,6 +101,13 @@ function getGreetingUi(type: GreetingType, tServices: ReturnType<typeof useTrans
 
 // ─── Panel shell (desktop modal + mobile bottom sheet) ────────────────────────
 
+/**
+ * Cuánto sobresale el cristal por dentro del cuerpo, y cuánto dura el fundido.
+ * Ahí es donde el contenido se disuelve en vez de cortarse.
+ */
+const SVC_FADE_OVERHANG = 26;
+const SVC_FADE_LENGTH = 40;
+
 const PANEL_CSS = `
   @keyframes vibraSvcDesktopIn  { from { opacity:0; transform:scale(0.94) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }
   @keyframes vibraSvcDesktopOut { from { opacity:1; transform:scale(1)    translateY(0);    } to { opacity:0; transform:scale(0.94) translateY(10px); } }
@@ -130,11 +139,12 @@ const PANEL_CSS = `
     height: 56px; flex-shrink: 0;
     display: grid; grid-template-columns: 48px 1fr 48px;
     align-items: center; padding: 0 12px;
-    border-bottom: 1px solid rgba(255,255,255,0.12);
   }
   .vibra-svc-body {
     flex: 1; overflow-y: auto; min-height: 0;
-    padding: 18px 20px 8px;
+    /* El hueco de las dos capas flotantes. Sin esto, lo primero y lo ultimo
+       quedarian escondidos detras de ellas. */
+    padding: calc(18px + var(--svc-top, 0px)) 20px calc(8px + var(--svc-bottom, 0px));
     display: grid; gap: 14px;
   }
   .vibra-svc-body::-webkit-scrollbar { width: 7px; }
@@ -143,12 +153,25 @@ const PANEL_CSS = `
   .vibra-svc-footer {
     flex-shrink: 0;
     padding: 14px 20px calc(18px + var(--vb-safe-bottom, 0px));
-    border-top: 1px solid rgba(255,255,255,0.12);
     display: grid; gap: 10px;
   }
+
+  /* Las dos capas de cristal. Salen del flujo para que el cuerpo pase por
+     detras: el hueco se lo repone el con su relleno. */
+  .vibra-svc-top, .vibra-svc-bottom {
+    position: absolute;
+    inset-inline-start: 0; inset-inline-end: 0;
+    z-index: 3;
+  }
+  .vibra-svc-top { top: 0; }
+  .vibra-svc-bottom { bottom: 0; }
+  /* Por encima del cristal, que va detras con z-index 0. */
+  .vibra-svc-top > .vibra-svc-handle,
+  .vibra-svc-top > .vibra-svc-header,
+  .vibra-svc-bottom > .vibra-svc-footer { position: relative; z-index: 1; }
   .vibra-svc-handle { display: none; }
   .vibra-svc-panel { position: relative; }
-  .vibra-svc-handle, .vibra-svc-header, .vibra-svc-body, .vibra-svc-footer { position: relative; z-index: 2; }
+  .vibra-svc-body { position: relative; z-index: 2; }
 
   .vibra-svc-bg-img {
     position: absolute; top: 0; inset-inline-end: 0; bottom: 0; inset-inline-start: 0; z-index: 0;
@@ -169,7 +192,10 @@ const PANEL_CSS = `
   @media (min-width: 560px) and (max-height: 780px) {
     .vibra-svc-backdrop { padding: 12px; }
     .vibra-svc-panel { width: min(100%, 460px); max-height: 94vh; }
-    .vibra-svc-body { padding-top: 10px; padding-bottom: 10px; }
+    .vibra-svc-body {
+      padding-top: calc(10px + var(--svc-top, 0px));
+      padding-bottom: calc(10px + var(--svc-bottom, 0px));
+    }
   }
 
   @media (max-width: 559px) {
@@ -225,9 +251,58 @@ function Panel({
   const tCommon = useTranslations("common");
   const [visible, setVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  /**
+   * Geometría del área que de verdad se ve, para no quedar bajo el teclado.
+   *
+   * Se calza también con el teclado ya cerrado mientras el viewport siga
+   * corrido (`offsetTop > 0`): iOS tarda unos fotogramas en devolverlo a su
+   * sitio, y soltar el calce antes deja la hoja flotando fuera de la pantalla.
+   */
+  const viewport = useVisualViewport(open);
+  const calzarAreaVisible =
+    viewport != null &&
+    (viewport.offsetTop > 0 || viewport.height < window.innerHeight - 1);
+
   const [panelOffsetY, setPanelOffsetY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef<{ y: number; offset: number } | null>(null);
+
+  /**
+   * Alto de las dos capas flotantes: arriba (agarradera + cabecera) y abajo
+   * (el pie con los botones). Van SUPERPUESTAS al cuerpo —el contenido tiene
+   * que pasarles por detrás para que el cristal tenga algo que difuminar—, así
+   * que el cuerpo repone el hueco con relleno. Se miden porque el pie cambia de
+   * alto según el servicio, y la agarradera solo existe en celular.
+   */
+  const topRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [topH, setTopH] = useState(56);
+  const [bottomH, setBottomH] = useState(76);
+
+  useEffect(() => {
+    if (!visible && !open) return;
+    if (typeof ResizeObserver === "undefined") return;
+    const medir = (
+      node: HTMLDivElement | null,
+      set: (n: number) => void
+    ) => {
+      if (!node) return null;
+      const ro = new ResizeObserver((entries) => {
+        const borde = entries[0]?.borderBoxSize?.[0]?.blockSize;
+        const alto = Math.ceil(borde ?? node.getBoundingClientRect().height);
+        // Cero es que está oculta, no que mida cero.
+        if (alto > 0) set(alto);
+      });
+      ro.observe(node);
+      return ro;
+    };
+    const a = medir(topRef.current, setTopH);
+    const b = medir(bottomRef.current, setBottomH);
+    return () => { a?.disconnect(); b?.disconnect(); };
+    // El panel se monta y se desmonta al abrir y cerrar, así que los nodos son
+    // otros cada vez y hay que volver a observarlos.
+  }, [visible, open, isMobile]);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 559);
@@ -286,13 +361,40 @@ function Panel({
         aria-modal="true"
         aria-labelledby={titleId}
         className="vibra-svc-backdrop"
+        /**
+         * 🚨 CON EL TECLADO ABIERTO, EL FONDO SE CALZA AL ÁREA VISIBLE.
+         *
+         * En celular esto es una hoja pegada abajo (`align-items: flex-end`), y
+         * `position: fixed` ancla al viewport de LAYOUT. iOS NO encoge ese
+         * viewport al abrir el teclado —solo el visual— así que la hoja se
+         * quedaba detrás del teclado: se veía asomar un trozo, no se podía
+         * arrastrar y el cuerpo, que sí tiene su `overflow-y: auto`, quedaba
+         * fuera de alcance. Parecía que el panel estuviera bloqueado.
+         *
+         * Con `top`/`height` del viewport VISUAL el fondo calza exactamente lo
+         * que se ve, y la hoja vuelve a apoyarse encima del teclado. Es el
+         * mismo remedio que ya usan el hilo de mensajes y el panel de
+         * comentarios; este panel se había quedado sin él.
+         *
+         * Sin teclado no se toca nada: manda el `inset: 0` de la hoja de estilo.
+         */
+        style={
+          calzarAreaVisible && viewport
+            ? { top: viewport.offsetTop, height: viewport.height, bottom: "auto" }
+            : undefined
+        }
         onMouseDown={(e) => {
           if (e.target === e.currentTarget && !submitting) onClose();
         }}
       >
         <section
           className={`vibra-svc-panel ${open ? "is-open" : "is-closed"}`}
-          style={panelStyle}
+          style={{
+            ...panelStyle,
+            // El hueco que hay que reservarle a cada capa flotante.
+            ["--svc-top" as string]: `${topH}px`,
+            ["--svc-bottom" as string]: `${bottomH}px`,
+          } as React.CSSProperties}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Background image — subtle, bottom-anchored */}
@@ -303,12 +405,24 @@ function Panel({
             </>
           )}
 
-          {/* Pill handle — visible on mobile only via CSS */}
-          <div className="vibra-svc-handle">
-            <div style={{ width: 36, height: 4, borderRadius: 999, background: "rgba(255,255,255,0.18)" }} />
-          </div>
+          {/* Agarradera y cabecera FLOTAN sobre el cuerpo, y el canto duro que
+              las separaba se sustituye por un fundido: lo que sube se disuelve
+              en vez de cortarse contra una línea de 1px. */}
+          <div className="vibra-svc-top" ref={topRef}>
+            <BlurFade
+              side="top"
+              size={topH + SVC_FADE_OVERHANG}
+              fade={SVC_FADE_LENGTH}
+              blur={22}
+              veil="rgba(10,10,10,0.68)"
+            />
 
-          <header
+            {/* Pill handle — visible on mobile only via CSS */}
+            <div className="vibra-svc-handle">
+              <div style={{ width: 36, height: 4, borderRadius: 999, background: "rgba(255,255,255,0.18)" }} />
+            </div>
+
+            <header
             className="vibra-svc-header"
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -331,14 +445,26 @@ function Panel({
             >
               ×
             </button>
-          </header>
+            </header>
+          </div>
 
           <div className="vibra-svc-body">
             {children}
           </div>
 
-          <div className="vibra-svc-footer">
-            {footer}
+          {/* Mismo fundido, del revés: lo último se disuelve al bajar. */}
+          <div className="vibra-svc-bottom" ref={bottomRef}>
+            <BlurFade
+              side="bottom"
+              size={bottomH + SVC_FADE_OVERHANG}
+              fade={SVC_FADE_LENGTH}
+              blur={22}
+              veil="rgba(10,10,10,0.68)"
+            />
+
+            <div className="vibra-svc-footer">
+              {footer}
+            </div>
           </div>
         </section>
       </div>

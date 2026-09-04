@@ -92,6 +92,14 @@ export interface UseNotificationsResult {
   unreadCount: number;
   /** Nuevas desde la última vez que se abrió el contenedor — para el badge. */
   badgeCount: number;
+  /**
+   * Timestamp de SERVIDOR de la notificación más reciente, o 0 si no hay.
+   *
+   * Lo necesita quien llama a `markSeen`: si se marca mientras la bandeja aún
+   * está cargando no hay nada que marcar, y hay que volver a marcar cuando
+   * llegue. Depender de este valor es lo que hace que ese segundo intento pase.
+   */
+  latestMs: number;
   loading: boolean;
   /** Marca todo como "visto" (baja el badge a 0) sin marcar como leído. */
   markSeen: () => void;
@@ -168,10 +176,17 @@ export function useNotifications(uid: string | null | undefined): UseNotificatio
     };
   }, [uid]);
 
+  const latestMs = useMemo(
+    () => items.reduce((m, n) => Math.max(m, n.updatedAtMs ?? 0), 0),
+    [items]
+  );
+  // El mismo valor en una referencia, para que `markSeen` no cambie de
+  // identidad cada vez que llega una notificación: es dependencia de efectos
+  // que marcan visto, y rehacerla los dispararía en bucle.
   const latestMsRef = useRef(0);
   useEffect(() => {
-    latestMsRef.current = items.reduce((m, n) => Math.max(m, n.updatedAtMs ?? 0), 0);
-  }, [items]);
+    latestMsRef.current = latestMs;
+  }, [latestMs]);
 
   const unreadCount = useMemo(() => items.filter((n) => !n.read).length, [items]);
   const badgeCount = useMemo(
@@ -179,10 +194,29 @@ export function useNotifications(uid: string | null | undefined): UseNotificatio
     [items, seenAt]
   );
 
+  /**
+   * Marca visto hasta el timestamp de SERVIDOR de la más reciente.
+   *
+   * 🚨 NUNCA `Date.now()`. `badgeCount` compara contra `updatedAtMs`, que lo
+   * pone el servidor; guardar aquí el reloj del cliente mezcla dos relojes que
+   * no tienen por qué coincidir. Con el del cliente adelantado —basta un
+   * minuto— el "visto" queda en el futuro y NINGUNA notificación social
+   * posterior vuelve a contar como nueva.
+   *
+   * Eso no solo apagaba el badge: dejaba `badgeCount` clavado en 0, y como la
+   * pestaña por defecto de notificaciones se decide con ese contador, se abría
+   * SIEMPRE en Experiencias aunque lo que hubiera llegado fuera social.
+   *
+   * `useExperiencesSeen` ya guardaba el timestamp de servidor exactamente por
+   * este motivo, con el aviso escrito. Este lado se quedó sin arreglar.
+   */
   const markSeen = useCallback(() => {
     if (!uid) return;
-    // max(now, última actualización) evita quedar por debajo del reloj del server.
-    const ms = Math.max(Date.now(), latestMsRef.current);
+    const ms = Math.max(readSeenAt(uid), latestMsRef.current);
+    // Bandeja vacía o aún cargando: no hay nada que marcar, y escribir un 0
+    // solo borraría el "visto" que ya hubiera. Quien llama vuelve a intentarlo
+    // cuando `latestMs` cambie.
+    if (ms <= 0) return;
     writeSeenAt(uid, ms); // localStorage + notifica listeners (actualiza estado)
     // Persiste server-side para que el badge no reaparezca tras logout/cierre.
     setDoc(doc(db, "users", uid, "meta", "notifications"), { seenAt: ms }, { merge: true }).catch(
@@ -236,5 +270,5 @@ export function useNotifications(uid: string | null | undefined): UseNotificatio
     }
   };
 
-  return { items, unreadCount, badgeCount, loading, markSeen, markAllRead, markRead, refresh };
+  return { items, unreadCount, badgeCount, latestMs, loading, markSeen, markAllRead, markRead, refresh };
 }

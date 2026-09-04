@@ -45,7 +45,7 @@ interface PanelPos {
 export default function NotificationBell({ active }: NotificationBellProps) {
   const t = useTranslations("notifications");
   const { user } = useAuth();
-  const { items, unreadCount, badgeCount, loading, markSeen, markAllRead, markRead } =
+  const { items, unreadCount, badgeCount, latestMs, loading, markSeen, markAllRead, markRead } =
     useNotifications(user?.uid ?? null);
   const selfHandle = useSelfHandle(user?.uid ?? null);
   // El subnav aparece solo mientras haya experiencias vivas (por atender o
@@ -220,7 +220,9 @@ export default function NotificationBell({ active }: NotificationBellProps) {
     if (!open || decidedTab === null) return;
     markSeen();
     markExpSeen(expLatestMs);
-  }, [open, decidedTab, markSeen, markExpSeen, expLatestMs]);
+    // `latestMs` va en las dependencias: `markSeen` no puede marcar nada
+    // mientras la bandeja esté vacía, así que si llega tarde se reintenta.
+  }, [open, decidedTab, markSeen, markExpSeen, expLatestMs, latestMs]);
 
   const visibleItems = useMemo(() => {
     if (showSubnav && activeTab === "experiences") {
