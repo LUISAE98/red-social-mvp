@@ -15,6 +15,7 @@ import {
   type SetStateAction,
 } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import type { PublishProgress } from "./GroupPostComposer.parts";
 import { createPortal } from "react-dom";
 
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
@@ -48,6 +49,8 @@ export type PostComposerMobileOverlayProps = {
   currentUserAvatar: string | null;
   currentUserHref: string;
 
+  /** Con qué se llena el botón de publicar. Ver `PublishProgressButton`. */
+  publishProgress?: PublishProgress | null;
   creating: boolean;
   isPreparingImages: boolean;
   hasContent: boolean;

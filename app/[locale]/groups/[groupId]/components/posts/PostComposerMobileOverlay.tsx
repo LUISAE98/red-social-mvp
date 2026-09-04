@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import ComposerPremiumPanel from "./ComposerPremiumPanel";
+import PublishProgressButton from "./PublishProgressButton";
 import type { useComposerPremium } from "./useComposerPremium";
 import { useTranslations } from "next-intl";
 import {
@@ -34,6 +35,7 @@ export default function PostComposerMobileOverlay({
   currentUserName,
   currentUserAvatar,
   currentUserHref,
+  publishProgress = null,
   creating,
   isPreparingImages,
   hasContent,
@@ -511,65 +513,10 @@ export default function PostComposerMobileOverlay({
       {isEditMode ? tPosts("editPostTitle") : tPosts("createPostTitle")}
     </h2>
 
-    <button
-      type="button"
-      onClick={handlePublishClick}
-      disabled={disabledPublish || isPublishIconState}
-      aria-label={
-        isPublishSuccess
-          ? tCommon("done")
-          : isPublishLoading
-            ? tCommon("publishing")
-            : tCommon("publish")
-      }
-      style={{
-        width: isPublishIconState ? 38 : undefined,
-        height: 38,
-        padding: isPublishIconState ? 0 : "0 14px",
-        borderRadius: isPublishIconState ? 999 : 11,
-        border: isPublishLoading
-          ? "2px solid rgba(168,85,255,0.18)"
-          : "none",
-        background: isPublishSuccess
-          ? "#22c55e"
-          : isPublishLoading
-            ? "transparent"
-            : disabledPublish
-              ? "rgba(255,255,255,0.1)"
-              : "#a855f7",
-        color:
-          disabledPublish && !isPublishIconState
-            ? "rgba(255,255,255,0.36)"
-            : "rgba(255,255,255,0.98)",
-        fontSize: 16,
-        fontWeight: 550,
-        fontFamily: fontStack,
-        cursor:
-          disabledPublish || isPublishIconState
-            ? "not-allowed"
-            : "pointer",
-        letterSpacing: "-0.02em",
-        justifySelf: "end",
-        display: "inline-grid",
-        placeItems: "center",
-        boxSizing: "border-box",
-        overflow: "hidden",
-        transition:
-          "width 220ms cubic-bezier(0.22, 1, 0.36, 1), padding 220ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 220ms cubic-bezier(0.22, 1, 0.36, 1), background-color 180ms ease, border-color 180ms ease, transform 180ms ease",
-      }}
-    >
-      {isPublishSuccess ? (
-        <span className="vibra-publish-success-check" aria-hidden="true">
-          ✓
-        </span>
-      ) : isPublishLoading ? (
-        <span className="vibra-publish-spinner" aria-hidden="true" />
-      ) : premiumComposer.premiumEnabled ? (
-        <VibraNavigationIcon type="premiumCrown" size={22} />
-      ) : (
-        isEditMode ? tCommon("save") : tCommon("publish")
-      )}
-    </button>
+    {/* El boton de publicar ya NO vive aqui: se mudo al pie, a lo ancho.
+        La tercera columna de la rejilla se queda vacia a proposito, para que
+        el titulo siga centrado respecto a la cruz de cerrar. */}
+    <span aria-hidden="true" />
   </header>
   </GlassEdge>
 
@@ -1084,6 +1031,22 @@ export default function PostComposerMobileOverlay({
               />
             </div>
             ) : null}
+
+            {/* A lo ancho y al final. Antes era una pildora en la esquina de
+                la cabecera: el gesto de publicar quedaba lejos del pulgar y
+                competia en tamano con la cruz de cerrar, que hace lo
+                contrario. Aqui es lo mas grande de la pantalla, que es lo que
+                le toca al unico gesto que cierra el flujo. */}
+            <div style={{ marginTop: 16 }}>
+              <PublishProgressButton
+                progress={publishProgress}
+                creating={isPublishLoading}
+                success={isPublishSuccess}
+                disabled={disabledPublish && !isPublishIconState}
+                isEditMode={isEditMode}
+                onClick={handlePublishClick}
+              />
+            </div>
           </div>
         </div>
       </section>

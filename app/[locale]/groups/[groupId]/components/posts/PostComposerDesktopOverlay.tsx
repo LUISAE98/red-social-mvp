@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import ComposerPremiumPanel from "./ComposerPremiumPanel";
+import PublishProgressButton from "./PublishProgressButton";
 import type { useComposerPremium } from "./useComposerPremium";
 import { useTranslations } from "next-intl";
 import {
@@ -34,6 +35,7 @@ export default function PostComposerDesktopOverlay({
   currentUserName,
   currentUserAvatar,
   currentUserHref,
+  publishProgress = null,
   creating,
   isPreparingImages,
   hasContent,
@@ -825,38 +827,17 @@ borderRadius: 14,
             padding: "14px 20px 18px",
           }}
         >
-<button
-  type="button"
-  onClick={onSubmit}
+{/* Mismo boton que en celular: se llena mientras publica, y el relleno es
+    UNO solo para todo el conjunto. La altura y el radio se quedan como
+    estaban aqui, que la ventana de laptop es mas compacta. */}
+<PublishProgressButton
+  progress={publishProgress}
+  creating={creating || isPreparingImages}
   disabled={disabledPublish}
-style={{
-  width: "100%",
-  height: 42,
-  borderRadius: 5,
-  border: "none",
-  background: disabledPublish
-    ? "rgba(255,255,255,0.1)"
-    : "#a855f7",
-  color: disabledPublish
-    ? "rgba(255,255,255,0.36)"
-    : "rgba(255,255,255,0.98)",
-  fontSize: 17,
-  fontWeight: 500,
-  fontFamily: fontStack,
-  cursor: disabledPublish ? "not-allowed" : "pointer",
-  letterSpacing: "-0.02em",
-  display: "grid",
-  placeItems: "center",
-}}
->
-              {isPreparingImages
-                ? tPosts("preparingLabel")
-                : creating
-                  ? (isEditMode ? tCommon("saving") : tCommon("publishing"))
-                  : premiumComposer.premiumEnabled
-                    ? <VibraNavigationIcon type="premiumCrown" size={22} />
-                    : (isEditMode ? tCommon("saveChanges") : tCommon("publish"))}
-            </button>
+  isEditMode={isEditMode}
+  onClick={onSubmit}
+  style={{ height: 42, borderRadius: 5, fontSize: 17, fontWeight: 500 }}
+/>
         </div>
         </GlassEdge>
       </section>

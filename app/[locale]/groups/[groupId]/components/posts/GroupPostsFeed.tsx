@@ -43,6 +43,7 @@ import GroupPostCard from "./GroupPostCard";
 import { PostSkeleton, PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import GroupPostComposer from "./GroupPostComposer";
+import { repartirAvance, type PublishProgress } from "./GroupPostComposer.parts";
 import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "./PostsMediaSubnav";
 import MediaGallery, { clearMediaGalleryCache, type GalleryTile } from "./MediaGallery";
 import { useMediaSlideReservedHeight } from "./useMediaSlideReservedHeight";
@@ -766,7 +767,10 @@ export default function GroupPostsFeed({
       coverFile?: File | null;
     }>;
     premium?: PostPremium | null;
-  }) {
+  },
+  // Lo pasa el compositor para llenar su boton. El feed ya no pinta barra
+  // propia: la unica senal de avance es ese boton.
+  onProgress?: (progreso: PublishProgress) => void) {
 
     if (!guardCreatePost()) return;
 
@@ -949,7 +953,18 @@ const uploadedVideoCovers =
           await uploadVideoFileToMux({
             uploadUrl: upload.uploadUrl,
             file: upload.file,
-            onProgress: setVideoUploadProgress,
+            onProgress: (pct) => {
+              setVideoUploadProgress(pct);
+              onProgress?.(
+                repartirAvance({
+                  phase: "subiendoVideo",
+                  videoPct: pct,
+                  videoIndex: index,
+                  videoTotal: muxUploads.length,
+                  hayVideo: true,
+                })
+              );
+            },
           });
         }
 
@@ -1394,49 +1409,9 @@ const shellStyle: CSSProperties = {
             groupVisibility={groupVisibility}
           />
 
-          {videoUploadStatus ? (
-            <div
-              style={{
-                marginTop: 10,
-                borderRadius: 14,
-                border: "1px solid rgba(255,255,255,0.1)",
-                background: "rgba(15, 23, 42, 0.72)",
-                padding: 12,
-                color: "rgba(255,255,255,0.84)",
-                fontSize: 13,
-              }}
-            >
-              <div style={{ marginBottom: 8 }}>{videoUploadStatus}</div>
-
-              {videoUploadProgress !== null ? (
-                <div
-                  style={{
-                    height: 8,
-                    width: "100%",
-                    overflow: "hidden",
-                    borderRadius: 999,
-                    background: "rgba(255,255,255,0.1)",
-                  }}
-                >
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${videoUploadProgress}%`,
-                      borderRadius: 999,
-                      background: "rgba(96,165,250,0.95)",
-                      transition: "width 160ms ease",
-                    }}
-                  />
-                </div>
-              ) : null}
-
-              {videoUploadProgress !== null ? (
-                <div style={{ marginTop: 6, fontSize: 12 }}>
-                  {videoUploadProgress}%
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+          {/* La barra de avance del feed se quito: no se veia -quedaba fuera
+              de vista al publicar- y ahora el avance lo lleva el propio boton
+              de publicar, que es donde esta mirando la persona. */}
         </div>
       ) : postBlockedReason !== null &&
         postBlockedReason !== "login" &&
