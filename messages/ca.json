@@ -3090,7 +3090,9 @@
     "replyingTo": "Responent a {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Cancel·la la resposta",
-    "imageFailed": "No s'ha pogut carregar la imatge"
+    "imageFailed": "No s'ha pogut carregar la imatge",
+    "copy": "Copia",
+    "messageCopied": "Missatge copiat"
   },
   "cf": {
     "mustBeAuthenticated": "Has d’estar autenticat.",

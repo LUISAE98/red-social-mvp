@@ -3090,7 +3090,9 @@
     "replyingTo": "Vastaus käyttäjälle {name}",
     "replyToSelf": "Sinä",
     "cancelReply": "Peruuta vastaus",
-    "imageFailed": "Kuvaa ei voitu ladata"
+    "imageFailed": "Kuvaa ei voitu ladata",
+    "copy": "Kopioi",
+    "messageCopied": "Viesti kopioitu"
   },
   "cf": {
     "mustBeAuthenticated": "Sinun täytyy olla todennettu.",

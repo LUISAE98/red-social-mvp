@@ -3090,7 +3090,9 @@
     "replyingTo": "Răspuns către {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Anulează răspunsul",
-    "imageFailed": "Imaginea nu a putut fi încărcată"
+    "imageFailed": "Imaginea nu a putut fi încărcată",
+    "copy": "Copiază",
+    "messageCopied": "Mesaj copiat"
   },
   "cf": {
     "mustBeAuthenticated": "Trebuie să fii autentificat.",

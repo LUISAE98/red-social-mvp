@@ -3090,7 +3090,9 @@
     "replyingTo": "Svarer {name}",
     "replyToSelf": "Dig",
     "cancelReply": "Annullér svar",
-    "imageFailed": "Billedet kunne ikke indlæses"
+    "imageFailed": "Billedet kunne ikke indlæses",
+    "copy": "Kopiér",
+    "messageCopied": "Beskeden er kopieret"
   },
   "cf": {
     "mustBeAuthenticated": "Du skal være godkendt.",

@@ -3090,7 +3090,9 @@
     "replyingTo": "Risposta a {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Annulla risposta",
-    "imageFailed": "Non è stato possibile caricare l'immagine"
+    "imageFailed": "Non è stato possibile caricare l'immagine",
+    "copy": "Copia",
+    "messageCopied": "Messaggio copiato"
   },
   "cf": {
     "mustBeAuthenticated": "Devi essere autenticato.",

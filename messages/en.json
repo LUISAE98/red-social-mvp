@@ -3090,7 +3090,9 @@
     "replyingTo": "Replying to {name}",
     "replyToSelf": "You",
     "cancelReply": "Cancel reply",
-    "imageFailed": "The image could not be loaded"
+    "imageFailed": "The image could not be loaded",
+    "copy": "Copy",
+    "messageCopied": "Message copied"
   },
   "cf": {
     "mustBeAuthenticated": "You must be authenticated.",

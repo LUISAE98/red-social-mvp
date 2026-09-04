@@ -3090,7 +3090,9 @@
     "replyingTo": "Odgovor korisniku {name}",
     "replyToSelf": "Ti",
     "cancelReply": "Odustani od odgovora",
-    "imageFailed": "Slika se nije učitala"
+    "imageFailed": "Slika se nije učitala",
+    "copy": "Kopiraj",
+    "messageCopied": "Poruka je kopirana"
   },
   "cf": {
     "mustBeAuthenticated": "Moraš biti autentificiran.",

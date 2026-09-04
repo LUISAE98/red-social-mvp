@@ -3090,7 +3090,9 @@
     "replyingTo": "Duke iu përgjigjur {name}",
     "replyToSelf": "Ti",
     "cancelReply": "Anulo përgjigjen",
-    "imageFailed": "Imazhi nuk mund të ngarkohej"
+    "imageFailed": "Imazhi nuk mund të ngarkohej",
+    "copy": "Kopjo",
+    "messageCopied": "Mesazhi u kopjua"
   },
   "cf": {
     "mustBeAuthenticated": "Duhet të jesh i vërtetuar.",

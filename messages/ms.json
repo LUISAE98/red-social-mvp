@@ -3090,7 +3090,9 @@
     "replyingTo": "Membalas {name}",
     "replyToSelf": "Anda",
     "cancelReply": "Batalkan balasan",
-    "imageFailed": "Imej tidak dapat dimuatkan"
+    "imageFailed": "Imej tidak dapat dimuatkan",
+    "copy": "Salin",
+    "messageCopied": "Mesej disalin"
   },
   "cf": {
     "mustBeAuthenticated": "Anda perlu disahkan.",

@@ -3090,7 +3090,9 @@
     "replyingTo": "Antwoord aan {name}",
     "replyToSelf": "Jij",
     "cancelReply": "Antwoord annuleren",
-    "imageFailed": "De afbeelding kon niet worden geladen"
+    "imageFailed": "De afbeelding kon niet worden geladen",
+    "copy": "Kopiëren",
+    "messageCopied": "Bericht gekopieerd"
   },
   "cf": {
     "mustBeAuthenticated": "Je moet geverifieerd zijn.",

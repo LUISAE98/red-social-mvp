@@ -3090,7 +3090,9 @@
     "replyingTo": "Đang trả lời {name}",
     "replyToSelf": "Bạn",
     "cancelReply": "Hủy trả lời",
-    "imageFailed": "Không thể tải ảnh"
+    "imageFailed": "Không thể tải ảnh",
+    "copy": "Sao chép",
+    "messageCopied": "Đã sao chép tin nhắn"
   },
   "cf": {
     "mustBeAuthenticated": "Bạn cần được xác thực.",

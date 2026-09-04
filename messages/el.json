@@ -3090,7 +3090,9 @@
     "replyingTo": "Απάντηση σε {name}",
     "replyToSelf": "Εσύ",
     "cancelReply": "Ακύρωση απάντησης",
-    "imageFailed": "Δεν φορτώθηκε η εικόνα"
+    "imageFailed": "Δεν φορτώθηκε η εικόνα",
+    "copy": "Αντιγραφή",
+    "messageCopied": "Το μήνυμα αντιγράφηκε"
   },
   "cf": {
     "mustBeAuthenticated": "Πρέπει να είσαι πιστοποιημένος.",

@@ -3090,7 +3090,9 @@
     "replyingTo": "กำลังตอบกลับ {name}",
     "replyToSelf": "คุณ",
     "cancelReply": "ยกเลิกการตอบกลับ",
-    "imageFailed": "โหลดรูปภาพไม่ได้"
+    "imageFailed": "โหลดรูปภาพไม่ได้",
+    "copy": "คัดลอก",
+    "messageCopied": "คัดลอกข้อความแล้ว"
   },
   "cf": {
     "mustBeAuthenticated": "คุณต้องผ่านการยืนยันตัวตน",

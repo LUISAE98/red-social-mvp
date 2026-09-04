@@ -3090,7 +3090,9 @@
     "replyingTo": "{name} लाई जवाफ दिँदै",
     "replyToSelf": "तपाईं",
     "cancelReply": "जवाफ रद्द गर्नुहोस्",
-    "imageFailed": "तस्बिर लोड गर्न सकिएन"
+    "imageFailed": "तस्बिर लोड गर्न सकिएन",
+    "copy": "प्रतिलिपि गर्नुहोस्",
+    "messageCopied": "सन्देश प्रतिलिपि गरियो"
   },
   "cf": {
     "mustBeAuthenticated": "तपाईं प्रमाणित हुनुपर्छ।",

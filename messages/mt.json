@@ -3090,7 +3090,9 @@
     "replyingTo": "Qed twieġeb lil {name}",
     "replyToSelf": "Int",
     "cancelReply": "Ikkanċella r-risposta",
-    "imageFailed": "Ma setgħetx titgħabba l-istampa"
+    "imageFailed": "Ma setgħetx titgħabba l-istampa",
+    "copy": "Ikkopja",
+    "messageCopied": "Il-messaġġ ġie kkupjat"
   },
   "cf": {
     "mustBeAuthenticated": "Trid tkun awtentikat.",

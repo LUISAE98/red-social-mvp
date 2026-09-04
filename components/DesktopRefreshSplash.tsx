@@ -4,9 +4,20 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/app/providers";
 import { hideSplash } from "@/lib/splash";
 
-// Duración mínima que el splash permanece visible (carga inicial y transición a
-// login), para que sea un momento de marca y no un parpadeo.
-const SPLASH_MIN_MS = 700;
+/**
+ * Duración mínima que el splash permanece visible.
+ *
+ * Estuvo en 700 ms para que la marca fuera un momento y no un parpadeo. Se bajó
+ * a cero el 2026-09-03, dentro del trabajo de rendimiento: en cuanto la app deje
+ * de tardar más que eso, ese suelo pasa a ser LA espera visible — la pantalla ya
+ * estaría lista y el splash seguiría tapándola.
+ *
+ * Bajarlo a cero NO deja la pantalla al aire. El splash no se quita solo por
+ * agotar este tiempo: el efecto de más abajo exige además que la sesión esté
+ * resuelta y que la pantalla de destino haya avisado de que ya se pintó
+ * (`vibra:screen-ready`). Lo único que se quita aquí es la espera artificial.
+ */
+const SPLASH_MIN_MS = 0;
 
 export default function DesktopRefreshSplash() {
   const { loading, authTransitionMode } = useAuth();

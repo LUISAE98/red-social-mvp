@@ -3090,7 +3090,9 @@
     "replyingTo": "Svarer {name}",
     "replyToSelf": "Deg",
     "cancelReply": "Annuller svar",
-    "imageFailed": "Bildet kunne ikke lastes"
+    "imageFailed": "Bildet kunne ikke lastes",
+    "copy": "Kopier",
+    "messageCopied": "Meldingen er kopiert"
   },
   "cf": {
     "mustBeAuthenticated": "Du må være autentisert.",

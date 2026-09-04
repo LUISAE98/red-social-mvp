@@ -3090,7 +3090,9 @@
     "replyingTo": "Válasz neki: {name}",
     "replyToSelf": "Te",
     "cancelReply": "Válasz megszakítása",
-    "imageFailed": "A kép nem töltődött be"
+    "imageFailed": "A kép nem töltődött be",
+    "copy": "Másolás",
+    "messageCopied": "Üzenet másolva"
   },
   "cf": {
     "mustBeAuthenticated": "Hitelesítve kell lenned.",

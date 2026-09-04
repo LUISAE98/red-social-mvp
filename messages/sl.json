@@ -3090,7 +3090,9 @@
     "replyingTo": "Odgovor uporabniku {name}",
     "replyToSelf": "Ti",
     "cancelReply": "Prekliči odgovor",
-    "imageFailed": "Slike ni bilo mogoče naložiti"
+    "imageFailed": "Slike ni bilo mogoče naložiti",
+    "copy": "Kopiraj",
+    "messageCopied": "Sporočilo je kopirano"
   },
   "cf": {
     "mustBeAuthenticated": "Biti moraš overjen.",

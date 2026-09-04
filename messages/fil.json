@@ -3090,7 +3090,9 @@
     "replyingTo": "Tumutugon kay {name}",
     "replyToSelf": "Ikaw",
     "cancelReply": "Kanselahin ang tugon",
-    "imageFailed": "Hindi ma-load ang larawan"
+    "imageFailed": "Hindi ma-load ang larawan",
+    "copy": "Kopyahin",
+    "messageCopied": "Nakopya ang mensahe"
   },
   "cf": {
     "mustBeAuthenticated": "Kailangan mong ma-authenticate.",

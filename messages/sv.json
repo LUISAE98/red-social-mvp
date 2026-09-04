@@ -3090,7 +3090,9 @@
     "replyingTo": "Svarar {name}",
     "replyToSelf": "Du",
     "cancelReply": "Avbryt svar",
-    "imageFailed": "Bilden kunde inte laddas"
+    "imageFailed": "Bilden kunde inte laddas",
+    "copy": "Kopiera",
+    "messageCopied": "Meddelandet kopierades"
   },
   "cf": {
     "mustBeAuthenticated": "Du måste vara autentiserad.",

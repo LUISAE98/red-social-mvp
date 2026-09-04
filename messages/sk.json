@@ -3090,7 +3090,9 @@
     "replyingTo": "Odpoveď pre {name}",
     "replyToSelf": "Ty",
     "cancelReply": "Zrušiť odpoveď",
-    "imageFailed": "Obrázok sa nepodarilo načítať"
+    "imageFailed": "Obrázok sa nepodarilo načítať",
+    "copy": "Kopírovať",
+    "messageCopied": "Správa skopírovaná"
   },
   "cf": {
     "mustBeAuthenticated": "Musíš byť overený.",

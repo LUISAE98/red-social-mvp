@@ -26,17 +26,28 @@ npm run perf:compare   # mide y muestra la diferencia contra lo guardado
 `Δ gzip` por pantalla: verde si bajó, rojo si subió.
 
 **Qué cuenta exactamente.** El script suma los fragmentos únicos que el
-manifiesto de cliente de Next asocia a cada ruta. Es el JavaScript *atribuido a
-la pantalla*, que es una cota superior de lo que se ejecuta en la primera
-pintura: un componente cargado con `next/dynamic` puede seguir apareciendo en el
-conjunto de la ruta aunque su descarga se aplace. Sirve igual como instrumento
-comparativo —se mide idéntico antes y después— pero **el efecto de pasar algo a
-`next/dynamic` se lee mejor en la fila `compartido por todas`** que en la fila de
-una ruta suelta.
+manifiesto de cliente de Next asocia a cada ruta. Es una medida comparativa
+fiable —se calcula idéntica antes y después— pero **no** es exactamente lo que
+descarga el navegador: el manifiesto puede seguir listando un fragmento que
+`next/dynamic` ya aplazó. Cuando el cambio va de importaciones estáticas a
+dinámicas, conviene confirmarlo contra el HTML servido (receta abajo).
+
+### Verdad de campo: qué descarga el navegador de verdad
+
+```bash
+npm run build
+npx next start -p 3013          # en otra terminal
+curl -s http://localhost:3013/es -o /tmp/home.html
+```
+
+Y sumar los `<script src="/_next/static/...">` de ese HTML. Eso es el paquete
+inicial real. Sirve además para responder «¿sigue entrando esta librería?»
+buscando una marca suya dentro de los fragmentos.
 
 ### Línea base del 3 de septiembre de 2026
 
-Build `3TS0TQroBF-dLk-CLF3VL`. Las cifras completas están en `baseline.md`.
+Build `3TS0TQroBF-dLk-CLF3VL`. Es el «antes» contra el que compara
+`npm run perf:compare`; **no sobrescribir** sin querer (`--save` lo hace).
 
 | | gzip | en disco |
 | --- | ---: | ---: |
@@ -48,7 +59,41 @@ Build `3TS0TQroBF-dLk-CLF3VL`. Las cifras completas están en `baseline.md`.
 | Login (`/login`) | 508 KB | 1 803 KB |
 
 Los 477 KB compartidos son el suelo: cualquier pantalla los paga antes de pintar
-nada propio. Bajarlos es el objetivo de los bloques 1 y 2.
+nada propio.
+
+### Después del bloque 1 — carga bajo demanda
+
+| | antes | después | |
+| --- | ---: | ---: | ---: |
+| **Compartido por todas** | 477 KB | **319 KB** | −33 % |
+| Inicio (`/`) | 1 019 KB | **641 KB** | −37 % |
+| Guardados (`/saved`) | 988 KB | 600 KB | −39 % |
+| Publicación (`/post/[postId]`) | 981 KB | 601 KB | −39 % |
+| Comunidad (`/groups/[groupId]`) | 1 089 KB | 865 KB | −21 % |
+| Perfil (`/u/[handle]`) | 1 077 KB | 853 KB | −21 % |
+| Login (`/login`) | 508 KB | 350 KB | −31 % |
+
+Confirmado contra el HTML servido: el paquete inicial real de `/` pasó de
+**1 242 KB a 917 KB** comprimidos, y ni `hls.js` ni LiveKit aparecen ya entre
+los scripts iniciales.
+
+Lo que se movió, y por qué estaba donde estaba:
+
+- **hls.js (154 KB)** — lo importaban en estático `GroupPostCard.tsx` y su
+  hermano `GroupPostCard.components.tsx`, que se pintan en cada publicación del
+  feed. Ahora se trae dentro del efecto y solo para las fuentes `.m3u8`.
+- **LiveKit (152 KB)** — llegaba por `MeetGreetPreparationFullscreen`, colgado
+  del `OwnerSidebar` y del banner de cuenta atrás, o sea de TODA pantalla
+  autenticada. Dos de sus siete importaciones ni siquiera se usaban.
+- **Paneles de la tarjeta** — `PostImageViewer` (2 782 líneas),
+  `StripePaymentModal`, `LiveComposerModal` y `LiveStreamSetup`. Todos reciben
+  `open` y arrancan cerrados.
+
+⚠️ **El bloque 1.1 (partir las traducciones) se pospone hasta después del bloque
+2.** Los espacios de nombres pesados —`services` 38,5 KB y `wallet` 32,5 KB— se
+usan dentro de `OwnerSidebar`, que vive en el layout autenticado: mientras ese
+componente siga en el camino crítico, cortarlos por ruta no ahorra nada en la
+app logueada. El bloque 2 lo saca de ahí y entonces el corte sí rinde.
 
 ---
 

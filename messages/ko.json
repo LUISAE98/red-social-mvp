@@ -3090,7 +3090,9 @@
     "replyingTo": "{name} 님에게 답장",
     "replyToSelf": "나",
     "cancelReply": "답장 취소",
-    "imageFailed": "이미지를 불러오지 못했어요"
+    "imageFailed": "이미지를 불러오지 못했어요",
+    "copy": "복사",
+    "messageCopied": "메시지를 복사했습니다"
   },
   "cf": {
     "mustBeAuthenticated": "인증이 필요합니다.",

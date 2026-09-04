@@ -3090,7 +3090,9 @@
     "replyingTo": "Vastan kasutajale {name}",
     "replyToSelf": "Sina",
     "cancelReply": "Tühista vastamine",
-    "imageFailed": "Pilti ei õnnestunud laadida"
+    "imageFailed": "Pilti ei õnnestunud laadida",
+    "copy": "Kopeeri",
+    "messageCopied": "Sõnum kopeeritud"
   },
   "cf": {
     "mustBeAuthenticated": "Pead olema autenditud.",

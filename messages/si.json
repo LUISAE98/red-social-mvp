@@ -3090,7 +3090,9 @@
     "replyingTo": "{name} හට පිළිතුරු දෙමින්",
     "replyToSelf": "ඔබ",
     "cancelReply": "පිළිතුර අවලංගු කරන්න",
-    "imageFailed": "රූපය පූරණය කළ නොහැකි විය"
+    "imageFailed": "රූපය පූරණය කළ නොහැකි විය",
+    "copy": "පිටපත් කරන්න",
+    "messageCopied": "පණිවිඩය පිටපත් කරන ලදී"
   },
   "cf": {
     "mustBeAuthenticated": "ඔබ සත්‍යාපනය විය යුතුයි.",

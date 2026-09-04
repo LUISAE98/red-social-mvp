@@ -3090,7 +3090,9 @@
     "replyingTo": "Отговор до {name}",
     "replyToSelf": "Ти",
     "cancelReply": "Отказ на отговора",
-    "imageFailed": "Изображението не се зареди"
+    "imageFailed": "Изображението не се зареди",
+    "copy": "Копиране",
+    "messageCopied": "Съобщението е копирано"
   },
   "cf": {
     "mustBeAuthenticated": "Трябва да си удостоверен.",

@@ -3090,7 +3090,9 @@
     "replyingTo": "{name} އަށް ޖަވާބުދެނީ",
     "replyToSelf": "ތިޔަބޭފުޅާ",
     "cancelReply": "ޖަވާބު ކެންސަލްކުރައްވާ",
-    "imageFailed": "ފޮޓޯ ލޯޑް ނުވި"
+    "imageFailed": "ފޮޓޯ ލޯޑް ނުވި",
+    "copy": "ކޮޕީ ކުރައްވާ",
+    "messageCopied": "މެސެޖު ކޮޕީ ކުރެވިއްޖެ"
   },
   "cf": {
     "mustBeAuthenticated": "ތިޔަބޭފުޅާ އޯތެންޓިކޭޓްވެފައި ހުންނަންޖެހޭ.",

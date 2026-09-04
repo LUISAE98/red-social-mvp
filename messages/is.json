@@ -3090,7 +3090,9 @@
     "replyingTo": "Svarar {name}",
     "replyToSelf": "Þú",
     "cancelReply": "Hætta við svar",
-    "imageFailed": "Ekki tókst að hlaða myndina"
+    "imageFailed": "Ekki tókst að hlaða myndina",
+    "copy": "Afrita",
+    "messageCopied": "Skilaboðin voru afrituð"
   },
   "cf": {
     "mustBeAuthenticated": "Þú þarft að vera auðkenndur.",

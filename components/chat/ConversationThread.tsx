@@ -121,6 +121,14 @@ const ICON_PENCIL = (
   </>
 );
 
+/** Dos hojas superpuestas, la figura de copiar que ya trae todo el mundo. */
+const ICON_COPY = (
+  <>
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M6 15H5a2 2 0 01-2-2V5a2 2 0 012-2h8a2 2 0 012 2v1" />
+  </>
+);
+
 /**
  * Responder: la MISMA silueta que el compartir de las publicaciones
  * (`VibraShareIcon`), reflejada. Compartir apunta hacia fuera y responder hacia
@@ -778,6 +786,49 @@ export default function ConversationThread({
       // El `click` que llega al levantar el dedo ya no debe hacer nada más.
       suppressClickRef.current = true;
     }, LONG_PRESS_MS);
+  }
+
+  /**
+   * Copia el texto del mensaje al portapapeles.
+   *
+   * El renglón lleva `user-select: none` para que la pulsación larga no saque el
+   * menú de copiar del sistema encima del nuestro, así que este botón es la
+   * ÚNICA forma de copiar un mensaje, en táctil y con puntero.
+   *
+   * `navigator.clipboard` pide contexto seguro y no está en todos lados; el
+   * `textarea` fuera de pantalla con `execCommand` es el respaldo que sí funciona
+   * en los navegadores viejos. Mismo par que en `CopyLinkButton`.
+   */
+  async function copyMessage(message: MessageWithId) {
+    const text = message.text;
+    if (!text) return;
+    setExpandedMessage(null);
+
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(tChat("messageCopied"), "success");
+      return;
+    } catch {
+      // Sigue al respaldo.
+    }
+
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "true");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      textarea.style.pointerEvents = "none";
+
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+
+      showToast(tChat("messageCopied"), "success");
+    } catch {
+      setError(tCommon("actionCompletionError"));
+    }
   }
 
   function startEdit(message: MessageWithId) {
@@ -1886,6 +1937,21 @@ export default function ConversationThread({
                     >
                       <MenuIcon path={ICON_REPLY} />
                       {tChat("reply")}
+                    </button>
+                  ) : null}
+
+                  {/* Copiar sale con puntero y en táctil: al lado del globo no
+                      hay icono para esto, y el menú del sistema está apagado en
+                      el renglón. Un mensaje de solo imagen no tiene qué copiar. */}
+                  {message.text ? (
+                    <button
+                      type="button"
+                      className="vibra-msg-menu-item"
+                      onClick={() => copyMessage(message)}
+                      tabIndex={expanded ? 0 : -1}
+                    >
+                      <MenuIcon path={ICON_COPY} />
+                      {tChat("copy")}
                     </button>
                   ) : null}
 

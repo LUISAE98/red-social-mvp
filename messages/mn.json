@@ -3090,7 +3090,9 @@
     "replyingTo": "{name}-д хариу бичиж байна",
     "replyToSelf": "Та",
     "cancelReply": "Хариуг цуцлах",
-    "imageFailed": "Зургийг ачаалж чадсангүй"
+    "imageFailed": "Зургийг ачаалж чадсангүй",
+    "copy": "Хуулах",
+    "messageCopied": "Мессежийг хууллаа"
   },
   "cf": {
     "mustBeAuthenticated": "Та баталгаажсан байх шаардлагатай.",

@@ -3090,7 +3090,9 @@
     "replyingTo": "Membalas {name}",
     "replyToSelf": "Kamu",
     "cancelReply": "Batalkan balasan",
-    "imageFailed": "Gambar tidak bisa dimuat"
+    "imageFailed": "Gambar tidak bisa dimuat",
+    "copy": "Salin",
+    "messageCopied": "Pesan disalin"
   },
   "cf": {
     "mustBeAuthenticated": "Kamu harus terautentikasi.",

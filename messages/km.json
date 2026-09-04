@@ -3090,7 +3090,9 @@
     "replyingTo": "កំពុងឆ្លើយតបទៅ {name}",
     "replyToSelf": "អ្នក",
     "cancelReply": "បោះបង់ការឆ្លើយតប",
-    "imageFailed": "មិនអាចផ្ទុករូបភាពបានទេ"
+    "imageFailed": "មិនអាចផ្ទុករូបភាពបានទេ",
+    "copy": "ចម្លង",
+    "messageCopied": "បានចម្លងសារ"
   },
   "cf": {
     "mustBeAuthenticated": "អ្នកត្រូវបានផ្ទៀងផ្ទាត់។",

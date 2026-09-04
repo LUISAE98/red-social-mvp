@@ -3090,7 +3090,9 @@
     "replyingTo": "Odpowiadasz {name}",
     "replyToSelf": "Ty",
     "cancelReply": "Anuluj odpowiedź",
-    "imageFailed": "Nie udało się wczytać obrazu"
+    "imageFailed": "Nie udało się wczytać obrazu",
+    "copy": "Kopiuj",
+    "messageCopied": "Skopiowano wiadomość"
   },
   "cf": {
     "mustBeAuthenticated": "Musisz być uwierzytelniony.",

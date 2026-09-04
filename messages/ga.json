@@ -3090,7 +3090,9 @@
     "replyingTo": "Ag freagairt do {name}",
     "replyToSelf": "Tusa",
     "cancelReply": "Cealaigh an freagra",
-    "imageFailed": "Níorbh fhéidir an íomhá a lódáil"
+    "imageFailed": "Níorbh fhéidir an íomhá a lódáil",
+    "copy": "Cóipeáil",
+    "messageCopied": "Cóipeáladh an teachtaireacht"
   },
   "cf": {
     "mustBeAuthenticated": "Caithfidh tú a bheith fíordheimhnithe.",

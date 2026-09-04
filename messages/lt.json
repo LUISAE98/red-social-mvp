@@ -3090,7 +3090,9 @@
     "replyingTo": "Atsakoma {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Atšaukti atsakymą",
-    "imageFailed": "Nepavyko įkelti vaizdo"
+    "imageFailed": "Nepavyko įkelti vaizdo",
+    "copy": "Kopijuoti",
+    "messageCopied": "Žinutė nukopijuota"
   },
   "cf": {
     "mustBeAuthenticated": "Turi būti autentifikuotas.",

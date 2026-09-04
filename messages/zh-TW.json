@@ -3090,7 +3090,9 @@
     "replyingTo": "正在回覆 {name}",
     "replyToSelf": "你",
     "cancelReply": "取消回覆",
-    "imageFailed": "無法載入圖片"
+    "imageFailed": "無法載入圖片",
+    "copy": "複製",
+    "messageCopied": "訊息已複製"
   },
   "cf": {
     "mustBeAuthenticated": "你需要通過驗證。",

@@ -3090,7 +3090,9 @@
     "replyingTo": "جارٍ الرد على {name}",
     "replyToSelf": "أنت",
     "cancelReply": "إلغاء الرد",
-    "imageFailed": "تعذّر تحميل الصورة"
+    "imageFailed": "تعذّر تحميل الصورة",
+    "copy": "نسخ",
+    "messageCopied": "تم نسخ الرسالة"
   },
   "cf": {
     "mustBeAuthenticated": "يجب أن تكون مصادقًا.",

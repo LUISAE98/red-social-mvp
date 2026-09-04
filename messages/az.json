@@ -3090,7 +3090,9 @@
     "replyingTo": "{name} adlı şəxsə cavab verilir",
     "replyToSelf": "Sən",
     "cancelReply": "Cavabı ləğv et",
-    "imageFailed": "Şəkil yüklənmədi"
+    "imageFailed": "Şəkil yüklənmədi",
+    "copy": "Kopyala",
+    "messageCopied": "Mesaj kopyalandı"
   },
   "cf": {
     "mustBeAuthenticated": "Kimliyin doğrulanmalıdır.",

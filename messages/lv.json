@@ -3090,7 +3090,9 @@
     "replyingTo": "Atbilde lietotājam {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Atcelt atbildi",
-    "imageFailed": "Neizdevās ielādēt attēlu"
+    "imageFailed": "Neizdevās ielādēt attēlu",
+    "copy": "Kopēt",
+    "messageCopied": "Ziņa nokopēta"
   },
   "cf": {
     "mustBeAuthenticated": "Tev jābūt autentificētam.",

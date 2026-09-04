@@ -35,6 +35,14 @@ function round2(n: number): number {
 }
 
 /**
+ * Periodicidad diaria **en el vocabulario de Facturapi**, no en el del SAT.
+ *
+ * Equivale a la clave `01` del catálogo `c_Periodicidad`; Facturapi hace la traducción al
+ * armar el XML. Ver la nota larga en `emitirFacturaGlobal`.
+ */
+const PERIODICIDAD_FACTURAPI_DIARIA = "day";
+
+/**
  * Una venta que quedó sin facturar en el mes.
  *
  * 💱 `base` y `tax` van en **PESOS**, no en dólares: son los importes congelados el día de la
@@ -430,15 +438,26 @@ export async function emitirFacturaGlobal(
       /**
        * 📅 Periodicidad DIARIA desde §A1 (2026-09-02).
        *
-       * Era `04`, mensual, y el proceso corría el día 5 sobre el mes anterior — unos 35 días
-       * de retraso sobre un plazo de **24 horas** (RMF 2026, regla 2.7.1.21). Incumplía por
+       * Era mensual, y el proceso corría el día 5 sobre el mes anterior — unos 35 días de
+       * retraso sobre un plazo de **24 horas** (RMF 2026, regla 2.7.1.21). Incumplía por
        * definición en cuanto se encendiera el timbrado.
        *
-       * ⚠️ `months` sigue siendo el MES en el que cae el día, no el día. Con `Periodicidad=01`
-       * el Anexo 20 espera igualmente el mes y el año; el día concreto lo dan las operaciones.
+       * 🚨 FACTURAPI NO USA LOS CÓDIGOS DEL SAT AQUÍ, USA PALABRAS EN INGLÉS.
+       *
+       *    Este campo es de la API de Facturapi, no del CFDI: ella traduce a la clave del
+       *    catálogo `c_Periodicidad` al armar el XML. Mandarle el código `"01"` —que es lo
+       *    correcto en el Anexo 20— devuelve un 400: «El campo global.periodicity no tiene un
+       *    valor permitido». Costó una tarde descubrirlo, así que queda escrito.
+       *
+       *    La equivalencia con el catálogo del SAT, para que se pueda comprobar:
+       *      day → 01 Diaria · week → 02 Semanal · fortnight → 03 Quincenal
+       *      month → 04 Mensual · two_month → 05 Bimestral
+       *
+       * ⚠️ `months` sí es el MES en el que cae el día, no el día. Con periodicidad diaria el
+       * Anexo 20 espera igualmente el mes y el año; el día concreto lo dan las operaciones.
        */
       global: {
-        periodicity: "01", // Diaria
+        periodicity: PERIODICIDAD_FACTURAPI_DIARIA,
         months: String(desde.getUTCMonth() + 1).padStart(2, "0"),
         year: desde.getUTCFullYear(),
       },
