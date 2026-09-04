@@ -42,9 +42,11 @@
      teclado abierto y el área hundida a 471. Por eso la diferencia se puede
      calcular, y por eso esto se arregla sumando en vez de adivinando.
 
-     ⚠️ VA ACOTADO A `display-mode: standalone` A PROPÓSITO. En Safari normal
-     `lvh` ignora la barra del navegador, así que fuera de la app instalada esta
-     resta valdría el alto de esa barra y escondería el contenido por debajo.
+     ⚠️ VA ACOTADO A LA APP INSTALADA A PROPÓSITO. En Safari normal `lvh` ignora
+     la barra del navegador, así que fuera de la app instalada esta resta valdría
+     el alto de esa barra y escondería el contenido por debajo. Los dos modos que
+     valen están en la regla de más abajo; `minimal-ui` no, porque ahí sí hay
+     barra.
 
      Se cura sola: el día que Apple cuadre las dos cuentas, la resta da 0 y no
      hay nada que revertir. Historia completa en `docs/ios-pwa-viewport.md`.

@@ -55,34 +55,32 @@ export const metadata: Metadata = {
      * queda en 22px sueltos y el contenido se corta en seco contra una barra
      * negra opaca.
      *
-     * 🚨 VA EMPAREJADO CON `display: "standalone"` EN EL MANIFEST. Los dos
-     * juntos, o ninguno. De desemparejarlos salía el escalón negro de abajo.
+     * 🚨 PERO ES TAMBIÉN LO QUE CAUSA EL ESCALÓN NEGRO DE ABAJO. Es un solo
+     * interruptor con dos consecuencias, no dos ajustes peleándose: mete el
+     * lienzo por debajo de la barra de estado, y iOS NO le suma esos píxeles al
+     * área de dibujo. Medido en un iPhone 16 Pro el 2026-09-03:
      *
-     * Medido en un iPhone 16 Pro el 2026-09-03, con la app instalada y el
-     * manifest pidiendo `display: "fullscreen"`:
+     *     pantalla 874    lvh 874     ← el lienzo ocupa la pantalla entera
+     *     alto win 812    dvh 812     ← el área de dibujo mide 62px menos
+     *     seguro ↑62 ↓34              ← y los márgenes son los de una de 874
      *
-     *     pantalla 874    lvh 874     ← el lienzo SÍ ocupaba la pantalla entera
-     *     alto win 812    dvh 812     ← pero el área de dibujo medía 62px menos
-     *     seguro ↑62 ↓34              ← y los márgenes eran los de una de 874
-     *
-     * Es decir: iOS daba al lienzo el tamaño de fullscreen y hacía las cuentas
-     * de standalone. 62 es exactamente la barra de estado. El área quedaba
-     * anclada arriba, así que esos 62px se caían POR ABAJO y dejaban ver el
-     * fondo negro del lienzo — de ahí que el escalón se viera abajo aunque el
-     * número venga de arriba, y de ahí que los cuatro intentos de arreglarlo
-     * tocando el safe-area INFERIOR no encontraran nada: no había nada.
-     * `--vb-safe-bottom` vale 0 y no se redefine en ningún sitio.
+     * 62 es exactamente la barra de estado. Como el área queda anclada arriba,
+     * esos 62px sobran POR ABAJO y dejan ver el lienzo desnudo, que es negro. De
+     * ahí que el escalón se viera abajo aunque el número venga de arriba, y de
+     * ahí que los cuatro intentos de arreglarlo tocando el safe-area INFERIOR no
+     * encontraran nada: no había nada. `--vb-safe-bottom` vale 0.
      *
      * Era pasajero porque iOS rehace esa cuenta en cada transición —el splash
      * al refrescar, abrir un panel, cerrar el teclado— y tarda unos fotogramas
      * en cuadrarla. Lo que se pintara dentro de esa ventana salía 62px corto.
      *
-     * iOS nunca cumplió aquel `fullscreen`: lo reportaba por `display-mode`
-     * mientras enseñaba la barra de estado. `standalone` sí lo implementa, y
-     * con él las dos cuentas vuelven a ser la misma.
+     * ⛔ NO SE ARREGLA QUITANDO ESTO. Ya se probó: quita el escalón, sí, pero
+     * apagando media pantalla, y el traslúcido de arriba se corta en seco. La
+     * diferencia se COMPENSA, con `--vb-lienzo-extra` en `globals.css`.
      *
      * ⚠️ iOS se guarda esto al INSTALAR. Para ver un cambio aquí hay que borrar
      * la app de la pantalla de inicio y volver a añadirla; recargar no basta.
+     * La compensación de CSS, en cambio, se ve recargando.
      *
      * Historia completa y medidas en `docs/ios-pwa-viewport.md`.
      */

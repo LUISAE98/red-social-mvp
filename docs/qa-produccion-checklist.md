@@ -553,7 +553,8 @@ cuenta aparte (`globalesSinSello`), no como error.
 
 23.1 Instalar la PWA en iOS y Android
 23.2 ✅ **Safe-area inferior**: ya no existe ninguno — el subnav es flotante. `--vb-safe-bottom` vale `0px`, se define una sola vez y no se redefine; `env(safe-area-inset-bottom)` no se usa en ningún sitio activo. `test/unit/pantallaCompleta.test.ts` lo vigila. ⛔ Este punto decía "fijo en 20px con `body.vb-authed`": **falso**, corregido el 2026-09-03
-23.2b 🟠 **Escalón negro abajo en PWA iOS**: si reaparece, **NO buscarlo en el safe-area inferior** — ahí no hay nada. Viene del inset de ARRIBA. Medir con el lector de geometría (pulsado largo en la cabecera de un DM); sano es `alto win == pantalla`, `falta 0`, `PEOR win` sin bajar. Historia completa y causa en `docs/ios-pwa-viewport.md`
+23.2b 🟠 **Escalón negro abajo en PWA iOS**: si reaparece, **NO buscarlo en el safe-area inferior** — ahí no hay nada. Viene del inset de ARRIBA: iOS da el lienzo entero pero un área de dibujo 62px más corta, y se compensa con `--vb-lienzo-extra`. Medir con el lector (pulsado largo en la cabecera de un DM) y **mirar la línea `VAR` primero**: dentro de la app tiene que decir `→ aplicada`. Si dice `NO APLICADA`, el fallo es el interruptor, no la aritmética. `falta 62` es normal y no se va a arreglar. Historia completa en `docs/ios-pwa-viewport.md`
+23.2c 🟠 **Traslúcido de la barra de estado**: `.safeAreaGlass` pinta el cristal detrás del reloj. Depende de `statusBarStyle: "black-translucent"`; quitarlo lo corta en seco. Probar arriba **y** abajo en la misma pasada — están atados al mismo interruptor
 23.3 🟠 **Scroll-lock**: todos los paneles deben usar `useBodyScrollLock` (overflow + touchmove, **nunca `position:fixed`** en el body). ~39 paneles migrados; probar los que no
 23.4 Excepciones deliberadas: los locks de gesto de `GroupPostCard` y `GroupPostComposer` no se tocan
 23.5 Rotación de pantalla en celular durante un live y durante una videollamada
