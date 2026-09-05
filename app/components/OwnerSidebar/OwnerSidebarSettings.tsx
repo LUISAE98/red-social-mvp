@@ -333,7 +333,9 @@ function SeccionAjuste({
         }}
       >
         <div style={{ overflow: "hidden" }}>
-          <div style={{ padding: "0 0 6px" }}>{children}</div>
+          {/* Relleno lateral propio: sin el, el contenido quedaba pegado al
+              borde de la tarjeta y se leia apretado. */}
+          <div style={{ padding: "0 6px 6px" }}>{children}</div>
         </div>
       </div>
     </div>
@@ -753,7 +755,7 @@ export default function OwnerSidebarSettings({
 
   return (
     /* Sin tarjeta propia: cada pestaña trae la suya. Este solo las apila. */
-    <div style={{ display: "grid", gap: 8, marginTop: 8, minWidth: 0 }}>
+    <div style={{ display: "grid", gap: 8, marginTop: 22, minWidth: 0 }}>
       <style jsx>{`
         .vibra-sidebar-settings-input::placeholder {
           color: rgba(255, 255, 255, 0.42);
@@ -832,34 +834,51 @@ export default function OwnerSidebarSettings({
         {/* 2. Notificaciones. La pestaña entera desaparece donde el navegador no
                las admite: una pestaña que se abre y no tiene nada dentro es peor
                que no estar. */}
-        {push.supported === true && (
-          <SeccionAjuste
-            icono={ICONO_NOTIFICACIONES}
-            titulo={tProfile("pushLabel")}
-            abierta={abierta === "notificaciones"}
-            onToggle={() => alternar("notificaciones")}
-          >
-            <div className="sidebar-setting-row" style={row}>
-              <div>
-                <div style={valueStyle}>
-                  {push.enabled ? tProfile("pushOn") : tProfile("pushOff")}
-                </div>
+        {/* 2. Notificaciones. La pestaña está SIEMPRE, tambien donde el
+               navegador no admite avisos: esconderla dejaba la lista distinta
+               segun el aparato y sin decir por que faltaba. Cuando no se puede,
+               se dice dentro y no se ofrece el interruptor. */}
+        <SeccionAjuste
+          icono={ICONO_NOTIFICACIONES}
+          titulo={tProfile("pushLabel")}
+          abierta={abierta === "notificaciones"}
+          onToggle={() => alternar("notificaciones")}
+        >
+          <div className="sidebar-setting-row" style={row}>
+            <div>
+              <div style={valueStyle}>
+                {push.supported === false
+                  ? tProfile("pushUnsupported")
+                  : push.enabled
+                    ? tProfile("pushOn")
+                    : tProfile("pushOff")}
+              </div>
+
+              {push.supported !== false && (
                 <div style={hintStyle}>
                   {push.permission === "denied"
                     ? tProfile("pushDeniedHint")
                     : tProfile("pushHint")}
                 </div>
-              </div>
+              )}
+            </div>
 
+            {/* Sin soporte no hay interruptor: un control que no puede hacer
+                nada solo invita a pulsarlo y a no entender por que no pasa. */}
+            {push.supported !== false && (
               <Switch
                 checked={push.enabled}
-                disabled={push.busy || push.permission === "denied"}
+                // Mientras se comprueba el soporte, `supported` es null y
+                // todavía no se sabe si se puede.
+                disabled={
+                  push.busy || push.supported === null || push.permission === "denied"
+                }
                 onChange={handlePushChange}
                 label={push.enabled ? tProfile("disablePush") : tProfile("enablePush")}
               />
-            </div>
-          </SeccionAjuste>
-        )}
+            )}
+          </div>
+        </SeccionAjuste>
 
         {/* 3. Datos de la cuenta: lo que te identifica. Cinco renglones que
                antes andaban sueltos entre los ajustes y que juntos se leen como
