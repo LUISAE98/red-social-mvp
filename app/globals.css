@@ -684,3 +684,86 @@ body::-webkit-scrollbar-button {
     background-position: 50% 50%;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ESQUELETOS DE CARGA — la base canónica de TODA la plataforma.
+
+   Vive aquí y no en cada componente por dos motivos.
+
+   El primero es que estaba copiada 26 VECES. La guía pedía "scoped con
+   styled-jsx", y styled-jsx solo alcanza a su propio componente, así que cada
+   uno tuvo que recopiar la clase entera y sus keyframes. Veintiséis copias que
+   había que mantener a la vez; esta clase es global a propósito para que exista
+   una sola.
+
+   🚨 El segundo es el TIRÓN. La versión anterior era:
+
+       animation: vbSkelWave 1.6s ease-in-out infinite;
+       @keyframes vbSkelWave { 0% { background-position: 180% 0 }
+                               100% { background-position: -80% 0 } }
+
+   Dos fallos:
+
+   · `ease-in-out` en un bucle infinito hace que la luz FRENE hasta pararse al
+     llegar al final y arranque otra vez desde cero. Esa deceleración justo en
+     la costura es lo que se veía como que se atora. Un barrido que se repite
+     tiene que ir a velocidad constante: `linear`.
+
+   · Animar `background-position` obliga a REPINTAR cada fotograma, y no lo
+     puede componer la GPU. Con un feed lleno de esqueletos eso es tirón de
+     verdad. Un `transform` sobre un pseudo-elemento sí se compone.
+
+   Ahora la luz es un `::after` que cruza con `translateX` a velocidad
+   constante. En los extremos queda fuera del bloque, así que el salto del final
+   del bucle al principio no se ve: no hay costura que disimular.
+   ───────────────────────────────────────────────────────────────────────────── */
+.vb-skel {
+  position: relative;
+  overflow: hidden;
+  /* Relleno base. Se ve solo, sin la luz, si la animación no llega a correr:
+     es lo que garantiza que el hueco SIEMPRE se vea, en cualquier navegador. */
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.vb-skel::after {
+  content: "";
+  position: absolute;
+  /* Esquina + tamaño, no `inset`, que no existe en Safari < 14.1 ni en
+     Samsung Internet viejo. Y escrito así el minificador no puede volver a
+     colapsarlo en `inset`, cosa que sí hacía con los cuatro lados sueltos. */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: linear-gradient(
+    100deg,
+    transparent 25%,
+    rgba(255, 255, 255, 0.09) 50%,
+    transparent 75%
+  );
+  /* Sin `will-change`: un feed puede tener decenas de esqueletos a la vez y
+     eso serían decenas de capas de composición en un móvil de gama baja. Un
+     `transform` animado ya lo promociona el navegador por su cuenta. */
+  transform: translateX(-100%);
+  animation: vbSkelWave 1.6s linear infinite;
+  pointer-events: none;
+}
+
+/* Los dos extremos escritos: el fotograma inicial implícito lo resuelven todos
+   los motores modernos, pero declararlo no cuesta nada y no deja dudas. */
+@keyframes vbSkelWave {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Quien pidió menos movimiento se queda con el relleno quieto, sin la luz. */
+@media (prefers-reduced-motion: reduce) {
+  .vb-skel::after {
+    animation: none;
+    opacity: 0;
+  }
+}

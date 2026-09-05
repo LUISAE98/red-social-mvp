@@ -208,6 +208,12 @@ export function compraLibre(x: Record<string, unknown> | undefined): boolean {
   if (x.invoiced === true) return false;
   if (x.nominativaEnCurso) return false;
   if (x.globalInvoice) return false;
+  /**
+   * 🚨 DEVUELTA NO ES LIBRE. Una venta que se sacó de la global porque se le devolvió el dinero
+   *    al comprador no debe volver a facturarse nunca: sin esto, el proceso del día siguiente la
+   *    vería sin marca de global y la metería otra vez, facturando una venta que ya no existe.
+   */
+  if (x.devuelta) return false;
   return true;
 }
 
@@ -224,7 +230,8 @@ export function compraLibre(x: Record<string, unknown> | undefined): boolean {
  */
 export function compraReclamablePorNominativa(x: Record<string, unknown> | undefined): boolean {
   if (compraLibre(x)) return true;
-  if (!x || x.invoiced === true || x.globalInvoice) return false;
+  // Devuelta tampoco se factura por aquí: ese dinero volvió al comprador.
+  if (!x || x.invoiced === true || x.globalInvoice || x.devuelta) return false;
   const n = x.nominativaEnCurso as { estado?: string } | undefined;
   return n?.estado === "liberada";
 }

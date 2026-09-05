@@ -2618,8 +2618,8 @@
     "tagsHint": "Tria'n uns quants per descobrir comunitats i creadors que connectin amb tu."
   },
   "notifPrompt": {
-    "title": "Activa les notificacions",
-    "body": "Rep avisos de flames, comentaris i activitat encara que Vibra estigui tancada.",
+    "title": "Assabenta't al moment",
+    "body": "T'avisem quan entra un pagament, quan algú reserva una experiència amb tu i quan comença un directe que segueixes.",
     "enable": "Activa",
     "enabling": "Activant…",
     "later": "Ara no"
@@ -2637,7 +2637,9 @@
     "title": "Afegeix Vibra a la pantalla d'inici",
     "body": "S'obre com una app i és l'única manera de rebre avisos a l'iPhone.",
     "step1": "Toca Comparteix",
-    "step2": "Tria Afegeix a la pantalla d'inici",
+    "step2": "Baixa i tria aquesta opció",
+    "safariOnly": "Ha de ser des de Safari",
+    "addToHomeScreen": "Afegeix a la pantalla d'inici",
     "later": "Ara no"
   },
   "notifications": {

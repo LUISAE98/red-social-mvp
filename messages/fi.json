@@ -2618,8 +2618,8 @@
     "tagsHint": "Valitse muutama, niin löydät yhteisöjä ja tekijöitä, jotka sopivat sinuun."
   },
   "notifPrompt": {
-    "title": "Ota ilmoitukset käyttöön",
-    "body": "Saat ilmoituksia tykkäyksistä, kommenteista ja tapahtumista, vaikka Vibra olisi suljettu.",
+    "title": "Tiedä heti",
+    "body": "Kerromme, kun maksu saapuu, kun joku varaa kanssasi elämyksen ja kun seuraamasi lähetys alkaa.",
     "enable": "Ota käyttöön",
     "enabling": "Otetaan käyttöön…",
     "later": "Ei nyt"
@@ -2637,7 +2637,9 @@
     "title": "Lisää Vibra aloitusnäytölle",
     "body": "Se avautuu sovelluksena, ja se on ainoa tapa saada ilmoituksia iPhonessa.",
     "step1": "Napauta Jaa",
-    "step2": "Valitse Lisää aloitusnäyttöön",
+    "step2": "Vieritä alas ja valitse tämä",
+    "safariOnly": "Sen on tapahduttava Safarissa",
+    "addToHomeScreen": "Lisää Koti-valikkoon",
     "later": "Ei nyt"
   },
   "notifications": {

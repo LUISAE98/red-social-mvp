@@ -23,30 +23,6 @@ export function CommentSkeleton() {
           gap: 7px;
           padding-top: 2px;
         }
-        .vb-skel {
-          background: linear-gradient(
-            100deg,
-            rgba(255, 255, 255, 0.05) 30%,
-            rgba(255, 255, 255, 0.11) 50%,
-            rgba(255, 255, 255, 0.05) 70%
-          );
-          background-size: 300% 100%;
-          animation: vbSkelWave 1.6s ease-in-out infinite;
-        }
-        @keyframes vbSkelWave {
-          0% {
-            background-position: 180% 0;
-          }
-          100% {
-            background-position: -80% 0;
-          }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .vb-skel {
-            animation: none;
-            background: rgba(255, 255, 255, 0.07);
-          }
-        }
         .vb-cmt-skel-avatar {
           width: 32px;
           height: 32px;

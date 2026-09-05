@@ -2618,8 +2618,8 @@
     "tagsHint": "Válassz párat, hogy olyan közösségeket és alkotókat fedezz fel, akik passzolnak hozzád."
   },
   "notifPrompt": {
-    "title": "Értesítések bekapcsolása",
-    "body": "Kapj értesítést a kedvelésekről, hozzászólásokról és eseményekről akkor is, ha a Vibra be van zárva.",
+    "title": "Tudd meg abban a pillanatban",
+    "body": "Szólunk, ha befut egy fizetés, ha valaki élményt foglal veled és ha elindul egy élő, amit követsz.",
     "enable": "Bekapcsolás",
     "enabling": "Bekapcsolás…",
     "later": "Most nem"
@@ -2637,7 +2637,9 @@
     "title": "Add hozzá a Vibrát a kezdőképernyőhöz",
     "body": "Alkalmazásként nyílik meg, és iPhone-on csak így érkeznek értesítések.",
     "step1": "Koppints a Megosztásra",
-    "step2": "Válaszd a Főképernyőhöz adást",
+    "step2": "Görgess le és válaszd ezt",
+    "safariOnly": "Safariból kell csinálni",
+    "addToHomeScreen": "Főképernyőhöz adás",
     "later": "Most nem"
   },
   "notifications": {

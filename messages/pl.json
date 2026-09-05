@@ -2618,8 +2618,8 @@
     "tagsHint": "Wybierz kilka, aby odkryć społeczności i twórców, którzy do ciebie pasują."
   },
   "notifPrompt": {
-    "title": "Włącz powiadomienia",
-    "body": "Otrzymuj powiadomienia o polubieniach, komentarzach i aktywności, nawet gdy Vibra jest zamknięta.",
+    "title": "Dowiedz się w tej samej chwili",
+    "body": "Damy znać, gdy wpłynie płatność, gdy ktoś zarezerwuje przeżycie z tobą i gdy zacznie się transmisja, którą śledzisz.",
     "enable": "Włącz",
     "enabling": "Włączanie…",
     "later": "Nie teraz"
@@ -2637,7 +2637,9 @@
     "title": "Dodaj Vibrę do ekranu głównego",
     "body": "Otwiera się jak aplikacja i tylko tak dostaniesz powiadomienia na iPhonie.",
     "step1": "Dotknij Udostępnij",
-    "step2": "Wybierz Dodaj do ekranu głównego",
+    "step2": "Przewiń w dół i wybierz to",
+    "safariOnly": "Musi to być z Safari",
+    "addToHomeScreen": "Do ekranu początkowego",
     "later": "Nie teraz"
   },
   "notifications": {

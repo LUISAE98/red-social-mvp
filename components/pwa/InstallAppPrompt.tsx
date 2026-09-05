@@ -20,10 +20,10 @@ import { useTranslations } from "next-intl";
 
 import { usePwaInstalled } from "@/lib/hooks/usePwaInstalled";
 import { usePwaInstallPrompt } from "@/lib/hooks/usePwaInstallPrompt";
-import { aplazar, puedePreguntar } from "@/lib/pwa/aplazarAviso";
+import { aplazar, puedePreguntar, CADENCIA_INSTALAR } from "@/lib/pwa/aplazarAviso";
 import PanelModal from "./PanelModal";
 
-/** Cuándo se pospuso por última vez y cuántas veces se ha pospuesto ya. */
+/** Cuándo se pospuso por última vez. Vuelve cada 6 h hasta que se instale. */
 const CLAVE_APLAZADO = "vibra:installPromptAplazado";
 
 export default function InstallAppPrompt() {
@@ -48,7 +48,7 @@ export default function InstallAppPrompt() {
     !cerrado &&
     instalada === false &&
     puedeInstalar &&
-    puedePreguntar(CLAVE_APLAZADO);
+    puedePreguntar(CLAVE_APLAZADO, CADENCIA_INSTALAR);
 
   function noAhora() {
     aplazar(CLAVE_APLAZADO);

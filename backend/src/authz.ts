@@ -54,6 +54,26 @@ export function requirePlatformMod(request: CallableAuth): string {
 }
 
 /**
+ * ¿Es supermoderador? Como `requirePlatformMod` pero SIN lanzar.
+ *
+ * Para cuando el permiso no es la puerta sino un privilegio extra: por ejemplo, que soporte
+ * pueda bajar el comprobante de cualquiera además del suyo. Ahí un `throw` cerraría la función
+ * a los usuarios normales, que es justo lo contrario de lo que se quiere.
+ *
+ * 🚨 Se implementa LLAMANDO a `requirePlatformMod`, no repitiendo sus condiciones. Duplicarlas
+ *    invita a que un día se endurezca una y se olvide la otra, y entonces esta puerta quedaría
+ *    más floja que la principal sin que nadie lo note.
+ */
+export function esPlatformMod(request: CallableAuth): boolean {
+  try {
+    requirePlatformMod(request);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Dueño de la plataforma: lo anterior MÁS que el correo sea el suyo.
  *
  * Para migraciones y backfills, que se corren una vez y tocan la base entera.

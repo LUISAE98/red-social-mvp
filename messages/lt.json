@@ -2618,8 +2618,8 @@
     "tagsHint": "Pasirink kelis, kad atrastum bendruomenes ir kūrėjus, kurie tau tinka."
   },
   "notifPrompt": {
-    "title": "Įjunk pranešimus",
-    "body": "Gauk pranešimus apie patiktukus, komentarus ir veiklą net kai Vibra uždaryta.",
+    "title": "Sužinok tą pačią akimirką",
+    "body": "Pranešime, kai gausi mokėjimą, kai kas nors rezervuos patirtį su tavimi ir kai prasidės tiesioginė, kurią seki.",
     "enable": "Įjungti",
     "enabling": "Įjungiama…",
     "later": "Ne dabar"
@@ -2637,7 +2637,9 @@
     "title": "Pridėk Vibra į pradžios ekraną",
     "body": "Ji atsidaro kaip programėlė ir tai vienintelis būdas gauti pranešimus iPhone.",
     "step1": "Bakstelėk Bendrinti",
-    "step2": "Pasirink Įtraukti į pradžios ekraną",
+    "step2": "Slink žemyn ir pasirink šitą",
+    "safariOnly": "Tai turi būti iš Safari",
+    "addToHomeScreen": "Įtraukti į pradžios ekraną",
     "later": "Ne dabar"
   },
   "notifications": {

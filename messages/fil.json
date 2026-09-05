@@ -2618,8 +2618,8 @@
     "tagsHint": "Pumili ng ilan para matuklasan ang mga komunidad at creator na bagay sa iyo."
   },
   "notifPrompt": {
-    "title": "I-on ang mga notification",
-    "body": "Tumanggap ng alerto tungkol sa mga apoy, komento at aktibidad kahit sarado ang Vibra.",
+    "title": "Malaman agad",
+    "body": "Sasabihan ka namin kapag may pumasok na bayad, kapag may nag-book ng karanasan kasama ka, at kapag nagsimula ang live na sinusundan mo.",
     "enable": "I-on",
     "enabling": "Ino-on…",
     "later": "Hindi muna"
@@ -2637,7 +2637,9 @@
     "title": "Idagdag ang Vibra sa home screen",
     "body": "Bubukas ito tulad ng app, at ito lang ang paraan para makatanggap ng abiso sa iPhone.",
     "step1": "I-tap ang Share",
-    "step2": "Piliin ang Add to Home Screen",
+    "step2": "Mag-scroll pababa at piliin ito",
+    "safariOnly": "Kailangang mula sa Safari",
+    "addToHomeScreen": "Add to Home Screen",
     "later": "Hindi ngayon"
   },
   "notifications": {

@@ -586,6 +586,8 @@ export { generateBuyerInvoice, downloadBuyerInvoice } from "./facturacion/genera
 // ✂️ Sacar una venta de una global ya timbrada, motivo 04. Ver pendientesimpuestos.md §B7.
 export { cancelarGlobalPorNominativa } from "./facturacion/cancelacionGlobal";
 export { cancelarComprobanteMensualCallable } from "./facturacion/cancelacionMensual";
+export { emitirNotaDeCreditoCallable } from "./facturacion/notaDeCredito";
+export { descargarDocumentoFiscal } from "./facturacion/descargarDocumento";
 // 📅 Factura global DIARIA, por el plazo de 24 h. Ver pendientesimpuestos.md §A1.
 export {
   globalInvoiceDailyCron,

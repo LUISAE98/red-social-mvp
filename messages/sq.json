@@ -2618,8 +2618,8 @@
     "tagsHint": "Zgjidh disa për të zbuluar komunitete dhe krijues që përputhen me ty."
   },
   "notifPrompt": {
-    "title": "Aktivizo njoftimet",
-    "body": "Merr njoftime për flakët, komentet dhe aktivitetin edhe kur Vibra është e mbyllur.",
+    "title": "Mësoje në çast",
+    "body": "Të njoftojmë kur hyn një pagesë, kur dikush rezervon një përvojë me ty dhe kur nis një drejtpërdrejtë që ndjek.",
     "enable": "Aktivizo",
     "enabling": "Duke aktivizuar…",
     "later": "Jo tani"
@@ -2637,7 +2637,9 @@
     "title": "Shto Vibra në ekranin bazë",
     "body": "Hapet si aplikacion dhe është e vetmja mënyrë për të marrë njoftime në iPhone.",
     "step1": "Prek Ndaj",
-    "step2": "Zgjidh Shto në ekranin bazë",
+    "step2": "Zbrit dhe zgjidh këtë",
+    "safariOnly": "Duhet të jetë nga Safari",
+    "addToHomeScreen": "Shto në ekranin bazë",
     "later": "Jo tani"
   },
   "notifications": {

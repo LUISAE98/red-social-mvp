@@ -15,9 +15,17 @@
  * siguiente retoque se quedara uno atrás.
  */
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+
+/**
+ * Lo que tarda en irse. ⚠️ Tiene que cuadrar con `vbPanelSale` y `vbVeloSale`
+ * del CSS de abajo: si el temporizador fuera más corto, el componente se
+ * desmontaría a media animación y volvería el corte seco que esto viene a
+ * quitar.
+ */
+const SALIDA_MS = 200;
 
 export type PanelModalProps = {
   /** Icono del encabezado. Va sobre el degradado de marca. */
@@ -46,21 +54,48 @@ export default function PanelModal({
   // que cuenta referencias y sabe soltar el bloqueo solo al cerrarse el último.
   useBodyScrollLock(true);
 
+  /**
+   * La salida la gobierna el propio modal, no quien lo usa.
+   *
+   * ⚠️ Antes, descartar ponía a `false` la condición del padre y el componente
+   * desaparecía en el mismo fotograma: panel y velo se cortaban en seco. Ahora
+   * se enciende `saliendo`, corre la animación, y solo al terminar se avisa al
+   * padre para que desmonte. Los tres avisos lo heredan sin tocar nada.
+   */
+  const [saliendo, setSaliendo] = useState(false);
+  const temporizador = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (temporizador.current !== null) window.clearTimeout(temporizador.current);
+    };
+  }, []);
+
+  function cerrarConSalida() {
+    // Dos pulsaciones seguidas no encadenan dos temporizadores.
+    if (saliendo) return;
+    setSaliendo(true);
+    temporizador.current = window.setTimeout(onDescartar, SALIDA_MS);
+  }
+
   // Escape cierra, como cualquier diálogo. Sin esto, con teclado no había salida.
   useEffect(() => {
     const alPulsar = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onDescartar();
+      if (e.key === "Escape") cerrarConSalida();
     };
     window.addEventListener("keydown", alPulsar);
     return () => window.removeEventListener("keydown", alPulsar);
-  }, [onDescartar]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saliendo, onDescartar]);
 
   return (
     <div
+      className="vb-panel-velo"
+      data-saliendo={saliendo ? "" : undefined}
       // Cerrar tocando fuera. Solo si el toque nace Y muere en el velo, para que
       // arrastrar desde dentro del panel hacia fuera no lo cierre sin querer.
       onClick={(e) => {
-        if (e.target === e.currentTarget) onDescartar();
+        if (e.target === e.currentTarget) cerrarConSalida();
       }}
       style={{
         position: "fixed",
@@ -83,7 +118,54 @@ export default function PanelModal({
         WebkitBackdropFilter: "blur(9px)",
       }}
     >
+      <style jsx>{`
+        /* Entrada y salida, en animaciones y no en transiciones: una animación
+           arranca sola al montar, sin necesidad de un estado "ya monté" que el
+           lint de este repo prohíbe escribir dentro de un efecto. */
+        .vb-panel-velo {
+          animation: vbVeloEntra 220ms var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1)) both;
+        }
+        .vb-panel-velo[data-saliendo] {
+          animation: vbVeloSale ${SALIDA_MS}ms var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1)) both;
+        }
+        .vb-panel-caja {
+          animation: vbPanelEntra 260ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+        }
+        .vb-panel-velo[data-saliendo] .vb-panel-caja {
+          animation: vbPanelSale ${SALIDA_MS}ms var(--ease-in, cubic-bezier(0.4, 0, 1, 1)) both;
+        }
+
+        @keyframes vbVeloEntra {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes vbVeloSale {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
+        /* Entra creciendo desde un pelo abajo; sale encogiendo un poco. No al
+           revés: agrandar al salir se lee como que algo se rompió. */
+        @keyframes vbPanelEntra {
+          from { opacity: 0; transform: scale(0.94) translateY(10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes vbPanelSale {
+          from { opacity: 1; transform: scale(1) translateY(0); }
+          to { opacity: 0; transform: scale(0.96) translateY(6px); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .vb-panel-velo,
+          .vb-panel-velo[data-saliendo],
+          .vb-panel-caja,
+          .vb-panel-velo[data-saliendo] .vb-panel-caja {
+            animation: none;
+          }
+        }
+      `}</style>
+
       <div
+        className="vb-panel-caja"
         role="dialog"
         aria-modal="true"
         aria-label={titulo}
@@ -147,7 +229,7 @@ export default function PanelModal({
         >
           <button
             type="button"
-            onClick={onDescartar}
+            onClick={cerrarConSalida}
             style={{
               appearance: "none",
               border: "none",
@@ -165,7 +247,7 @@ export default function PanelModal({
           {accion ? (
             <button
               type="button"
-              onClick={accion.onClick}
+              onClick={() => { setSaliendo(true); accion.onClick(); }}
               disabled={accion.ocupado}
               style={{
                 appearance: "none",

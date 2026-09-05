@@ -2618,8 +2618,8 @@
     "tagsHint": "Chọn vài mục để khám phá những cộng đồng và nhà sáng tạo hợp với bạn."
   },
   "notifPrompt": {
-    "title": "Bật thông báo",
-    "body": "Nhận thông báo về ngọn lửa, bình luận và hoạt động ngay cả khi Vibra đã đóng.",
+    "title": "Biết ngay lúc đó",
+    "body": "Chúng tôi báo cho bạn khi có khoản thanh toán, khi ai đó đặt một trải nghiệm với bạn và khi buổi live bạn theo dõi bắt đầu.",
     "enable": "Bật",
     "enabling": "Đang bật…",
     "later": "Để sau"
@@ -2637,7 +2637,9 @@
     "title": "Thêm Vibra vào màn hình chính",
     "body": "Nó mở như một ứng dụng, và đây là cách duy nhất để nhận thông báo trên iPhone.",
     "step1": "Chạm Chia sẻ",
-    "step2": "Chọn Thêm vào màn hình chính",
+    "step2": "Kéo xuống và chọn mục này",
+    "safariOnly": "Phải làm từ Safari",
+    "addToHomeScreen": "Thêm vào MH chính",
     "later": "Để sau"
   },
   "notifications": {

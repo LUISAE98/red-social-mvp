@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 
 /**
  * Desenfoque progresivo, para cabeceras y pies que flotan sobre contenido que
@@ -113,6 +113,35 @@ export default function BlurFade({
       : Math.min(Math.max(fade / size, 0.05), 1);
   const at = (t: number) => `${(t * span * 100).toFixed(2)}%`;
 
+  /**
+   * 🚨 GUARDIA DE ANCLAJE, solo en desarrollo.
+   *
+   * El cristal va en `position: absolute`, así que se cuelga del ancestro
+   * posicionado más cercano. Si la tarjeta que lo contiene no lo está, se salta
+   * hasta el fondo de pantalla completa —que sí suele ser `fixed`— y entonces la
+   * cabecera, el subtítulo y la X aparecen flotando arriba de la ventana, fuera
+   * del panel. Ha pasado ya dos veces y no lo detecta ni el compilador ni el
+   * linter: solo se ve abriendo esa pantalla.
+   *
+   * El invariante es simple: el padre DIRECTO tiene que estar posicionado o
+   * llevar un transform. Se cumple en los treinta y tantos sitios donde vive
+   * hoy, así que romperlo es siempre un error.
+   */
+  const guardRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const padre = guardRef.current?.parentElement;
+    if (!padre) return;
+    const cs = getComputedStyle(padre);
+    if (cs.position !== "static" || cs.transform !== "none") return;
+    console.warn(
+      "[BlurFade] Su elemento padre no está posicionado, así que el cristal se " +
+        "va a anclar más arriba y se saldrá de la tarjeta. Ponle " +
+        "position: relative al contenedor del panel.",
+      padre
+    );
+  }, []);
+
   const box: CSSProperties = {
     position: "absolute",
     insetInlineStart: 0,
@@ -129,7 +158,7 @@ export default function BlurFade({
   };
 
   return (
-    <div aria-hidden style={{ ...box, zIndex: 0, ...style }}>
+    <div ref={guardRef} aria-hidden style={{ ...box, zIndex: 0, ...style }}>
       {Array.from({ length: LAYERS }, (_, i) => {
         // La primera capa es la más suave y la que más terreno cubre; cada
         // siguiente dobla el desenfoque y se arrima más al borde fuerte.

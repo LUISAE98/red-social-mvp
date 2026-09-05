@@ -1362,7 +1362,7 @@ no lo es.
 | Venta pagada | Entra a la global del día | — |
 | Comprador pide factura, aún libre | Nominativa directa | — |
 | Comprador pide factura, ya en una global | Cancelar global → reexpedir sin ella → nominativa | **04** |
-| Devolución total, mismo mes, estaba en global | Cancelar global → reexpedir sin ella | **01** |
+| Devolución total, mismo mes, estaba en global | Cancelar global → reexpedir sin ella | **02** |
 | Devolución total, mismo mes, tenía nominativa | Cancelar la nominativa | **01** o **03** |
 | **Devolución total, mes cerrado** | **Nota de crédito** | — |
 | **Devolución parcial, siempre** | **Nota de crédito** | — |
@@ -1378,9 +1378,9 @@ eso, nota de crédito.**
 |---|---|---|
 | 1 | Ejercitar el **motivo 04** (AUD-11) | ✅ **HECHO Y VERIFICADO** el 2026-09-04 |
 | 2 | **Cancelación de comprobantes mensuales** | ✅ **HECHO** el 2026-09-04 |
-| 3 | **Notas de crédito** (Bloque 6), con su botón en la tarjeta de «Mis experiencias» | ⬜ |
-| 4 | Cancelación de global por devolución (motivo 01) | ⬜ |
-| 5 | Guardas de plazo y de aceptación del receptor | ⬜ |
+| 3 | **Notas de crédito** (Bloque 6) | ✅ Backend y panel · ⬜ tarjeta del comprador con el PDF |
+| 4 | Sacar de la global por devolución | ✅ Hecho, motivo 02 |
+| 5 | Guardas de plazo y de aceptación | ✅ **HECHO** el 2026-09-05 |
 
 ## Paso 1 · El botón que faltaba para el motivo 04
 
@@ -1485,6 +1485,123 @@ tiene que poder explicarse años después.
 El callable lleva desde el primer día la red que atrapa la excepción no controlada y la devuelve
 con mensaje y stack, más `logger` por paso. Es la lección del paso 1.
 
+## Paso 3 · Notas de crédito ✅ (2026-09-05)
+
+🆕 `backend/src/facturacion/notaDeCredito.ts` y su panel en `/admin/facturacion`.
+
+### Cómo se relaciona con la factura original
+
+CFDI de **egreso** (`type: "E"`) con `related_documents`, que es la forma de Facturapi para el
+`CfdiRelacionados` del SAT:
+
+```js
+related_documents: [{ relationship: "01", documents: [uuidOriginal] }]
+```
+
+`01` es «nota de crédito de los documentos relacionados», la única clave del catálogo que
+describe esto. 🚨 **Sin la relación es un egreso huérfano**: no acredita nada y deja las dos
+operaciones sueltas.
+
+### Las cuatro reglas que lleva dentro
+
+| Regla | Por qué |
+|---|---|
+| **La emite el CREADOR**, con su sello | La venta la facturó él; el egreso que la corrige tiene que salir de la misma organización |
+| **Solo contra una factura NOMINATIVA** | Una nota relaciona un UUID. Una venta que solo está en una global se corrige cancelando la global |
+| **El tope es ACUMULADO** | Tres parciales del 40% fallan en la tercera. Validando cada nota contra el total original se acreditaría el 120% |
+| **La tasa sale de la venta** | Una exportación fue al 0%, y su nota va al 0%. Devolver con 16% lo que se cobró sin él acreditaría un impuesto que nunca se trasladó |
+
+9 pruebas en `backend/test/notaDeCredito.pure.test.ts`, todas sobre el tope acumulado, que es la
+regla que de verdad protege el dinero.
+
+⬜ **Falta la tarjeta del comprador** en «Mis experiencias». Va acoplada al PDF (punto 11): sin
+formato no hay nada que descargar.
+
+## Pasos 4 y 5 · Devolución desde la global, y las guardas ✅ (2026-09-05)
+
+### ⚠️ Es el motivo 02, NO el 01 — se corrige la matriz
+
+La matriz de casos decía «motivo 01» para la devolución. **Está mal y queda corregido.** El `01`
+exige indicar el documento sustituto **en la propia petición de cancelación**, y aquí se cancela
+ANTES de reexpedir, por el orden que protege contra dos globales vivas. En el momento de cancelar
+no hay nada que relacionar, así que el honesto es el `02`.
+
+### No se duplicó la máquina, se generalizó
+
+`liberarDeGlobal` ya sabía cancelar, reexpedir sin una venta y repuntar las demás. Se le añadió
+una `causa`, que decide dos cosas:
+
+| Causa | Motivo | Qué le pasa a la compra |
+|---|---|---|
+| `nominativa` | `04` | Queda **`liberada`**, para que el comprador la facture sin que la global del día siguiente se la lleve |
+| `devolucion` | `02` | Queda **`devuelta`**, y no vuelve a ninguna global |
+
+🚨 **La pieza crítica está en `compraLibre`.** Una compra devuelta ahora NO cuenta como libre. Sin
+eso, el proceso del día siguiente la vería sin marca de global y **la facturaría otra vez** — una
+venta que ya no existe. Lo mismo en `compraReclamablePorNominativa`.
+
+### La guarda de plazo
+
+🆕 `plazoCancelacion.ts`, con 9 pruebas que **inyectan el reloj**: una prueba de plazos que
+dependa del día en que se corre pasa en marzo y falla en abril.
+
+| Emisor | Límite |
+|---|---|
+| Persona moral (Vibra, y los creadores morales) | **31 de marzo** del año siguiente |
+| Persona física | **30 de abril** del año siguiente |
+
+Se comprueba **antes de llamar a Facturapi** y antes de apartar nada. Descubrirlo por el error del
+PAC dejaría la venta a medio trámite y con un mensaje que no explica que existe otra vía. El
+mensaje que sí damos dice la fecha concreta **y** que la salida es una nota de crédito.
+
+⚠️ El plazo cuelga del **ejercicio**, no de la fecha exacta: un comprobante de enero tiene quince
+meses y uno de diciembre tres.
+
+### La guarda de aceptación
+
+Ya estaba en la cancelación mensual desde el paso 2 y se deja documentada como la regla general:
+**el candado solo se suelta cuando Facturapi devuelve `canceled`**. Si queda esperando al receptor,
+el registro se marca y no se libera. La global no la necesita, porque va al RFC genérico.
+
+## 🚨 Los PDF de los CFDI NO se diseñan: los genera Facturapi (2026-09-05)
+
+Descubierto al abrir el punto 11. `GET /invoices/{id}/pdf` y su gemelo de retenciones devuelven
+el documento con el formato oficial del SAT. **Diseñar un PDF propio para un CFDI sería rehacer
+peor algo que ya viene hecho**, y encima tendría que cuadrar con el XML timbrado.
+
+Eso cambia cuatro puntos de la lista de 39:
+
+| # | Antes | Ahora |
+|---|---|---|
+| 11 | Diseñar el PDF de la nota de crédito | ✅ Lo genera Facturapi. Solo faltaba la puerta |
+| 14 | Diseñar el PDF de la factura al comprador | ✅ Igual |
+| 15 | Diseñar el PDF de la factura al creador | ✅ Igual |
+| 12, 13, 16 | — | ⬜ **Estos sí** hay que generarlos: no son CFDI y no existen fuera de nuestra base |
+
+### La puerta: `descargarDocumentoFiscal`
+
+🆕 `backend/src/facturacion/descargarDocumento.ts`. Devuelve el PDF o el XML en base64.
+
+⚠️ **La autorización NO se le pregunta a Facturapi**, se resuelve contra nuestros registros, que
+son los que saben de quién es cada documento. Nunca se acepta un id de Facturapi a secas: sin el
+registro que lo ata a alguien, cualquiera con un id ajeno se llevaría la factura de otro.
+
+| Documento | Quién lo baja | Con qué llave |
+|---|---|---|
+| Factura y nota de crédito | El comprador a quien se emitió | La del CREADOR, que la emitió |
+| Comisión y constancia | El creador sobre el que se emitieron | La de Vibra |
+| Cualquiera | Un supermoderador, para soporte | La que corresponda |
+
+🚨 **La llave importa.** La factura la emitió el creador con su propia organización; pedirla con
+la llave de Vibra devolvería «no existe», y sería cierto: no existe en la organización de Vibra.
+
+### Dos cosas que ya estaban y no había que rehacer
+
+- `facturapiDownload` **ya existía** en el cliente. Escribí un duplicado y lo retiré al ver el
+  error de compilación. `facturapiFetch` no sirve para binario: hace `res.text()` y `JSON.parse`.
+- `esPlatformMod` es nuevo pero **llama a `requirePlatformMod`** en vez de repetir sus dos
+  condiciones. Duplicarlas invita a que un día se endurezca una y se olvide la otra.
+
 ## 🎨 Diseño de documentos — pendiente aparte (Luis, 2026-09-04)
 
 Trabajo de diseño, no de fiscalidad. Va después de que la maquinaria funcione:
@@ -1547,9 +1664,9 @@ cobro tenga pantalla propia.
 |---|---|---|
 | 1 | Motivo 04, sacar una venta de la global | ✅ **Ejercitado y verificado** |
 | 2 | Cancelar comprobantes mensuales | ✅ **Desplegado**, sin probar con un CFDI real |
-| 3 | **Notas de crédito** (Bloque 6) | ⬜ Siguiente |
-| 4 | Motivo 01 por devolución | ⬜ |
-| 5 | Guardas de plazo y de aceptación del receptor | ⬜ |
+| 3 | **Notas de crédito** (Bloque 6) | ✅ **Backend y panel** el 2026-09-05 · ⬜ falta la tarjeta del comprador, que va con el PDF |
+| 4 | Sacar de la global por devolución | ✅ **HECHO** el 2026-09-05 · con motivo **02**, no 01 |
+| 5 | Guardas de plazo y de aceptación | ✅ Hecho |
 
 ## Grupo B — lo que ve el usuario
 

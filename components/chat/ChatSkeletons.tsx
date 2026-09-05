@@ -9,40 +9,6 @@
  * que va a aparecer, y el contenido real entra con fade (ver `ChatReveal`).
  */
 
-/** Relleno + onda + reduced-motion. Idéntico en los tres skeletons de aquí. */
-function SkeletonBase() {
-  return (
-    <style jsx global>{`
-      .vb-chat-skel .vb-skel {
-        /* Color sólido POR SI el gradiente/animación no pinta (fallback). */
-        background-color: rgba(255, 255, 255, 0.08);
-        background-image: linear-gradient(
-          100deg,
-          rgba(255, 255, 255, 0.05) 30%,
-          rgba(255, 255, 255, 0.11) 50%,
-          rgba(255, 255, 255, 0.05) 70%
-        );
-        background-size: 300% 100%;
-        animation: vbSkelWave 1.6s ease-in-out infinite;
-      }
-      @keyframes vbSkelWave {
-        0% {
-          background-position: 180% 0;
-        }
-        100% {
-          background-position: -80% 0;
-        }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .vb-chat-skel .vb-skel {
-          animation: none;
-          background: rgba(255, 255, 255, 0.07);
-        }
-      }
-    `}</style>
-  );
-}
-
 /**
  * Filas de la lista de conversaciones: avatar + nombre + última línea.
  * Misma métrica que `ConversationList` para que no salte nada al reemplazarse.
@@ -56,7 +22,6 @@ export function ConversationListSkeleton({
 }) {
   return (
     <div className="vb-chat-skel" aria-hidden>
-      <SkeletonBase />
       <div style={{ display: "grid", gap: 6 }}>
         {Array.from({ length: rows }).map((_, i) => (
           <div
@@ -104,7 +69,6 @@ export function MessageThreadSkeleton({ bubbles = 6 }: { bubbles?: number }) {
 
   return (
     <div className="vb-chat-skel" aria-hidden style={{ display: "grid", gap: 8 }}>
-      <SkeletonBase />
       {Array.from({ length: bubbles }).map((_, i) => {
         const mine = i % 2 === 1;
         return (
@@ -137,7 +101,6 @@ export function MessageThreadSkeleton({ bubbles = 6 }: { bubbles?: number }) {
 export function SkeletonBlock({ style }: { style?: React.CSSProperties }) {
   return (
     <span className="vb-chat-skel" aria-hidden style={{ display: "contents" }}>
-      <SkeletonBase />
       <span className="vb-skel" style={{ display: "block", ...style }} />
     </span>
   );
@@ -199,7 +162,6 @@ export function SendingImageSkeleton({
           style={{ position: "absolute", inset: 0, opacity: 0.5 }}
         />
       </div>
-      <SkeletonBase />
     </div>
   );
 }

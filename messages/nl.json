@@ -2618,8 +2618,8 @@
     "tagsHint": "Kies er een paar om community's en creators te ontdekken die bij je passen."
   },
   "notifPrompt": {
-    "title": "Meldingen aanzetten",
-    "body": "Ontvang meldingen bij likes, reacties en activiteit, ook als Vibra gesloten is.",
+    "title": "Weet het op het moment zelf",
+    "body": "We laten het weten als er een betaling binnenkomt, als iemand een ervaring met jou boekt en als een live die je volgt begint.",
     "enable": "Aanzetten",
     "enabling": "Aanzetten…",
     "later": "Niet nu"
@@ -2637,7 +2637,9 @@
     "title": "Zet Vibra op je beginscherm",
     "body": "Hij opent als app, en alleen zo krijg je meldingen op de iPhone.",
     "step1": "Tik op Deel",
-    "step2": "Kies Zet op beginscherm",
+    "step2": "Scroll omlaag en kies deze",
+    "safariOnly": "Het moet via Safari",
+    "addToHomeScreen": "Zet op beginscherm",
     "later": "Nu niet"
   },
   "notifications": {

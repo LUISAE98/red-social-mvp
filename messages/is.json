@@ -2618,8 +2618,8 @@
     "tagsHint": "Veldu nokkur til að finna samfélög og höfunda sem eiga við þig."
   },
   "notifPrompt": {
-    "title": "Kveikja á tilkynningum",
-    "body": "Fáðu tilkynningar um loga, athugasemdir og virkni jafnvel þegar Vibra er lokað.",
+    "title": "Vittu það strax",
+    "body": "Við látum þig vita þegar greiðsla berst, þegar einhver bókar upplifun með þér og þegar útsending sem þú fylgist með byrjar.",
     "enable": "Kveikja",
     "enabling": "Kveiki…",
     "later": "Ekki núna"
@@ -2637,7 +2637,9 @@
     "title": "Bættu Vibra á heimaskjáinn",
     "body": "Það opnast eins og app og er eina leiðin til að fá tilkynningar í iPhone.",
     "step1": "Ýttu á Deila",
-    "step2": "Veldu Bæta á heimaskjá",
+    "step2": "Skrunaðu niður og veldu þetta",
+    "safariOnly": "Það verður að vera úr Safari",
+    "addToHomeScreen": "Bæta á heimaskjá",
     "later": "Ekki núna"
   },
   "notifications": {

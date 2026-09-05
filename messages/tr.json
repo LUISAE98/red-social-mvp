@@ -2618,8 +2618,8 @@
     "tagsHint": "Sana uyan toplulukları ve içerik üreticilerini keşfetmek için birkaç tane seç."
   },
   "notifPrompt": {
-    "title": "Bildirimleri aç",
-    "body": "Vibra kapalıyken bile alevler, yorumlar ve hareketler için bildirim al.",
+    "title": "Tam o anda haberin olsun",
+    "body": "Bir ödeme geldiğinde, biri seninle bir deneyim ayırttığında ve takip ettiğin bir yayın başladığında haber veriyoruz.",
     "enable": "Aç",
     "enabling": "Açılıyor…",
     "later": "Şimdi değil"
@@ -2637,7 +2637,9 @@
     "title": "Vibra'yı ana ekrana ekle",
     "body": "Uygulama gibi açılır ve iPhone'da bildirim almanın tek yolu budur.",
     "step1": "Paylaş'a dokun",
-    "step2": "Ana Ekrana Ekle'yi seç",
+    "step2": "Aşağı in ve bunu seç",
+    "safariOnly": "Safari'den yapılmalı",
+    "addToHomeScreen": "Ana Ekrana Ekle",
     "later": "Şimdi değil"
   },
   "notifications": {

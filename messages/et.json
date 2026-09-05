@@ -2618,8 +2618,8 @@
     "tagsHint": "Vali mõned, et avastada kogukondi ja loojaid, kes sinuga sobivad."
   },
   "notifPrompt": {
-    "title": "Lülita teavitused sisse",
-    "body": "Saa teateid leekidest, kommentaaridest ja tegevusest ka siis, kui Vibra on suletud.",
+    "title": "Saa kohe teada",
+    "body": "Anname teada, kui laekub makse, kui keegi broneerib sinuga elamuse ja kui algab otseülekanne, mida jälgid.",
     "enable": "Lülita sisse",
     "enabling": "Lülitan sisse…",
     "later": "Mitte praegu"
@@ -2637,7 +2637,9 @@
     "title": "Lisa Vibra avaekraanile",
     "body": "See avaneb rakendusena ja on ainus viis saada iPhone'is teavitusi.",
     "step1": "Puuduta Jaga",
-    "step2": "Vali Lisa avaekraanile",
+    "step2": "Keri alla ja vali see",
+    "safariOnly": "See peab olema Safarist",
+    "addToHomeScreen": "Lisa avaekraanile",
     "later": "Mitte praegu"
   },
   "notifications": {

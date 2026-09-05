@@ -127,33 +127,7 @@ export default function SharedCommunitiesBadge({
           className="flex items-center"
           style={{ minWidth: 40, minHeight: 40 }}
           aria-hidden="true"
-        >
-          <style jsx>{`
-            .vb-skel {
-              background: linear-gradient(
-                100deg,
-                rgba(255, 255, 255, 0.05) 30%,
-                rgba(255, 255, 255, 0.11) 50%,
-                rgba(255, 255, 255, 0.05) 70%
-              );
-              background-size: 300% 100%;
-              animation: vbSkelWave 1.6s ease-in-out infinite;
-            }
-            @keyframes vbSkelWave {
-              0% {
-                background-position: 180% 0;
-              }
-              100% {
-                background-position: -80% 0;
-              }
-            }
-            @media (prefers-reduced-motion: reduce) {
-              .vb-skel {
-                animation: none;
-                background: rgba(255, 255, 255, 0.07);
-              }
-            }
-          `}</style>
+        >
           {[0, 1, 2].map((i) => (
             <span
               key={i}

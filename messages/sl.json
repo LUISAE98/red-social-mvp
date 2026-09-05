@@ -2618,8 +2618,8 @@
     "tagsHint": "Izberi nekaj, da odkriješ skupnosti in ustvarjalce, ki ti ustrezajo."
   },
   "notifPrompt": {
-    "title": "Vklopi obvestila",
-    "body": "Prejemaj obvestila o všečkih, komentarjih in dogajanju tudi, ko je Vibra zaprta.",
+    "title": "Izvedi v tistem trenutku",
+    "body": "Sporočimo ti, ko prispe plačilo, ko nekdo rezervira doživetje s tabo in ko se začne prenos, ki mu slediš.",
     "enable": "Vklopi",
     "enabling": "Vklapljanje…",
     "later": "Ne zdaj"
@@ -2637,7 +2637,9 @@
     "title": "Dodaj Vibro na začetni zaslon",
     "body": "Odpre se kot aplikacija in je edini način za prejemanje obvestil na iPhonu.",
     "step1": "Tapni Deli",
-    "step2": "Izberi Dodaj na začetni zaslon",
+    "step2": "Podrsaj navzdol in izberi to",
+    "safariOnly": "Narediti je treba iz Safarija",
+    "addToHomeScreen": "Dodaj na začetni zaslon",
     "later": "Ne zdaj"
   },
   "notifications": {

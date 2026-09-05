@@ -14,32 +14,14 @@ export default function Loading() {
         overflow: "hidden",
       }}
     >
-      <div className="vb-reel-skel" aria-hidden="true" />
-      <style>{`
-        .vb-reel-skel {
-          position: absolute;
-          inset: 0;
-          background-color: rgba(255, 255, 255, 0.06);
-          background-image: linear-gradient(
-            100deg,
-            rgba(255, 255, 255, 0.04) 30%,
-            rgba(255, 255, 255, 0.09) 50%,
-            rgba(255, 255, 255, 0.04) 70%
-          );
-          background-size: 300% 100%;
-          animation: vbSkelWave 1.6s ease-in-out infinite;
-        }
-        @keyframes vbSkelWave {
-          0%   { background-position: 180% 0; }
-          100% { background-position: -80% 0; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .vb-reel-skel {
-            animation: none;
-            background: rgba(255, 255, 255, 0.06);
-          }
-        }
-      `}</style>
+      {/* El relleno y la onda son los de `.vb-skel` en globals.css; aquí solo
+          se dice que ocupa el hueco entero. La posición va en línea para que
+          gane siempre a la de la clase, sin depender del orden de las hojas. */}
+      <div
+        className="vb-skel"
+        aria-hidden="true"
+        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
+      />
     </main>
   );
 }

@@ -481,33 +481,6 @@ export default function CommunityRail({
         /* Skeleton canónico de vibra_style.md. Se redefine aquí porque
            styled-jsx scopea por componente: la copia de OwnerSidebar no alcanza
            a los hijos. Relleno y onda son los de la guía, sin tocar. */
-        .vb-skel {
-          background: linear-gradient(
-            100deg,
-            rgba(255, 255, 255, 0.05) 30%,
-            rgba(255, 255, 255, 0.11) 50%,
-            rgba(255, 255, 255, 0.05) 70%
-          );
-          background-size: 300% 100%;
-          animation: vbSkelWave 1.6s ease-in-out infinite;
-        }
-
-        @keyframes vbSkelWave {
-          0% {
-            background-position: 180% 0;
-          }
-          100% {
-            background-position: -80% 0;
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .vb-skel {
-            animation: none;
-            background: rgba(255, 255, 255, 0.07);
-          }
-        }
-
         /* Placeholder discreto: por debajo del 0.42 canónico, porque aquí no es
            una instrucción que haya que leer —la lupa y el contexto ya dicen que
            se busca— sino una pista que no debe competir con los nombres.

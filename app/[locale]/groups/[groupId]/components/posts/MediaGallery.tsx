@@ -613,26 +613,6 @@ const MEDIA_GRID_CSS = `
   width: 100%;
   transition: opacity 420ms ease;
 }
-.vb-skel {
-  background: linear-gradient(
-    100deg,
-    rgba(255, 255, 255, 0.05) 30%,
-    rgba(255, 255, 255, 0.11) 50%,
-    rgba(255, 255, 255, 0.05) 70%
-  );
-  background-size: 300% 100%;
-  animation: vbSkelWave 1.6s ease-in-out infinite;
-}
-@keyframes vbSkelWave {
-  0% { background-position: 180% 0; }
-  100% { background-position: -80% 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .vb-skel {
-    animation: none;
-    background: rgba(255, 255, 255, 0.07);
-  }
-}
 .vibra-media-unlock {
   position: absolute;
   inset-inline-start: 8px;

@@ -2618,8 +2618,8 @@
     "tagsHint": "Alege câteva ca să descoperi comunități și creatori care se potrivesc cu tine."
   },
   "notifPrompt": {
-    "title": "Activează notificările",
-    "body": "Primește alerte pentru aprecieri, comentarii și activitate chiar și când Vibra este închisă.",
+    "title": "Află pe loc",
+    "body": "Îți spunem când intră o plată, când cineva rezervă o experiență cu tine și când începe un live pe care îl urmărești.",
     "enable": "Activează",
     "enabling": "Se activează…",
     "later": "Nu acum"
@@ -2637,7 +2637,9 @@
     "title": "Adaugă Vibra pe ecranul principal",
     "body": "Se deschide ca aplicație și e singurul mod de a primi notificări pe iPhone.",
     "step1": "Atinge Partajează",
-    "step2": "Alege Adaugă la ecranul principal",
+    "step2": "Derulează și alege asta",
+    "safariOnly": "Trebuie să fie din Safari",
+    "addToHomeScreen": "Adaugă la ecranul principal",
     "later": "Nu acum"
   },
   "notifications": {

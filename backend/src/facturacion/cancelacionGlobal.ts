@@ -38,6 +38,7 @@ import {
 import { leerImporteFiscal } from "./importeFiscal";
 import { registrarDocumento } from "./creatorMonthlyDocs";
 import { requirePlatformMod } from "../authz";
+import { dentroDePlazo, mensajeFueraDePlazo } from "./plazoCancelacion";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -47,6 +48,17 @@ const REGION = "us-central1";
 
 /** «Operación nominativa relacionada en una factura global» del catálogo del SAT. */
 const MOTIVO_NOMINATIVA = "04";
+
+/**
+ * «Comprobante emitido con errores sin sustitución», para sacar de la global una venta que se
+ * DEVOLVIÓ.
+ *
+ * 🚨 No es el `01`, aunque después se reexpida. El `01` exige indicar el documento sustituto **en
+ *    la propia petición de cancelación**, y aquí se cancela ANTES de reexpedir — por el orden que
+ *    explica la cabecera de este archivo, que no es negociable. En el momento de cancelar no hay
+ *    nada que relacionar, así que el honesto es el `02`.
+ */
+const MOTIVO_DEVOLUCION = "02";
 
 /**
  * Saca una venta de su factura global para que el comprador pueda tener la suya.
@@ -60,8 +72,20 @@ export async function liberarDeGlobal(params: {
   purchaseId: string;
   /** Quién lo pidió, para el rastro. */
   pedidoPor: string;
+  /**
+   * Por qué se saca la venta de la global. Cambia el motivo de cancelación ante el SAT y lo que
+   * le pasa a la compra después:
+   *
+   * · `nominativa` — el comprador pide su factura. Motivo 04, y la compra queda `liberada` para
+   *   que él pueda facturarla sin que la global del día siguiente se la lleve.
+   * · `devolucion` — se le devolvió el dinero. Motivo 02, y la compra queda marcada como
+   *   devuelta: **no vuelve a ninguna global**, porque esa venta ya no existe.
+   */
+  causa?: "nominativa" | "devolucion";
 }): Promise<{ canceladoUuid: string | null; nuevaGlobalUuid: string | null; ventasRestantes: number }> {
   const { buyerId, purchaseId, pedidoPor } = params;
+  const causa = params.causa ?? "nominativa";
+  const motivo = causa === "devolucion" ? MOTIVO_DEVOLUCION : MOTIVO_NOMINATIVA;
 
   logger.info("liberar_global_inicio", { buyerId, purchaseId, pedidoPor });
 
@@ -83,6 +107,20 @@ export async function liberarDeGlobal(params: {
   const periodo = String(global.periodo ?? "").trim();
   if (!creatorId || !periodo) {
     throw new HttpsError("failed-precondition", "A la marca de la global le faltan datos.");
+  }
+
+  /**
+   * 🚨 EL PLAZO SE COMPRUEBA ANTES DE APARTAR NADA.
+   *
+   * Pasado el 31 de marzo del año siguiente el SAT ya no admite la cancelación. Descubrirlo por
+   * el error del PAC funcionaría, pero llegaríamos con la venta a medio trámite y con un mensaje
+   * que no le explica a nadie que existe otra vía. La global la emite el CREADOR con su sello,
+   * así que el plazo es el suyo.
+   */
+  const emitidaEn = (compra.globalInvoice as { emitidaEn?: admin.firestore.Timestamp })?.emitidaEn;
+  const fechaGlobal = emitidaEn?.toDate?.() ?? new Date(`${periodo}T12:00:00Z`);
+  if (!dentroDePlazo(fechaGlobal, "moral")) {
+    throw new HttpsError("failed-precondition", mensajeFueraDePlazo(fechaGlobal, "moral"));
   }
 
   const fiscalSnap = await db.doc(`creatorTaxProfiles/${creatorId}`).get();
@@ -140,7 +178,7 @@ export async function liberarDeGlobal(params: {
 
   // ── Paso 1 · Cancelar con motivo 04 ────────────────────────────────────────
   const cancel = await facturapiFetch<{ uuid?: string; status?: string }>(
-    `/invoices/${global.facturapiId}?motive=${MOTIVO_NOMINATIVA}`,
+    `/invoices/${global.facturapiId}?motive=${motivo}`,
     { method: "DELETE", auth }
   );
   if (!cancel.ok) {
@@ -152,19 +190,35 @@ export async function liberarDeGlobal(params: {
   }
   await rastro.set({ estado: "reexpidiendo" }, { merge: true });
 
-  // La venta liberada deja de estar cubierta por ninguna global.
-  //
-  // 🚨 No se queda LIBRE del todo: se marca `liberada` para que la global del día siguiente no
-  //    se la vuelva a llevar antes de que el comprador alcance a pedir su factura. Sería una
-  //    carrera cruel — se cancela un CFDI para él y se lo quitan al día siguiente.
+  /*
+   * La venta sale de la global. Qué le pasa después depende de POR QUÉ salió.
+   *
+   * 🚨 Si el comprador va a facturarla, no se queda LIBRE del todo: se marca `liberada` para que
+   *    la global del día siguiente no se la vuelva a llevar antes de que él alcance a pedir su
+   *    factura. Sería una carrera cruel — se cancela un CFDI para él y se lo quitan al día
+   *    siguiente.
+   *
+   * 🚨 Si fue una DEVOLUCIÓN, se marca `devuelta` y no vuelve a ninguna global: esa venta ya no
+   *    existe, y dejarla libre haría que el proceso del día siguiente la volviera a facturar.
+   */
   await compraRef.set(
     {
       globalInvoice: admin.firestore.FieldValue.delete(),
-      nominativaEnCurso: {
-        estado: "liberada",
-        reservadoEn: admin.firestore.FieldValue.serverTimestamp(),
-        canceladaDe: global.facturapiId,
-      },
+      ...(causa === "devolucion"
+        ? {
+            devuelta: {
+              sacadaDe: global.facturapiId,
+              motivo: MOTIVO_DEVOLUCION,
+              enfechada: admin.firestore.FieldValue.serverTimestamp(),
+            },
+          }
+        : {
+            nominativaEnCurso: {
+              estado: "liberada",
+              reservadoEn: admin.firestore.FieldValue.serverTimestamp(),
+              canceladaDe: global.facturapiId,
+            },
+          }),
     },
     { merge: true }
   );
@@ -264,7 +318,8 @@ export const cancelarGlobalPorNominativa = onCall(
      * Diagnosticar eso costó una tarde.
      */
     try {
-      return await liberarDeGlobal({ buyerId, purchaseId, pedidoPor: uid });
+      const causa = data.causa === "devolucion" ? "devolucion" : "nominativa";
+      return await liberarDeGlobal({ buyerId, purchaseId, pedidoPor: uid, causa });
     } catch (err) {
       if (err instanceof HttpsError) throw err;
       const mensaje = err instanceof Error ? err.message : String(err);

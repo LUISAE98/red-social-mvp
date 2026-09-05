@@ -2618,8 +2618,8 @@
     "tagsHint": "Velg et par stykker, så du kan finne communities og creators som matcher din vibe."
   },
   "notifPrompt": {
-    "title": "Slå notifikasjoner til",
-    "body": "Få melding om likes, kommentarer og aktivitet, også når Vibra er lukket.",
+    "title": "Få vite det med en gang",
+    "body": "Vi sier fra når en betaling kommer inn, når noen booker en opplevelse med deg og når en sending du følger starter.",
     "enable": "Slå på",
     "enabling": "Slår til…",
     "later": "Ikke nå"
@@ -2637,7 +2637,9 @@
     "title": "Legg Vibra til på startskjermen",
     "body": "Den åpnes som en app, og det er den eneste måten å få varsler på iPhone.",
     "step1": "Trykk på Del",
-    "step2": "Velg Legg til på Hjem-skjerm",
+    "step2": "Bla ned og velg denne",
+    "safariOnly": "Det må gjøres fra Safari",
+    "addToHomeScreen": "Legg til på Hjem-skjerm",
     "later": "Ikke nå"
   },
   "notifications": {

@@ -31,6 +31,7 @@ import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { facturapiFetch, facturapiTestKey, facturapiUserKey } from "./facturapiClient";
 import { requirePlatformMod } from "../authz";
+import { dentroDePlazo, mensajeFueraDePlazo } from "./plazoCancelacion";
 
 const REGION = "us-central1";
 
@@ -111,6 +112,16 @@ export async function cancelarComprobanteMensual(params: {
     await archivar({ ref, datos, id, pedidoPor, estado: "sin_timbrar" });
     logger.info("cancelar_mensual_sin_timbrar", { id });
     return { tipo, folio: null, uuid: null, estado: "sin_timbrar", liberado: true };
+  }
+
+  /**
+   * 🚨 El plazo, antes de llamar a Facturapi. Los comprobantes mensuales los emite VIBRA, que es
+   * persona moral, así que el límite es el 31 de marzo del año siguiente.
+   */
+  const fechaEmision = (datos.createdAt as admin.firestore.Timestamp)?.toDate?.() ??
+    new Date(`${periodo}-15T12:00:00Z`);
+  if (!dentroDePlazo(fechaEmision, "moral")) {
+    throw new HttpsError("failed-precondition", mensajeFueraDePlazo(fechaEmision, "moral"));
   }
 
   const res = await facturapiFetch<{ status?: string; cancellation_status?: string }>(

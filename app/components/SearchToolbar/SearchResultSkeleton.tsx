@@ -25,23 +25,6 @@ export function SearchRowSkeletonList({
         @media (max-width: 640px) {
           .vb-search-skel-row { padding: 10px 12px; }
         }
-        .vb-skel {
-          background: linear-gradient(
-            100deg,
-            rgba(255, 255, 255, 0.05) 30%,
-            rgba(255, 255, 255, 0.11) 50%,
-            rgba(255, 255, 255, 0.05) 70%
-          );
-          background-size: 300% 100%;
-          animation: vbSkelWave 1.6s ease-in-out infinite;
-        }
-        @keyframes vbSkelWave {
-          0% { background-position: 180% 0; }
-          100% { background-position: -80% 0; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .vb-skel { animation: none; background: rgba(255, 255, 255, 0.07); }
-        }
         .vb-search-skel-avatar { width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; }
         .vb-search-skel-lines { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
         .vb-search-skel-line { height: 12px; border-radius: 6px; }

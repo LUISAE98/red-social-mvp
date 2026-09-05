@@ -544,6 +544,11 @@ export default function VibraResponsivePanel({
             onClick={(e) => e.stopPropagation()}
             style={{
               pointerEvents: "auto",
+              // 🚨 ANCLA de la cabecera y el pie, que van en position: absolute.
+              // Sin esto se anclan al backdrop —que es el fixed de pantalla
+              // completa— y el título, el subtítulo y la X se salen de la
+              // tarjeta y aparecen flotando arriba del todo.
+              position: "relative",
               width: `min(${maxWidthDesktop}px, calc(100vw - 28px))`,
               maxHeight: "calc(var(--vb-alto-pantalla) - 28px)",
               outline: "none",

@@ -2618,8 +2618,8 @@
     "tagsHint": "Roghnaigh cúpla ceann chun pobail agus cruthaitheoirí a oireann duit a aimsiú."
   },
   "notifPrompt": {
-    "title": "Cuir na fógraí ar siúl",
-    "body": "Faigh foláirimh faoi lasracha, tráchtanna agus gníomhaíocht fiú nuair atá Vibra dúnta.",
+    "title": "Bíodh a fhios agat láithreach",
+    "body": "Cuirimid in iúl duit nuair a thagann íocaíocht isteach, nuair a chuireann duine eispéireas in áirithe leat agus nuair a thosaíonn beo a leanann tú.",
     "enable": "Cuir ar siúl",
     "enabling": "Á chur ar siúl…",
     "later": "Ní anois"
@@ -2637,7 +2637,9 @@
     "title": "Cuir Vibra le do scáileán baile",
     "body": "Osclaíonn sé mar aip, agus is é an t-aon bhealach fógraí a fháil ar iPhone.",
     "step1": "Tapáil Comhroinn",
-    "step2": "Roghnaigh Cuir leis an Scáileán Baile",
+    "step2": "Scrollaigh síos agus roghnaigh é seo",
+    "safariOnly": "Caithfidh sé a bheith ó Safari",
+    "addToHomeScreen": "Cuir leis an Scáileán Baile",
     "later": "Ní anois"
   },
   "notifications": {

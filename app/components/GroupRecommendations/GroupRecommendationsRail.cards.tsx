@@ -730,23 +730,6 @@ export function SkeletonRail() {
   return (
     <>
       <style>{`
-        .vibra-recs-skel {
-          background: linear-gradient(
-            100deg,
-            rgba(255, 255, 255, 0.05) 30%,
-            rgba(255, 255, 255, 0.11) 50%,
-            rgba(255, 255, 255, 0.05) 70%
-          );
-          background-size: 300% 100%;
-          animation: vbSkelWave 1.6s ease-in-out infinite;
-        }
-        @keyframes vbSkelWave {
-          0%   { background-position: 180% 0; }
-          100% { background-position: -80% 0; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .vibra-recs-skel { animation: none; background: rgba(255, 255, 255, 0.07); }
-        }
         .vibra-recs-skel-row {
           display: flex;
           gap: ${RAIL_GAP}px;
@@ -772,7 +755,7 @@ export function SkeletonRail() {
       <div className="vibra-recs-skel-row">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="vibra-recs-skel-card">
-            <div className="vibra-recs-skel vibra-recs-skel-block" />
+            <div className="vb-skel vibra-recs-skel-block" />
           </div>
         ))}
       </div>

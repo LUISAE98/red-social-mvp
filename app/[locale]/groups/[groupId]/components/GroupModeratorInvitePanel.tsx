@@ -350,25 +350,6 @@ export default function GroupModeratorInvitePanel({
         }
 
         /* ── Skeletons (relleno y onda canónicos de vibra_style.md) ── */
-        .vb-skel {
-          background-color: rgba(255, 255, 255, 0.08);
-          background-image: linear-gradient(
-            100deg,
-            rgba(255, 255, 255, 0.05) 30%,
-            rgba(255, 255, 255, 0.11) 50%,
-            rgba(255, 255, 255, 0.05) 70%
-          );
-          background-size: 300% 100%;
-          animation: vbSkelWave 1.6s ease-in-out infinite;
-        }
-        @keyframes vbSkelWave {
-          0% {
-            background-position: 180% 0;
-          }
-          100% {
-            background-position: -80% 0;
-          }
-        }
         .mipSkelAvatar {
           flex: 0 0 auto;
           width: 40px;
@@ -399,10 +380,6 @@ export default function GroupModeratorInvitePanel({
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .vb-skel {
-            animation: none;
-            background: rgba(255, 255, 255, 0.07);
-          }
           .mipRowReveal {
             animation: none;
             opacity: 1;

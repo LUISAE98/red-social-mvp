@@ -12,8 +12,30 @@
  * posponer uno no calla al otro.
  */
 
-const DIAS_DE_ESPERA = 14;
-const VECES_MAXIMAS = 3;
+const HORA = 60 * 60 * 1000;
+
+/**
+ * Cada aviso decide su propio ritmo, porque no piden lo mismo.
+ *
+ * ⚠️ El de instalar en Android y laptop va SIN TOPE a propósito: lo único que
+ * lo calla es instalar. Es una decisión de producto de Luis (2026-09-05), y
+ * tiene sentido porque ahí instalar es un botón —un toque y ya—, así que
+ * insistir cuesta poco a quien no quiere.
+ *
+ * El de iPhone conserva el tope, y ahí sí importa: no hay botón que instalar,
+ * solo un instructivo de dos pasos. Repetir eternamente unas instrucciones que
+ * la persona ya decidió no seguir es exactamente lo que enseña a ignorar todos
+ * tus avisos, incluido el que sí importa.
+ */
+export const CADENCIA_INSTALAR = { esperaMs: 6 * HORA };
+export const CADENCIA_INSTRUCTIVO = { esperaMs: 14 * 24 * HORA, topeVeces: 3 };
+
+export type Cadencia = {
+  /** Cuánto se espera desde el último "ahora no". */
+  esperaMs: number;
+  /** Cuántas veces como mucho. Sin él, se pregunta indefinidamente. */
+  topeVeces?: number;
+};
 
 type Aplazado = { en: number; veces: number };
 
@@ -33,11 +55,11 @@ function leer(clave: string): Aplazado {
 }
 
 /** ¿Toca volver a preguntar? */
-export function puedePreguntar(clave: string): boolean {
+export function puedePreguntar(clave: string, cadencia: Cadencia): boolean {
   const { en, veces } = leer(clave);
-  if (veces >= VECES_MAXIMAS) return false;
+  if (cadencia.topeVeces !== undefined && veces >= cadencia.topeVeces) return false;
   if (!en) return true;
-  return Date.now() - en > DIAS_DE_ESPERA * 24 * 60 * 60 * 1000;
+  return Date.now() - en > cadencia.esperaMs;
 }
 
 /** Guarda el "ahora no" y suma una a la cuenta. */

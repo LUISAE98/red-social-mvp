@@ -2618,8 +2618,8 @@
     "tagsHint": "Wähle einige aus, um Communitys und Creator zu entdecken, die zu dir passen."
   },
   "notifPrompt": {
-    "title": "Benachrichtigungen aktivieren",
-    "body": "Erhalte Hinweise zu Likes, Kommentaren und Aktivitäten, auch wenn Vibra geschlossen ist.",
+    "title": "Erfahre es sofort",
+    "body": "Wir sagen dir Bescheid, wenn eine Zahlung eingeht, wenn jemand ein Erlebnis mit dir bucht und wenn ein Livestream startet, dem du folgst.",
     "enable": "Aktivieren",
     "enabling": "Wird aktiviert …",
     "later": "Jetzt nicht"
@@ -2637,7 +2637,9 @@
     "title": "Vibra zum Home-Bildschirm hinzufügen",
     "body": "Sie öffnet sich als App und nur so kommen Mitteilungen auf dem iPhone an.",
     "step1": "Tippe auf Teilen",
-    "step2": "Wähle Zum Home-Bildschirm",
+    "step2": "Scrolle runter und wähle das hier",
+    "safariOnly": "Es muss über Safari gehen",
+    "addToHomeScreen": "Zum Home-Bildschirm",
     "later": "Jetzt nicht"
   },
   "notifications": {

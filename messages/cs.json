@@ -2618,8 +2618,8 @@
     "tagsHint": "Vyber si pár, abys objevil komunity a tvůrce, kteří ti sednou."
   },
   "notifPrompt": {
-    "title": "Zapnout oznámení",
-    "body": "Dostávej upozornění na lajky, komentáře a aktivitu, i když je Vibra zavřená.",
+    "title": "Zjisti to hned",
+    "body": "Dáme ti vědět, když přijde platba, když si u tebe někdo rezervuje zážitek a když začne přenos, který sleduješ.",
     "enable": "Zapnout",
     "enabling": "Zapíná se…",
     "later": "Teď ne"
@@ -2637,7 +2637,9 @@
     "title": "Přidej Vibru na plochu",
     "body": "Otevírá se jako aplikace a je to jediný způsob, jak dostávat upozornění na iPhonu.",
     "step1": "Klepni na Sdílet",
-    "step2": "Vyber Přidat na plochu",
+    "step2": "Sjeď dolů a vyber tuto možnost",
+    "safariOnly": "Musí to být ze Safari",
+    "addToHomeScreen": "Přidat na plochu",
     "later": "Teď ne"
   },
   "notifications": {

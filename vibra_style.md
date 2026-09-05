@@ -558,45 +558,86 @@ líneas, bloque de media) se adapta al contenido; el **relleno y la animación n
 
 ### Relleno base + onda shimmer
 
-Gradiente diagonal sutil que se desplaza en bucle. Mismo color que el skeleton de
-historias del home (`rgba(255,255,255,0.05→0.11)`).
+La clase vive en **`app/globals.css`**, no en cada componente. Es global a
+propósito: llegó a estar copiada 26 veces porque la guía pedía `styled-jsx`, y
+styled-jsx solo alcanza a su propio componente. Un skeleton nuevo NO redefine
+nada — le pone `className="vb-skel"` y ya.
 
 ```css
 .vb-skel {
-  background: linear-gradient(
+  position: relative;
+  overflow: hidden;
+  /* Relleno base. Se ve solo, sin la luz, si la animación no llega a correr. */
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.vb-skel::after {
+  content: "";
+  position: absolute;
+  /* Esquina + tamaño, NO `inset`. Ver la nota de compatibilidad de abajo. */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: linear-gradient(
     100deg,
-    rgba(255, 255, 255, 0.05) 30%,
-    rgba(255, 255, 255, 0.11) 50%,
-    rgba(255, 255, 255, 0.05) 70%
+    transparent 25%,
+    rgba(255, 255, 255, 0.09) 50%,
+    transparent 75%
   );
-  background-size: 300% 100%;
-  animation: vbSkelWave 1.6s ease-in-out infinite;
+  transform: translateX(-100%);
+  animation: vbSkelWave 1.6s linear infinite;
+  pointer-events: none;
 }
+
 @keyframes vbSkelWave {
-  0%   { background-position: 180% 0; }
-  100% { background-position: -80% 0; }
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
 }
-/* Sin animación si el usuario reduce movimiento: relleno plano */
+
 @media (prefers-reduced-motion: reduce) {
-  .vb-skel {
-    animation: none;
-    background: rgba(255, 255, 255, 0.07);
-  }
+  .vb-skel::after { animation: none; opacity: 0; }
 }
 ```
 
-| Propiedad          | Valor                                            |
-|--------------------|--------------------------------------------------|
-| color base         | `rgba(255,255,255,0.05)` → `0.11` → `0.05`       |
-| `background-size`  | `300% 100%`                                       |
-| animación          | `vbSkelWave 1.6s ease-in-out infinite`           |
-| dirección onda     | `180% 0` → `-80% 0` (izq→der, diagonal `100deg`) |
-| reduced-motion     | sin animación, relleno plano `0.07`              |
-| `border-radius`    | por forma: círculos `50%`, líneas `6`, media `16`|
+| Propiedad | Valor |
+|---|---|
+| relleno base | `rgba(255,255,255,0.08)` sólido |
+| luz | `::after` con `transform`, no `background-position` |
+| animación | `vbSkelWave 1.6s linear infinite` |
+| reduced-motion | relleno quieto, sin luz |
+| `border-radius` | por forma: círculos `50%`, líneas `6`, media `16` |
 
-Se combina con una clase de forma: `<div className="vb-skel vb-skel-avatar" />`,
-`vb-skel-line`, `vb-skel-media`, etc. Cada skeleton nuevo define sus formas pero
-reutiliza `.vb-skel` tal cual (mismo relleno + `vbSkelWave`). Scoped con styled-jsx.
+#### 🚨 Tres cosas que NO se tocan, y por qué
+
+**`linear`, nunca `ease-in-out`.** Estuvo en `ease-in-out` y se veía como que la
+luz *se atoraba*: en un bucle infinito esa curva frena hasta pararse al llegar al
+final y arranca otra vez desde cero, y esa deceleración justo en la costura es
+lo que se nota. Un barrido que se repite va a velocidad constante.
+
+**`transform`, nunca `background-position`.** Animar el fondo obliga a repintar
+cada fotograma y no lo puede componer la GPU; con un feed lleno de esqueletos eso
+es tirón de verdad. La luz es un pseudo-elemento que cruza con `translateX`, que
+sí va por GPU. En los extremos queda fuera del bloque, así que el salto del final
+del bucle al principio no se ve.
+
+**Nada que no entienda un navegador viejo.** El hueco tiene que verse en
+cualquier aparato, así que el relleno es un `background-color` sólido: aunque el
+`::after`, el gradiente o la animación no lleguen a pintar, el bloque gris sigue
+ahi. Por eso tampoco se usa `inset: 0` (no existe en Safari < 14.1 ni en Samsung
+Internet viejo) sino `top/left` + `width/height`, que además el minificador **no**
+puede volver a colapsar en `inset` — con los cuatro lados sueltos sí lo hacía. Y
+nada de `will-change`: un feed puede llevar decenas de esqueletos a la vez y serían
+decenas de capas de composición en un móvil de gama baja; un `transform` animado ya
+lo promociona el navegador por su cuenta.
+
+#### 🐛 Si los esqueletos salen sin relleno ni luz, mira el dev server
+
+Turbopack se queda **una edición por detrás** en `globals.css`. Los `.tsx` sí se
+recompilan al vuelo, así que la clase `.vb-skel` se queda sin ninguna regla y los
+huecos salen invisibles y quietos. No es el CSS: se comprueba pidiendo la hoja al
+servidor y buscando `vb-skel` dentro. Se arregla reiniciando `npm run dev`, y en el
+navegador con recarga forzada, porque la URL del chunk no cambia.
 
 ### Revelado del contenido real (fade-in)
 

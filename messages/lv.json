@@ -2618,8 +2618,8 @@
     "tagsHint": "Izvēlies dažas, lai atklātu kopienas un veidotājus, kas tev der."
   },
   "notifPrompt": {
-    "title": "Ieslēgt paziņojumus",
-    "body": "Saņem brīdinājumus par liesmām, komentāriem un aktivitāti arī tad, kad Vibra ir aizvērta.",
+    "title": "Uzzini uzreiz",
+    "body": "Paziņosim, kad ienāks maksājums, kad kāds rezervēs pieredzi ar tevi un kad sāksies tiešraide, kurai seko.",
     "enable": "Ieslēgt",
     "enabling": "Ieslēdz…",
     "later": "Ne tagad"
@@ -2637,7 +2637,9 @@
     "title": "Pievieno Vibra sākuma ekrānam",
     "body": "Tā atveras kā lietotne, un tas ir vienīgais veids, kā saņemt paziņojumus iPhone.",
     "step1": "Pieskaries Kopīgot",
-    "step2": "Izvēlies Pievienot sākuma ekrānam",
+    "step2": "Ritini uz leju un izvēlies šo",
+    "safariOnly": "Tam jābūt no Safari",
+    "addToHomeScreen": "Pievienot sākuma ekrānam",
     "later": "Ne tagad"
   },
   "notifications": {

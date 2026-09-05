@@ -2618,8 +2618,8 @@
     "tagsHint": "Escolha alguns para descobrir comunidades e criadores com a sua vibe."
   },
   "notifPrompt": {
-    "title": "Ative as notificações",
-    "body": "Receba avisos de curtidas, comentários e atividade mesmo com o Vibra fechado.",
+    "title": "Fique sabendo na hora",
+    "body": "A gente avisa quando entra um pagamento, quando alguém reserva uma experiência com você e quando começa uma live que você segue.",
     "enable": "Ativar",
     "enabling": "Ativando…",
     "later": "Agora não"
@@ -2637,7 +2637,9 @@
     "title": "Adicione o Vibra à tela de início",
     "body": "Ele abre como app, e é o único jeito de receber avisos no iPhone.",
     "step1": "Toque em Compartilhar",
-    "step2": "Escolha Adicionar à Tela de Início",
+    "step2": "Role para baixo e escolha esta",
+    "safariOnly": "Precisa ser pelo Safari",
+    "addToHomeScreen": "Adicionar à Tela de Início",
     "later": "Agora não"
   },
   "notifications": {

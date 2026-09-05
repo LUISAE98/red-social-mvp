@@ -2629,8 +2629,8 @@
     "tagsHint": "Elige algunos para descubrir comunidades y creadores que vibran contigo."
   },
   "notifPrompt": {
-    "title": "Activa las notificaciones",
-    "body": "Recibe avisos de likes, comentarios y actividad aunque tengas Vibra cerrada.",
+    "title": "Entérate al momento",
+    "body": "Te avisamos cuando entra un pago, cuando reservan una experiencia contigo y cuando empieza un live que sigues.",
     "enable": "Activar",
     "enabling": "Activando…",
     "later": "Ahora no"
@@ -2648,7 +2648,9 @@
     "title": "Añade Vibra a tu pantalla de inicio",
     "body": "Se abre como app, y es la única forma de recibir avisos en iPhone.",
     "step1": "Toca Compartir",
-    "step2": "Elige Añadir a pantalla de inicio",
+    "step2": "Baja y elige esta opción",
+    "safariOnly": "Tiene que ser desde Safari",
+    "addToHomeScreen": "Añadir a pantalla de inicio",
     "later": "Ahora no"
   },
   "notifications": {

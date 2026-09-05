@@ -2618,8 +2618,8 @@
     "tagsHint": "選幾個，就能找到跟你合拍的社群和創作者。"
   },
   "notifPrompt": {
-    "title": "開啟通知",
-    "body": "即使 Vibra 關閉，也能收到火焰、留言和其他動態的提醒。",
+    "title": "當下就知道",
+    "body": "有款項進來、有人預約和你的體驗、你追蹤的直播開始時，我們都會通知你。",
     "enable": "開啟",
     "enabling": "開啟中…",
     "later": "現在不要"
@@ -2637,7 +2637,9 @@
     "title": "把 Vibra 加到主畫面",
     "body": "會像 App 一樣開啟，也是在 iPhone 收到通知的唯一方式。",
     "step1": "點一下分享",
-    "step2": "選擇加入主畫面",
+    "step2": "往下滑並選這個",
+    "safariOnly": "必須從 Safari 操作",
+    "addToHomeScreen": "加入主畫面",
     "later": "現在不要"
   },
   "notifications": {

@@ -72,6 +72,18 @@ type Cancelacion = {
   liberado: boolean;
 };
 
+/** Lo que devuelve la emisión de una nota de crédito. */
+type NotaCredito = {
+  facturapiId: string;
+  uuid: string | null;
+  /** Lo acreditado en ESTA nota, sin impuesto. */
+  base: number;
+  /** Lo acreditado en total sobre esa compra, contando las anteriores. */
+  acumulado: number;
+  /** Lo que queda por devolver. No se puede acreditar más que esto. */
+  restante: number;
+};
+
 type Phase = "idle" | "running" | "done" | "error";
 
 /** El mes mexicano de hoy. */
@@ -305,6 +317,8 @@ export default function AdminFacturacionPage() {
       <LiberarDeGlobal onError={setError} showToast={showToast} />
 
       <CancelarComprobanteMensual onError={setError} showToast={showToast} />
+
+      <NotaDeCredito onError={setError} showToast={showToast} />
 
       <VibraToast toast={toast} />
 
@@ -1161,6 +1175,266 @@ function CancelarComprobanteMensual({
       <p className="hint">
         El registro no se borra, se archiva en creatorMonthlyDocsAnulados con quién lo pidió y en
         qué estado quedó el CFDI.
+      </p>
+
+      {/* ⚠️ styled-jsx no cruza de un componente a otro: este bloque es obligatorio. */}
+      <style jsx>{`
+        .card {
+          margin-top: 18px;
+          border: 1px solid #1a1a1a;
+          border-radius: 12px;
+          padding: 18px;
+          background: #0a0a0a;
+        }
+        .badge {
+          display: inline-block;
+          margin-bottom: 10px;
+          padding: 3px 9px;
+          border-radius: 999px;
+          font-size: 10.5px;
+          font-weight: 700;
+          letter-spacing: 0.4px;
+          text-transform: uppercase;
+          background: #17111f;
+          color: #a855f7;
+        }
+        .desc {
+          font-size: 13px;
+          color: #999;
+          line-height: 1.55;
+        }
+        .warn {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: #181004;
+          color: #d9a441;
+          font-size: 12px;
+          line-height: 1.5;
+        }
+        .label {
+          display: block;
+          margin-top: 16px;
+          margin-bottom: 6px;
+          font-size: 12px;
+          color: #777;
+        }
+        .input {
+          width: 100%;
+          padding: 9px 12px;
+          border-radius: 8px;
+          border: 1px solid #2a2a2a;
+          background: #141414;
+          color: #eee;
+          font-size: 13px;
+          font-family: inherit;
+        }
+        .actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 14px;
+        }
+        .btn {
+          padding: 8px 14px;
+          border-radius: 8px;
+          border: 1px solid #2a2a2a;
+          background: #141414;
+          color: #ddd;
+          font-size: 12.5px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+        .btnDanger {
+          border-color: #3d1515;
+          color: #f87171;
+        }
+        .rows {
+          margin-top: 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          background: #1a1a1a;
+          border: 1px solid #1a1a1a;
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .errores {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: #1a0808;
+          border: 1px solid #3d1515;
+        }
+        .errorLinea {
+          font-size: 11.5px;
+          color: #fca5a5;
+          line-height: 1.55;
+          word-break: break-word;
+        }
+        .hint {
+          margin-top: 10px;
+          font-size: 11.5px;
+          color: #666;
+          line-height: 1.5;
+        }
+      `}</style>
+    </section>
+  );
+}
+
+/**
+ * Emite la nota de crédito de una compra ya facturada.
+ *
+ * 🚨 CUÁNDO ES ESTE DOCUMENTO Y NO UNA CANCELACIÓN. Cancelar sirve dentro del mes y para
+ *    operaciones completas. Una devolución PARCIAL, o una total con el mes ya cerrado, se
+ *    documenta con nota de crédito: un CFDI no se cancela a medias.
+ *
+ * ⚠️ Solo contra una factura NOMINATIVA. Una venta que solo está dentro de una global se corrige
+ *    cancelando la global y reexpidiéndola, con el panel de arriba.
+ */
+function NotaDeCredito({
+  onError,
+  showToast,
+}: {
+  onError: (m: string | null) => void;
+  showToast: (m: string | null, tipo?: ToastType) => void;
+}) {
+  const [buyerId, setBuyerId] = useState("");
+  const [purchaseId, setPurchaseId] = useState("");
+  const [base, setBase] = useState("");
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [salida, setSalida] = useState<NotaCredito | null>(null);
+  const [crudo, setCrudo] = useState<string | null>(null);
+
+  const corriendo = phase === "running";
+  const importe = Number(base);
+  const listo =
+    buyerId.trim().length > 0 &&
+    purchaseId.trim().length > 0 &&
+    Number.isFinite(importe) &&
+    importe > 0;
+
+  async function emitir() {
+    if (corriendo || !listo) return;
+    setPhase("running");
+    setSalida(null);
+    setCrudo(null);
+    onError(null);
+    try {
+      const fn = httpsCallable<
+        { buyerId: string; purchaseId: string; base: number },
+        NotaCredito
+      >(functions, "emitirNotaDeCreditoCallable");
+      const r = await fn({
+        buyerId: buyerId.trim(),
+        purchaseId: purchaseId.trim(),
+        base: importe,
+      });
+      setSalida(r.data);
+      setPhase("done");
+      showToast("Nota de crédito emitida.", "success");
+    } catch (err) {
+      setPhase("error");
+      const codigo = (err as { code?: string })?.code;
+      const mensaje = err instanceof Error ? err.message : String(err);
+      setCrudo(codigo ? `${codigo} — ${mensaje}` : mensaje);
+      onError(mensaje);
+    }
+  }
+
+  return (
+    <section className="card">
+      <span className="badge">Nota de crédito</span>
+      <p className="desc">
+        Documenta una devolución sobre una compra que ya tiene su factura. La emite el CREADOR con
+        su sello, relacionada al UUID de la factura original.
+      </p>
+
+      <div className="warn">
+        🚨 Para devoluciones PARCIALES, o totales de un mes ya cerrado. Si la devolución es total y
+        el mes sigue abierto, es más limpio cancelar la factura.
+      </div>
+
+      <label className="label" htmlFor="ncBuyer">
+        Comprador
+      </label>
+      <input
+        id="ncBuyer"
+        className="input"
+        value={buyerId}
+        disabled={corriendo}
+        placeholder="uid del comprador"
+        onChange={(ev) => setBuyerId(ev.target.value)}
+      />
+
+      <label className="label" htmlFor="ncPurchase">
+        Compra
+      </label>
+      <input
+        id="ncPurchase"
+        className="input"
+        value={purchaseId}
+        disabled={corriendo}
+        placeholder="id del documento de compra"
+        onChange={(ev) => setPurchaseId(ev.target.value)}
+      />
+
+      <label className="label" htmlFor="ncBase">
+        Importe a devolver, SIN impuesto, en pesos
+      </label>
+      <input
+        id="ncBase"
+        className="input"
+        type="number"
+        step="0.01"
+        min="0"
+        value={base}
+        disabled={corriendo}
+        placeholder="0.00"
+        onChange={(ev) => setBase(ev.target.value)}
+      />
+
+      <div className="actions">
+        <button
+          type="button"
+          className="btn btnDanger"
+          disabled={corriendo || !listo}
+          onClick={emitir}
+        >
+          {corriendo ? "Emitiendo…" : "Emitir nota de crédito"}
+        </button>
+      </div>
+
+      {crudo ? (
+        <div className="errores">
+          <p className="errorLinea">{crudo}</p>
+        </div>
+      ) : null}
+
+      {salida ? (
+        <div className="rows">
+          <Fila k="UUID" v={salida.uuid ?? "sin folio"} />
+          <Fila k="Acreditado ahora" v={salida.base.toFixed(2)} />
+          <Fila
+            k="Acreditado en total"
+            v={salida.acumulado.toFixed(2)}
+            hint="Contando las notas anteriores de esta misma compra."
+          />
+          <Fila
+            k="Queda por devolver"
+            v={salida.restante.toFixed(2)}
+            hint="No se puede acreditar más que esto."
+          />
+        </div>
+      ) : null}
+
+      <p className="hint">
+        El importe va sin impuesto. El IVA se calcula encima, con la misma tasa que llevó la
+        venta, así que una exportación se acredita al 0%.
       </p>
 
       {/* ⚠️ styled-jsx no cruza de un componente a otro: este bloque es obligatorio. */}

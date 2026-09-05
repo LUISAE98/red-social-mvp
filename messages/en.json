@@ -2629,8 +2629,8 @@
     "tagsHint": "Pick a few to discover communities and creators that vibe with you."
   },
   "notifPrompt": {
-    "title": "Turn on notifications",
-    "body": "Get alerts for likes, comments and activity even when Vibra is closed.",
+    "title": "Know the moment it happens",
+    "body": "We tell you when a payment comes in, when someone books an experience with you, and when a live you follow starts.",
     "enable": "Turn on",
     "enabling": "Turning on…",
     "later": "Not now"
@@ -2648,7 +2648,9 @@
     "title": "Add Vibra to your home screen",
     "body": "It opens like an app, and it is the only way to get notifications on iPhone.",
     "step1": "Tap Share",
-    "step2": "Choose Add to Home Screen",
+    "step2": "Scroll down and pick this one",
+    "safariOnly": "It has to be from Safari",
+    "addToHomeScreen": "Add to Home Screen",
     "later": "Not now"
   },
   "notifications": {

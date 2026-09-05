@@ -2618,8 +2618,8 @@
     "tagsHint": "Pilih beberapa untuk menemui komuniti dan pencipta yang sepadan dengan anda."
   },
   "notifPrompt": {
-    "title": "Hidupkan pemberitahuan",
-    "body": "Dapatkan makluman tentang api, komen dan aktiviti lain walaupun Vibra ditutup.",
+    "title": "Tahu pada saat itu juga",
+    "body": "Kami beritahu bila ada bayaran masuk, bila seseorang menempah pengalaman dengan anda, dan bila siaran langsung yang anda ikuti bermula.",
     "enable": "Hidupkan",
     "enabling": "Menghidupkan…",
     "later": "Bukan sekarang"
@@ -2637,7 +2637,9 @@
     "title": "Tambah Vibra ke skrin utama",
     "body": "Ia dibuka seperti apl, dan inilah satu-satunya cara menerima pemberitahuan di iPhone.",
     "step1": "Ketik Kongsi",
-    "step2": "Pilih Tambah ke Skrin Utama",
+    "step2": "Tatal ke bawah dan pilih ini",
+    "safariOnly": "Ia mesti dari Safari",
+    "addToHomeScreen": "Tambah ke Skrin Utama",
     "later": "Bukan sekarang"
   },
   "notifications": {
