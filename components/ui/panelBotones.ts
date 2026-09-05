@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 
+import { BOTON_ACCION_FORMA } from "./botonAccion";
+
 /**
  * Los dos botones del pie de un panel de Vibra: guardar y cancelar.
  *
@@ -13,19 +15,17 @@ import type { CSSProperties } from "react";
  * hasta que alguien retoca uno de los tres.
  */
 export const panelPrimaryBtn: CSSProperties = {
+  // Forma y letra del boton de seguir del perfil, la misma que ya usan
+  // publicar, editar y monetizar. El color lo pone este modulo.
+  ...BOTON_ACCION_FORMA,
   flex: 1,
-  minHeight: 42,
-  borderRadius: 5,
-  border: "none",
   background: "#a855f7",
   color: "rgba(255,255,255,0.98)",
-  fontSize: 16,
-  fontWeight: 500,
-  fontFamily: "inherit",
-  letterSpacing: "-0.02em",
   cursor: "pointer",
-  display: "grid",
-  placeItems: "center",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
 };
 
 export const panelPrimaryBtnDisabled: CSSProperties = {
@@ -36,17 +36,16 @@ export const panelPrimaryBtnDisabled: CSSProperties = {
 };
 
 export const panelSecondaryBtn: CSSProperties = {
+  ...BOTON_ACCION_FORMA,
   flex: "0 0 auto",
-  minHeight: 42,
   padding: "0 16px",
-  borderRadius: 5,
-  border: "none",
   background: "rgba(255,255,255,0.08)",
   color: "#fff",
-  fontSize: 15,
-  fontWeight: 500,
-  fontFamily: "inherit",
   cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
 };
 
 /**

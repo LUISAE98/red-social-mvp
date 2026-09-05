@@ -5,7 +5,11 @@ import { useTranslations, useLocale } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import LogoutButton from "@/app/LogoutButton";
-import { TextButton } from "@/components/ui";
+import {
+  panelPrimaryBtn,
+  panelPrimaryBtnDisabled,
+  TextButton,
+} from "@/components/ui";
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import BlockedAccountsOverlay from "@/components/profile/BlockedAccountsOverlay";
 import SessionsOverlay from "@/components/profile/SessionsOverlay";
@@ -383,8 +387,10 @@ export default function ProfileSettingsTab({
   // fondo rgba(255,255,255,0.06), radio 12, fontSize 13, lineHeight 1.5.
   const inputStyle: CSSProperties = {
     width: "100%",
-    minHeight: 46,
-    padding: "10px 12px",
+    // 40 y 8px de aire: con 46 y 10px el placeholder nadaba dentro de una
+    // caja mucho mas alta que su propia letra.
+    minHeight: 40,
+    padding: "8px 12px",
     borderRadius: 12,
     border: "none",
     background: "rgba(255,255,255,0.06)",
@@ -398,44 +404,6 @@ export default function ProfileSettingsTab({
     appearance: "none",
   };
 
-
-  // Botones del footer de los paneles (estilo canónico vibra_style.md).
-  const panelPrimaryBtn: CSSProperties = {
-    flex: 1,
-    minHeight: 42,
-    borderRadius: 5,
-    border: "none",
-    background: "#a855f7",
-    color: "rgba(255,255,255,0.98)",
-    fontSize: 16,
-    fontWeight: 500,
-    fontFamily: fontStack,
-    letterSpacing: "-0.02em",
-    cursor: "pointer",
-    display: "grid",
-    placeItems: "center",
-  };
-
-  const panelPrimaryBtnDisabled: CSSProperties = {
-    ...panelPrimaryBtn,
-    background: "rgba(255,255,255,0.1)",
-    color: "rgba(255,255,255,0.36)",
-    cursor: "not-allowed",
-  };
-
-  const panelSecondaryBtn: CSSProperties = {
-    flex: "0 0 auto",
-    minHeight: 42,
-    padding: "0 16px",
-    borderRadius: 5,
-    border: "none",
-    background: "rgba(255,255,255,0.08)",
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: 500,
-    fontFamily: fontStack,
-    cursor: "pointer",
-  };
 
   return (
     <section style={outer}>
@@ -944,14 +912,6 @@ export default function ProfileSettingsTab({
           <div style={{ display: "flex", gap: 10 }}>
             <button
               type="button"
-              onClick={() => !savingName && setEditNameOpen(false)}
-              disabled={savingName}
-              style={{ ...panelSecondaryBtn, opacity: savingName ? 0.7 : 1, cursor: savingName ? "not-allowed" : "pointer" }}
-            >
-              {tCommon("cancel")}
-            </button>
-            <button
-              type="button"
               onClick={handleSaveName}
               disabled={savingName}
               style={savingName ? panelPrimaryBtnDisabled : panelPrimaryBtn}
@@ -1004,28 +964,6 @@ export default function ProfileSettingsTab({
                 tCommon("save")
               )}
             </button>
-            <button
-              type="button"
-              onClick={() => !savingBio && setEditBioOpen(false)}
-              disabled={savingBio}
-              style={{
-                flex: 1,
-                minHeight: 42,
-                borderRadius: 5,
-                border: "none",
-                background: "rgba(255,255,255,0.10)",
-                color: "rgba(255,255,255,0.70)",
-                fontWeight: 500,
-                fontSize: 13,
-                fontFamily: fontStack,
-                display: "grid",
-                placeItems: "center",
-                cursor: savingBio ? "not-allowed" : "pointer",
-                opacity: savingBio ? 0.7 : 1,
-              }}
-            >
-              {tCommon("cancel")}
-            </button>
           </div>
         }
       >
@@ -1035,7 +973,6 @@ export default function ProfileSettingsTab({
             style={{
               ...inputStyle,
               minHeight: 110,
-              padding: "10px 12px",
               resize: "vertical",
             }}
             value={draftBio}
@@ -1075,28 +1012,6 @@ export default function ProfileSettingsTab({
               ) : (
                 tCommon("save")
               )}
-            </button>
-            <button
-              type="button"
-              onClick={() => !savingSocial && setEditSocialOpen(false)}
-              disabled={savingSocial}
-              style={{
-                flex: 1,
-                minHeight: 42,
-                borderRadius: 5,
-                border: "none",
-                background: "rgba(255,255,255,0.10)",
-                color: "rgba(255,255,255,0.70)",
-                fontWeight: 500,
-                fontSize: 13,
-                fontFamily: fontStack,
-                display: "grid",
-                placeItems: "center",
-                cursor: savingSocial ? "not-allowed" : "pointer",
-                opacity: savingSocial ? 0.7 : 1,
-              }}
-            >
-              {tCommon("cancel")}
             </button>
           </div>
         }
