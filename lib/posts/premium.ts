@@ -136,6 +136,29 @@ export function getPremiumCapabilities(params: {
     };
   }
 
+  // 🚨 SIN VIDEO NO HAY NADA QUE MONETIZAR.
+  //
+  // Premium es poner precio a un VIDEO (`DEFAULT_KIND`), así que el botón de
+  // monetizar no tiene sentido mientras no haya uno. `hasVideos` llegaba a esta
+  // función desde el principio y no se usaba: la puerta estaba pensada y sin
+  // poner, y el botón aparecía en un compositor vacío.
+  //
+  // Cerrarla AQUÍ y no en el JSX es lo que además cierra la trampa: al quitar
+  // el último video, `canEnablePremium` cae y el efecto de `useComposerPremium`
+  // apaga premium solo. Si la puerta viviera en el render, el botón
+  // desaparecería dejando premium encendido y sin forma de apagarlo.
+  //
+  // Editar un post que YA era premium no pasa por aquí: `useComposerPremium`
+  // fuerza el permiso en ese caso.
+  if (!params.hasVideos) {
+    return {
+      canEnablePremium: false,
+      allowedAccessModes: [],
+      allowedFreeForOptions: [],
+      disabledReason: "Sube un video para poder monetizarlo.",
+    };
+  }
+
   const allowedAccessModes = getAllowedAccessModes(params.context);
   const allowedFreeForOptions = getAllowedFreeForOptions(params.context);
 
