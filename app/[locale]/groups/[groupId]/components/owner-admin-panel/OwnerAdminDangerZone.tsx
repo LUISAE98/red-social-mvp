@@ -129,7 +129,8 @@ export default function OwnerAdminDangerZone({
     border: "none",
     background: "rgba(255,255,255,0.06)",
     color: "#fff",
-    padding: "10px 12px",
+    minHeight: 40,
+    padding: "8px 12px",
     fontSize: 13,
     lineHeight: 1.5,
     outline: "none",
@@ -239,19 +240,6 @@ export default function OwnerAdminDangerZone({
               {tGroups("deleteCommunityButton")}
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                setErrorMessage(null);
-                setConfirmText("");
-                setReason("");
-              }}
-              disabled={ocupado}
-              style={panelSecondaryBtnStyle(ocupado)}
-            >
-              {tCommon("cancel")}
-            </button>
           </div>
         </div>
       </SettingsSection>

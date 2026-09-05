@@ -13,7 +13,6 @@ import {
   TextButton,
   panelPrimaryBtn,
   panelPrimaryBtnDisabled,
-  panelSecondaryBtnStyle,
 } from "@/components/ui";
 import {
   SettingsIcon,
@@ -257,7 +256,9 @@ const data = snap.data() as {
   // texto de 14 eran del estilo viejo.
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    padding: "10px 12px",
+    // 40 y 8px de aire, el mismo campo que la configuracion del perfil.
+    minHeight: 40,
+    padding: "8px 12px",
     borderRadius: 12,
     border: "none",
     background: "rgba(255,255,255,0.06)",
@@ -601,14 +602,6 @@ await updateDoc(groupRef, {
               ) : (
                 tCommon("save")
               )}
-            </button>
-            <button
-              type="button"
-              onClick={() => !savingGeneral && closeEdit()}
-              disabled={savingGeneral}
-              style={panelSecondaryBtnStyle(savingGeneral)}
-            >
-              {tCommon("cancel")}
             </button>
           </div>
         }
