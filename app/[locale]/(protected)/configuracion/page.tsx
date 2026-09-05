@@ -42,11 +42,26 @@ export default function ConfiguracionPage() {
 
       <style jsx>{`
         .cfgPage {
-          /* Misma columna que notificaciones y mensajes, para que cambiar de
-             sección no mueva el ancho del contenido. */
+          /* En celular, la misma columna que notificaciones y mensajes. */
           max-width: 640px;
           margin: 0 auto;
           padding: 8px 12px 12px;
+        }
+
+        /* En laptop las tarjetas ocupan el ancho de la columna.
+           Aquí no hay una lista que se lea de un vistazo como en notificaciones,
+           sino renglones de etiqueta a la izquierda y control a la derecha, y
+           con 640px el control quedaba a media pantalla con hueco sobrante a los
+           lados. El tope lo pone ya .mainCol del layout protegido, así que aquí
+           basta con soltar el propio.
+
+           Ojo: este bloque es un template literal y un acento invertido en un
+           comentario lo parte en seco. */
+        @media (min-width: 901px) {
+          .cfgPage {
+            max-width: none;
+            padding-inline: 0;
+          }
         }
       `}</style>
     </div>

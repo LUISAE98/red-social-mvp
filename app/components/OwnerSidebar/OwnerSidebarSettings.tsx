@@ -43,7 +43,14 @@ import {
   formatDate,
   pwdResetKey,
 } from "@/components/profile/ProfileSettings.parts";
+import { useCfError } from "@/lib/i18n/cfError";
 import MessagePolicySetting from "@/components/chat/MessagePolicySetting";
+import SocialLinksEditor, {
+  draftHasInvalidHandle,
+  socialLinksToDraft,
+} from "@/components/profile/SocialLinksEditor";
+import { listSocialLinks, type SocialLinks } from "@/lib/profile/socialNetworks";
+import { updateProfileSocialLinks } from "@/lib/profile/updateProfileSocialLinks";
 import { usePrivateProfile } from "@/lib/auth/usePrivateProfile";
 import { updateMessagePolicy } from "@/lib/chat/messagePolicyService";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
@@ -92,6 +99,11 @@ type SettingsDoc = {
   handle: string | null;
   bio: string | null;
   messagePolicy: MessagePolicy;
+  // Los tres que vienen de la pestana de Configuracion del perfil. Se leen del
+  // mismo documento que ya se escuchaba; no hay listener nuevo.
+  profileRestricted: boolean;
+  profileCommentsEnabled: boolean;
+  socialLinks: SocialLinks;
   birthDate: string | Date | null;
   createdAt: string | Date | null;
   displayNameLastChangedAt: string | Date | null;
@@ -390,6 +402,7 @@ export default function OwnerSidebarSettings({
   const tNav = useTranslations("nav");
   const tCommon = useTranslations("common");
   const tProfile = useTranslations("profile");
+  const cfError = useCfError();
   const locale = useLocale();
   const { currency } = useCurrency();
 
@@ -422,6 +435,23 @@ export default function OwnerSidebarSettings({
     // DEFAULT_MESSAGE_POLICY ("following"). Mientras cargaba el ajuste real, la
     // pantalla decía que cualquiera podía escribirte cuando no era verdad.
     useState<MessagePolicy>(DEFAULT_MESSAGE_POLICY);
+
+  /**
+   * Los tres ajustes que se trajeron de la pestaña de Configuración del perfil.
+   *
+   * Van con copia local porque los dos interruptores se pintan de inmediato al
+   * tocarlos y se revierten si la escritura falla; esperar a que vuelva el
+   * snapshot dejaba el interruptor quieto medio segundo y se sentía roto.
+   */
+  const [localRestricted, setLocalRestricted] = useState(false);
+  const [savingRestricted, setSavingRestricted] = useState(false);
+  const [localComments, setLocalComments] = useState(true);
+  const [savingComments, setSavingComments] = useState(false);
+
+  const [editSocialOpen, setEditSocialOpen] = useState(false);
+  const [draftSocial, setDraftSocial] = useState<Record<string, string>>({});
+  const [savingSocial, setSavingSocial] = useState(false);
+
   const [sendingPassword, setSendingPassword] = useState(false);
   const [passwordSent, setPasswordSent] = useState(false);
   const [pwdCooldown, setPwdCooldown] = useState(0);
@@ -466,6 +496,11 @@ export default function OwnerSidebarSettings({
           // guardaba nunca — y su bandeja seguía cerrada a los desconocidos sin
           // que nada se lo dijera.
           messagePolicy: isMessagePolicy(policy) ? policy : DEFAULT_MESSAGE_POLICY,
+          // Ausente = perfil abierto y comentarios abiertos, que es el mismo
+          // valor por omision que aplica la pestana del perfil.
+          profileRestricted: raw.profileRestricted === true,
+          profileCommentsEnabled: raw.profileCommentsEnabled !== false,
+          socialLinks: (raw.socialLinks as SocialLinks) ?? {},
           // La fecha de nacimiento ya no está en el documento público; se lee
           // aparte con `usePrivateProfile`. El fallback a `raw.birthDate`
           // sostiene a los perfiles que aún no pasaron por la migración.
@@ -487,7 +522,10 @@ export default function OwnerSidebarSettings({
   }, [uid, tCommon]);
 
   useEffect(() => {
-    if (data) setLocalMessagePolicy(data.messagePolicy);
+    if (!data) return;
+    setLocalMessagePolicy(data.messagePolicy);
+    setLocalRestricted(data.profileRestricted);
+    setLocalComments(data.profileCommentsEnabled);
   }, [data]);
 
   // Cooldown del correo de contraseña, persistido en localStorage para que
@@ -564,6 +602,77 @@ export default function OwnerSidebarSettings({
         nextValue ? tProfile("pushEnabledMsg") : tProfile("pushDisabledMsg"),
         "success"
       );
+    }
+  }
+
+
+  /**
+   * Perfil restringido.
+   *
+   * Escribe el MISMO campo que la pestaña del perfil (`profileRestricted`), así
+   * que los dos sitios se ven siempre igual: quien cambie uno verá el otro ya
+   * cambiado, porque ambos escuchan `users/{uid}`.
+   */
+  async function handleRestrictedChange(next: boolean) {
+    if (!uid || savingRestricted) return;
+
+    const previo = localRestricted;
+    setLocalRestricted(next);
+    setSavingRestricted(true);
+
+    try {
+      await updateDoc(doc(db, "users", uid), { profileRestricted: next });
+    } catch {
+      // Se devuelve al valor de antes: dejarlo puesto haría creer que el perfil
+      // quedó restringido cuando sigue abierto.
+      setLocalRestricted(previo);
+      toastRef.current(tCommon("errorGeneric"), "error");
+    } finally {
+      setSavingRestricted(false);
+    }
+  }
+
+  /** Comentarios en mis publicaciones. Mismo campo que la pestaña del perfil. */
+  async function handleCommentsChange(next: boolean) {
+    if (!uid || savingComments) return;
+
+    const previo = localComments;
+    setLocalComments(next);
+    setSavingComments(true);
+
+    try {
+      await updateDoc(doc(db, "users", uid), { profileCommentsEnabled: next });
+    } catch {
+      setLocalComments(previo);
+      toastRef.current(tCommon("errorGeneric"), "error");
+    } finally {
+      setSavingComments(false);
+    }
+  }
+
+  /**
+   * Redes sociales.
+   *
+   * Va por `updateProfileSocialLinks` y no por un `updateDoc` a pelo: ese
+   * servicio limpia cada identificador y espera a `authStateReady()` antes de
+   * escribir. Sin esa espera, un guardado disparado pronto sale sin sesión y
+   * Firestore lo rechaza por permisos aunque la persona sí esté dentro.
+   */
+  async function handleSocialSave() {
+    if (savingSocial) return;
+
+    setSavingSocial(true);
+
+    try {
+      await updateProfileSocialLinks(draftSocial);
+      setEditSocialOpen(false);
+    } catch (e: unknown) {
+      toastRef.current(
+        (e instanceof Error ? cfError(e) : null) ?? tCommon("errorGeneric"),
+        "error"
+      );
+    } finally {
+      setSavingSocial(false);
     }
   }
 
@@ -677,6 +786,12 @@ export default function OwnerSidebarSettings({
   // proveedor de moneda—, así que no hay una segunda tabla que mantener.
   const currentLanguageName =
     readyLocaleMeta().find((m) => m.code === locale)?.name ?? locale;
+  /** Las redes ya guardadas, para el resumen del renglón. */
+  const redesGuardadas = useMemo(
+    () => listSocialLinks(data?.socialLinks ?? {}),
+    [data?.socialLinks]
+  );
+
   const currentCurrencyName = `${currency} · ${currencyLabel(currency, locale)}`;
 
   const row: CSSProperties = {
@@ -1009,10 +1124,13 @@ export default function OwnerSidebarSettings({
           </div>
         </SeccionAjuste>
 
-        {/* 4. Descripción del perfil */}
+        {/* 4. Configuración de perfil: la descripción mas los tres ajustes que
+               vivian solo en la pestana del perfil. No son opciones nuevas, es
+               el mismo campo de Firestore visto desde aqui, asi que cambiar uno
+               en cualquiera de los dos sitios se ve en el otro al instante. */}
         <SeccionAjuste
           icono={ICONO_BIO}
-          titulo={tProfile("bioFieldLabel")}
+          titulo={tProfile("settingsTitle")}
           abierta={abierta === "bio"}
           onToggle={() => alternar("bio")}
           fija={enPagina}
@@ -1036,6 +1154,98 @@ export default function OwnerSidebarSettings({
             </div>
 
             <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => { setDraftBio(data?.bio ?? ""); setEditBioOpen(true); }}>
+              {tProfile("editLabel")}
+            </TextButton>
+          </div>
+
+          {/* Perfil restringido. Mismo campo y mismo texto de ayuda que en la
+              pestaña del perfil: no es un ajuste nuevo, es el mismo visto desde
+              aquí. */}
+          <div className="sidebar-setting-row" style={row}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>{tProfile("restricted")}</div>
+              <div style={valueStyle}>
+                {localRestricted ? tProfile("enabled") : tProfile("disabled")}
+              </div>
+              <div style={hintStyle}>
+                {localRestricted
+                  ? tProfile("reservedHelpActive")
+                  : tProfile("publicHelpActive")}
+              </div>
+            </div>
+
+            <Switch
+              checked={localRestricted}
+              disabled={savingRestricted || !data}
+              onChange={handleRestrictedChange}
+              label={
+                localRestricted
+                  ? tProfile("disableReserved")
+                  : tProfile("enableReserved")
+              }
+            />
+          </div>
+
+          {/* Comentarios en mis publicaciones */}
+          <div className="sidebar-setting-row" style={row}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>{tProfile("commentsLabel")}</div>
+              <div style={valueStyle}>
+                {localComments
+                  ? tProfile("commentsOpen")
+                  : tProfile("commentsRestricted")}
+              </div>
+              <div style={hintStyle}>
+                {localComments
+                  ? tProfile("commentsOpenHelp")
+                  : tProfile("commentsRestrictedHelp")}
+              </div>
+            </div>
+
+            <Switch
+              checked={localComments}
+              disabled={savingComments || !data}
+              onChange={handleCommentsChange}
+              label={
+                localComments
+                  ? tProfile("restrictComments")
+                  : tProfile("openComments")
+              }
+            />
+          </div>
+
+          {/* Redes sociales. El editor es el MISMO componente que usa la pestaña
+              del perfil, dentro del mismo tipo de panel. */}
+          <div className="sidebar-setting-row" style={row}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>{tProfile("socialLinksFieldLabel")}</div>
+              <div
+                style={{
+                  ...valueStyle,
+                  fontWeight: 400,
+                  color: redesGuardadas.length
+                    ? "rgba(255,255,255,0.82)"
+                    : "rgba(255,255,255,0.38)",
+                  wordBreak: "break-word",
+                }}
+              >
+                {redesGuardadas.length
+                  ? redesGuardadas.map((r) => r.label).join(" · ")
+                  : tProfile("socialLinksNone")}
+              </div>
+            </div>
+
+            <TextButton
+              tone="brand"
+              size="sm"
+              style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }}
+              onClick={() => {
+                // Se rearma desde lo guardado al abrir: si se canceló la vez
+                // pasada, lo tecleado a medias no debe seguir ahí.
+                setDraftSocial(socialLinksToDraft(data?.socialLinks));
+                setEditSocialOpen(true);
+              }}
+            >
               {tProfile("editLabel")}
             </TextButton>
           </div>
@@ -1230,6 +1440,70 @@ export default function OwnerSidebarSettings({
             {draftBio.length}/300
           </div>
         </div>
+      </VibraResponsivePanel>
+
+
+      {/* Editor de redes. El MISMO componente que usa la pestaña del perfil y el
+          mismo panel: aquí solo se le da su hueco. */}
+      <VibraResponsivePanel
+        open={editSocialOpen}
+        onClose={() => !savingSocial && setEditSocialOpen(false)}
+        title={tProfile("socialLinksFieldLabel")}
+        closeAriaLabel={tCommon("closeAriaLabel")}
+        maxWidthDesktop={440}
+        footer={
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              onClick={handleSocialSave}
+              // No se guarda con un identificador mal escrito: el editor ya
+              // marca cuál es, y dejar guardar produciría un enlace roto en el
+              // perfil sin decir cuál.
+              disabled={savingSocial || draftHasInvalidHandle(draftSocial)}
+              style={
+                savingSocial || draftHasInvalidHandle(draftSocial)
+                  ? panelPrimaryBtnDisabled
+                  : panelPrimaryBtn
+              }
+            >
+              {savingSocial ? (
+                <>
+                  <SpinningGear /> {tCommon("saving")}
+                </>
+              ) : (
+                tCommon("save")
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => !savingSocial && setEditSocialOpen(false)}
+              disabled={savingSocial}
+              style={{
+                flex: 1,
+                minHeight: 42,
+                borderRadius: 5,
+                border: "none",
+                background: "rgba(255,255,255,0.10)",
+                color: "rgba(255,255,255,0.70)",
+                fontWeight: 500,
+                fontSize: 13,
+                fontFamily: "inherit",
+                display: "grid",
+                placeItems: "center",
+                cursor: savingSocial ? "not-allowed" : "pointer",
+                opacity: savingSocial ? 0.7 : 1,
+              }}
+            >
+              {tCommon("cancel")}
+            </button>
+          </div>
+        }
+      >
+        <SocialLinksEditor
+          value={draftSocial}
+          onChange={setDraftSocial}
+          disabled={savingSocial}
+        />
       </VibraResponsivePanel>
 
       <BlockedAccountsOverlay
