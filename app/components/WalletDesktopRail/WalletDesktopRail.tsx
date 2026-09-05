@@ -21,7 +21,7 @@ type WalletRailTab =
   | "calendar"
   | "pending"
   | "history";
-type MainRailTab = "home" | "saved" | "experiences";
+type MainRailTab = "home" | "saved" | "experiences" | "settings";
 
 function resolveWalletRailTab(pathname: string): WalletRailTab | null {
   if (pathname.startsWith("/wallet/finanzas")) return "finances";
@@ -36,6 +36,7 @@ function resolveMainRailTab(pathname: string): MainRailTab | null {
   if (pathname === "/" || pathname.startsWith("/home")) return "home";
   if (pathname.startsWith("/saved")) return "saved";
   if (pathname.startsWith("/experiencias")) return "experiences";
+  if (pathname.startsWith("/configuracion")) return "settings";
   return null;
 }
 
@@ -156,6 +157,11 @@ export default function WalletDesktopRail({
     ...(showExperiences
       ? [{ key: "experiences" as const, href: "/experiencias", icon: "experiences" as const }]
       : []),
+    // Ultimo del menu, debajo de experiencias -o de guardados cuando no hay
+    // experiencias que ensenar-. En celular estos ajustes viven dentro del
+    // espacio personal; en laptop ese espacio no existe y hasta ahora el unico
+    // camino era entrar al perfil y buscar su pestana.
+    { key: "settings" as const, href: "/configuracion", icon: "settings" as const },
   ];
 
   const [walletOpen, setWalletOpen] = useState(true);

@@ -23,7 +23,8 @@ export type VibraNavigationIconType =
   | "attachMedia"
   | "premiumCrown"
   | "premiumLock"
-  | "premiumUnlocked";
+  | "premiumUnlocked"
+  | "settings";
 
 const vibraPink = "#ec4899";
 const vibraPurple = "#9333ea";
@@ -227,6 +228,21 @@ premiumUnlocked: {
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <circle stroke={purpleStroke} cx="10.8" cy="10.8" r="5.8" />
         <path stroke={purpleStroke} d="m15.1 15.1 4.4 4.4" />
+      </svg>
+    ),
+  },
+
+  // El engrane del menu derecho de laptop, que lleva a /configuracion. Hereda
+  // el trazo con degradado del resto de la navegacion, como los demas.
+  settings: {
+    label: "Configuracion",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="3.1" stroke={gradientStroke} fill="none" />
+        <path
+          stroke={gradientStroke}
+          d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a1.9 1.9 0 1 1-3.8 0V21a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a1.9 1.9 0 1 1 0-3.8h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a1.9 1.9 0 1 1 3.8 0v.2a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1h.2a1.9 1.9 0 1 1 0 3.8H21a1.6 1.6 0 0 0-1.5 1Z"
+        />
       </svg>
     ),
   },
