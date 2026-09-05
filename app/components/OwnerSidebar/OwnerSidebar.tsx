@@ -2388,6 +2388,16 @@ return (
   display: none;
 }
 
+/* Cuenta nueva: sin seguidos ni comunidades los tres rails devuelven null y el
+   contenedor queda vacio. Se oculta el contenedor Y la linea que lo sigue, para
+   no dejar dos divisorias pegadas con un hueco muerto en medio. */
+.owner-sidebar-rails:empty {
+  display: none;
+}
+.owner-sidebar-rails:empty + .owner-sidebar-menu-divider {
+  display: none;
+}
+
 .owner-sidebar-menu-divider {
   height: 1px;
   margin: 8px 6px;
@@ -2666,6 +2676,12 @@ newPostsCounts={newPostsCounts}
           {/* Orden de los rails: seguidos, mis comunidades, comunidades que sigo.
               Dentro de cada uno manda la novedad: en vivo, posts nuevos,
               historias y, a igualdad, lo que más frecuentas. */}
+          {/* Los tres rails van envueltos para poder ocultar su linea de abajo
+              cuando ninguno pinta nada. En una cuenta nueva no hay seguidos ni
+              comunidades, los tres devuelven null, y quedaban DOS lineas
+              seguidas -la del perfil y la del menu- con un hueco vacio entre
+              ellas. Mismo truco que el panel de sesion de aqui arriba. */}
+          <div className="owner-sidebar-rails">
           <CommunityRail
             title={tNav("tabFollowing")}
             icon={<SidebarFollowingIcon size={21} strokeWidth={1.6} />}
@@ -2726,6 +2742,8 @@ newPostsCounts={newPostsCounts}
             collapsible
             railId="joined-groups"
           />
+
+          </div>
 
           {/* El acordeón de pestañas desapareció: seguidos, mis comunidades y
               comunidades que sigo son ahora los tres rails de arriba. */}
