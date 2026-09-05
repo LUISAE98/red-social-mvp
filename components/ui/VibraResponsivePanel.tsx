@@ -159,6 +159,17 @@ export default function VibraResponsivePanel({
    * El borde que NO tiene cristal si lo lleva: sin cabecera, o sin pie, no hay
    * espaciador que reserve nada y el contenido quedaria pegado al canto.
    */
+  /**
+   * Cuanto se mete el contenido por debajo de la cabecera y del pie.
+   *
+   * GlassEdge trae 26px, pensados para un scroller largo donde el desenfoque
+   * necesita pista por delante. Un panel no lo es: casi siempre cabe entero,
+   * y esos 26px se quedan como aire muerto arriba y abajo. Con 8 el contenido
+   * sigue pasando por debajo del cristal al hacer scroll, que es para lo que
+   * esta.
+   */
+  const OVERHANG_PANEL = 8;
+
   const aireArriba = conCristal && !hideHeader ? 0 : 14;
   const aireAbajo = conCristal && footer ? 0 : 14;
 
@@ -451,6 +462,7 @@ export default function VibraResponsivePanel({
               este se disuelva al pasarle por detrás en vez de cortarse. */}
           <GlassEdge
             side="top"
+            overhang={OVERHANG_PANEL}
             onHeight={setTopInset}
             veil="rgba(8,9,11,0.68)"
             zIndex={4}
@@ -480,11 +492,11 @@ export default function VibraResponsivePanel({
             {hideHeader ? null : (
               <div
                 style={{
-                  minHeight: hasTitle ? 52 : 40,
+                  minHeight: hasTitle ? 46 : 38,
                   display: "grid",
                   gridTemplateColumns: "48px 1fr 48px",
                   alignItems: "center",
-                  padding: hasTitle ? "0 12px 10px" : "0 12px 4px",
+                  padding: hasTitle ? "0 12px 6px" : "0 12px 4px",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "flex-start" }}>
@@ -515,6 +527,7 @@ export default function VibraResponsivePanel({
           {footer ? (
             <GlassEdge
               side="bottom"
+              overhang={OVERHANG_PANEL}
               onHeight={setFootInset}
               veil="rgba(8,9,11,0.68)"
               zIndex={4}
@@ -523,7 +536,7 @@ export default function VibraResponsivePanel({
               <div
                 style={{
                   flexShrink: 0,
-                  padding: "12px 14px calc(14px + var(--vb-safe-bottom, 0px))",
+                  padding: "10px 14px calc(12px + var(--vb-safe-bottom, 0px))",
                 }}
               >
                 {footer}
@@ -587,17 +600,18 @@ export default function VibraResponsivePanel({
             {hideHeader ? null : (
               <GlassEdge
                 side="top"
+                overhang={OVERHANG_PANEL}
                 onHeight={setTopInset}
                 veil="rgba(8,9,11,0.68)"
                 style={conCristal ? undefined : { position: "static" }}
               >
               <header
                 style={{
-                  minHeight: hasTitle ? 56 : 44,
+                  minHeight: hasTitle ? 48 : 40,
                   display: "grid",
                   gridTemplateColumns: "48px 1fr 48px",
                   alignItems: "center",
-                  padding: hasTitle ? "8px 12px" : "6px 12px 0",
+                  padding: hasTitle ? "6px 12px" : "6px 12px 0",
                   flexShrink: 0,
                 }}
               >
@@ -630,6 +644,7 @@ export default function VibraResponsivePanel({
             {footer ? (
               <GlassEdge
                 side="bottom"
+                overhang={OVERHANG_PANEL}
                 onHeight={setFootInset}
                 veil="rgba(8,9,11,0.68)"
                 style={conCristal ? undefined : { position: "static" }}
@@ -637,7 +652,7 @@ export default function VibraResponsivePanel({
                 <div
                   style={{
                     flexShrink: 0,
-                    padding: "14px 18px 18px",
+                    padding: "10px 18px 14px",
                   }}
                 >
                   {footer}
