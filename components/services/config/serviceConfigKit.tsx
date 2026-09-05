@@ -394,6 +394,9 @@ export function OverlayModal({
       >
         <section
           style={{
+            // Ancla de la cabecera y el pie flotantes, que van en position: absolute.
+            // Sin esto se escapan al fondo `fixed` y se estiran de lado a lado de la ventana.
+            position: "relative",
             width: "min(100%, 540px)",
             maxHeight: "min(88vh, 680px)",
             display: "flex",

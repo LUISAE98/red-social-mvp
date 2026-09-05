@@ -440,6 +440,10 @@ export default function PostComposerMobileOverlay({
 
 <section
   style={{
+    // Ancla de la cabecera y el pie flotantes, que van en position: absolute.
+    // Sin esto se escapan al fondo `fixed` y la cabecera se clava al borde de
+    // la PANTALLA en vez de al de la hoja.
+    position: "relative",
     width: "100%",
     height: "calc(var(--vb-alto-pantalla) - 72px)",
     maxHeight: "calc(var(--vb-alto-pantalla) - 72px)",

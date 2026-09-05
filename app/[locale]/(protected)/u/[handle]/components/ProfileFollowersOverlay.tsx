@@ -439,6 +439,9 @@ export default function ProfileFollowersOverlay({
           <section
             onClick={(e) => e.stopPropagation()}
             style={{
+              // Ancla de la cabecera y el pie flotantes, que van en position: absolute.
+              // Sin esto se escapan al fondo `fixed` y se estiran de lado a lado de la ventana.
+              position: "relative",
               pointerEvents: "auto",
               width: "min(520px, calc(100vw - 28px))",
               maxHeight: "calc(var(--vb-alto-pantalla) - 28px)",

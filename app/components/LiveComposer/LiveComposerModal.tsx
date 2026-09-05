@@ -1241,6 +1241,12 @@ export default function LiveComposerModal({
             aria-modal="true"
             aria-label={isEditMode ? tLive("editLive") : tLive("scheduledLive")}
             style={{
+              // 🚨 SIN ESTO LA CABECERA Y EL PIE SE ESCAPAN DE LA TARJETA.
+              // `GlassEdge` se coloca con `position: absolute`, asi que busca al ancestro
+              // posicionado mas cercano. Si la tarjeta no lo es, el mas cercano pasa a ser
+              // el fondo -que si va `fixed`- y el titulo y el boton se estiran de lado a
+              // lado de la VENTANA, con la tarjeta flotando suelta en medio.
+              position: "relative",
               width: "min(100%, 540px)",
               maxHeight: "min(88vh, 680px)",
               display: "flex",
@@ -1306,6 +1312,8 @@ export default function LiveComposerModal({
               transition: isPanelDragging ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
             }}>
               <section style={{
+                // Misma razon que en escritorio, aqui arriba.
+                position: "relative",
                 maxHeight: "calc(var(--vb-alto-pantalla) - 140px)",
                 borderRadius: "22px 22px 0 0",
                 background: "rgba(8,9,11,0.96)",
