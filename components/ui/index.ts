@@ -21,12 +21,20 @@ export type { InputProps } from "./Input";
 export { TextArea } from "./TextArea";
 export type { TextAreaProps } from "./TextArea";
 
-// Contraseña con ojo para revelarla. Hereda el aspecto de quien lo usa, así que
-// vale igual en el alta, en el login y en cualquier formulario con estilo propio.
-// Forma y letra de un boton de accion: la del boton de seguir del perfil.
-// Solo forma y letra, el color lo pone cada boton.
+// Forma y letra de un botón de acción: la del botón de seguir del perfil.
+// Solo forma y letra, el color lo pone cada botón.
 export { BOTON_ACCION_FORMA } from "./botonAccion";
 
+// Los dos botones del pie de un panel: guardar (morado) y cancelar (gris).
+export {
+  panelPrimaryBtn,
+  panelPrimaryBtnDisabled,
+  panelSecondaryBtn,
+  panelSecondaryBtnStyle,
+} from "./panelBotones";
+
+// Contraseña con ojo para revelarla. Hereda el aspecto de quien lo usa, así que
+// vale igual en el alta, en el login y en cualquier formulario con estilo propio.
 export { PasswordInput } from "./PasswordInput";
 export type { PasswordInputProps } from "./PasswordInput";
 

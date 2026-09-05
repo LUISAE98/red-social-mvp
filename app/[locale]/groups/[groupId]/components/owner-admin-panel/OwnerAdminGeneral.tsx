@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
-import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { doc, onSnapshot, serverTimestamp, updateDoc, type Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -10,6 +8,13 @@ import { buildGroupSearchIndex } from "@/lib/groups/groupSearchIndex";
 import type { Group } from "@/types/group";
 import { GROUP_CATEGORY_OPTIONS, normalizeGroupCategory } from "@/types/group";
 import OptionWheelPanel from "@/components/ui/OptionWheelPanel";
+import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
+import {
+  TextButton,
+  panelPrimaryBtn,
+  panelPrimaryBtnDisabled,
+  panelSecondaryBtnStyle,
+} from "@/components/ui";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
@@ -121,51 +126,10 @@ function SpinningGear() {
   );
 }
 
-function FullScreenModal({
-  open,
-  children,
-  onClose,
-}: {
-  open: boolean;
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
-
-  useBodyScrollLock(open);
-
-  if (!open || !mounted || typeof document === "undefined") return null;
-
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        height: "var(--vb-alto-pantalla)",
-        zIndex: 999999,
-        background: "rgba(0,0,0,0.76)",
-        backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding:
-          "max(16px, env(safe-area-inset-top)) 16px max(16px, var(--vb-safe-bottom, 0px))",
-        boxSizing: "border-box",
-      }}
-    >
-      {children}
-    </div>,
-    document.body
-  );
-}
+// El modal a mano se elimino: los paneles de esta pantalla usan ya
+// VibraResponsivePanel, que es el canonico y trae su propio fondo, su bloqueo de
+// scroll y su cierre. Con el se fueron `createPortal` y `useBodyScrollLock`, que
+// solo existian para sostenerlo.
 
 export default function OwnerAdminGeneral({
   groupId,
@@ -272,7 +236,9 @@ const data = snap.data() as {
     gap: 10,
     alignItems: "center",
     padding: "12px 0",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    // La linea la pinta el ::after de la hoja, igual que en la configuracion
+    // del perfil: entra 6px por cada lado en vez de cruzar de borde a borde.
+    position: "relative",
   };
 
   const labelStyle: React.CSSProperties = {
@@ -291,30 +257,19 @@ const data = snap.data() as {
     overflowWrap: "anywhere",
   };
 
-  const buttonStyle: React.CSSProperties = {
-    minHeight: 36,
-    padding: "8px 12px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.07)",
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: 700,
-    fontFamily: fontStack,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
-
+  // Campo canonico de Vibra (vibra_style.md), el mismo que la configuracion del
+  // perfil: fondo sutil SIN borde, radio 12, texto 13. El borde de 1px y el
+  // texto de 14 eran del estilo viejo.
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    minHeight: 46,
-    padding: "0 12px",
+    padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.14)",
+    border: "none",
     background: "rgba(255,255,255,0.06)",
     color: "#fff",
     outline: "none",
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 1.5,
     fontFamily: fontStack,
     boxSizing: "border-box",
     WebkitAppearance: "none",
@@ -323,35 +278,18 @@ const data = snap.data() as {
 
   const textareaStyle: React.CSSProperties = {
     ...inputStyle,
-    minHeight: 130,
-    padding: "12px",
+    minHeight: 110,
     resize: "vertical",
   };
 
   const noticeStyle: React.CSSProperties = {
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.05)",
-    padding: "9px 11px",
+    borderRadius: 12,
+    border: "none",
+    background: "rgba(255,255,255,0.06)",
+    padding: "10px 12px",
     fontSize: 12,
     lineHeight: 1.4,
     color: "rgba(255,255,255,0.84)",
-  };
-
-  const modalCardStyle: React.CSSProperties = {
-    width: "min(560px, calc(100vw - 32px))",
-    maxHeight: "calc(var(--vb-alto-pantalla) - 32px)",
-    overflowY: "auto",
-    borderRadius: 20,
-    border: "1px solid rgba(255,255,255,0.16)",
-    background: "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))",
-    color: "#fff",
-    boxShadow: "0 24px 90px rgba(0,0,0,0.78)",
-    padding: 18,
-    display: "grid",
-    gap: 14,
-    fontFamily: fontStack,
-    boxSizing: "border-box",
   };
 
   function openEdit(field: EditField) {
@@ -510,6 +448,22 @@ await updateDoc(groupRef, {
           }
         }
 
+        /* Misma linea sutil entre opciones que en la configuracion del perfil:
+           entra 6px por cada lado en vez de cruzar de borde a borde. */
+        .general-edit-item::after {
+          content: "";
+          position: absolute;
+          inset-inline-start: 6px;
+          inset-inline-end: 6px;
+          bottom: 0;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .general-edit-item:last-of-type::after {
+          display: none;
+        }
+
         select,
         option,
         optgroup {
@@ -523,14 +477,15 @@ await updateDoc(groupRef, {
           <div style={labelStyle}>Nombre</div>
           <div style={valueStyle}>{name || "Sin nombre"}</div>
         </div>
-        <button
+        <TextButton
           className="general-edit-button"
-          type="button"
-          style={buttonStyle}
+          tone="brand"
+          size="sm"
+          style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }}
           onClick={() => openEdit("name")}
         >
           Modificar
-        </button>
+        </TextButton>
       </div>
 
       <div className="general-edit-item" style={itemStyle}>
@@ -538,14 +493,15 @@ await updateDoc(groupRef, {
           <div style={labelStyle}>Descripción</div>
           <div style={valueStyle}>{description || tProfile("noDescription")}</div>
         </div>
-        <button
+        <TextButton
           className="general-edit-button"
-          type="button"
-          style={buttonStyle}
+          tone="brand"
+          size="sm"
+          style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }}
           onClick={() => openEdit("description")}
         >
           Modificar
-        </button>
+        </TextButton>
       </div>
 
       <div className="general-edit-item" style={itemStyle}>
@@ -556,14 +512,15 @@ await updateDoc(groupRef, {
             {isHiddenLocked ? tGroups("blockedSinceCreation") : ""}
           </div>
         </div>
-        <button
+        <TextButton
           className="general-edit-button"
-          type="button"
-          style={buttonStyle}
+          tone="brand"
+          size="sm"
+          style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }}
           onClick={() => openEdit("visibility")}
         >
           Modificar
-        </button>
+        </TextButton>
       </div>
 
       <div className="general-edit-item" style={itemStyle}>
@@ -571,14 +528,15 @@ await updateDoc(groupRef, {
           <div style={labelStyle}>Categoría</div>
           <div style={valueStyle}>{categoryLabel(category, tGroups)}</div>
         </div>
-        <button
+        <TextButton
           className="general-edit-button"
-          type="button"
-          style={buttonStyle}
+          tone="brand"
+          size="sm"
+          style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }}
           onClick={() => openEdit("category")}
         >
           Modificar
-        </button>
+        </TextButton>
       </div>
 
       <div
@@ -589,25 +547,67 @@ await updateDoc(groupRef, {
           <div style={labelStyle}>Tags</div>
           <div style={valueStyle}>{tagsRaw || tGroups("noTags")}</div>
         </div>
-        <button
+        <TextButton
           className="general-edit-button"
-          type="button"
-          style={buttonStyle}
+          tone="brand"
+          size="sm"
+          style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }}
           onClick={() => openEdit("tags")}
         >
           Modificar
-        </button>
+        </TextButton>
       </div>
 
-      <FullScreenModal open={!!editField} onClose={closeEdit}>
-        <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
-          <strong style={{ fontSize: 16, color: "#fff", lineHeight: 1.2 }}>
-            {editField === "name" && tProfile("editNameTitle")}
-            {editField === "description" && tGroups("editDescription")}
-            {editField === "visibility" && tGroups("editState")}
-            {editField === "category" && tGroups("editCategory")}
-            {editField === "tags" && tGroups("editTags")}
-          </strong>
+      {/* El mismo panel que la configuracion del perfil: hoja por abajo en
+          celular, tarjeta centrada en laptop, y su titulo y su cruz de cerrar
+          resueltos por el propio panel. Antes era un modal a mano con su
+          tarjeta, su borde y su degradado propios. */}
+      <VibraResponsivePanel
+        open={!!editField}
+        onClose={() => !savingGeneral && closeEdit()}
+        title={
+          editField === "name"
+            ? tProfile("editNameTitle")
+            : editField === "description"
+              ? tGroups("editDescription")
+              : editField === "visibility"
+                ? tGroups("editState")
+                : editField === "category"
+                  ? tGroups("editCategory")
+                  : editField === "tags"
+                    ? tGroups("editTags")
+                    : ""
+        }
+        closeAriaLabel={tCommon("closeAriaLabel")}
+        maxWidthDesktop={440}
+        footer={
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              onClick={saveField}
+              disabled={savingGeneral}
+              style={savingGeneral ? panelPrimaryBtnDisabled : panelPrimaryBtn}
+            >
+              {savingGeneral ? (
+                <>
+                  <SpinningGear /> {tCommon("saving")}
+                </>
+              ) : (
+                tCommon("save")
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => !savingGeneral && closeEdit()}
+              disabled={savingGeneral}
+              style={panelSecondaryBtnStyle(savingGeneral)}
+            >
+              {tCommon("cancel")}
+            </button>
+          </div>
+        }
+      >
+        <div style={{ display: "grid", gap: 10 }}>
 
           {editField === "description" ? (
             <textarea
@@ -675,45 +675,8 @@ await updateDoc(groupRef, {
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={closeEdit}
-              disabled={savingGeneral}
-              style={{
-                ...buttonStyle,
-                flex: "1 1 140px",
-                opacity: savingGeneral ? 0.7 : 1,
-                cursor: savingGeneral ? "not-allowed" : "pointer",
-              }}
-            >
-              {tCommon("cancel")}
-            </button>
-
-            <button
-              type="button"
-              onClick={saveField}
-              disabled={savingGeneral}
-              style={{
-                ...buttonStyle,
-                flex: "1 1 160px",
-                background: savingGeneral ? "rgba(255,255,255,0.16)" : "#fff",
-                color: savingGeneral ? "#fff" : "#000",
-                opacity: savingGeneral ? 0.8 : 1,
-                cursor: savingGeneral ? "not-allowed" : "pointer",
-              }}
-            >
-              {savingGeneral ? (
-                <>
-                  <SpinningGear /> Guardando...
-                </>
-              ) : (
-                tCommon("save")
-              )}
-            </button>
-          </div>
         </div>
-      </FullScreenModal>
+      </VibraResponsivePanel>
 
       <VibraToast toast={toast} />
     </div>
