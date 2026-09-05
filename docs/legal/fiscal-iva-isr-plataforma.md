@@ -15,6 +15,10 @@
 > Este documento dice qué DEBE pasar; aquél, qué falta y en qué orden.
 >
 > **Entidad:** Vibra On, LLC. **Procesadora:** Stripe. **Denominación:** USD.
+> **Residencia fiscal: MÉXICO** (decidido 2026-09-04). La dirección efectiva está en México y
+> Vibra tendrá RFC y sello digital propios. Constituida en Estados Unidos, pero eso no decide la
+> residencia: el CFF mira dónde está la administración principal. Consecuencia: la comisión del
+> cuadro **creador extranjero + comprador extranjero** también es ingreso gravado en México.
 > **Reparto:** 75% creador / 25% Vibra sobre el precio base, con el impuesto de la comisión por encima.
 >
 > Marco (referencia mexicana): LIVA (Cap. III BIS, arts. 1º-A BIS, 16, 18-B a 18-M, 24, 29) y su
@@ -73,6 +77,32 @@ neto = (base + ivaVenta) − (comisión + ivaComisión) − retIVA − retISR
   retIVA = tasaRetIVA × ivaVenta
   retISR = tasaRetISR × base
 ```
+
+### 0.1-bis Qué factura cada quien — ⭐ CAMBIÓ EL 2026-09-04
+
+El comprador paga tres cosas en el mismo cargo: el precio del creador, un **cargo fijo** de 0.40
+USD y un **2% de conversión** cuando la moneda de cobro no es el dólar. Los dos últimos son
+contraprestación de **Vibra**, no del creador.
+
+🚨 **Hasta el 2026-09-04 no los facturaba nadie.** `composeCharge` calcula el IVA sobre
+`base + fijo + FX`, pero el CFDI se emitía solo por la base: quedaban **~0.39 de IVA por cada 100**
+**cobrados sin declarar**. No era un comprobante faltante, era impuesto trasladado y no enterado.
+
+**Cómo queda:**
+
+| Quién factura | A quién | Por cuánto | Desglose |
+|---|---|---|---|
+| **Creador** | Comprador | **Todo lo que pagó** (precio + fijo + FX) | **Un solo concepto.** Para el creador todo es su precio |
+| **Vibra** | Creador | Comisión + fijo + FX | **Dos conceptos**, intermediación y «conversión de divisa y gestión de cobro» |
+| Stripe | Vibra | Sus tarifas | Importación de servicios: IVA autodeterminado y acreditado a la vez |
+
+**Lo que NO cambia:** el comprador paga lo mismo, el creador recibe la misma participación del
+75%, y el reparto sigue calculándose sobre el **precio del creador**, no sobre el total facturado.
+
+**Lo que sí cambia:** el ingreso FACTURADO del creador sube ~2.4%, y con él la base de sus
+retenciones. Por cada 100 de precio recibe ~0.26 menos de contado. Lo recupera —la retención de
+IVA es acreditable y la de ISR es pago provisional— **salvo si optó por el pago definitivo del**
+**113-B**, donde no hay declaración anual que lo devuelva.
 
 ### 0.2 Exportación de servicios — CONFIRMADO
 

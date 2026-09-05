@@ -32,6 +32,47 @@ descarga el navegador: el manifiesto puede seguir listando un fragmento que
 `next/dynamic` ya aplazó. Cuando el cambio va de importaciones estáticas a
 dinámicas, conviene confirmarlo contra el HTML servido (receta abajo).
 
+⚠️ **Punto ciego de este script: no ve a Sentry.** Su instrumentación la inyecta
+el plugin de Sentry en la entrada de la app, no como módulo de cliente de una
+ruta, así que no aparece en el manifiesto y `perf:compare` marca 0 aunque cambie.
+Para cualquier cosa que toque Sentry, medir contra el HTML servido (abajo).
+
+### Sentry: el grabador de sesiones ya no viaja en el arranque
+
+El trozo de Sentry llegó a ser **el mayor de todas las pantallas** — 166 KB
+comprimidos, por delante de Firebase. Dentro venía `rrweb`, el grabador de
+Session Replay. La configuración graba el **10 %** de las sesiones, pero el
+grabador lo descargaba el **100 %** de la gente.
+
+Ahora Replay se añade después de arrancar, en tiempo ocioso
+(`instrumentation-client.ts`). Resultado medido sobre el HTML servido:
+
+| | antes | después |
+| --- | ---: | ---: |
+| Trozo de Sentry en el arranque | 166 KB | **63 KB** |
+| `rrweb` en el arranque | sí | **no** — chunk aparte de 103 KB, en tiempo ocioso |
+| Paquete inicial total | 872 KB | 840 KB |
+
+El total baja menos de lo que sugieren esos 103 KB porque el build reorganiza
+los trozos compartidos al cambiar el grafo. Lo que sí es exacto: `rrweb` ya no
+está entre los scripts iniciales.
+
+Dos decisiones dentro de esto:
+
+- **Se carga para TODAS las sesiones, no solo el 10 % sorteado.**
+  `replaysOnErrorSampleRate` está en 1: Sentry mantiene un búfer para adjuntar
+  el video cuando algo falla en cualquier sesión. Cargarlo solo en las sorteadas
+  ahorraría más bytes pero perdería justo las grabaciones de los errores, que
+  son las que se miran. Lo que cambia es **cuándo** llega, no a quién.
+- **Con `import()` propio y NO con `Sentry.lazyLoadIntegration()`.** Esa función
+  existe en el SDK, pero trae el integration del **CDN de Sentry**: sería
+  inyectar un script de terceros en cada sesión. Con un CSP todavía sin calibrar,
+  no compensa por unos KB.
+
+🟡 **Sin verificar de extremo a extremo:** que las grabaciones sigan llegando a
+Sentry. Eso solo se comprueba en producción, mirando si aparecen sesiones nuevas
+en Session Replay después de desplegar.
+
 ### Verdad de campo: qué descarga el navegador de verdad
 
 ```bash
@@ -122,9 +163,24 @@ Se mantienen en celular, porque el header móvil los usa de verdad:
 `useHasPurchasedExperiences` y el badge de la estrella
 (`useBuyerExperienceActivity` + `useBuyerExperiencesSeen`).
 
-> La bajada de **consultas** no está medida todavía: hace falta el medidor con
-> una sesión real en el navegador. Lo de arriba es la bajada de **bytes**, que sí
-> está medida.
+> 🚨 **La bajada de consultas SIGUE SIN MEDIRSE, y hay que medirla.** Lo de
+> arriba es la bajada de bytes, que sí está comprobada.
+>
+> Se intentó atajar con un análisis estático —recorrer el grafo de importaciones
+> contando `onSnapshot` / `getDoc` / `getDocs` alcanzables— y **no sirve**. Se
+> corrió contra el commit `d62d0d81` (antes de todo esto) y contra el estado
+> actual: 296 y 298 consultas alcanzables desde el mismo panel. Idéntico.
+>
+> El motivo es instructivo: los cambios del bloque 2 **no quitaron código, lo
+> pusieron detrás de una condición**. `OwnerSidebar` se sigue importando (ahora
+> con `next/dynamic`), `useWalletVisibility` se sigue llamando (ahora con `null`)
+> y la escucha de solicitudes sigue escrita (ahora tras `joinSectionOpen`). Un
+> conteo estático ve el código; lo que cambió es cuál se EJECUTA.
+>
+> Por eso el único instrumento que puede responder es el medidor en vivo
+> (`NEXT_PUBLIC_FS_METER=1`), con una sesión de verdad. El script estático se
+> escribió, se corrió y se borró: medía lo que no era, y dejarlo en el repo solo
+> serviría para leerlo mal más adelante.
 
 ### Bloque 2.2 y 2.4 — menos escuchas, no menos bytes
 
@@ -301,8 +357,39 @@ lo que merece caché nuestra es lo que se pide con `getDoc`, `getDocs`,
 un `useEffect` por lista en vez de una capa que deduplique y revalide sola. Es
 un refactor grande y va aparte.
 
-⚠️ **El bloque 1.1 (partir las traducciones) se pospone hasta después del resto
-del bloque 2.** Los espacios de nombres pesados —`services` 38,5 KB y `wallet`
+### Bloque 1.1 — partir las traducciones: MEDIDO Y DESCARTADO
+
+Se midió antes de tocar nada, y el resultado descarta el plan. Un script recorrió
+el grafo de importaciones de las 49 rutas recogiendo cada
+`useTranslations("…")` alcanzable, incluidos los que entran cinco niveles abajo
+por un componente compartido:
+
+| Namespace | Peso | Alcanzable desde |
+| --- | ---: | --- |
+| `services` | 38,5 KB | **49 de 49 rutas** |
+| `wallet` | 32,5 KB | **49 de 49 rutas** |
+| `groups` | 23,8 KB | **49 de 49 rutas** |
+| `live` | 12,7 KB | **49 de 49 rutas** |
+
+Cada ruta alcanza entre **149 y 168 KB de los 176**. Partir por ruta no ahorra
+nada: los espacios pesados no son de una pantalla, entran por componentes que
+importa todo el mundo. Y no basta con que el componente sea dinámico — cuando
+se renderice necesitará sus mensajes en el proveedor igual.
+
+También se midió la otra vía, quitar claves muertas: 393 candidatas ≈ 30 KB
+crudos (~8 KB comprimidos), y el heurístico no distingue las que se construyen
+con plantilla. Borrar en 47 idiomas por eso no compensa.
+
+**Lo que sí salió de medirlo:** el respaldo en inglés se estaba fusionando en
+CADA render del servidor. `mergeDeep` recorre las 3 185 claves y costaba
+**3,13 ms por petición** — el `import()` del JSON ya lo cachea el sistema de
+módulos, así que ese era todo el coste, y era trabajo repetido para un resultado
+idéntico. Ahora se memoriza por idioma: una fusión por idioma y por instancia.
+
+El respaldo NO se tocó. Se guarda su resultado, no la decisión de aplicarlo.
+(Dato del 2026-09-04: los 46 idiomas tienen hoy las 3 185 claves completas, así
+que no está tapando ningún hueco. Sigue puesto para el día en que se añada una
+cadena y aún no esté traducida.) Los espacios de nombres pesados —`services` 38,5 KB y `wallet`
 32,5 KB— se usan dentro de `OwnerSidebar`. Ahora que no se monta en celular, el
 corte por ruta empieza a tener sentido, pero conviene hacerlo cuando 2.2 y 2.4
 hayan terminado de mover lo que queda.

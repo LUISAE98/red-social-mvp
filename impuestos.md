@@ -225,6 +225,13 @@ reconstruye un histórico con la config vigente.
    independientes y se mueven por separado.
 5. **País sin ficha en este documento → no cobrable.**
 6. **El 2% de FX no es impuesto.** No se declara, no se entera, no se llama impuesto en ningún lado.
+
+   ⚠️ **Pero sí es contraprestación de VIBRA, y eso abre otra cosa** (2026-09-04). Que no sea
+   impuesto no significa que no tenga consecuencias: es dinero que Vibra le cobra a un consumidor
+   mexicano, y hoy viaja dentro del CFDI del CREADOR. El IVA se cobra bien —va en la base gravable—
+   pero el comprobante lo emite quien no cobró, y al creador se le imputa un ingreso ajeno. Lo mismo
+   vale para el cargo fijo de 0.40 USD. **El comprador los sigue pagando**; lo que se replantea es
+   quién los factura. Ver `pendientesimpuestos.md` §11.
 7. **Advertencia obligatoria** en países `issuer`: el checkout debe avisar qué sumará el banco.
    Sin eso, el sobresalto llega en el resumen de tarjeta y se convierte en contracargo.
 

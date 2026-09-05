@@ -265,6 +265,22 @@ export type EntradaLiquidacion = {
   creador: PerfilFiscalCreador;
   /** Comisión de Vibra sobre la base. Default 25%. */
   commissionRate?: number;
+  /**
+   * 🧾 Cargo fijo + 2% de conversión, que Vibra le REFACTURA al creador.
+   *
+   * 🚨 Estos dos importes los paga el comprador y son contraprestación de VIBRA, pero desde el
+   *    2026-09-04 viajan dentro del precio que el creador factura, en un solo concepto, y Vibra
+   *    se los refactura desglosados junto con su comisión.
+   *
+   *    Antes se cobraban al comprador y no los facturaba nadie: el IVA se calculaba sobre
+   *    `base + fijo + FX` pero el CFDI amparaba solo la base, así que **quedaban ~0.39 de IVA
+   *    por cada 100 cobrados sin declarar**. Ver `pendientesimpuestos.md` §11.
+   *
+   * ⚠️ No cambian lo que recibe el creador. Suben su ingreso FACTURADO y bajan otro tanto en la
+   *    refactura, así que su participación sigue siendo la misma; lo que sí sube es la base de
+   *    sus retenciones, que recupera al declarar.
+   */
+  cargosRefacturados?: number;
   ejercicio?: Ejercicio;
 };
 
@@ -273,6 +289,10 @@ export type ResultadoLiquidacion = {
   participacion: number;
   /** Comisión de Vibra, sin su impuesto. */
   comision: number;
+  /** Cargo fijo + conversión que Vibra le refactura, sin impuesto. */
+  cargos: number;
+  /** Lo que el creador FACTURA: su precio más los cargos refacturados. */
+  ingresoFacturable: number;
   /** Impuesto de la comisión. Va POR ENCIMA del 25%, nunca dentro. */
   ivaComision: number;
   isrRate: number;
@@ -309,14 +329,24 @@ export function resolveSettlement(entrada: EntradaLiquidacion): ResultadoLiquida
   const commissionRate = entrada.commissionRate ?? 0.25;
   const c = entrada.creador;
 
+  const cargos = round2(entrada.cargosRefacturados ?? 0);
+  /**
+   * Lo que el creador factura. El IVA de la venta ya viene calculado sobre esto por
+   * `resolveSaleTax`, así que aquí no se recalcula.
+   */
+  const ingresoFacturable = round2(base + cargos);
+
+  // La comisión sigue siendo el 25% del PRECIO DEL CREADOR. Los cargos no la mueven: el
+  // reparto 75/25 es sobre la base, no sobre el total facturado.
   const comision = round2(base * commissionRate);
-  const participacion = round2(base - comision);
+  const participacion = round2(ingresoFacturable - comision - cargos);
 
   // El impuesto de la comisión va POR ENCIMA del 25%. Si fuera dentro, la comisión efectiva
   // caería a 21.55% y Vibra absorbería un impuesto que no puede acreditar.
   const esMx = c.residency === "MX";
   const comisionLlevaIva = esMx || !COMISION_A_EXTRANJERO_ES_EXPORTACION;
-  const ivaComision = comisionLlevaIva ? round2(comision * t.ivaComisionMx) : 0;
+  // Grava los TRES conceptos que Vibra le factura al creador: comisión, conversión y cobro.
+  const ivaComision = comisionLlevaIva ? round2((comision + cargos) * t.ivaComisionMx) : 0;
 
   // ── ISR ───────────────────────────────────────────────────────────────────
   let isrRate: number;
@@ -331,7 +361,8 @@ export function resolveSettlement(entrada: EntradaLiquidacion): ResultadoLiquida
     // Servicio prestado enteramente fuera: sin fuente de riqueza en México.
     isrRate = 0;
   }
-  const isrRetenido = round2(base * isrRate);
+  // 🚨 Sobre el ingreso FACTURADO, no sobre la base. Es lo que el creador declara como ingreso.
+  const isrRetenido = round2(ingresoFacturable * isrRate);
 
   // ── IVA ───────────────────────────────────────────────────────────────────
   let ivaRate: number;
@@ -344,11 +375,15 @@ export function resolveSettlement(entrada: EntradaLiquidacion): ResultadoLiquida
   }
   const ivaRetenido = round2(ivaVenta * ivaRate);
 
-  const neto = round2(base + ivaVenta - comision - ivaComision - ivaRetenido - isrRetenido);
+  const neto = round2(
+    ingresoFacturable + ivaVenta - comision - cargos - ivaComision - ivaRetenido - isrRetenido
+  );
 
   return {
     participacion,
     comision,
+    cargos,
+    ingresoFacturable,
     ivaComision,
     isrRate,
     isrRetenido,

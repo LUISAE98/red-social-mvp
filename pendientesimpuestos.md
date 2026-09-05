@@ -1160,16 +1160,236 @@ respuesta **objetiva**; el resto son de criterio y llevan las opciones que se ba
 | 8 | Dos tipos de cambio para la misma venta | **Cada documento con la tasa de su realidad** — cobro real en la global, FIX en la constancia | La factura al comprador dice lo que el comprador pagó. Coste asumido: los dos documentos no cuadran al peso |
 | 10 | ¿La comisión al creador extranjero es exportación al 0%? | **Sí califica** | Hay que **documentar el aprovechamiento** — contrato, residencia acreditada, pago rastreable. Si no calificara, el 16% lo absorbe Vibra |
 | 12 | Videollamadas 1-a-1 con creador extranjero | **Régimen de plataformas** | Coherente con el resto del modelo: Vibra intermedia y retiene igual |
+| 15 | Residencia fiscal de la LLC | **Vibra es residente en MÉXICO** (Luis, 2026-09-04) | La dirección efectiva está en México, y Vibra tendrá RFC y sello propios para timbrar. Sostener residencia estadounidense era frágil |
+
+### Qué cambia por la decisión de la 15
+
+⚠️ **El 30% NO sale de cada transacción.** El ISR corporativo se calcula sobre la **utilidad**
+fiscal del ejercicio —ingresos menos gastos deducibles— no sobre la comisión. De los 27.41 que
+Vibra cobra en una venta de 100 hay que restar el costo de Stripe, sueldos, infraestructura y todo
+lo deducible; el 30% se aplica a lo que quede, una vez al año.
+
+🚨 **Y ese ingreso iba a pagar impuesto en México de todos modos.** Una LLC de un solo socio es
+transparente por defecto en Estados Unidos: allá no paga la empresa, paga el socio. Con el socio
+residente en México, México le grava sus ingresos mundiales. La elección real nunca fue «pagar en
+México o no pagar», sino **pagar como empresa (30%) o pagar como persona física (hasta 35%)** —y
+la persona moral además deduce con mucha más holgura. La decisión tomada es la más barata.
+
+🔁 **Tres cosas para quien lleve la estructura, ninguna urgente:**
+
+1. La LLC puede tener **obligación de PRESENTAR en Estados Unidos** aunque no pague ahí. La
+   transparencia no exime de declarar, y hay formularios con multas altas por omitirlos.
+2. Si algún día se paga impuesto allá, **se acredita aquí** (LISR art. 5). No hay doble
+   imposición, pero hay que documentarlo.
+3. Confirmar que la LLC **no optó por tributar como corporación** en Estados Unidos. Si lo hizo,
+   todo este análisis cambia.
+
+**La matriz de las cuatro combinaciones NO cambia.** El motor, los CFDI y las retenciones quedan
+exactamente igual. Lo que cambia es el ISR de Vibra sobre su propio margen:
+
+| Comisión de Vibra | Si fuera estadounidense | Siendo mexicana |
+|---|---|---|
+| Con creador o comprador mexicano | ISR mexicano | ISR mexicano |
+| **Creador extranjero + comprador extranjero** | Fuera de México | **ISR mexicano al 30%** |
+
+✅ **Y refuerza la decisión de la 10.** La tasa 0% del artículo 29 de la LIVA es para *residentes en
+México que exportan servicios*. Siendo mexicana, Vibra encaja de lleno al facturarle la comisión a un
+creador extranjero; siendo estadounidense, ese artículo ni le aplicaría.
+
+⚠️ **Corrección de un malentendido frecuente:** en el cuadro extranjero + extranjero **no se entera
+nada al SAT por la venta**. La importación de servicios es una obligación del RECEPTOR mexicano; sin
+comprador mexicano no hay tal figura. Lo único mexicano de ese cuadro es el margen de Vibra.
+
+## 11 · El cargo al comprador 🟡 (2026-09-04)
+
+### Qué se cobra hoy, y a quién
+
+| Cargo | Constante | Cuándo aplica | Quién lo absorbe hoy |
+|---|---|---|---|
+| **0.40 USD fijo** | `FIXED_SERVICE_FEE_USD` | Toda compra | El comprador |
+| **2% por conversión** | `FX_CONVERSION_FEE` | Solo si la moneda de cobro ≠ USD — o sea **siempre con comprador mexicano** | El comprador |
+
+### El problema fiscal, con precisión
+
+No es que falte cobrar impuesto. `docs/modelo-financiero.md` es explícito: el 2% *«va ANTES del
+impuesto, porque es contraprestación de Vibra y forma parte de la base gravable»*. **El IVA ya se
+cobra sobre los dos cargos.**
+
+Lo que falla es **quién los ampara**. Son contraprestación de VIBRA y viajan dentro del CFDI del
+CREADOR, como si fueran ingreso suyo. Eso deja dos cabos sueltos: Vibra le cobra a un consumidor
+mexicano sin emitirle nada, y al creador se le imputa un ingreso que nunca fue suyo.
+
+🚨 **Solo pasa con comprador MEXICANO.** Con comprador extranjero la venta va a 0% por exportación
+y no hay obligación mexicana que activar.
+
+### ❌ La opción B, descartada el mismo día
+
+«Dejar de cobrárselo al comprador» sonaba limpia hasta mirar el código: **el 2% no es margen, es
+recuperación de un costo real** —1% de spread de conversión de Stripe y 1% de colchón contra la
+deriva del tipo de cambio— y el 0.40 cubre el fijo de Stripe. Quitarlo obligaba a elegir entre que
+Vibra absorbiera ≈2.4 puntos de toda venta mexicana, o subir la comisión y romper el 75/25 escrito
+en los términos. Ninguna de las dos vale la pena para resolver un problema de comprobantes.
+
+### 🔴 Y al abrir el código apareció algo peor que un comprobante faltante
+
+`composeCharge.ts` compone el cobro así:
+
+```
+publicado = base + 0.40
+fxFee     = publicado × 2%
+GRAVABLE  = publicado + fxFee      ← sobre esto se calcula el IVA al comprador
+```
+
+Pero el CFDI del creador se congela con `resolveSaleTax({ base: gross })`, donde `gross` es **solo
+el precio del creador**. Con base 100:
+
+| | Lo que ocurre | Lo que se factura |
+|---|---|---|
+| Base gravable | **102.41** | 100.00 |
+| IVA | **16.39 cobrado al comprador** | 16.00 declarado |
+
+🚨 **Hay 0.39 de IVA por cada 100 que se le cobra al comprador y no está en el CFDI de nadie.**
+No es un matiz de comprobantes: es impuesto trasladado y no declarado. Escala con el volumen.
+
+### ⭐ La propuesta que sí encaja (Luis, 2026-09-04)
+
+**El comprador sigue pagando lo mismo. Cambia quién factura qué.**
+
+1. El **creador factura la compra COMPLETA en UN SOLO CONCEPTO**. No desglosa el 2% ni los 0.40;
+   para él es su precio. El comprador recibe un CFDI por exactamente lo que pagó, y el IVA
+   declarado vuelve a cuadrar con el cobrado.
+2. **Vibra le factura al creador** tres conceptos separados: su comisión, la conversión de divisa
+   y la gestión de cobro. Ahí sí van desglosados, porque son servicios reales que Vibra presta.
+3. Stripe le factura a Vibra. Siendo Vibra residente mexicana es **importación de servicios**: se
+   autodetermina el IVA y se acredita en la misma declaración, sin salida de dinero.
+
+El reparto **75/25 no se toca**: la comisión sigue siendo el 25% del precio del creador, y los dos
+cargos son conceptos aparte que se le refacturan.
+
+Nadie pierde margen, el comprador recibe un comprobante por todo, y Vibra deja de tener relación
+B2C con un consumidor mexicano — que era el problema de fondo.
+
+⚠️ **El coste, y es pequeño pero real:** el ingreso facturado del creador sube ~2.4%, y sobre eso se
+le retiene. Por cada 100 de base recibe ~0.25 menos de contado. **Lo recupera** —la retención de IVA
+es acreditable y la de ISR es pago provisional— **salvo si optó por el pago definitivo del 113-B**,
+donde no hay declaración anual que lo devuelva. Ver la pregunta 1.
+
+### ✅ Implementada el 2026-09-04
+
+**De aquí en adelante** (Luis). Las ventas anteriores se dejan como están: son de sandbox.
+
+| Pieza | Qué cambió |
+|---|---|
+| `tax/fiscalEngine.ts` y su espejo en `lib/` | `cargosRefacturados` en la entrada; devuelve `cargos` e `ingresoFacturable`. El ISR se retiene sobre lo facturado y el impuesto de la refactura grava los tres conceptos |
+| `wallet/ledger.ts` | `cargosRefacturadosDeLaVenta` resuelve el importe; `resolveSaleTax` y el congelado fiscal pasan a usar el total facturado |
+| `facturacion/creatorMonthlyDocs.ts` | El CFDI de comisión gana el concepto de conversión y cobro; el complemento reporta lo que cobró la plataforma completo |
+| 7 pruebas nuevas | `retencionesPorComprador.pure.test.ts` |
+
+**De dónde salen los cargos**, en este orden: del cobro guardado si `repriceForCard` los
+persistió, y si no recalculados con `composeCharge`, que es determinista. Sin país fiscal
+resuelto valen cero.
+
+🔒 **Compatible hacia atrás por diseño.** `cargosRefacturados` es opcional y vale cero, así que un
+asiento anterior al cambio liquida exactamente igual que siempre. Hay una prueba que lo fija — si
+se rompiera, un recálculo movería dinero ya pagado.
+
+🔁 **Pendiente del contador:** la clave `84121500` (servicios bancarios y de procesamiento de
+pagos) para el concepto de conversión y cobro. Describe mejor el servicio que la de comisión, que
+es de promoción de ventas, pero no está confirmada.
+
+### Lo que hay que tocar cuando se elija
+
+⚠️ **`FIXED_SERVICE_FEE_USD` vive en SIETE módulos del camino del dinero** — `ledger.ts`,
+`composeCharge.ts`, `cashout.ts`, `ledgerTriggers.ts`, `refundToCredit.ts`,
+`groupSubscriptionCore.ts`— más la copia del frontend en `lib/currency/catalog.ts`. No es un
+cambio documental.
+
+📄 **`docs/modelo-financiero.md` D1 queda invalidada** por esta decisión: dice que el comprador
+absorbe el cargo fijo y el 2%.
+
+---
 
 ## Sin resolver
 
 | # | Pregunta | Estado |
 |---|---|---|
-| 11 | El cargo de servicio al comprador mexicano (0.40 USD + 2% FX) sin comprobante | ⬜ **Pendiente de explicar y decidir.** No es solo el comprobante: activa el régimen de proveedor extranjero de servicios digitales (LIVA 18-B y siguientes) |
-| 15 | Residencia fiscal de la LLC | ⬜ **En duda.** Si la dirección efectiva está en México, México puede considerarla residente aquí y cambia todo el modelo |
+| 11 | El cargo de servicio al comprador mexicano | ✅ **HECHO (2026-09-04).** El creador factura el total en un concepto; Vibra refactura desglosado. Ver la sección propia |
 | 17 | Altas de IVA fuera de México | ⬜ Depende de dónde haya volumen. Se pide un **orden de trabajo**, no una respuesta |
 | 2 | `FormaPagoServ 08` | 🔁 No rompe ninguna validación, pero es la única clave que no pude anclar a una tabla oficial con descripciones |
 | 1b | ¿Preguntarle al creador si optó por el 113-B? | 🔁 Hoy se manda `04` a todos. Distinguirlo pide un campo en el perfil fiscal |
+
+---
+
+# CANCELACIONES Y NOTAS DE CRÉDITO — plan aprobado 🟢 (2026-09-04)
+
+## Las dos reglas que gobiernan todo
+
+| Regla | Qué dice | Fuente |
+|---|---|---|
+| **Plazo** | Un CFDI solo se cancela hasta el mes en que se presenta la anual. Persona moral, **31 de marzo del año siguiente** | RMF 2.7.1.34 y 2.7.1.47, CFF 29-A |
+| **Aceptación** | Cancelar una **nominativa de más de 1 000 pesos** exige que el comprador acepte (72 h, el silencio acepta). La **global no**, va al RFC genérico | RMF 2026 |
+
+## El momento de cada documento
+
+🚨 **La global se emite al COBRAR, no al entregar.** El IVA en México es de flujo de efectivo: se
+causa cuando el dinero se recibe. Esperar a la entrega dejaría el periodo corto. El código ya lo
+hace bien, recoge las compras con `status === "paid"`.
+
+La **nominativa** sí puede exigir entrega, porque es una solicitud del comprador. Decisión de
+producto (Luis): se habilita cuando el saludo, el consejo o la sesión terminaron; en el resto de
+servicios es prácticamente inmediata.
+
+⚠️ **El borde del cierre de ejercicio:** una sesión pagada en noviembre y celebrada en abril ya no
+se puede repuntar, porque la global de noviembre dejó de ser cancelable el 31 de marzo. Hay que
+decidir qué se le dice a ese comprador.
+
+## 🚨 Una disputa NO saca la venta de la global
+
+Se planteó dejar fuera de la global los conceptos en disputa y **se descartó**, por dos motivos:
+
+- **De tiempo:** la global corre cada 24 horas y una disputa llega días o semanas después. Cuando
+  la global se emite casi nunca se sabe todavía.
+- **Fiscal:** el dinero se cobró, luego el IVA se causó. Dejarla fuera declara de menos ese día, y
+  si la disputa se pierde nunca se facturó una operación que sí ocurrió.
+
+**Entra siempre; si acaba en devolución, se corrige después.** Cancelar es reversible; no declarar
+no lo es.
+
+## La matriz de casos
+
+| Caso | Qué se hace | Motivo |
+|---|---|---|
+| Venta pagada | Entra a la global del día | — |
+| Comprador pide factura, aún libre | Nominativa directa | — |
+| Comprador pide factura, ya en una global | Cancelar global → reexpedir sin ella → nominativa | **04** |
+| Devolución total, mismo mes, estaba en global | Cancelar global → reexpedir sin ella | **01** |
+| Devolución total, mismo mes, tenía nominativa | Cancelar la nominativa | **01** o **03** |
+| **Devolución total, mes cerrado** | **Nota de crédito** | — |
+| **Devolución parcial, siempre** | **Nota de crédito** | — |
+| Disputa abierta | No se toca nada, se espera al desenlace | — |
+| Fuera de plazo | **Nota de crédito**, ya no hay cancelación | — |
+
+👉 Se lee de una sola forma: **cancelar sirve dentro del mes y para operaciones completas; fuera de
+eso, nota de crédito.**
+
+## Orden de trabajo aprobado (Luis)
+
+| # | Pieza | Estado |
+|---|---|---|
+| 1 | Ejercitar el **motivo 04**, que ya está escrito y nunca ha corrido (AUD-11) | ⬜ En curso |
+| 2 | **Cancelación de comprobantes mensuales** — hoy obliga al script manual y bloquea el cutover | ⬜ |
+| 3 | **Notas de crédito** (Bloque 6), con su botón en la tarjeta de «Mis experiencias» | ⬜ |
+| 4 | Cancelación de global por devolución (motivo 01) | ⬜ |
+| 5 | Guardas de plazo y de aceptación del receptor | ⬜ |
+
+## 🎨 Diseño de documentos — pendiente aparte (Luis, 2026-09-04)
+
+Trabajo de diseño, no de fiscalidad. Va después de que la maquinaria funcione:
+
+- **PDF de la nota de crédito**
+- **PDF del recibo de retiro del creador extranjero** (el comprobante de liquidación, que no es CFDI)
+- **PDF de la factura al comprador** y **de la emitida al creador**, si Facturapi permite plantilla
+- El **botón de descarga** de todos ellos en la tarjeta de «Mis experiencias», sección entregados
 
 ---
 

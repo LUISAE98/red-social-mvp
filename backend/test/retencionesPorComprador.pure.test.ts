@@ -182,3 +182,86 @@ describe("el saldo ya viene neto (§A5)", () => {
 function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Los cargos refacturados (§11, 2026-09-04)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// 🚨 EL PROBLEMA QUE RESUELVEN. El comprador paga base + cargo fijo + 2% de conversión, y el IVA
+//    se calcula sobre ESA suma. Pero el CFDI amparaba solo la base, así que quedaban ~0.39 de IVA
+//    por cada 100 cobrados sin aparecer en el comprobante de nadie.
+//
+//    Desde ahora los dos cargos entran en lo que el creador factura —un solo concepto— y Vibra se
+//    los refactura desglosados. Lo que el creador RECIBE no cambia; lo que cambia es su ingreso
+//    facturado y, con él, la base de sus retenciones.
+
+describe("cargos refacturados", () => {
+  /** Base 100 con cargo fijo 0.40 y 2% sobre 100.40 = 2.01, redondeado a 2.41. */
+  const CARGOS = 2.41;
+
+  const conCargos = () => {
+    const fiscal = resolveSaleTax({ base: 102.41, buyerCountry: "MX" });
+    return resolveSettlement({
+      base: 100,
+      cargosRefacturados: CARGOS,
+      mxVatAmount: fiscal.mxVatAmount,
+      creador: MEXICANO,
+    });
+  };
+
+  it("🚨 la participación del creador NO cambia", () => {
+    // Es la garantía de todo el diseño: los cargos suben el ingreso facturado y bajan otro tanto
+    // en la refactura. Si esto se rompiera, le estaríamos quitando dinero al creador.
+    expect(conCargos().participacion).toBe(75);
+  });
+
+  it("🚨 el reparto sigue siendo 25% del PRECIO, no del total facturado", () => {
+    // Calcular el 25% sobre 102.41 daría 25.60 y rompería el 75/25 escrito en los términos.
+    expect(conCargos().comision).toBe(25);
+    expect(conCargos().cargos).toBe(CARGOS);
+  });
+
+  it("el ingreso facturable es el precio más los cargos", () => {
+    expect(conCargos().ingresoFacturable).toBe(102.41);
+  });
+
+  it("🚨 el ISR se retiene sobre lo FACTURADO, no sobre la base", () => {
+    // 102.41 × 2.5% = 2.56, no 2.50. Es la contrapartida de facturar el total: sube la base de
+    // retención. El creador lo recupera al declarar, salvo si optó por el pago definitivo.
+    expect(conCargos().isrRetenido).toBe(2.56);
+  });
+
+  it("el impuesto de la refactura grava los TRES conceptos", () => {
+    // (25 + 2.41) × 16% = 4.39. Gravar solo la comisión dejaría los cargos sin su impuesto.
+    expect(conCargos().ivaComision).toBe(4.39);
+  });
+
+  it("🚨 sin cargos, todo queda exactamente como antes", () => {
+    // Los asientos anteriores al cambio no traen cargos. Tienen que liquidar igual que siempre,
+    // o un recálculo movería dinero ya pagado.
+    const fiscal = resolveSaleTax({ base: 100, buyerCountry: "MX" });
+    const sin = resolveSettlement({ base: 100, mxVatAmount: fiscal.mxVatAmount, creador: MEXICANO });
+
+    expect(sin.cargos).toBe(0);
+    expect(sin.ingresoFacturable).toBe(100);
+    expect(sin.isrRetenido).toBe(2.5);
+    expect(sin.ivaComision).toBe(4);
+    expect(sin.neto).toBe(76.5);
+  });
+
+  it("exportación: los cargos suben la base del ISR pero no crean IVA", () => {
+    // El comprador extranjero no paga IVA mexicano, así que no hay nada que retener por ese lado.
+    // El ISR sí sube, porque se retiene sobre todas las ventas.
+    const fiscal = resolveSaleTax({ base: 102.41, buyerCountry: "DE" });
+    const r = resolveSettlement({
+      base: 100,
+      cargosRefacturados: CARGOS,
+      mxVatAmount: fiscal.mxVatAmount,
+      creador: MEXICANO,
+    });
+
+    expect(r.ivaRetenido).toBe(0);
+    expect(r.isrRetenido).toBe(2.56);
+    expect(r.participacion).toBe(75);
+  });
+});

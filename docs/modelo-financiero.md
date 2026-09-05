@@ -95,7 +95,10 @@ mid-market. Ver el pendiente 3 de `paiseswallbit.md`.
   Cifras generadas con `lib/tax/fiscalEngine.ts`, no a mano.
 
 ## Decisiones registradas
-- **D1** — Comprador absorbe el **cargo fijo + 2% FX** del cobro. ✅ *(el fijo eran $3 MXN, hoy son 0.40 USD)*
+- **D1** — Comprador absorbe el **cargo fijo + 2% FX** del cobro. ✅ **Confirmada el 2026-09-04.**
+  Se evaluó quitárselos y se descartó: el 2% no es margen sino recuperación de un costo real de
+  Stripe más colchón de deriva. Lo que sí se replantea es **quién los factura**, no quién los paga.
+  Ver `pendientesimpuestos.md` §11. *(el fijo eran $3 MXN, hoy son 0.40 USD)*
 - **D-comisión** — Comisión **25%**, o **30%** en los 27 países de solo wire. ✅ *(dejó de ser plana el 2026-08-27)*
 - **D-payout-mín** — **300 USD** estándar y **500 USD** wire. ✅ *(eran $10,000 MXN; el retiro anticipado se descartó y nunca se construyó)*
 - **D-payout-FX** — El FX del payout lo cubre **Vibra**. ✅ ⚠️ **Se invirtió con el corte a USD**

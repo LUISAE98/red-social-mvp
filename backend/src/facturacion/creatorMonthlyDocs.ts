@@ -54,6 +54,14 @@ export type AcumuladoMensual = {
   base: number;
   /** Comisión de Vibra del mes. */
   comision: number;
+  /**
+   * 🧾 Cargo fijo + 2% de conversión del mes, que Vibra refactura al creador.
+   *
+   * Van como conceptos APARTE en el CFDI de comisión, no sumados al 25%: son servicios
+   * distintos —conversión de divisa y gestión de cobro— y el creador tiene derecho a ver qué
+   * le cobraron por cada cosa.
+   */
+  cargos: number;
   /** Impuesto de esa comisión. Cero si el creador es extranjero y aplica exportación. */
   ivaComision: number;
   isrRetenido: number;
@@ -92,6 +100,10 @@ type AsientoConRetenciones = {
   createdAt?: admin.firestore.Timestamp | null;
   retenciones?: {
     comision?: number;
+    /** Cargo fijo + 2% de conversión refacturados. Ausente en asientos anteriores al 2026-09-04. */
+    cargos?: number;
+    /** Lo que el creador facturó por la venta: su precio más los cargos. */
+    ingresoFacturable?: number;
     ivaComision?: number;
     isrRetenido?: number;
     ivaRetenido?: number;
@@ -190,6 +202,7 @@ export function acumularMes(
     ventas: 0,
     base: 0,
     comision: 0,
+    cargos: 0,
     ivaComision: 0,
     isrRetenido: 0,
     ivaRetenido: 0,
@@ -208,6 +221,7 @@ export function acumularMes(
     acc.ventas += 1;
     acc.base = round2(acc.base + (a.grossAmount ?? 0));
     acc.comision = round2(acc.comision + (r.comision ?? 0));
+    acc.cargos = round2(acc.cargos + (r.cargos ?? 0));
     acc.ivaComision = round2(acc.ivaComision + (r.ivaComision ?? 0));
     acc.isrRetenido = round2(acc.isrRetenido + (r.isrRetenido ?? 0));
     acc.ivaRetenido = round2(acc.ivaRetenido + (r.ivaRetenido ?? 0));
@@ -283,14 +297,27 @@ export async function serviciosDelPeriodo(
     const pesos = leerImporteFiscal(a.fiscalMxn);
     // Con pesos congelados, ésa es la tasa de esa venta. Sin ellos —exportación— el FIX.
     const tasa = pesos ? pesos.tipoCambio : await tipoDeCambio(dia);
-    const base = pesos ? pesos.base : round2((a.grossAmount ?? 0) * tasa);
+    /**
+     * 🧾 Lo que el creador FACTURÓ, que incluye el cargo fijo y el 2% de conversión.
+     *
+     * `fiscalMxn` ya viene congelado con ese total desde el 2026-09-04. Para las ventas de
+     * exportación, que no tienen pesos congelados, se reconstruye con `ingresoFacturable`; un
+     * asiento anterior no lo trae y cae a `grossAmount`, que era el comportamiento de entonces.
+     */
+    const facturable = r.ingresoFacturable ?? a.grossAmount ?? 0;
+    const base = pesos ? pesos.base : round2(facturable * tasa);
     const iva = pesos ? pesos.iva : 0; // exportación a 0%: no hubo IVA que trasladar
 
     out.push({
       fecha: dia,
       precioSinIva: base,
       ivaTrasladado: iva,
-      comision: round2((r.comision ?? 0) * tasa),
+      /**
+       * `ComisionDelServicio` documenta lo que la PLATAFORMA cobró por esa operación. No es
+       * solo el 25%: también la conversión de divisa y la gestión de cobro, que Vibra le
+       * refactura al creador en el mismo comprobante.
+       */
+      comision: round2(((r.comision ?? 0) + (r.cargos ?? 0)) * tasa),
       ivaComision: round2((r.ivaComision ?? 0) * tasa),
     });
   }
@@ -450,10 +477,27 @@ export async function emitirCfdiComision(
    * timbrar de verdad, el 2026-09-03.
    */
   const { tasa, fechaTasa } = await fixParaOperacion(finDelPeriodo(acc.periodo));
+
+  /** El mismo tratamiento para los tres conceptos: los presta Vibra al mismo creador. */
+  const impuestoDelConcepto = llevaImpuesto
+    ? [{ type: "IVA", rate: 0.16, factor: "Tasa" }]
+    : // Creador extranjero: exportación de mediación a tasa 0%.
+      [{ type: "IVA", rate: 0, factor: "Tasa" }];
   const res = await facturapiFetch<FacturapiDoc>("/invoices", {
     method: "POST",
     body: {
       customer: customerId,
+      /**
+       * 🧾 TRES conceptos, no uno.
+       *
+       * El creador factura su venta en un solo concepto —para él todo es su precio— y aquí se
+       * le desglosa qué le cobró Vibra por cada cosa: la intermediación, la conversión de
+       * divisa y la gestión de cobro. Los dos últimos son el cargo fijo y el 2% que paga el
+       * comprador y que desde el 2026-09-04 viajan dentro de lo que el creador factura.
+       *
+       * Se desglosan porque **son servicios distintos**. Sumarlos al 25% haría parecer que la
+       * comisión es mayor de lo pactado y rompería la lectura del 75/25.
+       */
       items: [
         {
           quantity: 1,
@@ -468,12 +512,34 @@ export async function emitirCfdiComision(
             unit_key: "E48",
             price: acc.comision, // 💵 en dólares; la moneda del comprobante es USD
             tax_included: false,
-            taxes: llevaImpuesto
-              ? [{ type: "IVA", rate: 0.16, factor: "Tasa" }]
-              : // Creador extranjero: exportación de mediación a tasa 0%.
-                [{ type: "IVA", rate: 0, factor: "Tasa" }],
+            taxes: impuestoDelConcepto,
           },
         },
+        /*
+         * Solo si hubo. Un asiento anterior al 2026-09-04 no trae cargos, y un concepto de
+         * cero no aporta nada al comprobante.
+         */
+        ...(acc.cargos > 0
+          ? [
+              {
+                quantity: 1,
+                product: {
+                  description:
+                    `Conversión de divisa y gestión de cobro · ${acc.periodo}`,
+                  /*
+                   * 🔁 FISCALISTA: `84121500`, servicios bancarios y de procesamiento de pagos.
+                   * Describe lo que se cobra —convertir la moneda del comprador y gestionar el
+                   * cobro— mejor que la clave de comisión, que es de promoción de ventas.
+                   */
+                  product_key: "84121500",
+                  unit_key: "E48",
+                  price: acc.cargos,
+                  tax_included: false,
+                  taxes: impuestoDelConcepto,
+                },
+              },
+            ]
+          : []),
       ],
       use: "G03",
       payment_form: "17", // Compensación: se descuenta del saldo, no se cobra aparte.

@@ -33,6 +33,26 @@ function mergeDeep(base: MessageTree, override: MessageTree): MessageTree {
   return out;
 }
 
+/**
+ * El árbol ya fusionado, por idioma.
+ *
+ * El respaldo de arriba es obligatorio, pero se estaba pagando en CADA render
+ * del servidor: `mergeDeep` recorre las 3 185 claves del árbol y medía **3,13 ms
+ * por petición**. El `import()` del JSON sí lo cachea el sistema de módulos, así
+ * que ese era todo el coste, y era puro trabajo repetido — el resultado es
+ * idéntico petición tras petición porque los ficheros no cambian en caliente.
+ *
+ * Con esto la fusión ocurre UNA vez por idioma y por instancia del servidor.
+ * El respaldo sigue exactamente igual de vivo: lo que se guarda es su resultado,
+ * no la decisión de aplicarlo.
+ *
+ * (Medido el 2026-09-04: los 46 idiomas tienen HOY las 3 185 claves completas,
+ * así que la fusión no está tapando ningún hueco. No es motivo para quitarla —
+ * existe justo para el día en que se añada una cadena nueva y aún no esté
+ * traducida— pero sí para dejar de recalcularla en cada visita.)
+ */
+const fusionados = new Map<string, MessageTree>();
+
 export default getRequestConfig(async ({ requestLocale }) => {
   let locale = await requestLocale;
 
@@ -40,10 +60,21 @@ export default getRequestConfig(async ({ requestLocale }) => {
     locale = routing.defaultLocale;
   }
 
+  const enCache = fusionados.get(locale);
+  if (enCache) return { locale, messages: enCache };
+
   const messages = (await import(`../messages/${locale}.json`)).default as MessageTree;
-  if (locale === routing.defaultLocale) return { locale, messages };
+
+  if (locale === routing.defaultLocale) {
+    fusionados.set(locale, messages);
+    return { locale, messages };
+  }
 
   const fallback = (await import(`../messages/${routing.defaultLocale}.json`))
     .default as MessageTree;
-  return { locale, messages: mergeDeep(fallback, messages) };
+
+  const fusionado = mergeDeep(fallback, messages);
+  fusionados.set(locale, fusionado);
+
+  return { locale, messages: fusionado };
 });

@@ -34,6 +34,7 @@ import {
   type DatosDelCobro,
   type ImporteFiscalMxn,
 } from "../facturacion/importeFiscal";
+import { composeCharge } from "../tax/composeCharge";
 import { logger } from "firebase-functions";
 
 if (admin.apps.length === 0) {
@@ -428,6 +429,51 @@ async function congelarPesosDeLaVenta(params: {
 }
 
 /**
+ * Cargo fijo y 2% de conversión de esta venta: lo que Vibra le REFACTURA al creador.
+ *
+ * 🚨 POR QUÉ EXISTE. Los dos cargos los paga el comprador y el IVA se calcula sobre ellos
+ *    (`composeCharge`: gravable = base + fijo + FX). Pero el CFDI se emitía solo por la base, así
+ *    que **quedaban ~0.39 de IVA por cada 100 cobrados que no aparecían en el comprobante de**
+ *    **nadie**. Desde el 2026-09-04 entran en lo que el creador factura, y Vibra se los refactura
+ *    desglosados. Ver `pendientesimpuestos.md` §11.
+ *
+ * De dónde salen los números, en este orden:
+ *
+ * 1. **Del cobro guardado**, si `repriceForCard` los persistió. Son los importes exactos que se
+ *    cobraron, incluido el ajuste por redondeo comercial.
+ * 2. **Recalculados con `composeCharge`**, que es determinista: con la misma base y el mismo país
+ *    da lo mismo que se cobró. Es el camino normal, porque solo el reprecio los persiste.
+ *
+ * ⚠️ Sin país fiscal no se puede saber si hubo conversión, así que devuelve 0. Es el caso de las
+ *    ventas viejas y de las que no pasaron por `composeCharge`.
+ */
+async function cargosRefacturadosDeLaVenta(params: {
+  entryId: string;
+  baseUsd: number;
+  taxCountry: string | null;
+}): Promise<number> {
+  try {
+    const snap = await db.doc(`paymentIntents/${params.entryId}`).get();
+    if (snap.exists) {
+      const fijo = Number(snap.get("fixedFee"));
+      const fx = Number(snap.get("fxFeeAmount"));
+      if (Number.isFinite(fijo) && Number.isFinite(fx) && fijo >= 0 && fx >= 0) {
+        return round2(fijo + fx);
+      }
+    }
+    if (!params.taxCountry) return 0;
+    const c = composeCharge(params.baseUsd, params.taxCountry);
+    return round2(c.fixedFee + c.fxFeeAmount);
+  } catch (err) {
+    logger.warn("cargos_refacturados_no_resueltos", {
+      entryId: params.entryId,
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return 0;
+  }
+}
+
+/**
  * Registra una venta pagada en el libro mayor. Idempotente por (sourceType, sourceId).
  */
 export async function recordEarning(
@@ -499,14 +545,30 @@ export async function recordEarning(
    * creador y a nadie más. Con comprador fuera da cero —exportación— y la retención se anula
    * sola, sin ramificar.
    */
+  /**
+   * 🧾 Cargo fijo + 2% de conversión. Suben lo que el creador FACTURA, no lo que recibe.
+   *
+   * Van antes de todo lo demás porque el IVA de la venta se calcula sobre el total facturado,
+   * que es como se le cobró al comprador. Ver `cargosRefacturadosDeLaVenta`.
+   */
+  const cargos = await cargosRefacturadosDeLaVenta({
+    entryId: deterministicEntryId(params.sourceType, params.sourceId),
+    baseUsd: gross,
+    taxCountry: params.taxCountry ?? null,
+  });
+  const ingresoFacturable = round2(gross + cargos);
+
   const ventaFiscal = resolveSaleTax({
-    base: gross,
+    // 🚨 El ingreso FACTURADO, no la base. Es lo que ampara el CFDI y sobre lo que el
+    //    comprador pagó su IVA.
+    base: ingresoFacturable,
     buyerCountry: params.taxCountry,
     serviceType: params.type,
   });
 
   const liquidacion = resolveSettlement({
     base: gross,
+    cargosRefacturados: cargos,
     mxVatAmount: ventaFiscal.mxVatAmount,
     creador: perfil,
     ejercicio: ejercicioDeFecha(new Date()),
@@ -566,7 +628,8 @@ export async function recordEarning(
    */
   const fiscalMxn = await congelarPesosDeLaVenta({
     entryId: deterministicEntryId(params.sourceType, params.sourceId),
-    baseUsd: gross,
+    // 🚨 El total facturado. Congelar solo la base dejaba el CFDI por debajo del cobro.
+    baseUsd: ingresoFacturable,
     ivaUsd: ventaFiscal.mxVatAmount,
     permitirTabla: params.taxCountry === "MX",
   });
@@ -614,6 +677,16 @@ export async function recordEarning(
        */
       retenciones: {
         comision: liquidacion.comision,
+        /**
+         * 🧾 Cargo fijo + 2% de conversión que Vibra le refactura al creador.
+         *
+         * Se congela por venta porque el CFDI mensual de comisión los desglosa como conceptos
+         * propios, y porque son parte de la base sobre la que se retuvo. Un asiento anterior al
+         * 2026-09-04 no lo trae: ahí vale cero y el comprobante sale como salía.
+         */
+        cargos: liquidacion.cargos,
+        /** Lo que el creador FACTURA por esta venta: su precio más los cargos. */
+        ingresoFacturable: liquidacion.ingresoFacturable,
         ivaComision: liquidacion.ivaComision,
         isrRate: liquidacion.isrRate,
         isrRetenido: liquidacion.isrRetenido,
