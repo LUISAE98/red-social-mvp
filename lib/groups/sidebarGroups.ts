@@ -6,6 +6,7 @@ import {
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
 import { resolveEffectiveMemberStatus } from "@/lib/groups/groupAdapters";
+import { CACHE_TTL } from "@/lib/cache/ttl";
 
 export type MembershipAccessType =
   | "standard"
@@ -225,7 +226,59 @@ export function subscribeToMySidebarGroups(
   );
 }
 
+/**
+ * Caché corta y deduplicador de llamadas en vuelo para las comunidades ocultas
+ * a las que pertenece quien mira.
+ *
+ * 🚨 Medido en Sentry (30 días de producción): esta función se llamaba **240
+ * veces** con una mediana de **265 ms**, unos 139 segundos acumulados solo en la
+ * pantalla de perfil. No tenía caché de ninguna clase, y `fetchAccessibleGroupIds`
+ * la invoca dentro de un `Promise.all` desde varios caminos del feed — así que
+ * una sola carga podía disparar la misma llamada dos o tres veces EN PARALELO.
+ *
+ * `enVuelo` arregla eso: quien llegue mientras hay una petición viva se cuelga
+ * de ella en vez de abrir otra. Es la mitad que más rinde.
+ *
+ * ⚠️ El plazo es de UN MINUTO (`TERCEROS`) y no de los diez del catálogo, a
+ * propósito. Esta lista decide qué identificadores entran en las consultas del
+ * feed, y la membresía de una comunidad oculta la cambia OTRA PERSONA: si
+ * alguien te saca, seguir usando un identificador viejo hace que las reglas de
+ * Firestore nieguen la consulta —y en un `in` la niegan ENTERA, no solo esa
+ * comunidad—. No hay fuga de datos, pero sí un feed roto. Un minuto es
+ * suficiente para colapsar la ráfaga de una navegación y bastante corto para no
+ * arrastrar una membresía revocada.
+ *
+ * Por lo mismo NO baja a disco: sobrevivir a la recarga es justo lo que aquí no
+ * se quiere.
+ */
+let cacheOcultas: { grupos: SidebarGroup[]; guardadoEn: number } | null = null;
+let enVuelo: Promise<SidebarGroup[]> | null = null;
+
+/** Se llama al entrar o salir de una comunidad, para no esperar al minuto. */
+export function invalidarComunidadesOcultas(): void {
+  cacheOcultas = null;
+}
+
 export async function getMyHiddenJoinedGroups(): Promise<SidebarGroup[]> {
+  if (cacheOcultas && Date.now() - cacheOcultas.guardadoEn <= CACHE_TTL.TERCEROS) {
+    return cacheOcultas.grupos;
+  }
+
+  if (enVuelo) return enVuelo;
+
+  enVuelo = pedirComunidadesOcultas()
+    .then((grupos) => {
+      cacheOcultas = { grupos, guardadoEn: Date.now() };
+      return grupos;
+    })
+    .finally(() => {
+      enVuelo = null;
+    });
+
+  return enVuelo;
+}
+
+async function pedirComunidadesOcultas(): Promise<SidebarGroup[]> {
   const fn = httpsCallable<Record<string, never>, GetMyHiddenJoinedGroupsResult>(
     functions,
     "getMyHiddenJoinedGroups"

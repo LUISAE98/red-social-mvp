@@ -2,7 +2,7 @@
 
 import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 
-import { TextButton, IconButton } from "@/components/ui";
+import { BlurFade, TextButton, IconButton } from "@/components/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -3449,7 +3449,13 @@ export default function ConversationThread({
 
       {/* Superpuesto al hilo, no en su propia fila: así los mensajes se ven
           pasar por detrás al scrollear. El campo lleva desenfoque para seguir
-          siendo legible sobre ellos. */}
+          siendo legible sobre ellos.
+
+          El cristal es el mismo fundido de la cabecera, pero del revés: el
+          último mensaje se disuelve al bajar en vez de quedar nítido justo
+          detrás del campo. Va DENTRO del contenedor superpuesto, que ya no
+          ocupa sitio en el flujo, así que aquí no hay hueco nuevo que
+          reservar: el relleno inferior del scroller ya mide el compositor. */}
       <div
         ref={composerRef}
         className="vibra-msg-dimmable"
@@ -3472,6 +3478,14 @@ export default function ConversationThread({
           pointerEvents: "none",
         }}
       >
+        <BlurFade
+          side="bottom"
+          size={composerHeight + 26}
+          fade={40}
+          blur={22}
+          veil="rgba(11,11,13,0.68)"
+        />
+
         {/* El texto del error se fue al toast; aquí solo queda el "Reintentar",
             que es una acción y no un aviso: el texto ya volvió al campo, así que
             reintentar es mandarlo otra vez sin que haya que reescribir nada. */}

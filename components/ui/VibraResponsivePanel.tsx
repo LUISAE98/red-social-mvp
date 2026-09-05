@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import GlassEdge from "./GlassEdge";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 
 /**
@@ -129,6 +130,21 @@ export default function VibraResponsivePanel({
 
   // --- Arrastre en móvil ---
   const [panelOffsetY, setPanelOffsetY] = useState(0);
+  /**
+   * Hueco de las barras flotantes. GlassEdge se mide sola y lo avisa; el scroll
+   * lo repone con separadores, NO con relleno: quien monta el panel puede pasar
+   * su propio `contentPadding` y sumarle algo encima lo rompería.
+   */
+  const [topInset, setTopInset] = useState(0);
+  const [footInset, setFootInset] = useState(0);
+
+  /**
+   * Con `bareSurface` el panel no tiene fondo ni cantos —es una superficie
+   * desnuda—, así que no hay nada que difuminar ni línea que sustituir. Ahí las
+   * barras se quedan en el flujo, como siempre.
+   */
+  const conCristal = !bareSurface;
+
   const [isDragging, setIsDragging] = useState(false);
   const dragStartYRef = useRef(0);
   const dragStartOffsetRef = useRef(0);
@@ -414,7 +430,15 @@ export default function VibraResponsivePanel({
             willChange: "transform",
           }}
         >
-          {/* Zona de arrastre: pill + header */}
+          {/* Zona de arrastre: pill + header. Flota sobre el contenido para que
+              este se disuelva al pasarle por detrás en vez de cortarse. */}
+          <GlassEdge
+            side="top"
+            onHeight={setTopInset}
+            veil="rgba(8,9,11,0.68)"
+            zIndex={4}
+            style={conCristal ? undefined : { position: "static" }}
+          >
           <div
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -444,9 +468,6 @@ export default function VibraResponsivePanel({
                   gridTemplateColumns: "48px 1fr 48px",
                   alignItems: "center",
                   padding: hasTitle ? "0 12px 10px" : "0 12px 4px",
-                  borderBottom: hasTitle && !bareSurface
-                    ? "1px solid rgba(255,255,255,0.08)"
-                    : "none",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "flex-start" }}>
@@ -457,6 +478,7 @@ export default function VibraResponsivePanel({
               </div>
             )}
           </div>
+          </GlassEdge>
 
           <div
             style={{
@@ -468,19 +490,28 @@ export default function VibraResponsivePanel({
               minHeight: 0,
             }}
           >
+            {conCristal ? <div aria-hidden="true" style={{ height: topInset }} /> : null}
             {children}
+            {conCristal ? <div aria-hidden="true" style={{ height: footInset }} /> : null}
           </div>
 
           {footer ? (
-            <div
-              style={{
-                flexShrink: 0,
-                borderTop: bareSurface ? "none" : "1px solid rgba(255,255,255,0.08)",
-                padding: "12px 14px calc(14px + var(--vb-safe-bottom, 0px))",
-              }}
+            <GlassEdge
+              side="bottom"
+              onHeight={setFootInset}
+              veil="rgba(8,9,11,0.68)"
+              zIndex={4}
+              style={conCristal ? undefined : { position: "static" }}
             >
-              {footer}
-            </div>
+              <div
+                style={{
+                  flexShrink: 0,
+                  padding: "12px 14px calc(14px + var(--vb-safe-bottom, 0px))",
+                }}
+              >
+                {footer}
+              </div>
+            </GlassEdge>
           ) : null}
         </div>
       ) : (
@@ -532,6 +563,12 @@ export default function VibraResponsivePanel({
             }}
           >
             {hideHeader ? null : (
+              <GlassEdge
+                side="top"
+                onHeight={setTopInset}
+                veil="rgba(8,9,11,0.68)"
+                style={conCristal ? undefined : { position: "static" }}
+              >
               <header
                 style={{
                   minHeight: hasTitle ? 56 : 44,
@@ -539,9 +576,6 @@ export default function VibraResponsivePanel({
                   gridTemplateColumns: "48px 1fr 48px",
                   alignItems: "center",
                   padding: hasTitle ? "8px 12px" : "6px 12px 0",
-                  borderBottom: hasTitle && !bareSurface
-                    ? "1px solid rgba(255,255,255,0.08)"
-                    : "none",
                   flexShrink: 0,
                 }}
               >
@@ -551,6 +585,7 @@ export default function VibraResponsivePanel({
                   {closeButton}
                 </div>
               </header>
+              </GlassEdge>
             )}
 
             <div
@@ -561,19 +596,29 @@ export default function VibraResponsivePanel({
                 minHeight: 0,
               }}
             >
+              {conCristal && !hideHeader ? (
+                <div aria-hidden="true" style={{ height: topInset }} />
+              ) : null}
               {children}
+              {conCristal ? <div aria-hidden="true" style={{ height: footInset }} /> : null}
             </div>
 
             {footer ? (
-              <div
-                style={{
-                  flexShrink: 0,
-                  borderTop: bareSurface ? "none" : "1px solid rgba(255,255,255,0.08)",
-                  padding: "14px 18px 18px",
-                }}
+              <GlassEdge
+                side="bottom"
+                onHeight={setFootInset}
+                veil="rgba(8,9,11,0.68)"
+                style={conCristal ? undefined : { position: "static" }}
               >
-                {footer}
-              </div>
+                <div
+                  style={{
+                    flexShrink: 0,
+                    padding: "14px 18px 18px",
+                  }}
+                >
+                  {footer}
+                </div>
+              </GlassEdge>
             ) : null}
           </section>
         </div>

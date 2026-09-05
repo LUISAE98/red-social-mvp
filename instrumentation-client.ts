@@ -14,6 +14,30 @@ const isProd = process.env.NODE_ENV === "production";
 const forceInDev = process.env.NEXT_PUBLIC_SENTRY_DEV === "1";
 
 /**
+ * Tope de eventos que UNA carga de página puede mandar a Sentry.
+ *
+ * 🚨 Esto existe por un incidente real, no por precaución teórica.
+ *
+ * Entre el 10 y el 12 de agosto de 2026, **un solo fallo generó 4 882 eventos**
+ * —el 91 % de los 5 000 del mes— y dejó la cuota agotada durante todo el
+ * periodo, tirando a la basura cada error nuevo de los usuarios de verdad.
+ *
+ * Y ni siquiera era de la app: venía de `localhost`, de una EXTENSIÓN del
+ * navegador (`app:///executors/200.js`, que no existe en este repositorio)
+ * lanzando promesas rechazadas en bucle. Tres sesiones, unos 1 600 eventos cada
+ * una.
+ *
+ * Filtrar por origen no bastaba: el marco llegaba como `app:///…`, que es
+ * también como Sentry etiqueta código propio, así que una lista de bloqueo por
+ * URL no lo habría atrapado. Lo que sí lo atrapa es esto: da igual QUÉ falle,
+ * una sola pestaña no puede gastar más de veinte eventos. Un fallo repetitivo
+ * se sigue viendo —con veinte muestras sobra para diagnosticarlo— pero deja de
+ * poder vaciar la cuota del mes.
+ */
+const MAX_EVENTOS_POR_CARGA = 20;
+let eventosEnviados = 0;
+
+/**
  * ⚠️ EN DESARROLLO NO SE INICIALIZA, y no es por ruido ni por gusto.
  *
  * El SDK de Next añade en desarrollo un procesador de eventos que resuelve las
@@ -58,13 +82,58 @@ if (isProd || forceInDev) {
     // Logs a Sentry solo en producción.
     enableLogs: isProd,
 
-    // Replay solo en producción.
-    replaysSessionSampleRate: isProd ? 0.1 : 0,
+    /**
+     * 🚨 CERO grabaciones "porque sí". Solo se graba cuando algo FALLA.
+     *
+     * El plan Developer da 50 grabaciones al mes. Con el 10 % de muestreo que
+     * había aquí, esas 50 se gastaban en sesiones al azar —casi todas sin
+     * incidencias— y se agotaban en días: el 2026-09-04 la cuota estaba en
+     * 50/50 y la grabación más reciente era de hacía quince días.
+     *
+     * Con esto en 0, las 50 del mes se gastan en sesiones donde de verdad hubo
+     * un error, que son las únicas que alguien va a sentarse a mirar.
+     * `replaysOnErrorSampleRate` sigue en 1 y es quien decide ahora.
+     *
+     * ⚠️ Si algún día se sube de plan y se quiere volver al muestreo por
+     * sesión, subir ESTE número — no tocar el de errores.
+     */
+    replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: isProd ? 1.0 : 0,
 
     // Enable sending user PII (Personally Identifiable Information)
     // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
     sendDefaultPii: true,
+
+    /**
+     * Ruido de extensiones del navegador.
+     *
+     * Lo que revienta dentro de una extensión no es un fallo de Vibra y no se
+     * puede arreglar desde aquí, pero llega igual porque se ejecuta en la misma
+     * página. Es higiene estándar; la red de verdad es el tope de más abajo,
+     * porque una extensión puede presentarse con una URL que esta lista no
+     * reconozca — que es justo lo que pasó en agosto.
+     */
+    denyUrls: [
+      /^chrome-extension:\/\//i,
+      /^moz-extension:\/\//i,
+      /^safari-(web-)?extension:\/\//i,
+      /^ms-browser-extension:\/\//i,
+      /^extensions?:\/\//i,
+    ],
+
+    /**
+     * Último filtro antes de salir. Corta por CANTIDAD, no por origen.
+     *
+     * Se cuenta aquí y no en un envoltorio aparte para que el tope valga para
+     * TODO lo que Sentry manda por su cuenta —errores no capturados, promesas
+     * rechazadas, lo que capture una integración— y no solo para lo que la app
+     * reporta a mano con `captureError`.
+     */
+    beforeSend(event) {
+      if (eventosEnviados >= MAX_EVENTOS_POR_CARGA) return null;
+      eventosEnviados += 1;
+      return event;
+    },
   });
 }
 

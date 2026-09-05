@@ -63,6 +63,8 @@ export async function liberarDeGlobal(params: {
 }): Promise<{ canceladoUuid: string | null; nuevaGlobalUuid: string | null; ventasRestantes: number }> {
   const { buyerId, purchaseId, pedidoPor } = params;
 
+  logger.info("liberar_global_inicio", { buyerId, purchaseId, pedidoPor });
+
   const compraRef = db.doc(`users/${buyerId}/purchases/${purchaseId}`);
   const compraSnap = await compraRef.get();
   if (!compraSnap.exists) throw new HttpsError("not-found", "Compra no encontrada.");
@@ -96,6 +98,8 @@ export async function liberarDeGlobal(params: {
   }
 
   // Las demás ventas que cubría la MISMA global. Se reexpide con todas menos esta.
+  logger.info("liberar_global_puertas_ok", { creatorId, periodo, orgId });
+
   const hermanasSnap = await db
     .collectionGroup("purchases")
     .where("creatorId", "==", creatorId)
@@ -112,6 +116,11 @@ export async function liberarDeGlobal(params: {
     restantes.push({ type: String(x.type ?? ""), base: pesos.base, tax: pesos.iva, path: d.ref.path });
     refsRestantes.push(d.ref);
   }
+
+  logger.info("liberar_global_hermanas", {
+    encontradas: hermanasSnap.size,
+    restantes: restantes.length,
+  });
 
   const rastro = db.collection("cancelacionesGlobales").doc();
   await rastro.set({
@@ -246,6 +255,26 @@ export const cancelarGlobalPorNominativa = onCall(
       throw new HttpsError("invalid-argument", "Faltan el comprador y la compra.");
     }
 
-    return await liberarDeGlobal({ buyerId, purchaseId, pedidoPor: uid });
+    /**
+     * 🚨 SIN ESTO, CUALQUIER FALLO LLEGA COMO «internal» A SECAS.
+     *
+     * Una excepción que no sea `HttpsError` la convierte el runtime en un `internal` sin
+     * mensaje, y como esta función no registraba nada, no quedaba rastro por ningún lado: ni
+     * en el cliente, ni en los logs, ni en `cancelacionesGlobales` —que se escribe más tarde—.
+     * Diagnosticar eso costó una tarde.
+     */
+    try {
+      return await liberarDeGlobal({ buyerId, purchaseId, pedidoPor: uid });
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      const mensaje = err instanceof Error ? err.message : String(err);
+      logger.error("liberar_global_excepcion", {
+        buyerId,
+        purchaseId,
+        err: mensaje,
+        stack: err instanceof Error ? err.stack?.slice(0, 1500) : null,
+      });
+      throw new HttpsError("internal", `Falló al liberar de la global: ${mensaje.slice(0, 300)}`);
+    }
   }
 );

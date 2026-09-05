@@ -774,6 +774,8 @@ export default function PostCommentsPanel({
               overflow: "hidden",
               display: "flex",
               flexDirection: "column",
+              // Ancla del cristal de abajo, que va en position: absolute.
+              position: "relative",
             }}
           >
             {/* Header — drag zone */}
@@ -854,6 +856,20 @@ export default function PostCommentsPanel({
               </button>
             </header>
 
+            {/* Fundido de abajo. El campo de escribir vive FUERA de la hoja —a
+                propósito, para que el rebote del arrastre no lo mueva—, así que
+                no se le puede poner cristal a él: nada le pasa por detrás. Lo
+                que sí pasa por detrás es el final de la lista, y es aquí donde
+                se disuelve, justo encima del campo. */}
+            <BlurFade
+              side="bottom"
+              size={54}
+              fade={54}
+              blur={22}
+              veil="rgba(8,9,11,0.6)"
+              style={{ zIndex: 2 }}
+            />
+
             {/* Comments list */}
             <div
               ref={mobileScrollRef}
@@ -868,7 +884,7 @@ export default function PostCommentsPanel({
                 // el relleno superior le devuelve el hueco, así que la hoja
                 // sigue midiendo exactamente lo mismo que antes.
                 marginTop: -SHEET_HEADER_H,
-                padding: `${SHEET_HEADER_H + 12}px 14px 8px`,
+                padding: `${SHEET_HEADER_H + 12}px 14px 26px`,
                 display: "grid",
                 gap: 12,
                 alignContent: "start",

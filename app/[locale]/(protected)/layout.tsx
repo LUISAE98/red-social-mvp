@@ -53,6 +53,8 @@ import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import LogoutButton from "@/app/LogoutButton";
 import PushEnablePrompt from "@/app/components/PushEnablePrompt";
+import InstallAppPrompt from "@/components/pwa/InstallAppPrompt";
+import IosInstallPrompt from "@/components/pwa/IosInstallPrompt";
 
 
 /**
@@ -1513,6 +1515,12 @@ const contentAreaClassName = isEmbed
        {!isEmbed && <ScrollToTopFAB key={pathname} />}
        {!isEmbed && <MobileBottomNav showWallet={!!user} />}
        {!isEmbed && <PushEnablePrompt />}
+       {/* Instalar la app. Se pinta solo donde el navegador lo ofrece —Android y
+           Chrome de escritorio— y nunca a quien ya la tiene instalada. */}
+       {!isEmbed && <InstallAppPrompt />}
+       {/* En Apple no hay botón que instale, así que va el instructivo. Los
+           dos nunca coinciden: o el navegador ofrece instalar, o es un iPhone. */}
+       {!isEmbed && <IosInstallPrompt />}
       </div>
 
        {/* Búsqueda móvil: página completa negra que entra deslizándose de derecha

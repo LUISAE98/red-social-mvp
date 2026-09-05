@@ -7,6 +7,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { invalidarComunidadesOcultas } from "@/lib/groups/sidebarGroups";
 
 type MembershipAccessType =
   | "standard"
@@ -340,4 +341,10 @@ export async function leaveGroup(groupId: string, uid: string) {
   batch.delete(userMembershipRef);
 
   await batch.commit();
+
+  // Salir de una comunidad cambia la lista de ocultas a las que se pertenece, y
+  // esa lista alimenta las consultas del feed. Sin esto habría que esperar a que
+  // caduque su minuto para dejar de pedir publicaciones de un sitio del que ya
+  // se salió.
+  invalidarComunidadesOcultas();
 }

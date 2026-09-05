@@ -10,7 +10,9 @@ import VibraGlobalBackground from "./components/VibraGlobalBackground";
 import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 import DesktopRefreshSplash from "@/components/DesktopRefreshSplash";
 import FirestoreMeterHud from "@/components/dev/FirestoreMeterHud";
+import { cookies } from "next/headers";
 import { CurrencyProvider } from "./components/CurrencyProvider";
+import { isDisplayCurrency } from "@/lib/currency/catalog";
 import { buildCollageTiles } from "@/lib/collage";
 import { localeDir } from "@/i18n/locales";
 
@@ -119,6 +121,31 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
+
+  /**
+   * 🚨 La moneda se siembra AQUÍ, en el servidor. No es un extra: sin esto hay
+   * error de hidratación en TODAS las pantallas.
+   *
+   * `CurrencyProvider` siempre estuvo escrito para recibirla —su propio
+   * comentario lo dice— pero nadie se la pasaba, así que caía a su valor por
+   * defecto: el servidor pintaba `USD` y, ya montado, el cliente leía la cookie
+   * y lo cambiaba a la moneda real. Sentry lo capturó con el diff en la mano:
+   *
+   *     <CurrencySwitcher variant="desktop">
+   *       + MXN   ← cliente
+   *       - USD   ← servidor
+   *
+   * Y `CurrencySwitcher` vive en `RootChrome`, o sea en la cabecera de todas las
+   * páginas: el fallo no era de `/experiencias`, salía en cualquiera. Cuando la
+   * hidratación falla React TIRA el HTML del servidor y reconstruye el árbol en
+   * el cliente, así que además de un error era una pérdida de velocidad.
+   *
+   * La cookie la pone el middleware (por elección de la persona o por su IP).
+   * Se cae a USD cuando no hay ninguna, que es lo que hacía antes para quien
+   * llega por primera vez.
+   */
+  const cookieMoneda = (await cookies()).get("vibra_currency")?.value;
+  const monedaInicial = isDisplayCurrency(cookieMoneda) ? cookieMoneda : "USD";
 
   return (
     // `dir` sale de RTL_LOCALES, no de una heurística sobre el código de idioma.
@@ -411,7 +438,7 @@ export default async function RootLayout({
 
 <NextIntlClientProvider locale={locale} messages={messages}>
   <AuthProvider>
-    <CurrencyProvider>
+    <CurrencyProvider initial={monedaInicial}>
       <ServiceWorkerRegister />
 
       <DesktopRefreshSplash />

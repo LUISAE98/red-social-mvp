@@ -250,6 +250,10 @@ function ProfileAvatarIcon({
   return (
     <span
       aria-hidden="true"
+      // La clase es para poder anularle la transición desde el bloque de
+      // prefers-reduced-motion del nav. Ese bloque la alcanza con :global()
+      // porque esto es OTRO componente y styled-jsx no le pone su hash.
+      className="vibra-nav-avatar"
       style={{
         width: size,
         height: size,
@@ -259,9 +263,14 @@ function ProfileAvatarIcon({
         alignItems: "center",
         justifyContent: "center",
         background: "rgba(255,255,255,0.12)",
-        border: active
-          ? "2px solid #ffffff"
-          : "1.5px solid rgba(255,255,255,0.6)",
+        // SIN borde. El aro blanco era lo que marcaba la sección activa y
+        // también lo que se veía como una línea alrededor de la foto. Ahora la
+        // marca es el tamaño: crece un poco al estar dentro. Como todo el
+        // proyecto va en border-box, quitar el borde no encoge la caja — es la
+        // foto la que gana esos píxeles y se ve entera.
+        border: "none",
+        transform: active ? "scale(1.1)" : "scale(1)",
+        transition: "transform 220ms cubic-bezier(0.4, 0, 0.2, 1)",
         flexShrink: 0,
       }}
     >
@@ -1061,6 +1070,12 @@ export default function MobileBottomNav({
           .nav,
           .item,
           .itemInner {
+            transition: none;
+          }
+
+          /* :global porque el avatar lo pinta ProfileAvatarIcon, que es otro
+             componente y no recibe el hash de este styled-jsx. */
+          :global(.vibra-nav-avatar) {
             transition: none;
           }
 

@@ -73,6 +73,94 @@ Dos decisiones dentro de esto:
 Sentry. Eso solo se comprueba en producción, mirando si aparecen sesiones nuevas
 en Session Replay después de desplegar.
 
+### El error de hidratación de la moneda (encontrado con Sentry)
+
+Sentry entregó el diff con nombre y apellido:
+
+```
+<CurrencySwitcher variant="desktop">
+  + MXN   ← cliente
+  - USD   ← servidor
+```
+
+`CurrencyProvider` siempre estuvo escrito para recibir la moneda desde el
+servidor —su propio comentario lo decía— pero **nadie le pasaba `initial`**, así
+que el servidor pintaba `USD` y el cliente la corregía tras montar. Y
+`CurrencySwitcher` vive en `RootChrome`: el fallo salía en la cabecera de TODAS
+las pantallas, no solo en `/experiencias`, donde Sentry lo agrupó.
+
+Cuenta como rendimiento, no solo como error: cuando la hidratación falla, React
+**tira el HTML del servidor y reconstruye el árbol entero en el cliente**.
+
+Arreglo: `app/layout.tsx` lee la cookie `vibra_currency` con `cookies()` y la
+pasa como `initial`. Verificado sobre el HTML servido — sin cookie sale `USD`,
+con `vibra_currency=MXN` sale `MXN`, con `EUR` sale `EUR`.
+
+### Cuota de Sentry: un tope por carga de página
+
+El 91 % de la cuota de errores del mes (4 882 de 5 000) lo gastó **una extensión
+del navegador en `localhost`**, no la app. Filtrar por origen no servía: el marco
+llegaba como `app:///executors/200.js`, y `app:///` es también como Sentry
+etiqueta código propio.
+
+Lo que sí lo ataja es un tope de **20 eventos por carga de página**
+(`beforeSend` en `instrumentation-client.ts`). Da igual qué falle: un bug
+repetitivo se sigue viendo —veinte muestras bastan para diagnosticarlo— pero ya
+no puede vaciar la cuota del mes.
+
+`replaysSessionSampleRate` pasa a **0**: con 50 grabaciones al mes en el plan
+Developer, gastarlas en sesiones al azar las agotaba en días. Ahora solo se graba
+cuando hay error (`replaysOnErrorSampleRate` sigue en 1).
+
+### Métricas de campo REALES (Sentry, 30 días de producción)
+
+Ya no hace falta pedirlas a mano: el conector de Sentry permite consultarlas
+desde aquí. Duración del `pageload`, que es lo que tarda la pantalla en quedar
+lista de verdad:
+
+| Pantalla | p50 | p75 | p95 |
+| --- | ---: | ---: | ---: |
+| **Perfil** `/u/:handle` | **9,5 s** | **16,0 s** | 28,5 s |
+| Mensajes | 5,8 s | 7,3 s | 8,2 s |
+| **Inicio** | **4,1 s** | 7,2 s | 22,3 s |
+| Experiencias | 4,3 s | 6,2 s | 8,1 s |
+| Login | 2,0 s | 3,4 s | 5,8 s |
+| Comunidades | 1,2 s | 1,7 s | 2,4 s |
+
+⚠️ Son 30 días, así que incluyen sobre todo el estado ANTERIOR a todo esto.
+
+**El servidor no es el cuello de botella.** `GET /[locale]` responde en ~110 ms,
+de los cuales 77 son armar la página. Lo que tarda está en el navegador.
+
+**Dónde se va el tiempo del perfil**, por número de peticiones en 238 cargas:
+
+| Petición | Veces | p50 | Total |
+| --- | ---: | ---: | ---: |
+| Firestore `Listen/channel` | **12 690** | 50 ms | 884 s |
+| `getMyHiddenJoinedGroups` | 240 | 265 ms | 139 s |
+| `getSharedCommunitiesWithProfile` | 85 | **491 ms** | 129 s |
+
+Unas **68 peticiones HTTP por visita**. Las 12 690 al canal de Firestore son la
+prueba de campo de la tesis del bloque 2: cada `onSnapshot` abierto genera
+tráfico en ese canal, y el perfil abre muchos.
+
+Arreglado a partir de aquí:
+
+- **`getMyHiddenJoinedGroups` no tenía caché de ninguna clase**, y
+  `fetchAccessibleGroupIds` la invoca dentro de un `Promise.all` desde varios
+  caminos del feed — una sola carga podía dispararla dos o tres veces EN
+  PARALELO. Ahora hay deduplicador de llamadas en vuelo más una caché de un
+  minuto.
+  🚨 Un minuto y **no** en disco, a propósito: esa lista decide qué
+  identificadores entran en las consultas del feed, y la membresía de una
+  comunidad oculta la cambia otra persona. Con un identificador revocado, las
+  reglas niegan la consulta **entera** (es un `in`). Salir de una comunidad la
+  invalida al instante.
+- **`getSharedCommunitiesWithProfile`, 491 ms de mediana** — de lo más lento de
+  la app. Su caché de memoria moría en cada recarga; ahora baja a disco. Es un
+  distintivo de "comunidades en común": que tarde minutos en enterarse de una
+  nueva no rompe nada.
+
 ### Verdad de campo: qué descarga el navegador de verdad
 
 ```bash

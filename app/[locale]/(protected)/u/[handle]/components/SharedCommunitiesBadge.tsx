@@ -9,6 +9,7 @@ import {
 } from "@/lib/social/sharedCommunities";
 import SharedCommunitiesOverlay from "./SharedCommunitiesOverlay";
 import { CACHE_TTL } from "@/lib/cache/ttl";
+import { guardarEnCache, leerDeCache } from "@/lib/cache/persistentCache";
 
 // Module-level cache — survives navigation in the same tab
 type CommunitiesCacheEntry = { communities: SharedCommunity[]; cachedAt: number };
@@ -63,10 +64,35 @@ export default function SharedCommunitiesBadge({
 
       setIsLoading(true);
 
+      /**
+       * Antes de ir a la red, el disco.
+       *
+       * 🚨 Medido en Sentry: `getSharedCommunitiesWithProfile` tiene una mediana
+       * de **491 ms** —de lo más lento de toda la app— y se llamaba en cada
+       * visita a un perfil. La caché de memoria de aquí arriba ya evitaba
+       * repetirla dentro de la misma pestaña, pero moría en cada recarga.
+       *
+       * Es un distintivo de "comunidades en común": si tarda unos minutos en
+       * enterarse de una comunidad nueva no pasa nada, y a cambio deja de costar
+       * medio segundo cada vez que se abre un perfil.
+       */
+      const deDisco = await leerDeCache<SharedCommunity[]>(
+        `perfil:comunes:${cacheKey}`,
+        COMMUNITIES_CACHE_TTL_MS
+      );
+
+      if (deDisco && isMounted) {
+        communitiesCache.set(cacheKey, { communities: deDisco, cachedAt: Date.now() });
+        setCommunities(deDisco);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const response = await getSharedCommunitiesWithProfile(profileUid);
         if (!isMounted) return;
         communitiesCache.set(cacheKey, { communities: response.communities, cachedAt: Date.now() });
+        void guardarEnCache(`perfil:comunes:${cacheKey}`, response.communities);
         setCommunities(response.communities);
       } catch (error) {
         console.error("Error loading shared communities:", error);

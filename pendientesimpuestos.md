@@ -1376,11 +1376,77 @@ eso, nota de crédito.**
 
 | # | Pieza | Estado |
 |---|---|---|
-| 1 | Ejercitar el **motivo 04**, que ya está escrito y nunca ha corrido (AUD-11) | ⬜ En curso |
+| 1 | Ejercitar el **motivo 04** (AUD-11) | ✅ **HECHO Y VERIFICADO** el 2026-09-04 |
 | 2 | **Cancelación de comprobantes mensuales** — hoy obliga al script manual y bloquea el cutover | ⬜ |
 | 3 | **Notas de crédito** (Bloque 6), con su botón en la tarjeta de «Mis experiencias» | ⬜ |
 | 4 | Cancelación de global por devolución (motivo 01) | ⬜ |
 | 5 | Guardas de plazo y de aceptación del receptor | ⬜ |
+
+## Paso 1 · El botón que faltaba para el motivo 04
+
+La máquina existía desde §B7 y **no tenía por dónde dispararse**. El callable
+`cancelarGlobalPorNominativa` exige claim de supermoderador **y** sesión iniciada con Google, así
+que no se puede llamar desde un script: un token de servidor no pasa ese filtro, y está bien que
+no pase.
+
+Se añadió el panel **«Liberar de la global»** en `/admin/facturacion`, con el comprador y la
+compra. Hace los tres pasos: cancela con motivo 04, reexpide la global sin esa venta y deja la
+compra `liberada` para que el comprador pueda pedir la suya.
+
+🚨 **Por qué no se dispara solo.** Cuando el comprador pide factura de una compra que ya entró en
+una global, `generateBuyerInvoice` lo **rechaza a propósito** y le dice que escriba. No es una
+carencia: el trámite cancela un CFDI timbrado con el sello del creador. Alguien de la plataforma
+tiene que decidirlo.
+
+### ✅ Ejercitado de verdad el 2026-09-04
+
+| Qué | Resultado |
+|---|---|
+| Global cancelada con motivo 04 | `b268e9eb-be02-436b-bcb0-0ccf19a7e6dc` |
+| Global reexpedida | `faeda9d9-99f1-4103-9007-50cd9b25ac1c` |
+| Ventas que siguen cubiertas | **1**, la hermana, con folio nuevo `6a9b8a71…` |
+| La compra liberada | `globalInvoice` borrado, `nominativaEnCurso.estado = "liberada"` |
+| Rastro | `cancelacionesGlobales`, `estado: "hecha"` |
+
+**El grupo A queda probado de punta a punta.** Era la última pieza que nunca había corrido.
+
+### 🚨 Lo que costó, y no fue el código
+
+El callable devolvía `functions/internal` **sin mensaje**, y el código estaba bien. La causa era
+un permiso: **`cancelarGlobalPorNominativa` no tenía `allUsers` como invocador de Cloud Run**, así
+que el Google Frontend la bloqueaba antes de arrancar y devolvía **HTML**. El SDK de Firebase
+espera JSON, no puede parsearlo, y lo reporta como `internal` a secas.
+
+Se diagnostica en un comando, comparando con una función que sí funciona:
+
+```bash
+curl -s -o /dev/null -w "%{http_code} %{content_type}
+" -X POST \
+  https://us-central1-red-social-mvp.cloudfunctions.net/<funcion> \
+  -H "Content-Type: application/json" -d "{\"data\":{}}"
+```
+
+| Respuesta | Significa |
+|---|---|
+| `401 application/json` | ✅ Bien. La función corre y rechaza la falta de token |
+| `403 text/html` | 🔴 Le falta el permiso de invocación. El error del cliente será `internal` mudo |
+
+🚨 **El CLI de Firebase pone ese permiso al CREAR, no al actualizar.** Tres redespliegues seguidos
+no cambiaron nada porque todos decían `updating`. Se arregla **borrando la función y
+desplegándola de nuevo**, hasta ver `creating`. Es seguro con un callable, que no tiene URL
+externa que preservar.
+
+Muy probablemente la creó a medias el tope de cuota, que ya nos había mordido antes.
+
+### Tres cosas que se arreglaron por el camino
+
+1. **El panel salía sin estilos.** `styled-jsx` no cruza de un componente a otro aunque vivan en
+   el mismo archivo: cada uno recibe su propio hash. Faltaba su bloque `<style jsx>`.
+2. **El error no se veía.** `cfError` traducía todo a «Ocurrió un error, intenta de nuevo». Para
+   un comprador está bien; para una herramienta que cancela CFDI escondía justo lo necesario. El
+   panel ahora enseña el error crudo con su código.
+3. **La función no registraba nada.** Se le añadieron trazas por paso y una red que convierte una
+   excepción no controlada en un error con mensaje y stack.
 
 ## 🎨 Diseño de documentos — pendiente aparte (Luis, 2026-09-04)
 

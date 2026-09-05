@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
-import { GlassEdge, IconButton } from "@/components/ui";
+import { BlurFade, GlassEdge, IconButton } from "@/components/ui";
 import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -457,7 +457,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
                   }}>×</button>
                 </header>
                 </GlassEdge>
-                <div className="vibra-panel-mobile-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: `${topInset + 12}px 14px 8px` }}>
+                <div className="vibra-panel-mobile-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: `${topInset + 12}px 14px 26px` }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     {sourceRow}
                     {infoFields}
@@ -465,6 +465,20 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
                     <div style={{ height: 4 }} />
                   </div>
                 </div>
+
+                {/* Fundido de abajo. El pie con los botones vive FUERA de la
+                    hoja —a propósito, para que el rebote del arrastre no lo
+                    mueva—, así que no se le puede poner cristal a él: nada le
+                    pasa por detrás. Lo que sí pasa es el final de la lista, y es
+                    aquí donde se disuelve, justo encima de los botones. */}
+                <BlurFade
+                  side="bottom"
+                  size={54}
+                  fade={54}
+                  blur={22}
+                  veil="rgba(8,9,11,0.6)"
+                  style={{ zIndex: 2 }}
+                />
               </div>
             </div>
           </div>

@@ -57,7 +57,14 @@ export function CurrencyProvider({
   initial = "USD",
   children,
 }: {
-  /** Moneda inicial (opcional). Por defecto MXN, estable para SSR/hidratación. */
+  /**
+   * Moneda con la que se pinta el PRIMER render, servidor y cliente por igual.
+   *
+   * 🚨 Pásala siempre desde el servidor. `app/layout.tsx` la resuelve de la
+   * cookie `vibra_currency`; si no llega, esto cae a USD y el servidor pinta una
+   * moneda distinta de la que el efecto de abajo pondrá al montar — que es
+   * exactamente el error de hidratación que se arrastró hasta el 2026-09-04.
+   */
   initial?: DisplayCurrency;
   children: React.ReactNode;
 }) {

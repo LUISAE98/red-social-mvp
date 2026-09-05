@@ -19,7 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
-import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { useVibraToast, type ToastType } from "@/lib/hooks/useVibraToast";
 
 /** Lo que devuelve `runGlobalInvoiceDay`. */
 type ResumenDelDia = {
@@ -49,6 +49,16 @@ type ResumenDelMes = {
   errores: number;
   detalles?: string[];
   timbrado: boolean;
+};
+
+/** Lo que devuelve la liberación con motivo 04. */
+type Liberacion = {
+  /** UUID de la global que se canceló, o null si no había ninguna viva. */
+  canceladoUuid: string | null;
+  /** UUID de la global reexpedida sin esa venta. Null si ya no quedaban ventas que cubrir. */
+  nuevaGlobalUuid: string | null;
+  /** Cuántas ventas siguen amparadas por la global nueva. */
+  ventasRestantes: number;
 };
 
 type Phase = "idle" | "running" | "done" | "error";
@@ -281,6 +291,8 @@ export default function AdminFacturacionPage() {
 
       <ComprobantesDelMes onError={setError} showToast={showToast} />
 
+      <LiberarDeGlobal onError={setError} showToast={showToast} />
+
       <VibraToast toast={toast} />
 
       <style jsx>{`
@@ -415,7 +427,7 @@ export default function AdminFacturacionPage() {
 }
 
 /** Una cifra del resumen, con su explicación debajo cuando hace falta. */
-function Fila({ k, v, hint }: { k: string; v: number; hint?: string }) {
+function Fila({ k, v, hint }: { k: string; v: number | string; hint?: string }) {
   return (
     <div className="fila">
       <div className="linea">
@@ -443,6 +455,9 @@ function Fila({ k, v, hint }: { k: string; v: number; hint?: string }) {
           font-weight: 700;
           color: #fff;
           font-variant-numeric: tabular-nums;
+          /* Un UUID no cabe en una línea y no debe desbordar la tarjeta. */
+          text-align: end;
+          overflow-wrap: anywhere;
         }
         .hint {
           font-size: 11px;
@@ -701,6 +716,277 @@ function ComprobantesDelMes({
         }
         .errorLinea + .errorLinea {
           margin-top: 8px;
+        }
+        .errores {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: #1a0808;
+          border: 1px solid #3d1515;
+        }
+        .errorLinea {
+          font-size: 11.5px;
+          color: #fca5a5;
+          line-height: 1.55;
+          word-break: break-word;
+        }
+        .errorLinea + .errorLinea {
+          margin-top: 8px;
+        }
+        .hint {
+          margin-top: 10px;
+          font-size: 11.5px;
+          color: #666;
+          line-height: 1.5;
+        }
+      `}</style>
+    </section>
+  );
+}
+
+/**
+ * Saca una compra de la factura global para que el comprador pueda tener la suya (motivo 04).
+ *
+ * 🚨 POR QUÉ HACE FALTA UN BOTÓN Y NO SE HACE SOLO.
+ *
+ *    Cuando el comprador pide su factura y la compra ya entró en una global, el flujo lo
+ *    RECHAZA a propósito y le dice que escriba. No es una carencia: el trámite cancela un CFDI
+ *    ya timbrado con el sello del creador y reexpide otro, y eso no se dispara desde el botón
+ *    de un comprador. Alguien de la plataforma tiene que decidirlo.
+ *
+ *    Este panel es esa mano. Hasta que existió, la única forma era entrar a la base de datos.
+ *
+ * ⚠️ El orden importa y lo garantiza el backend: **primero cancela, luego reexpide**. Al revés,
+ *    un fallo a la mitad dejaría dos globales vivas cubriendo la misma venta.
+ */
+function LiberarDeGlobal({
+  onError,
+  showToast,
+}: {
+  onError: (m: string | null) => void;
+  showToast: (m: string | null, tipo?: ToastType) => void;
+}) {
+  const [buyerId, setBuyerId] = useState("");
+  const [purchaseId, setPurchaseId] = useState("");
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [salida, setSalida] = useState<Liberacion | null>(null);
+  /**
+   * 🚨 El error TAL CUAL, sin pasar por `cfError`.
+   *
+   * El toast traduce los mensajes conocidos y a los demás les pone «Ocurrió un error, intenta
+   * de nuevo». Para un comprador eso está bien; para una herramienta que cancela CFDI es
+   * inútil, esconde justo el dato que hace falta. Aquí se enseña el código y el mensaje
+   * originales.
+   */
+  const [crudo, setCrudo] = useState<string | null>(null);
+
+  const corriendo = phase === "running";
+  const listo = buyerId.trim().length > 0 && purchaseId.trim().length > 0;
+
+  async function liberar() {
+    if (corriendo || !listo) return;
+    setPhase("running");
+    setSalida(null);
+    setCrudo(null);
+    onError(null);
+    try {
+      const fn = httpsCallable<
+        { buyerId: string; purchaseId: string },
+        Liberacion
+      >(functions, "cancelarGlobalPorNominativa");
+      const r = await fn({ buyerId: buyerId.trim(), purchaseId: purchaseId.trim() });
+      setSalida(r.data);
+      setPhase("done");
+      showToast(
+        r.data.nuevaGlobalUuid
+          ? `Liberada. La global se reexpidió sin esa compra.`
+          : `Liberada. No quedaban más ventas, así que no hubo global nueva.`,
+        "success"
+      );
+    } catch (err) {
+      setPhase("error");
+      // Los errores de un callable traen `code` («permission-denied», «not-found»…), que dice
+      // mucho más que el mensaje. Se enseñan los dos.
+      const codigo = (err as { code?: string })?.code;
+      const mensaje = err instanceof Error ? err.message : String(err);
+      setCrudo(codigo ? `${codigo} — ${mensaje}` : mensaje);
+      onError(mensaje);
+    }
+  }
+
+  return (
+    <section className="card">
+      <span className="badge">Liberar de la global</span>
+      <p className="desc">
+        Cuando un comprador pide su factura y la compra ya entró en la global del creador, hay
+        que cancelar esa global con motivo 04, reexpedirla sin esa venta y dejar la compra libre.
+        Esto hace los tres pasos.
+      </p>
+
+      <div className="warn">
+        🚨 Cancela un CFDI que ya está timbrado con el sello del creador. Comprueba que el
+        comprador de verdad pidió su factura antes de correrlo.
+      </div>
+
+      <label className="label" htmlFor="buyerId">
+        Comprador
+      </label>
+      <input
+        id="buyerId"
+        className="input"
+        value={buyerId}
+        disabled={corriendo}
+        placeholder="uid del comprador"
+        onChange={(ev) => setBuyerId(ev.target.value)}
+      />
+
+      <label className="label" htmlFor="purchaseId">
+        Compra
+      </label>
+      <input
+        id="purchaseId"
+        className="input"
+        value={purchaseId}
+        disabled={corriendo}
+        placeholder="id del documento de compra"
+        onChange={(ev) => setPurchaseId(ev.target.value)}
+      />
+
+      <div className="actions">
+        <button
+          type="button"
+          className="btn btnDanger"
+          disabled={corriendo || !listo}
+          onClick={liberar}
+        >
+          {corriendo ? "Liberando…" : "Cancelar y liberar"}
+        </button>
+      </div>
+
+      {crudo ? (
+        <div className="errores">
+          <p className="errorLinea">{crudo}</p>
+          {crudo.includes("permission-denied") || crudo.includes("moderador") ? (
+            <p className="errorLinea">
+              Esta herramienta exige el permiso de supermoderador Y haber iniciado sesión con
+              Google. Con correo y contraseña no basta, aunque el menú lateral se vea.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {salida ? (
+        <div className="rows">
+          <Fila
+            k="Global cancelada"
+            v={salida.canceladoUuid ?? "ninguna"}
+            hint="El CFDI que dejó de amparar esas ventas."
+          />
+          <Fila
+            k="Global reexpedida"
+            v={salida.nuevaGlobalUuid ?? "no hizo falta"}
+            hint="La nueva, sin la venta liberada. Si no quedaban más ventas, no se emite ninguna."
+          />
+          <Fila
+            k="Ventas que siguen cubiertas"
+            v={salida.ventasRestantes}
+          />
+        </div>
+      ) : null}
+
+      <p className="hint">
+        Después de esto el comprador ya puede pedir su factura desde su propia pantalla, sin
+        que nadie más intervenga.
+      </p>
+
+      {/*
+        ⚠️ styled-jsx NO cruza de un componente a otro, aunque vivan en el mismo archivo: cada
+        uno recibe su propio hash. Sin este bloque el panel sale sin ningún estilo —texto suelto
+        sobre el fondo— y no avisa de nada. Es lo que pasó la primera vez.
+      */}
+      <style jsx>{`
+        .card {
+          margin-top: 18px;
+          border: 1px solid #1a1a1a;
+          border-radius: 12px;
+          padding: 18px;
+          background: #0a0a0a;
+        }
+        .badge {
+          display: inline-block;
+          margin-bottom: 10px;
+          padding: 3px 9px;
+          border-radius: 999px;
+          font-size: 10.5px;
+          font-weight: 700;
+          letter-spacing: 0.4px;
+          text-transform: uppercase;
+          background: #17111f;
+          color: #a855f7;
+        }
+        .desc {
+          font-size: 13px;
+          color: #999;
+          line-height: 1.55;
+        }
+        .warn {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: #181004;
+          color: #d9a441;
+          font-size: 12px;
+          line-height: 1.5;
+        }
+        .label {
+          display: block;
+          margin-top: 16px;
+          margin-bottom: 6px;
+          font-size: 12px;
+          color: #777;
+        }
+        .input {
+          width: 100%;
+          padding: 9px 12px;
+          border-radius: 8px;
+          border: 1px solid #2a2a2a;
+          background: #141414;
+          color: #eee;
+          font-size: 13px;
+          font-family: inherit;
+        }
+        .actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 14px;
+        }
+        .btn {
+          padding: 8px 14px;
+          border-radius: 8px;
+          border: 1px solid #2a2a2a;
+          background: #141414;
+          color: #ddd;
+          font-size: 12.5px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+        .btnDanger {
+          border-color: #3d1515;
+          color: #f87171;
+        }
+        .rows {
+          margin-top: 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          background: #1a1a1a;
+          border: 1px solid #1a1a1a;
+          border-radius: 8px;
+          overflow: hidden;
         }
         .hint {
           margin-top: 10px;

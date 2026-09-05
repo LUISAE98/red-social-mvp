@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { GlassEdge, IconButton } from "@/components/ui";
+import { BlurFade, GlassEdge, IconButton } from "@/components/ui";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { formatDateLong, formatDateTimeLong, formatWeekdayTime } from "@/lib/i18n/dateTime";
@@ -680,7 +680,7 @@ export default function BuyerSessionRequestOverlay({
                   }}>×</button>
                 </header>
                 </GlassEdge>
-                <div className="vibra-panel-mobile-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: `${topInset + 12}px 14px 8px` }}>
+                <div className="vibra-panel-mobile-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: `${topInset + 12}px 14px 26px` }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     {creatorRow}
                     {infoFields}
@@ -688,6 +688,20 @@ export default function BuyerSessionRequestOverlay({
                     <div style={{ height: 4 }} />
                   </div>
                 </div>
+
+                {/* Fundido de abajo. El pie con los botones vive FUERA de la
+                    hoja —a propósito, para que el rebote del arrastre no lo
+                    mueva—, así que no se le puede poner cristal a él: nada le
+                    pasa por detrás. Lo que sí pasa es el final de la lista, y es
+                    aquí donde se disuelve, justo encima de los botones. */}
+                <BlurFade
+                  side="bottom"
+                  size={54}
+                  fade={54}
+                  blur={22}
+                  veil="rgba(8,9,11,0.6)"
+                  style={{ zIndex: 2 }}
+                />
               </div>
             </div>
           </div>
