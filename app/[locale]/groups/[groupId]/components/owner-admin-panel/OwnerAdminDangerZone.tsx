@@ -8,12 +8,16 @@ import {
   panelPrimaryBtn,
   panelPrimaryBtnDisabled,
   panelSecondaryBtnStyle,
+  TextButton,
 } from "@/components/ui";
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import {
   SettingsIcon,
+  SettingsRow,
   SettingsSection,
+  settingsHint,
   settingsLabel,
+  settingsValue,
 } from "@/components/settings/settingsKit";
 import { db } from "@/lib/firebase";
 import { softDeleteGroup } from "@/lib/groups/groupDeletion";
@@ -75,6 +79,14 @@ export default function OwnerAdminDangerZone({
       });
 
       setShowFinalOverlay(false);
+
+      // Quedo pausada, no borrada. El formulario de borrado que estaba detras
+      // ya no pinta nada, y dejarlo abierto con ELIMINAR escrito invita a
+      // rematar por accidente.
+      setIsOpen(false);
+      setConfirmText("");
+      setReason("");
+
       router.refresh();
     } catch (error) {
       console.error("Error pausing group", error);
@@ -120,9 +132,7 @@ export default function OwnerAdminDangerZone({
 
   const ocupado = isDeleting || isPausing;
 
-  // Campo canonico de Vibra, el mismo que la configuracion del perfil: fondo
-  // sutil SIN borde, radio 12, texto 13. El borde de 1px y el texto de 12.5
-  // eran del estilo viejo.
+  // Campo canonico de Vibra, el mismo que la configuracion del perfil.
   const campoStyle: React.CSSProperties = {
     width: "100%",
     borderRadius: 12,
@@ -144,30 +154,79 @@ export default function OwnerAdminDangerZone({
     ? { ...panelPrimaryBtn, background: "#ef4444" }
     : panelPrimaryBtnDisabled;
 
+  function cerrarFormulario() {
+    if (ocupado) return;
+
+    setIsOpen(false);
+    setErrorMessage(null);
+
+    // Al cerrar se limpia lo escrito: dejar un ELIMINAR a medias guardado es
+    // una trampa esperando a que alguien vuelva a abrir el panel.
+    setConfirmText("");
+    setReason("");
+  }
+
   return (
     <>
-      {/* La misma pestana desplegable que cada ajuste del perfil. Antes era
-          una caja con borde propio y un boton suelto dentro, que no se
-          parecia a nada de lo que hay arriba. */}
+      {/* Un renglon con su accion a la derecha, como los de Modificar, y no
+          una pestana que se despliega hacia abajo. El formulario de borrado
+          es una decision, no un ajuste que se consulta de pasada, asi que va
+          en su panel y no colgando de la pantalla. */}
       <SettingsSection
         icono={ICONO_PELIGRO}
         titulo={tGroups("deleteCommunityButton")}
-        abierta={isOpen}
-        onToggle={() => {
-          const abriendo = !isOpen;
-          setIsOpen(abriendo);
-
-          // Al cerrar se limpia lo escrito: dejar un ELIMINAR a medias dentro
-          // de una pestana plegada es una trampa esperando a que alguien la
-          // vuelva a abrir.
-          if (!abriendo) {
-            setErrorMessage(null);
-            setConfirmText("");
-            setReason("");
-          }
-        }}
+        abierta
+        fija
+        onToggle={() => {}}
       >
-        <div style={{ display: "grid", gap: 12, paddingTop: 2 }}>
+        <SettingsRow>
+          <div style={{ minWidth: 0 }}>
+            {groupName ? (
+              <div style={settingsValue}>{groupName}</div>
+            ) : null}
+            <div style={settingsHint}>{tGroups("deleteOrPauseExplain")}</div>
+          </div>
+
+          {/* El mismo boton de texto que Modificar, en el rojo de la
+              plataforma. `tone` no tiene rojo y ponerselo aqui es mas honesto
+              que abrir un cuarto tono para un solo sitio. */}
+          <TextButton
+            tone="brand"
+            size="sm"
+            style={{
+              justifySelf: "end",
+              alignSelf: "center",
+              fontFamily: "inherit",
+              whiteSpace: "nowrap",
+              color: "#ef4444",
+            }}
+            onClick={() => setIsOpen(true)}
+          >
+            Eliminar
+          </TextButton>
+        </SettingsRow>
+      </SettingsSection>
+
+      <VibraResponsivePanel
+        open={isOpen}
+        onClose={cerrarFormulario}
+        title={tGroups("deleteCommunityButton")}
+        closeAriaLabel={tCommon("closeAriaLabel")}
+        maxWidthDesktop={440}
+        footer={
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => setShowFinalOverlay(true)}
+              disabled={!canDelete || ocupado}
+              style={botonEliminar}
+            >
+              {tGroups("deleteCommunityButton")}
+            </button>
+          </div>
+        }
+      >
+        <div style={{ display: "grid", gap: 12 }}>
           <p
             style={{
               margin: 0,
@@ -178,24 +237,6 @@ export default function OwnerAdminDangerZone({
           >
             {tGroups("hideCommunityWarning")}
           </p>
-
-          {groupName ? (
-            <p
-              style={{
-                margin: 0,
-                fontSize: 11.5,
-                lineHeight: 1.45,
-                color: "rgba(255,255,255,0.58)",
-              }}
-            >
-              {tGroups("communityLabel")}{" "}
-              <span
-                style={{ color: "rgba(255,255,255,0.92)", fontWeight: 600 }}
-              >
-                {groupName}
-              </span>
-            </p>
-          ) : null}
 
           <label style={{ display: "grid", gap: 6 }}>
             <span style={settingsLabel}>
@@ -229,31 +270,19 @@ export default function OwnerAdminDangerZone({
               style={campoStyle}
             />
           </label>
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button
-              type="button"
-              onClick={() => setShowFinalOverlay(true)}
-              disabled={!canDelete || ocupado}
-              style={botonEliminar}
-            >
-              {tGroups("deleteCommunityButton")}
-            </button>
-
-          </div>
         </div>
-      </SettingsSection>
+      </VibraResponsivePanel>
 
-      {/* El panel canonico, el mismo que abre Modificar en los datos de la
-          comunidad. Antes era un modal a mano con su fondo, su tarjeta y su
-          degradado propios, y encima un tercer boton de Volver que aqui ya
-          hace la cruz de cerrar. */}
+      {/* La pregunta final se abre ENCIMA del formulario, que sigue detras
+          con lo escrito. Por eso lleva su propio z-index: con el de serie los
+          dos paneles empatan y el de abajo tapa a este. */}
       <VibraResponsivePanel
         open={showFinalOverlay}
         onClose={() => !ocupado && setShowFinalOverlay(false)}
         title={tGroups("deleteOrPauseQuestion")}
         closeAriaLabel={tCommon("closeAriaLabel")}
         maxWidthDesktop={440}
+        zIndexBase={1000010}
         footer={
           <div style={{ display: "flex", gap: 10 }}>
             <button
@@ -269,6 +298,8 @@ export default function OwnerAdminDangerZone({
               {isDeleting ? "Eliminando" : tGroups("yesDeleteCommunity")}
             </button>
 
+            {/* Esto NO es un cancelar, es la otra respuesta a la pregunta. Sin
+                el, a eliminar o pausar solo se podria contestar una cosa. */}
             <button
               type="button"
               onClick={handlePauseGroup}
