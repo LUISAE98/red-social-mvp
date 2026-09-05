@@ -10,13 +10,19 @@
  * privacidad del perfil (restringido, comentarios) siguen viviendo solo allá,
  * porque se tocan una vez y se olvidan.
  *
- * Es un módulo INDEPENDIENTE del acordeón de seguidos/comunidades de arriba
- * (OwnerSidebarTabNav), igual que Mensajes: se pliega solo, con su propio
- * estado, y no cierra las otras secciones al abrirse.
+ * "Configuración" es el TÍTULO del grupo, y cada ajuste una pestaña con su
+ * propia tarjeta y su icono. Es un acordeón —solo una abierta a la vez— e
+ * INDEPENDIENTE del de seguidos/comunidades de arriba (OwnerSidebarTabNav):
+ * abrir una pestaña de aquí no cierra nada de allá.
  *
- * Los datos se cargan en diferido: el listener de `users/{uid}` no se engancha
- * hasta que el módulo se abre por primera vez. Un sidebar que ya monta ~10
- * onSnapshot no necesita uno más para algo que la mayoría nunca despliega.
+ * ⚠️ EL LISTENER DE `users/{uid}` SE ENGANCHA AL MONTAR, no al abrir.
+ *
+ * Antes iba en diferido, y tenía sentido cuando todo esto era UN desplegable
+ * cerrado que la mayoría no abría nunca. Ya no: las siete pestañas se ven
+ * siempre, y con la carga diferida al abrir la primera te encontrabas las
+ * opciones en gris —`disabled` cuelga de que haya datos— hasta que llegaban.
+ * Un ajuste que aparece deshabilitado al abrirlo se lee como que no se puede
+ * tocar, no como que está cargando.
  */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -369,13 +375,7 @@ export default function OwnerSidebarSettings({
 
   function alternar(id: SeccionId) {
     setAbierta((prev) => (prev === id ? null : id));
-    // La primera apertura es la que dispara la carga de datos. Da igual cuál:
-    // todas leen del mismo documento.
-    setEverOpened(true);
   }
-  // Una vez abierto, el listener se queda: volver a plegar el módulo no debe
-  // tirar la suscripción y recargar todo al reabrirlo.
-  const [everOpened, setEverOpened] = useState(false);
   const [data, setData] = useState<SettingsDoc | null>(null);
 
   const [editNameOpen, setEditNameOpen] = useState(false);
@@ -401,7 +401,7 @@ export default function OwnerSidebarSettings({
 
   // Datos personales del propio dueño (correo, fecha de nacimiento, sexo). Ya no
   // viven en el documento público del perfil, que lee cualquiera.
-  const privateProfile = usePrivateProfile(uid, everOpened);
+  const privateProfile = usePrivateProfile(uid, true);
 
   // El toast se dispara desde handlers async; guardarlo en ref evita re-suscribir
   // el listener de Firestore cada vez que el padre re-renderiza.
@@ -411,7 +411,7 @@ export default function OwnerSidebarSettings({
   }, [onToast]);
 
   useEffect(() => {
-    if (!everOpened || !uid) return;
+    if (!uid) return;
 
     const unsub = onSnapshot(
       doc(db, "users", uid),
@@ -455,7 +455,7 @@ export default function OwnerSidebarSettings({
     );
 
     return () => unsub();
-  }, [everOpened, uid, tCommon]);
+  }, [uid, tCommon]);
 
   useEffect(() => {
     if (data) setLocalMessagePolicy(data.messagePolicy);
@@ -464,7 +464,6 @@ export default function OwnerSidebarSettings({
   // Cooldown del correo de contraseña, persistido en localStorage para que
   // sobreviva recargas. Mismo contrato que la pestaña del perfil.
   useEffect(() => {
-    if (!everOpened) return;
 
     const key = pwdResetKey(uid ?? email);
 
@@ -493,7 +492,7 @@ export default function OwnerSidebarSettings({
     compute();
     const id = window.setInterval(compute, 1000);
     return () => window.clearInterval(id);
-  }, [everOpened, uid, email]);
+  }, [uid, email]);
 
   const unavailableText = tProfile("unavailable");
 
