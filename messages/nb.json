@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Dem jeg følger, og dem der følger meg",
     "messagePolicyFollowingAndFollowersHelp": "Bare dem, du følger, og dem som følger deg, kan skrive til deg, deres meldinger går direkte i din innboks, alle andre ser ikke meldingsknappen.",
     "sessionRevokeAllConfirm": "Økten lukkes på alle enhetene dine, inkludert denne. Du må logge inn igjen.",
-    "followsYou": "Følger deg"
+    "followsYou": "Følger deg",
+    "accountDataLabel": "Kontoopplysninger",
+    "languageAndCurrencyLabel": "Språk og valuta"
   },
   "feed": {
     "pinned": "Fastgjort",
@@ -2620,6 +2622,19 @@
     "body": "Få melding om likes, kommentarer og aktivitet, også når Vibra er lukket.",
     "enable": "Slå på",
     "enabling": "Slår til…",
+    "later": "Ikke nå"
+  },
+  "installPrompt": {
+    "title": "Installer Vibra",
+    "body": "Åpne den fra startskjermen, uten nettleserlinje.",
+    "install": "Installer",
+    "later": "Ikke nå"
+  },
+  "iosInstallPrompt": {
+    "title": "Legg Vibra til på startskjermen",
+    "body": "Den åpnes som en app, og det er den eneste måten å få varsler på iPhone.",
+    "step1": "Trykk på Del",
+    "step2": "Velg Legg til på Hjem-skjerm",
     "later": "Ikke nå"
   },
   "notifications": {

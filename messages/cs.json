@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Lidé, které sleduji, a ti, kdo sledují mě",
     "messagePolicyFollowingAndFollowersHelp": "Psát ti mohou jen lidé, které sleduješ, a ti, kdo sledují tebe, jejich zprávy chodí rovnou do tvojí schránky a ostatním se tlačítko zprávy nezobrazí.",
     "sessionRevokeAllConfirm": "Relace se ukončí na všech vašich zařízeních, včetně tohoto. Budete se muset znovu přihlásit.",
-    "followsYou": "Sleduje tě"
+    "followsYou": "Sleduje tě",
+    "accountDataLabel": "Údaje účtu",
+    "languageAndCurrencyLabel": "Jazyk a měna"
   },
   "feed": {
     "pinned": "Připnuto",
@@ -2620,6 +2622,19 @@
     "body": "Dostávej upozornění na lajky, komentáře a aktivitu, i když je Vibra zavřená.",
     "enable": "Zapnout",
     "enabling": "Zapíná se…",
+    "later": "Teď ne"
+  },
+  "installPrompt": {
+    "title": "Nainstaluj Vibru",
+    "body": "Otevírej ji z domovské obrazovky, bez lišty prohlížeče.",
+    "install": "Nainstalovat",
+    "later": "Teď ne"
+  },
+  "iosInstallPrompt": {
+    "title": "Přidej Vibru na plochu",
+    "body": "Otevírá se jako aplikace a je to jediný způsob, jak dostávat upozornění na iPhonu.",
+    "step1": "Klepni na Sdílet",
+    "step2": "Vyber Přidat na plochu",
     "later": "Teď ne"
   },
   "notifications": {

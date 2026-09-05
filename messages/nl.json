@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Mensen die ik volg en die mij volgen",
     "messagePolicyFollowingAndFollowersHelp": "Alleen mensen die je volgt en die jou volgen kunnen je schrijven, hun berichten komen direct in je inbox, bij alle anderen verschijnt de berichtknop niet.",
     "sessionRevokeAllConfirm": "De sessie wordt op al je apparaten gesloten, ook op dit apparaat. Je moet opnieuw inloggen.",
-    "followsYou": "Volgt jou"
+    "followsYou": "Volgt jou",
+    "accountDataLabel": "Accountgegevens",
+    "languageAndCurrencyLabel": "Taal en valuta"
   },
   "feed": {
     "pinned": "Vastgezet",
@@ -2621,6 +2623,19 @@
     "enable": "Aanzetten",
     "enabling": "Aanzetten…",
     "later": "Niet nu"
+  },
+  "installPrompt": {
+    "title": "Installeer Vibra",
+    "body": "Open hem vanaf je beginscherm, zonder browserbalk.",
+    "install": "Installeren",
+    "later": "Nu niet"
+  },
+  "iosInstallPrompt": {
+    "title": "Zet Vibra op je beginscherm",
+    "body": "Hij opent als app, en alleen zo krijg je meldingen op de iPhone.",
+    "step1": "Tik op Deel",
+    "step2": "Kies Zet op beginscherm",
+    "later": "Nu niet"
   },
   "notifications": {
     "placeholder": "Hier verschijnen je meldingen",

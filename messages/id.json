@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Orang yang kuikuti dan orang yang mengikutiku",
     "messagePolicyFollowingAndFollowersHelp": "Hanya orang yang kamu ikuti dan orang yang mengikutimu yang bisa mengirimimu pesan, dan pesannya langsung masuk ke kotak masukmu; yang lain tidak melihat tombol pesan.",
     "sessionRevokeAllConfirm": "Sesi akan ditutup di semua perangkatmu, termasuk yang ini. Kamu harus masuk lagi.",
-    "followsYou": "Mengikutimu"
+    "followsYou": "Mengikutimu",
+    "accountDataLabel": "Data akun",
+    "languageAndCurrencyLabel": "Bahasa dan mata uang"
   },
   "feed": {
     "pinned": "Disematkan",
@@ -2620,6 +2622,19 @@
     "body": "Dapatkan pemberitahuan soal api, komentar, dan aktivitas lain bahkan saat Vibra ditutup.",
     "enable": "Nyalakan",
     "enabling": "Menyalakan…",
+    "later": "Nanti saja"
+  },
+  "installPrompt": {
+    "title": "Pasang Vibra",
+    "body": "Buka dari layar utama, tanpa bilah peramban.",
+    "install": "Pasang",
+    "later": "Nanti saja"
+  },
+  "iosInstallPrompt": {
+    "title": "Tambahkan Vibra ke layar utama",
+    "body": "Terbuka seperti aplikasi, dan hanya begini kamu bisa menerima notifikasi di iPhone.",
+    "step1": "Ketuk Bagikan",
+    "step2": "Pilih Tambahkan ke Layar Utama",
     "later": "Nanti saja"
   },
   "notifications": {

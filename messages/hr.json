@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Oni koje pratim i oni koji prate mene",
     "messagePolicyFollowingAndFollowersHelp": "Pisati ti mogu samo oni koje pratiš i oni koji prate tebe, njihove poruke idu ravno u pristiglu poštu, ostali ne vide gumb za poruku.",
     "sessionRevokeAllConfirm": "Sesija će se zatvoriti na svim tvojim uređajima, uključujući ovaj. Morat ćeš se ponovno prijaviti.",
-    "followsYou": "Prati te"
+    "followsYou": "Prati te",
+    "accountDataLabel": "Podaci računa",
+    "languageAndCurrencyLabel": "Jezik i valuta"
   },
   "feed": {
     "pinned": "Prikvačeno",
@@ -2620,6 +2622,19 @@
     "body": "Primaj obavijesti o lajkovima, komentarima i događanjima i kad je Vibra zatvorena.",
     "enable": "Uključi",
     "enabling": "Uključuje se…",
+    "later": "Ne sada"
+  },
+  "installPrompt": {
+    "title": "Instaliraj Vibru",
+    "body": "Otvaraj je s početnog zaslona, bez trake preglednika.",
+    "install": "Instaliraj",
+    "later": "Ne sada"
+  },
+  "iosInstallPrompt": {
+    "title": "Dodaj Vibru na početni zaslon",
+    "body": "Otvara se kao aplikacija i jedini je način za primanje obavijesti na iPhoneu.",
+    "step1": "Dodirni Podijeli",
+    "step2": "Odaberi Dodaj na početni zaslon",
     "later": "Ne sada"
   },
   "notifications": {

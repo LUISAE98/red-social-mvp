@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "自分がフォローしている人と、自分をフォローしている人",
     "messagePolicyFollowingAndFollowersHelp": "メッセージを送れるのは、あなたがフォローしている人とあなたをフォローしている人だけで、そのメッセージは受信トレイに直接届きます。それ以外の人にはメッセージボタンが表示されません。",
     "sessionRevokeAllConfirm": "このデバイスを含む、すべてのデバイスでセッションが終了します。もう一度ログインが必要です。",
-    "followsYou": "あなたをフォロー中"
+    "followsYou": "あなたをフォロー中",
+    "accountDataLabel": "アカウント情報",
+    "languageAndCurrencyLabel": "言語と通貨"
   },
   "feed": {
     "pinned": "固定済み",
@@ -2621,6 +2623,19 @@
     "enable": "オンにする",
     "enabling": "オンにしています…",
     "later": "後で"
+  },
+  "installPrompt": {
+    "title": "Vibra をインストール",
+    "body": "ホーム画面から開けます。ブラウザのバーなしで。",
+    "install": "インストール",
+    "later": "今はしない"
+  },
+  "iosInstallPrompt": {
+    "title": "Vibra をホーム画面に追加",
+    "body": "アプリのように開けます。iPhone で通知を受け取れる唯一の方法です。",
+    "step1": "共有をタップ",
+    "step2": "ホーム画面に追加を選ぶ",
+    "later": "今はしない"
   },
   "notifications": {
     "placeholder": "ここに通知が表示されます",

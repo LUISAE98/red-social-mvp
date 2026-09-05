@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Need, keda ma jälgin, ja need, kes jälgivad mind",
     "messagePolicyFollowingAndFollowersHelp": "Kirjutada saavad ainult need, keda sa jälgid, ja need, kes jälgivad sind; nende sõnumid jõuavad otse su postkasti, teised sõnuminuppu ei näe.",
     "sessionRevokeAllConfirm": "Sessioon suletakse kõigis sinu seadmetes, kaasa arvatud selles. Pead uuesti sisse logima.",
-    "followsYou": "Jälgib sind"
+    "followsYou": "Jälgib sind",
+    "accountDataLabel": "Konto andmed",
+    "languageAndCurrencyLabel": "Keel ja valuuta"
   },
   "feed": {
     "pinned": "Kinnitatud",
@@ -2620,6 +2622,19 @@
     "body": "Saa teateid leekidest, kommentaaridest ja tegevusest ka siis, kui Vibra on suletud.",
     "enable": "Lülita sisse",
     "enabling": "Lülitan sisse…",
+    "later": "Mitte praegu"
+  },
+  "installPrompt": {
+    "title": "Paigalda Vibra",
+    "body": "Ava see avaekraanilt, ilma brauseriribata.",
+    "install": "Paigalda",
+    "later": "Mitte praegu"
+  },
+  "iosInstallPrompt": {
+    "title": "Lisa Vibra avaekraanile",
+    "body": "See avaneb rakendusena ja on ainus viis saada iPhone'is teavitusi.",
+    "step1": "Puuduta Jaga",
+    "step2": "Vali Lisa avaekraanile",
     "later": "Mitte praegu"
   },
   "notifications": {

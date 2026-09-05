@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Fólk sem ég fylgi og fólk sem fylgir mér",
     "messagePolicyFollowingAndFollowersHelp": "Aðeins fólk sem þú fylgir og fólk sem fylgir þér getur sent þér skilaboð, þau fara beint í innhólfið þitt, aðrir sjá ekki skilaboðahnappinn.",
     "sessionRevokeAllConfirm": "Lotunni verður lokað á öllum tækjunum þínum, þar á meðal þessu. Þú þarft að skrá þig inn aftur.",
-    "followsYou": "Fylgir þér"
+    "followsYou": "Fylgir þér",
+    "accountDataLabel": "Upplýsingar reiknings",
+    "languageAndCurrencyLabel": "Tungumál og gjaldmiðill"
   },
   "feed": {
     "pinned": "Fest",
@@ -2620,6 +2622,19 @@
     "body": "Fáðu tilkynningar um loga, athugasemdir og virkni jafnvel þegar Vibra er lokað.",
     "enable": "Kveikja",
     "enabling": "Kveiki…",
+    "later": "Ekki núna"
+  },
+  "installPrompt": {
+    "title": "Settu upp Vibra",
+    "body": "Opnaðu það af heimaskjánum, án vafrastiku.",
+    "install": "Setja upp",
+    "later": "Ekki núna"
+  },
+  "iosInstallPrompt": {
+    "title": "Bættu Vibra á heimaskjáinn",
+    "body": "Það opnast eins og app og er eina leiðin til að fá tilkynningar í iPhone.",
+    "step1": "Ýttu á Deila",
+    "step2": "Veldu Bæta á heimaskjá",
     "later": "Ekki núna"
   },
   "notifications": {

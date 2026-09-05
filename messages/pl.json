@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Osoby, które obserwuję, i te, które obserwują mnie",
     "messagePolicyFollowingAndFollowersHelp": "Pisać mogą tylko osoby, które obserwujesz, i te, które obserwują ciebie — ich wiadomości trafiają prosto do twojej skrzynki, a pozostali nie widzą przycisku wiadomości.",
     "sessionRevokeAllConfirm": "Sesja zostanie zamknięta na wszystkich twoich urządzeniach, także na tym. Trzeba będzie zalogować się ponownie.",
-    "followsYou": "Obserwuje Cię"
+    "followsYou": "Obserwuje Cię",
+    "accountDataLabel": "Dane konta",
+    "languageAndCurrencyLabel": "Język i waluta"
   },
   "feed": {
     "pinned": "Przypięte",
@@ -2620,6 +2622,19 @@
     "body": "Otrzymuj powiadomienia o polubieniach, komentarzach i aktywności, nawet gdy Vibra jest zamknięta.",
     "enable": "Włącz",
     "enabling": "Włączanie…",
+    "later": "Nie teraz"
+  },
+  "installPrompt": {
+    "title": "Zainstaluj Vibrę",
+    "body": "Otwieraj ją z ekranu głównego, bez paska przeglądarki.",
+    "install": "Zainstaluj",
+    "later": "Nie teraz"
+  },
+  "iosInstallPrompt": {
+    "title": "Dodaj Vibrę do ekranu głównego",
+    "body": "Otwiera się jak aplikacja i tylko tak dostaniesz powiadomienia na iPhonie.",
+    "step1": "Dotknij Udostępnij",
+    "step2": "Wybierz Dodaj do ekranu głównego",
     "later": "Nie teraz"
   },
   "notifications": {

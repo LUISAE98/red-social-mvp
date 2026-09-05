@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Ata që ndjek dhe ata që më ndjekin",
     "messagePolicyFollowingAndFollowersHelp": "Vetëm ata që ndjek dhe ata që të ndjekin mund të të shkruajnë, mesazhet e tyre shkojnë drejt në kutinë hyrëse, të tjerët nuk e shohin butonin e mesazhit.",
     "sessionRevokeAllConfirm": "Sesioni do të mbyllet në të gjitha pajisjet e tua, përfshirë këtë. Do të duhet të hysh sërish.",
-    "followsYou": "Të ndjek"
+    "followsYou": "Të ndjek",
+    "accountDataLabel": "Të dhënat e llogarisë",
+    "languageAndCurrencyLabel": "Gjuha dhe monedha"
   },
   "feed": {
     "pinned": "I fiksuar",
@@ -2620,6 +2622,19 @@
     "body": "Merr njoftime për flakët, komentet dhe aktivitetin edhe kur Vibra është e mbyllur.",
     "enable": "Aktivizo",
     "enabling": "Duke aktivizuar…",
+    "later": "Jo tani"
+  },
+  "installPrompt": {
+    "title": "Instalo Vibra",
+    "body": "Hape nga ekrani kryesor, pa shiritin e shfletuesit.",
+    "install": "Instalo",
+    "later": "Jo tani"
+  },
+  "iosInstallPrompt": {
+    "title": "Shto Vibra në ekranin bazë",
+    "body": "Hapet si aplikacion dhe është e vetmja mënyrë për të marrë njoftime në iPhone.",
+    "step1": "Prek Ndaj",
+    "step2": "Zgjidh Shto në ekranin bazë",
     "later": "Jo tani"
   },
   "notifications": {

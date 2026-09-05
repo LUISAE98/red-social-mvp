@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Akiket követek, és akik követnek engem",
     "messagePolicyFollowingAndFollowersHelp": "Csak azok írhatnak neked, akiket követsz, és akik téged követnek, az ő üzeneteik egyenesen a beérkezők közé kerülnek, másoknál az üzenet gomb meg sem jelenik.",
     "sessionRevokeAllConfirm": "A munkamenet minden eszközödön bezárul, ezen is. Újra be kell jelentkezned.",
-    "followsYou": "Követ téged"
+    "followsYou": "Követ téged",
+    "accountDataLabel": "Fiókadatok",
+    "languageAndCurrencyLabel": "Nyelv és pénznem"
   },
   "feed": {
     "pinned": "Rögzítve",
@@ -2620,6 +2622,19 @@
     "body": "Kapj értesítést a kedvelésekről, hozzászólásokról és eseményekről akkor is, ha a Vibra be van zárva.",
     "enable": "Bekapcsolás",
     "enabling": "Bekapcsolás…",
+    "later": "Most nem"
+  },
+  "installPrompt": {
+    "title": "Telepítsd a Vibrát",
+    "body": "Nyisd meg a kezdőképernyőről, böngészősáv nélkül.",
+    "install": "Telepítés",
+    "later": "Most nem"
+  },
+  "iosInstallPrompt": {
+    "title": "Add hozzá a Vibrát a kezdőképernyőhöz",
+    "body": "Alkalmazásként nyílik meg, és iPhone-on csak így érkeznek értesítések.",
+    "step1": "Koppints a Megosztásra",
+    "step2": "Válaszd a Főképernyőhöz adást",
     "later": "Most nem"
   },
   "notifications": {

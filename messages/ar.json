@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "من أتابعهم ومن يتابعونني",
     "messagePolicyFollowingAndFollowersHelp": "لا يستطيع مراسلتك إلا من تتابعهم ومن يتابعونك، وتصل رسائلهم مباشرة إلى صندوق الوارد، ولا يرى الآخرون زر الرسالة.",
     "sessionRevokeAllConfirm": "سيتم إنهاء جلستك على جميع أجهزتك، بما في ذلك هذا الجهاز. ستحتاج إلى تسجيل الدخول مرة أخرى.",
-    "followsYou": "يتابعك"
+    "followsYou": "يتابعك",
+    "accountDataLabel": "بيانات الحساب",
+    "languageAndCurrencyLabel": "اللغة والعملة"
   },
   "feed": {
     "pinned": "مثبّت",
@@ -2620,6 +2622,19 @@
     "body": "احصل على تنبيهات الشعلات والتعليقات والنشاطات حتى مع إغلاق Vibra.",
     "enable": "تفعيل",
     "enabling": "جارٍ التفعيل…",
+    "later": "ليس الآن"
+  },
+  "installPrompt": {
+    "title": "ثبّت Vibra",
+    "body": "افتحها من شاشتك الرئيسية، بدون شريط المتصفح.",
+    "install": "تثبيت",
+    "later": "ليس الآن"
+  },
+  "iosInstallPrompt": {
+    "title": "أضف Vibra إلى الشاشة الرئيسية",
+    "body": "تُفتح كتطبيق، وهي الطريقة الوحيدة لاستقبال الإشعارات على iPhone.",
+    "step1": "اضغط على مشاركة",
+    "step2": "اختر إضافة إلى الشاشة الرئيسية",
     "later": "ليس الآن"
   },
   "notifications": {

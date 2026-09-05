@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Na daoine a leanaim agus na daoine a leanann mé",
     "messagePolicyFollowingAndFollowersHelp": "Ní féidir ach leis na daoine a leanann tú agus na daoine a leanann thú scríobh chugat; téann a dteachtaireachtaí díreach chuig do bhosca isteach, ní fheiceann na daoine eile cnaipe na dteachtaireachtaí.",
     "sessionRevokeAllConfirm": "Dúnfar an seisiún ar do ghléasanna go léir, an ceann seo san áireamh. Beidh ort logáil isteach arís.",
-    "followsYou": "Do do leanúint"
+    "followsYou": "Do do leanúint",
+    "accountDataLabel": "Sonraí an chuntais",
+    "languageAndCurrencyLabel": "Teanga agus airgeadra"
   },
   "feed": {
     "pinned": "Pionnáilte",
@@ -2620,6 +2622,19 @@
     "body": "Faigh foláirimh faoi lasracha, tráchtanna agus gníomhaíocht fiú nuair atá Vibra dúnta.",
     "enable": "Cuir ar siúl",
     "enabling": "Á chur ar siúl…",
+    "later": "Ní anois"
+  },
+  "installPrompt": {
+    "title": "Suiteáil Vibra",
+    "body": "Oscail é ó do scáileán baile, gan barra brabhsálaí.",
+    "install": "Suiteáil",
+    "later": "Ní anois"
+  },
+  "iosInstallPrompt": {
+    "title": "Cuir Vibra le do scáileán baile",
+    "body": "Osclaíonn sé mar aip, agus is é an t-aon bhealach fógraí a fháil ar iPhone.",
+    "step1": "Tapáil Comhroinn",
+    "step2": "Roghnaigh Cuir leis an Scáileán Baile",
     "later": "Ní anois"
   },
   "notifications": {

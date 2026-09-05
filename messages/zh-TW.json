@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "我追蹤的人，以及追蹤我的人",
     "messagePolicyFollowingAndFollowersHelp": "只有你追蹤的人和追蹤你的人能傳訊息給你，訊息會直接進到收件匣；其他人看不到訊息按鈕。",
     "sessionRevokeAllConfirm": "所有裝置上的工作階段都會結束，包括這台。你需要重新登入。",
-    "followsYou": "追蹤你"
+    "followsYou": "追蹤你",
+    "accountDataLabel": "帳號資料",
+    "languageAndCurrencyLabel": "語言與貨幣"
   },
   "feed": {
     "pinned": "已置頂",
@@ -2620,6 +2622,19 @@
     "body": "即使 Vibra 關閉，也能收到火焰、留言和其他動態的提醒。",
     "enable": "開啟",
     "enabling": "開啟中…",
+    "later": "現在不要"
+  },
+  "installPrompt": {
+    "title": "安裝 Vibra",
+    "body": "從主畫面直接開啟，沒有瀏覽器列。",
+    "install": "安裝",
+    "later": "現在不要"
+  },
+  "iosInstallPrompt": {
+    "title": "把 Vibra 加到主畫面",
+    "body": "會像 App 一樣開啟，也是在 iPhone 收到通知的唯一方式。",
+    "step1": "點一下分享",
+    "step2": "選擇加入主畫面",
     "later": "現在不要"
   },
   "notifications": {

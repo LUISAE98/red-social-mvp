@@ -108,6 +108,129 @@ function toDateValue(value: FirestoreDateLike): string | Date | null {
   return null;
 }
 
+/** Las siete pestañas del cajón de ajustes, en el orden en que se ven. */
+type SeccionId =
+  | "mensajes"
+  | "notificaciones"
+  | "cuenta"
+  | "bio"
+  | "idioma"
+  | "bloqueadas"
+  | "sesiones";
+
+/**
+ * Una pestaña del cajón de ajustes.
+ *
+ * Hereda la cabecera que tenía "Configuración" cuando era ella la que se
+ * desplegaba: título a la izquierda, chevron que gira, y el cuerpo abriéndose de
+ * `0fr` a `1fr` para animar hasta su altura real sin un tope fijo que recorte la
+ * lista de dentro.
+ *
+ * 🚨 VIVE A NIVEL DE MÓDULO, NO DENTRO DEL COMPONENTE. Una función declarada
+ * dentro es un tipo nuevo en cada render, así que React desmonta y vuelve a
+ * montar todo su subárbol: se perdería el foco de lo que se estuviera
+ * escribiendo y se reiniciaría cualquier animación en curso.
+ */
+function SeccionAjuste({
+  titulo,
+  abierta,
+  onToggle,
+  children,
+}: {
+  titulo: string;
+  abierta: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        minWidth: 0,
+        position: "relative",
+        // 🚨 La linea va EN LINEA y no en el <style jsx> del padre: styled-jsx
+        // solo pone su hash en lo que renderiza SU componente, y este div lo
+        // pinta SeccionAjuste. Desde el padre la regla no llegaria, y ademas
+        // fallaria en silencio.
+        borderBottom: "1px solid rgba(255,255,255,0.1)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={abierta}
+        style={{
+          width: "100%",
+          minHeight: 39,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          // Dentro de la tarjeta gris no lleva fondo propio: dos grises
+          // encimados solo ensucian el contraste.
+          background: "transparent",
+          border: "none",
+          borderRadius: 10,
+          cursor: "pointer",
+          padding: "9px 6px",
+          textAlign: "start",
+          WebkitTapHighlightColor: "transparent",
+          fontFamily: "inherit",
+        }}
+      >
+        <span
+          style={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: 13,
+            lineHeight: 1.2,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            color: "#ffffff",
+            fontWeight: abierta ? 700 : 600,
+          }}
+        >
+          {titulo}
+        </span>
+
+        <span
+          aria-hidden
+          style={{
+            flexShrink: 0,
+            display: "inline-flex",
+            color: "rgba(255,255,255,0.5)",
+            transform: abierta ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M6 9.5L12 15.5L18 9.5"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      </button>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateRows: abierta ? "1fr" : "0fr",
+          opacity: abierta ? 1 : 0,
+          transition:
+            "grid-template-rows 380ms cubic-bezier(0.4,0,0.2,1), opacity 240ms ease",
+        }}
+      >
+        <div style={{ overflow: "hidden" }}>
+          <div style={{ padding: "0 0 6px" }}>{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OwnerSidebarSettings({
   uid,
   email,
@@ -124,7 +247,21 @@ export default function OwnerSidebarSettings({
   const locale = useLocale();
   const { currency } = useCurrency();
 
-  const [open, setOpen] = useState(false);
+  /**
+   * Qué pestaña está abierta, o ninguna.
+   *
+   * Es un acordeón —solo una a la vez— y no siete interruptores sueltos: son
+   * siete pestañas en una pantalla de celular, y con varias abiertas la lista
+   * crece hasta obligar a rebuscar por dónde iba uno.
+   */
+  const [abierta, setAbierta] = useState<SeccionId | null>(null);
+
+  function alternar(id: SeccionId) {
+    setAbierta((prev) => (prev === id ? null : id));
+    // La primera apertura es la que dispara la carga de datos. Da igual cuál:
+    // todas leen del mismo documento.
+    setEverOpened(true);
+  }
   // Una vez abierto, el listener se queda: volver a plegar el módulo no debe
   // tirar la suscripción y recargar todo al reabrirlo.
   const [everOpened, setEverOpened] = useState(false);
@@ -404,25 +541,6 @@ export default function OwnerSidebarSettings({
     minWidth: 0,
   };
 
-  const headerStyle: CSSProperties = {
-    position: "relative",
-    width: "100%",
-    minHeight: 39,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    // Dentro de la tarjeta gris el encabezado no lleva fondo propio: dos grises
-    // encimados solo ensucian el contraste.
-    background: "transparent",
-    border: "none",
-    borderRadius: 10,
-    cursor: "pointer",
-    padding: "7px 8px 7px 6px",
-    textAlign: "start",
-    WebkitTapHighlightColor: "transparent",
-    fontFamily: "inherit",
-  };
-
   // Idioma y moneda actuales para la columna del valor. Salen de las mismas
   // fuentes que consultan los selectores —el catálogo de locales servidos y el
   // proveedor de moneda—, así que no hay una segunda tabla que mantener.
@@ -541,6 +659,12 @@ export default function OwnerSidebarSettings({
         }
 
         /* Misma línea sutil entre opciones que en la pestaña del perfil. */
+        /* Dentro de una pestana la ultima fila NO lleva raya: chocaria con la
+           de la propia pestana y saldrian dos lineas pegadas. */
+        .sidebar-setting-row:last-child::after {
+          display: none;
+        }
+
         .sidebar-setting-row::after {
           content: "";
           position: absolute;
@@ -552,18 +676,23 @@ export default function OwnerSidebarSettings({
         }
       `}</style>
 
-      <button
-        type="button"
-        onClick={() => {
-          setOpen((prev) => !prev);
-          setEverOpened(true);
+      {/* "Configuración" ya NO se despliega: es el TÍTULO del cajón.
+          Lo que se despliega ahora es cada ajuste por su cuenta.
+
+          Antes era un solo desplegable con doce renglones dentro, y para llegar
+          a cualquiera había que abrirlo y recorrerlos todos. Con una pestaña por
+          ajuste se ve de un vistazo qué hay, y solo se abre lo que se busca. */}
+      <div
+        style={{
+          width: "100%",
+          minHeight: 39,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "7px 8px 7px 6px",
         }}
-        aria-expanded={open}
-        aria-label={tNav("settings")}
-        title={tNav("settings")}
-        style={headerStyle}
       >
-        <span style={{ display: "inline-flex", opacity: open ? 1 : 0.8 }}>
+        <span style={{ display: "inline-flex" }}>
           <SidebarSettingsIcon size={28} strokeWidth={1.8} color="#ffffff" />
         </span>
 
@@ -577,256 +706,252 @@ export default function OwnerSidebarSettings({
             overflow: "hidden",
             textOverflow: "ellipsis",
             color: "#ffffff",
-            fontWeight: open ? 700 : 600,
+            fontWeight: 700,
           }}
         >
           {tNav("settings")}
         </span>
+      </div>
 
-        {/* Chevron: gira al desplegarse, como pista de que hay más abajo. */}
-        <span
-          aria-hidden
-          style={{
-            flexShrink: 0,
-            display: "inline-flex",
-            color: "rgba(255,255,255,0.5)",
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)",
-          }}
+      <div style={{ padding: "2px 6px 0", display: "grid", gap: 2, minWidth: 0 }}>
+        {/* 1. Quién puede escribirte. Va primero porque es el ajuste que más se
+               toca y el único que cambia quién puede llegar a ti. */}
+        <SeccionAjuste
+          titulo={tProfile("messagePolicyLabel")}
+          abierta={abierta === "mensajes"}
+          onToggle={() => alternar("mensajes")}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M6 9.5L12 15.5L18 9.5"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-      </button>
+          <MessagePolicySetting
+            value={localMessagePolicy}
+            disabled={savingMessagePolicy || !data}
+            onChange={handleMessagePolicyChange}
+          />
+        </SeccionAjuste>
 
-      {/* Despliegue hacia abajo: 0fr→1fr anima hasta la altura real, sin tope
-          fijo que recorte la lista. Mismo patrón que OwnerSidebarTabNav. */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateRows: open ? "1fr" : "0fr",
-          opacity: open ? 1 : 0,
-          transition:
-            "grid-template-rows 380ms cubic-bezier(0.4,0,0.2,1), opacity 240ms ease",
-        }}
-      >
-        <div style={{ overflow: "hidden" }}>
-          {/* Sin padding lateral propio: el que aporta la tarjeta gris ya separa
-              el contenido del borde, y sumar otro lo dejaba demasiado angosto. */}
-          <div style={{ padding: "2px 6px 0", display: "grid", gap: 2, minWidth: 0 }}>
-            {/* Quién puede enviarme mensajes — a una sola columna: son cuatro
-                opciones con etiquetas largas, no caben junto a un control. */}
-            <div
-              className="sidebar-setting-row"
-              style={{ ...row, gridTemplateColumns: "1fr", gap: 8 }}
-            >
-              <div style={labelStyle}>{tProfile("messagePolicyLabel")}</div>
+        {/* 2. Notificaciones. La pestaña entera desaparece donde el navegador no
+               las admite: una pestaña que se abre y no tiene nada dentro es peor
+               que no estar. */}
+        {push.supported === true && (
+          <SeccionAjuste
+            titulo={tProfile("pushLabel")}
+            abierta={abierta === "notificaciones"}
+            onToggle={() => alternar("notificaciones")}
+          >
+            <div className="sidebar-setting-row" style={row}>
+              <div>
+                <div style={valueStyle}>
+                  {push.enabled ? tProfile("pushOn") : tProfile("pushOff")}
+                </div>
+                <div style={hintStyle}>
+                  {push.permission === "denied"
+                    ? tProfile("pushDeniedHint")
+                    : tProfile("pushHint")}
+                </div>
+              </div>
 
-              <MessagePolicySetting
-                value={localMessagePolicy}
-                disabled={savingMessagePolicy || !data}
-                onChange={handleMessagePolicyChange}
+              <Switch
+                checked={push.enabled}
+                disabled={push.busy || push.permission === "denied"}
+                onChange={handlePushChange}
+                label={push.enabled ? tProfile("disablePush") : tProfile("enablePush")}
               />
             </div>
+          </SeccionAjuste>
+        )}
 
-            {push.supported === true && (
-              <div className="sidebar-setting-row" style={row}>
-                <div>
-                  <div style={labelStyle}>{tProfile("pushLabel")}</div>
-                  <div style={valueStyle}>
-                    {push.enabled ? tProfile("pushOn") : tProfile("pushOff")}
-                  </div>
-                  <div style={hintStyle}>
-                    {push.permission === "denied"
-                      ? tProfile("pushDeniedHint")
-                      : tProfile("pushHint")}
-                  </div>
-                </div>
+        {/* 3. Datos de la cuenta: lo que te identifica. Cinco renglones que
+               antes andaban sueltos entre los ajustes y que juntos se leen como
+               una ficha. */}
+        <SeccionAjuste
+          titulo={tProfile("accountDataLabel")}
+          abierta={abierta === "cuenta"}
+          onToggle={() => alternar("cuenta")}
+        >
+          {/* Nombre */}
+          <div className="sidebar-setting-row" style={row}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>{tProfile("nameFieldLabel")}</div>
+              <div style={valueStyle}>{resolvedDisplayName}</div>
+            </div>
 
-                <Switch
-                  checked={push.enabled}
-                  disabled={push.busy || push.permission === "denied"}
-                  onChange={handlePushChange}
-                  label={push.enabled ? tProfile("disablePush") : tProfile("enablePush")}
-                />
+            {canChangeName ? (
+              <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => { setDraftName( resolvedDisplayName === unavailableText ? "" : resolvedDisplayName ); setEditNameOpen(true); }}>
+                {tProfile("changeNameLabel")}
+              </TextButton>
+            ) : (
+              <div
+                style={{
+                  justifySelf: "end",
+                  fontSize: 10,
+                  lineHeight: 1.35,
+                  color: "rgba(255,255,255,0.38)",
+                  maxWidth: 120,
+                  textAlign: "end",
+                }}
+              >
+                {tProfile("nameChangeCountdown", { days: remainingDays })}
               </div>
             )}
+          </div>
 
-            {/* Nombre */}
-            <div className="sidebar-setting-row" style={row}>
-              <div style={{ minWidth: 0 }}>
-                <div style={labelStyle}>{tProfile("nameFieldLabel")}</div>
-                <div style={valueStyle}>{resolvedDisplayName}</div>
-              </div>
+          {/* Usuario */}
+          <div className="sidebar-setting-row" style={{ ...row, gridTemplateColumns: "1fr" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>{tProfile("usernameFieldLabel")}</div>
+              <div style={valueStyle}>{resolvedUsername}</div>
+            </div>
+          </div>
 
-              {canChangeName ? (
-                <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => { setDraftName( resolvedDisplayName === unavailableText ? "" : resolvedDisplayName ); setEditNameOpen(true); }}>
-                  {tProfile("changeNameLabel")}
-                </TextButton>
-              ) : (
-                <div
-                  style={{
-                    justifySelf: "end",
-                    fontSize: 10,
-                    lineHeight: 1.35,
-                    color: "rgba(255,255,255,0.38)",
-                    maxWidth: 120,
-                    textAlign: "end",
-                  }}
-                >
-                  {tProfile("nameChangeCountdown", { days: remainingDays })}
+          {/* Correo */}
+          <div className="sidebar-setting-row" style={row}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>{tProfile("emailFieldLabel")}</div>
+              <div style={valueStyle}>{resolvedEmail}</div>
+
+              {passwordSent && (
+                <div style={hintStyle}>
+                  {tProfile("passwordEmailSentLegend", { email: resolvedEmail })}
                 </div>
               )}
             </div>
 
-            {/* Usuario */}
-            <div className="sidebar-setting-row" style={{ ...row, gridTemplateColumns: "1fr" }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={labelStyle}>{tProfile("usernameFieldLabel")}</div>
-                <div style={valueStyle}>{resolvedUsername}</div>
-              </div>
-            </div>
-
-            {/* Descripción del perfil */}
-            <div className="sidebar-setting-row" style={row}>
-              <div style={{ minWidth: 0 }}>
-                <div style={labelStyle}>{tProfile("bioFieldLabel")}</div>
-                <div
-                  style={{
-                    ...valueStyle,
-                    fontWeight: 400,
-                    color: data?.bio?.trim()
-                      ? "rgba(255,255,255,0.82)"
-                      : "rgba(255,255,255,0.38)",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {data?.bio?.trim() || tProfile("noDescription")}
-                </div>
-              </div>
-
-              <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => { setDraftBio(data?.bio ?? ""); setEditBioOpen(true); }}>
-                {tProfile("editLabel")}
-              </TextButton>
-            </div>
-
-            {/* Correo */}
-            <div className="sidebar-setting-row" style={row}>
-              <div style={{ minWidth: 0 }}>
-                <div style={labelStyle}>{tProfile("emailFieldLabel")}</div>
-                <div style={valueStyle}>{resolvedEmail}</div>
-
-                {passwordSent && (
-                  <div style={hintStyle}>
-                    {tProfile("passwordEmailSentLegend", { email: resolvedEmail })}
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                style={{
-                  ...linkBtn,
-                  cursor: sendingPassword || pwdCooldown > 0 ? "not-allowed" : "pointer",
-                  opacity: sendingPassword || pwdCooldown > 0 ? 0.6 : 1,
-                }}
-                disabled={sendingPassword || pwdCooldown > 0}
-                onClick={handlePasswordReset}
-              >
-                {sendingPassword
-                  ? tCommon("sending")
-                  : pwdCooldown > 0
-                  ? tProfile("resendEmailIn", { seconds: pwdCooldown })
-                  : passwordSent
-                  ? tProfile("sendNewEmail")
-                  : tProfile("changePasswordLabel")}
-              </button>
-            </div>
-
-            {/* Fecha de nacimiento */}
-            <div className="sidebar-setting-row" style={{ ...row, gridTemplateColumns: "1fr" }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={labelStyle}>{tProfile("birthDateFieldLabel")}</div>
-                <div style={valueStyle}>{resolvedBirthDate}</div>
-              </div>
-            </div>
-
-            {/* Fecha de creación */}
-            <div className="sidebar-setting-row" style={{ ...row, gridTemplateColumns: "1fr" }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={labelStyle}>{tProfile("creationDateFieldLabel")}</div>
-                <div style={valueStyle}>{resolvedCreatedAt}</div>
-              </div>
-            </div>
-
-            {/* Idioma y moneda.
-
-                Vivían en la esquina de la portada del perfil, en dos burbujas
-                sobre la foto. Un ajuste de la aplicación no es parte del perfil
-                de nadie, y ahí solo los encontraba quien pasara por su propia
-                portada. Aquí van con el formato del resto de la lista: nombre,
-                valor actual y un "Ver" que abre el MISMO panel de siempre.
-
-                En laptop no cambia nada: siguen en la cabecera. */}
-            <div className="sidebar-setting-row" style={row}>
-              <div style={{ minWidth: 0 }}>
-                <div style={labelStyle}>{tCommon("changeLanguage")}</div>
-                <div style={valueStyle}>{currentLanguageName}</div>
-              </div>
-
-              <LanguageSwitcher variant="settings" />
-            </div>
-
-            <div className="sidebar-setting-row" style={row}>
-              <div style={{ minWidth: 0 }}>
-                <div style={labelStyle}>{tCommon("changeCurrency")}</div>
-                <div style={valueStyle}>{currentCurrencyName}</div>
-              </div>
-
-              <CurrencySwitcher variant="settings" />
-            </div>
-
-            {/* Cuentas bloqueadas */}
-            <div className="sidebar-setting-row" style={row}>
-              <div style={{ minWidth: 0 }}>
-                <div style={labelStyle}>{tProfile("blockedAccountsLabel")}</div>
-                <div style={valueStyle}>{tProfile("profilesAndCommunities")}</div>
-                <div style={hintStyle}>{tProfile("blockedProfilesHint")}</div>
-              </div>
-
-              <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => setBlockedAccountsOpen(true)}>
-                {tCommon("viewLabel")}
-              </TextButton>
-            </div>
-
-            {/* Sesiones activas */}
-            <div className="sidebar-setting-row" style={row}>
-              <div style={{ minWidth: 0 }}>
-                <div style={labelStyle}>{tProfile("sessionsLabel")}</div>
-                <div style={valueStyle}>{tProfile("sessionsValue")}</div>
-                <div style={hintStyle}>{tProfile("sessionsHint")}</div>
-              </div>
-
-              <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => setSessionsOpen(true)}>
-                {tCommon("viewLabel")}
-              </TextButton>
-            </div>
-
-            {/* Cerrar sesión ya NO va aquí: vive suelto debajo del acordeón, en
-                OwnerSidebar. Salir de la sesión no es un ajuste más de la lista,
-                y escondido dentro del desplegable había que abrirlo para llegar. */}
+            <button
+              type="button"
+              style={{
+                ...linkBtn,
+                cursor: sendingPassword || pwdCooldown > 0 ? "not-allowed" : "pointer",
+                opacity: sendingPassword || pwdCooldown > 0 ? 0.6 : 1,
+              }}
+              disabled={sendingPassword || pwdCooldown > 0}
+              onClick={handlePasswordReset}
+            >
+              {sendingPassword
+                ? tCommon("sending")
+                : pwdCooldown > 0
+                ? tProfile("resendEmailIn", { seconds: pwdCooldown })
+                : passwordSent
+                ? tProfile("sendNewEmail")
+                : tProfile("changePasswordLabel")}
+            </button>
           </div>
-        </div>
-      </div>
 
+          {/* Fecha de creación */}
+          <div className="sidebar-setting-row" style={{ ...row, gridTemplateColumns: "1fr" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>{tProfile("creationDateFieldLabel")}</div>
+              <div style={valueStyle}>{resolvedCreatedAt}</div>
+            </div>
+          </div>
+
+          {/* Fecha de nacimiento */}
+          <div className="sidebar-setting-row" style={{ ...row, gridTemplateColumns: "1fr" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>{tProfile("birthDateFieldLabel")}</div>
+              <div style={valueStyle}>{resolvedBirthDate}</div>
+            </div>
+          </div>
+        </SeccionAjuste>
+
+        {/* 4. Descripción del perfil */}
+        <SeccionAjuste
+          titulo={tProfile("bioFieldLabel")}
+          abierta={abierta === "bio"}
+          onToggle={() => alternar("bio")}
+        >
+          <div className="sidebar-setting-row" style={row}>
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  ...valueStyle,
+                  marginTop: 0,
+                  fontWeight: 400,
+                  color: data?.bio?.trim()
+                    ? "rgba(255,255,255,0.82)"
+                    : "rgba(255,255,255,0.38)",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {data?.bio?.trim() || tProfile("noDescription")}
+              </div>
+            </div>
+
+            <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => { setDraftBio(data?.bio ?? ""); setEditBioOpen(true); }}>
+              {tProfile("editLabel")}
+            </TextButton>
+          </div>
+        </SeccionAjuste>
+
+        {/* 5. Idioma y moneda.
+
+               Vivían en la esquina de la portada del perfil, en dos burbujas
+               sobre la foto. Un ajuste de la aplicación no es parte del perfil
+               de nadie, y ahí solo los encontraba quien pasara por su propia
+               portada. En laptop no cambia nada: siguen en la cabecera. */}
+        <SeccionAjuste
+          titulo={tProfile("languageAndCurrencyLabel")}
+          abierta={abierta === "idioma"}
+          onToggle={() => alternar("idioma")}
+        >
+          <div className="sidebar-setting-row" style={row}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>{tCommon("changeLanguage")}</div>
+              <div style={valueStyle}>{currentLanguageName}</div>
+            </div>
+
+            <LanguageSwitcher variant="settings" />
+          </div>
+
+          <div className="sidebar-setting-row" style={row}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>{tCommon("changeCurrency")}</div>
+              <div style={valueStyle}>{currentCurrencyName}</div>
+            </div>
+
+            <CurrencySwitcher variant="settings" />
+          </div>
+        </SeccionAjuste>
+
+        {/* 6. Cuentas bloqueadas. La lista entera sigue viviendo en su panel:
+               aquí dentro va lo que hay y la puerta para abrirlo. */}
+        <SeccionAjuste
+          titulo={tProfile("blockedAccountsLabel")}
+          abierta={abierta === "bloqueadas"}
+          onToggle={() => alternar("bloqueadas")}
+        >
+          <div className="sidebar-setting-row" style={row}>
+            <div style={{ minWidth: 0 }}>
+              <div style={valueStyle}>{tProfile("profilesAndCommunities")}</div>
+              <div style={hintStyle}>{tProfile("blockedProfilesHint")}</div>
+            </div>
+
+            <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => setBlockedAccountsOpen(true)}>
+              {tCommon("viewLabel")}
+            </TextButton>
+          </div>
+        </SeccionAjuste>
+
+        {/* 7. Sesiones activas */}
+        <SeccionAjuste
+          titulo={tProfile("sessionsLabel")}
+          abierta={abierta === "sesiones"}
+          onToggle={() => alternar("sesiones")}
+        >
+          <div className="sidebar-setting-row" style={row}>
+            <div style={{ minWidth: 0 }}>
+              <div style={valueStyle}>{tProfile("sessionsValue")}</div>
+              <div style={hintStyle}>{tProfile("sessionsHint")}</div>
+            </div>
+
+            <TextButton tone="brand" size="sm" style={{ justifySelf: "end", alignSelf: "center", fontFamily: "inherit", whiteSpace: "nowrap" }} onClick={() => setSessionsOpen(true)}>
+              {tCommon("viewLabel")}
+            </TextButton>
+          </div>
+        </SeccionAjuste>
+
+        {/* Cerrar sesión NO va aquí: vive suelto debajo del cajón, en
+            OwnerSidebar. Salir de la sesión no es un ajuste más de la lista. */}
+      </div>
       <VibraResponsivePanel
         open={editNameOpen}
         onClose={() => !savingName && setEditNameOpen(false)}

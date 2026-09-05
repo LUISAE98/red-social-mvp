@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Tisti, ki jih spremljam, in tisti, ki spremljajo mene",
     "messagePolicyFollowingAndFollowersHelp": "Pišejo ti lahko samo tisti, ki jih spremljaš, in tisti, ki spremljajo tebe, njihova sporočila gredo naravnost v prejeto pošto, drugi gumba za sporočilo ne vidijo.",
     "sessionRevokeAllConfirm": "Seja se bo zaprla na vseh tvojih napravah, tudi na tej. Znova se boš moral prijaviti.",
-    "followsYou": "Sledi ti"
+    "followsYou": "Sledi ti",
+    "accountDataLabel": "Podatki računa",
+    "languageAndCurrencyLabel": "Jezik in valuta"
   },
   "feed": {
     "pinned": "Pripeto",
@@ -2620,6 +2622,19 @@
     "body": "Prejemaj obvestila o všečkih, komentarjih in dogajanju tudi, ko je Vibra zaprta.",
     "enable": "Vklopi",
     "enabling": "Vklapljanje…",
+    "later": "Ne zdaj"
+  },
+  "installPrompt": {
+    "title": "Namesti Vibro",
+    "body": "Odpiraj jo z domačega zaslona, brez vrstice brskalnika.",
+    "install": "Namesti",
+    "later": "Ne zdaj"
+  },
+  "iosInstallPrompt": {
+    "title": "Dodaj Vibro na začetni zaslon",
+    "body": "Odpre se kot aplikacija in je edini način za prejemanje obvestil na iPhonu.",
+    "step1": "Tapni Deli",
+    "step2": "Izberi Dodaj na začetni zaslon",
     "later": "Ne zdaj"
   },
   "notifications": {

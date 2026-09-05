@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Người tôi theo dõi và người theo dõi tôi",
     "messagePolicyFollowingAndFollowersHelp": "Chỉ những người bạn theo dõi và những người theo dõi bạn mới nhắn được cho bạn, tin của họ vào thẳng hộp thư đến, những người khác không thấy nút nhắn tin.",
     "sessionRevokeAllConfirm": "Phiên sẽ đóng trên tất cả thiết bị của bạn, kể cả thiết bị này. Bạn sẽ cần đăng nhập lại.",
-    "followsYou": "Đang theo dõi bạn"
+    "followsYou": "Đang theo dõi bạn",
+    "accountDataLabel": "Thông tin tài khoản",
+    "languageAndCurrencyLabel": "Ngôn ngữ và tiền tệ"
   },
   "feed": {
     "pinned": "Đã ghim",
@@ -2620,6 +2622,19 @@
     "body": "Nhận thông báo về ngọn lửa, bình luận và hoạt động ngay cả khi Vibra đã đóng.",
     "enable": "Bật",
     "enabling": "Đang bật…",
+    "later": "Để sau"
+  },
+  "installPrompt": {
+    "title": "Cài đặt Vibra",
+    "body": "Mở từ màn hình chính, không có thanh trình duyệt.",
+    "install": "Cài đặt",
+    "later": "Để sau"
+  },
+  "iosInstallPrompt": {
+    "title": "Thêm Vibra vào màn hình chính",
+    "body": "Nó mở như một ứng dụng, và đây là cách duy nhất để nhận thông báo trên iPhone.",
+    "step1": "Chạm Chia sẻ",
+    "step2": "Chọn Thêm vào màn hình chính",
     "later": "Để sau"
   },
   "notifications": {

@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Seuraamani ja minua seuraavat",
     "messagePolicyFollowingAndFollowersHelp": "Vain seuraamasi ja sinua seuraavat voivat kirjoittaa sinulle, heidän viestinsä tulevat suoraan postilaatikkoosi, muut eivät näe viestipainiketta.",
     "sessionRevokeAllConfirm": "Istunto suljetaan kaikilla laitteillasi, myös tällä. Sinun täytyy kirjautua uudelleen.",
-    "followsYou": "Seuraa sinua"
+    "followsYou": "Seuraa sinua",
+    "accountDataLabel": "Tilin tiedot",
+    "languageAndCurrencyLabel": "Kieli ja valuutta"
   },
   "feed": {
     "pinned": "Kiinnitetty",
@@ -2620,6 +2622,19 @@
     "body": "Saat ilmoituksia tykkäyksistä, kommenteista ja tapahtumista, vaikka Vibra olisi suljettu.",
     "enable": "Ota käyttöön",
     "enabling": "Otetaan käyttöön…",
+    "later": "Ei nyt"
+  },
+  "installPrompt": {
+    "title": "Asenna Vibra",
+    "body": "Avaa se aloitusnäytöltä, ilman selainpalkkia.",
+    "install": "Asenna",
+    "later": "Ei nyt"
+  },
+  "iosInstallPrompt": {
+    "title": "Lisää Vibra aloitusnäytölle",
+    "body": "Se avautuu sovelluksena, ja se on ainoa tapa saada ilmoituksia iPhonessa.",
+    "step1": "Napauta Jaa",
+    "step2": "Valitse Lisää aloitusnäyttöön",
     "later": "Ei nyt"
   },
   "notifications": {

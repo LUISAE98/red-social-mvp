@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Personer jag följer och personer som följer mig",
     "messagePolicyFollowingAndFollowersHelp": "Bara personer du följer och personer som följer dig kan skicka meddelanden till dig, deras meddelanden går direkt till inkorgen, alla andra ser inte meddelandeknappen.",
     "sessionRevokeAllConfirm": "Sessionen stängs på alla dina enheter, även den här. Du behöver logga in igen.",
-    "followsYou": "Följer dig"
+    "followsYou": "Följer dig",
+    "accountDataLabel": "Kontouppgifter",
+    "languageAndCurrencyLabel": "Språk och valuta"
   },
   "feed": {
     "pinned": "Fäst",
@@ -2620,6 +2622,19 @@
     "body": "Få aviseringar om gillamarkeringar, kommentarer och aktivitet även när Vibra är stängt.",
     "enable": "Slå på",
     "enabling": "Slår på…",
+    "later": "Inte nu"
+  },
+  "installPrompt": {
+    "title": "Installera Vibra",
+    "body": "Öppna den från hemskärmen, utan webbläsarfält.",
+    "install": "Installera",
+    "later": "Inte nu"
+  },
+  "iosInstallPrompt": {
+    "title": "Lägg till Vibra på hemskärmen",
+    "body": "Den öppnas som en app, och det är enda sättet att få aviseringar på iPhone.",
+    "step1": "Tryck på Dela",
+    "step2": "Välj Lägg till på hemskärmen",
     "later": "Inte nu"
   },
   "notifications": {

@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Qui segueixo i qui em segueix",
     "messagePolicyFollowingAndFollowersHelp": "Només et poden escriure les persones que segueixes i les que et segueixen, els seus missatges van directament a la safata d'entrada i la resta no veu el botó de missatge.",
     "sessionRevokeAllConfirm": "La sessió es tancarà a tots els teus dispositius, inclòs aquest. Hauràs de tornar a entrar.",
-    "followsYou": "Et segueix"
+    "followsYou": "Et segueix",
+    "accountDataLabel": "Dades del compte",
+    "languageAndCurrencyLabel": "Idioma i moneda"
   },
   "feed": {
     "pinned": "Fixada",
@@ -2620,6 +2622,19 @@
     "body": "Rep avisos de flames, comentaris i activitat encara que Vibra estigui tancada.",
     "enable": "Activa",
     "enabling": "Activant…",
+    "later": "Ara no"
+  },
+  "installPrompt": {
+    "title": "Instal·la Vibra",
+    "body": "Obre-la des de la pantalla d'inici, sense barra del navegador.",
+    "install": "Instal·la",
+    "later": "Ara no"
+  },
+  "iosInstallPrompt": {
+    "title": "Afegeix Vibra a la pantalla d'inici",
+    "body": "S'obre com una app i és l'única manera de rebre avisos a l'iPhone.",
+    "step1": "Toca Comparteix",
+    "step2": "Tria Afegeix a la pantalla d'inici",
     "later": "Ara no"
   },
   "notifications": {

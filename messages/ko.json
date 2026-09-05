@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "내가 팔로우하는 사람과 나를 팔로우하는 사람",
     "messagePolicyFollowingAndFollowersHelp": "내가 팔로우하는 사람과 나를 팔로우하는 사람만 메시지를 보낼 수 있고, 그 메시지는 바로 받은편지함으로 들어옵니다. 그 외에는 메시지 버튼이 보이지 않습니다.",
     "sessionRevokeAllConfirm": "이 기기를 포함한 모든 기기에서 세션이 종료됩니다. 다시 로그인해야 합니다.",
-    "followsYou": "회원님을 팔로우"
+    "followsYou": "회원님을 팔로우",
+    "accountDataLabel": "계정 정보",
+    "languageAndCurrencyLabel": "언어 및 통화"
   },
   "feed": {
     "pinned": "고정됨",
@@ -2620,6 +2622,19 @@
     "body": "Vibra가 닫혀 있어도 불꽃, 댓글, 활동 알림을 받으세요.",
     "enable": "켜기",
     "enabling": "켜는 중…",
+    "later": "나중에"
+  },
+  "installPrompt": {
+    "title": "Vibra 설치",
+    "body": "홈 화면에서 바로 열 수 있어요. 브라우저 막대 없이.",
+    "install": "설치",
+    "later": "나중에"
+  },
+  "iosInstallPrompt": {
+    "title": "Vibra를 홈 화면에 추가",
+    "body": "앱처럼 열리고, iPhone에서 알림을 받을 수 있는 유일한 방법이에요.",
+    "step1": "공유를 탭하세요",
+    "step2": "홈 화면에 추가를 선택하세요",
     "later": "나중에"
   },
   "notifications": {

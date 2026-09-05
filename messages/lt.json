@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Tie, kuriuos seku, ir tie, kurie seka mane",
     "messagePolicyFollowingAndFollowersHelp": "Rašyti tau gali tik tie, kuriuos seki, ir tie, kurie seka tave, jų žinutės keliauja tiesiai į gautuosius, kiti žinutės mygtuko nemato.",
     "sessionRevokeAllConfirm": "Sesija bus uždaryta visuose tavo įrenginiuose, įskaitant šį. Reikės prisijungti iš naujo.",
-    "followsYou": "Seka tave"
+    "followsYou": "Seka tave",
+    "accountDataLabel": "Paskyros duomenys",
+    "languageAndCurrencyLabel": "Kalba ir valiuta"
   },
   "feed": {
     "pinned": "Prisegta",
@@ -2620,6 +2622,19 @@
     "body": "Gauk pranešimus apie patiktukus, komentarus ir veiklą net kai Vibra uždaryta.",
     "enable": "Įjungti",
     "enabling": "Įjungiama…",
+    "later": "Ne dabar"
+  },
+  "installPrompt": {
+    "title": "Įdiek Vibra",
+    "body": "Atidaryk ją iš pradžios ekrano, be naršyklės juostos.",
+    "install": "Įdiegti",
+    "later": "Ne dabar"
+  },
+  "iosInstallPrompt": {
+    "title": "Pridėk Vibra į pradžios ekraną",
+    "body": "Ji atsidaro kaip programėlė ir tai vienintelis būdas gauti pranešimus iPhone.",
+    "step1": "Bakstelėk Bendrinti",
+    "step2": "Pasirink Įtraukti į pradžios ekraną",
     "later": "Ne dabar"
   },
   "notifications": {

@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Personen, denen ich folge, und die mir folgen",
     "messagePolicyFollowingAndFollowersHelp": "Nur Personen, denen du folgst, und die dir folgen, können dir schreiben; ihre Nachrichten landen direkt in deinem Posteingang, für alle anderen erscheint der Nachrichten-Button nicht.",
     "sessionRevokeAllConfirm": "Die Sitzung wird auf allen deinen Geräten beendet, auch auf diesem. Du musst dich erneut anmelden.",
-    "followsYou": "Folgt dir"
+    "followsYou": "Folgt dir",
+    "accountDataLabel": "Kontodaten",
+    "languageAndCurrencyLabel": "Sprache und Währung"
   },
   "feed": {
     "pinned": "Angeheftet",
@@ -2620,6 +2622,19 @@
     "body": "Erhalte Hinweise zu Likes, Kommentaren und Aktivitäten, auch wenn Vibra geschlossen ist.",
     "enable": "Aktivieren",
     "enabling": "Wird aktiviert …",
+    "later": "Jetzt nicht"
+  },
+  "installPrompt": {
+    "title": "Vibra installieren",
+    "body": "Öffne sie über deinen Startbildschirm, ohne Browserleiste.",
+    "install": "Installieren",
+    "later": "Jetzt nicht"
+  },
+  "iosInstallPrompt": {
+    "title": "Vibra zum Home-Bildschirm hinzufügen",
+    "body": "Sie öffnet sich als App und nur so kommen Mitteilungen auf dem iPhone an.",
+    "step1": "Tippe auf Teilen",
+    "step2": "Wähle Zum Home-Bildschirm",
     "later": "Jetzt nicht"
   },
   "notifications": {

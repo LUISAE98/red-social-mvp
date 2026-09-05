@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Dawk li nsegwi u dawk li jsegwuni",
     "messagePolicyFollowingAndFollowersHelp": "Jistgħu jiktbulek biss dawk li ssegwi u dawk li jsegwuk; il-messaġġi tagħhom imorru direttament fl-inbox tiegħek, l-oħrajn ma jarawx il-buttuna tal-messaġġi.",
     "sessionRevokeAllConfirm": "Is-sessjoni tagħlaq fuq l-apparati kollha tiegħek, inkluż dan. Ikollok terġa'' tidħol.",
-    "followsYou": "Isegwik"
+    "followsYou": "Isegwik",
+    "accountDataLabel": "Dettalji tal-kont",
+    "languageAndCurrencyLabel": "Lingwa u munita"
   },
   "feed": {
     "pinned": "Imwaħħal",
@@ -2620,6 +2622,19 @@
     "body": "Irċievi twissijiet dwar fjammi, kummenti u attività anke meta Vibra tkun magħluqa.",
     "enable": "Ixgħel",
     "enabling": "Qed jinxtegħel…",
+    "later": "Mhux issa"
+  },
+  "installPrompt": {
+    "title": "Installa Vibra",
+    "body": "Iftaħha mill-iskrin prinċipali, mingħajr bar tal-browser.",
+    "install": "Installa",
+    "later": "Mhux issa"
+  },
+  "iosInstallPrompt": {
+    "title": "Żid Vibra mal-iskrin prinċipali",
+    "body": "Tinfetaħ bħal app, u hija l-unika mod biex tirċievi notifiki fuq l-iPhone.",
+    "step1": "Agħfas Ixxerja",
+    "step2": "Agħżel Żid mal-Iskrin Prinċipali",
     "later": "Mhux issa"
   },
   "notifications": {

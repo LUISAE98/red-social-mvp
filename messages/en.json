@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "People I follow and people who follow me",
     "messagePolicyFollowingAndFollowersHelp": "Only people you follow and people who follow you can message you, their messages go straight to your inbox, everyone else does not see the message button.",
     "sessionRevokeAllConfirm": "Your session will close on all your devices, including this one. You'll need to sign in again.",
-    "followsYou": "Follows you"
+    "followsYou": "Follows you",
+    "accountDataLabel": "Account details",
+    "languageAndCurrencyLabel": "Language and currency"
   },
   "feed": {
     "pinned": "Pinned",
@@ -2620,6 +2622,19 @@
     "body": "Get alerts for likes, comments and activity even when Vibra is closed.",
     "enable": "Turn on",
     "enabling": "Turning on…",
+    "later": "Not now"
+  },
+  "installPrompt": {
+    "title": "Install Vibra",
+    "body": "Open it from your home screen, with no browser bar.",
+    "install": "Install",
+    "later": "Not now"
+  },
+  "iosInstallPrompt": {
+    "title": "Add Vibra to your home screen",
+    "body": "It opens like an app, and it is the only way to get notifications on iPhone.",
+    "step1": "Tap Share",
+    "step2": "Choose Add to Home Screen",
     "later": "Not now"
   },
   "notifications": {

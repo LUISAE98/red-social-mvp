@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Takip ettiklerim ve beni takip edenler",
     "messagePolicyFollowingAndFollowersHelp": "Yalnızca takip ettiğin ve seni takip eden kişiler sana yazabilir, mesajları doğrudan gelen kutuna düşer, diğerleri mesaj düğmesini görmez.",
     "sessionRevokeAllConfirm": "Oturum bu cihaz dahil tüm cihazlarında kapanacak. Yeniden giriş yapman gerekecek.",
-    "followsYou": "Seni takip ediyor"
+    "followsYou": "Seni takip ediyor",
+    "accountDataLabel": "Hesap bilgileri",
+    "languageAndCurrencyLabel": "Dil ve para birimi"
   },
   "feed": {
     "pinned": "Sabitlendi",
@@ -2620,6 +2622,19 @@
     "body": "Vibra kapalıyken bile alevler, yorumlar ve hareketler için bildirim al.",
     "enable": "Aç",
     "enabling": "Açılıyor…",
+    "later": "Şimdi değil"
+  },
+  "installPrompt": {
+    "title": "Vibra'yı yükle",
+    "body": "Ana ekranından aç, tarayıcı çubuğu olmadan.",
+    "install": "Yükle",
+    "later": "Şimdi değil"
+  },
+  "iosInstallPrompt": {
+    "title": "Vibra'yı ana ekrana ekle",
+    "body": "Uygulama gibi açılır ve iPhone'da bildirim almanın tek yolu budur.",
+    "step1": "Paylaş'a dokun",
+    "step2": "Ana Ekrana Ekle'yi seç",
     "later": "Şimdi değil"
   },
   "notifications": {

@@ -960,7 +960,9 @@
     "messagePolicyFollowingAndFollowers": "Mga sinusundan ko at mga sumusunod sa akin",
     "messagePolicyFollowingAndFollowersHelp": "Ang mga sinusundan mo at ang mga sumusunod sa iyo lang ang makakapagmensahe sa iyo, diretso sa inbox mo ang mensahe nila, at hindi nakikita ng iba ang button ng mensahe.",
     "sessionRevokeAllConfirm": "Isasara ang session sa lahat ng device mo, kasama ito. Kailangan mong mag-sign in ulit.",
-    "followsYou": "Sinusundan ka"
+    "followsYou": "Sinusundan ka",
+    "accountDataLabel": "Datos ng account",
+    "languageAndCurrencyLabel": "Wika at pera"
   },
   "feed": {
     "pinned": "Naka-pin",
@@ -2621,6 +2623,19 @@
     "enable": "I-on",
     "enabling": "Ino-on…",
     "later": "Hindi muna"
+  },
+  "installPrompt": {
+    "title": "I-install ang Vibra",
+    "body": "Buksan ito mula sa home screen, walang browser bar.",
+    "install": "I-install",
+    "later": "Hindi ngayon"
+  },
+  "iosInstallPrompt": {
+    "title": "Idagdag ang Vibra sa home screen",
+    "body": "Bubukas ito tulad ng app, at ito lang ang paraan para makatanggap ng abiso sa iPhone.",
+    "step1": "I-tap ang Share",
+    "step2": "Piliin ang Add to Home Screen",
+    "later": "Hindi ngayon"
   },
   "notifications": {
     "placeholder": "Lalabas dito ang mga notification",
