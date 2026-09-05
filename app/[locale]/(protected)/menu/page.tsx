@@ -40,7 +40,9 @@ export default function MenuMobilePage() {
         // Y abajo NADA: el hueco del nav lo reserva entero `.mainCol` en el
         // layout protegido. Cualquier padding inferior aquí se le suma y vuelve
         // a abrir el espacio muerto.
-        padding: "16px 0 0",
+        // Arriba lo justo: con 16 la tarjeta del perfil arrancaba muy abajo,
+        // y encima OwnerSidebar sumaba el relleno de su propio panel.
+        padding: "4px 0 0",
         color: "#fff",
       }}
     >

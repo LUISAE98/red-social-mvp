@@ -2364,6 +2364,14 @@ return (
   display: none;
 }
 
+/* Los tres rails iban pegados uno al otro: sus <section> no traen margen y
+   el contenedor no ponia ninguno, asi que las tres cabeceras se leian como
+   una lista de tres renglones en vez de como tres tiras distintas. */
+.owner-sidebar-rails {
+  display: grid;
+  gap: 12px;
+}
+
 /* Cuenta nueva: sin seguidos ni comunidades los tres rails devuelven null y el
    contenedor queda vacio. Se oculta el contenedor Y la linea que lo sigue, para
    no dejar dos divisorias pegadas con un hueco muerto en medio. */
@@ -2454,8 +2462,9 @@ return (
     height: auto !important;
     max-height: none !important;
     /* Sin padding abajo: en flujo, el hueco del nav lo reserva .mainCol del
-       layout y este se le sumaba. */
-    padding: 10px 10px 0 !important;
+       layout y este se le sumaba. Y arriba solo 2px: la tarjeta del perfil
+       arrancaba demasiado abajo sumando este relleno al de la pagina. */
+    padding: 2px 10px 0 !important;
     overflow: visible !important;
     background: transparent !important;
     border: none !important;
