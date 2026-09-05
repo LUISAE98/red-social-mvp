@@ -1559,7 +1559,7 @@ cobro tenga pantalla propia.
 | B7 | Cancelación motivo 04 | ✅ Hecho |
 | B6 | Botón de facturar en «Ver detalles» más notificación | ⬜ Va con las notas de crédito |
 | B8 | Recibo para comprador extranjero | ⬜ Abierto |
-| — | **Comprobante de liquidación mensual: la PANTALLA** | ⬜ El backend lo genera y lo guarda, pero **nadie puede verlo** |
+| — | Pantalla de los comprobantes en la wallet | ✅ **Hecha** el 2026-09-05, pestaña de retiros |
 | — | **Comprobante por RETIRO** | ✅ **Backend hecho** el 2026-09-05 · ⬜ falta pantalla y PDF |
 | — | 🎨 Diseño de los PDF (nota de crédito, retiro extranjero, las dos facturas) | ⬜ Después de la maquinaria |
 
@@ -1569,8 +1569,8 @@ Es fácil darlos por hechos porque el panel los cuenta. No lo están.
 
 | Documento | Backend | Pantalla | PDF |
 |---|---|---|---|
-| Liquidación **mensual** (`comprobanteLiquidacion.ts`) | ✅ Genera y guarda en Firestore | ❌ **Ninguna** | ❌ A propósito |
-| Comprobante por **RETIRO** | ✅ **Hecho** (`wallet/comprobanteRetiro.ts`) | ❌ | ❌ |
+| Liquidación **mensual** (`comprobanteLiquidacion.ts`) | ✅ Genera y guarda | ✅ **Hecha** | ❌ Pendiente |
+| Comprobante por **RETIRO** | ✅ **Hecho** | ✅ **Hecha** | ❌ Pendiente |
 | Recibo al comprador extranjero (B8) | ❌ | ❌ | ❌ |
 
 ### ✅ El comprobante de retiro, hecho el 2026-09-05
@@ -1596,6 +1596,32 @@ Y sin conversión, `tipoCambio` queda en `null`, no en `1.0`: inventar un uno ha
 un cambio de moneda que no ocurrió.
 
 7 pruebas en `backend/test/comprobanteRetiro.pure.test.ts`.
+
+### ✅ La pantalla, hecha el 2026-09-05
+
+`ComprobantesDelCreador.tsx`, en la **pestaña de retiros**, junto al desglose de retenciones —
+que es donde el creador mira cuando piensa en su dinero. Enseña los dos tipos **por separado**,
+«Por retiro» y «Cierre mensual», porque un retiro junta ventas de varios meses y ninguno explica
+al otro. Mezclarlos sería la forma más rápida de que no entienda ninguno.
+
+| Pieza | Dónde |
+|---|---|
+| Componente | `app/[locale]/(protected)/wallet/components/ComprobantesDelCreador.tsx` |
+| Capa de datos | 🆕 `lib/wallet/comprobantes.ts` |
+| Montaje | `WalletTransactions.tsx`, pestaña de retiros |
+
+🚨 **Faltaba la regla de Firestore.** `payoutStatements` ya tenía lectura para el dueño;
+`comprobantesRetiro` **no tenía ninguna**, así que la consulta se habría denegado y la pantalla
+habría salido vacía sin decir por qué. Añadida y desplegada.
+
+⚠️ **Las dos suscripciones llevan manejador de error, y no es opcional.** Sin él, una consulta
+denegada y un creador sin comprobantes se ven exactamente igual. Ya pasó con
+`suscribirMisRetiros` y costó encontrarlo. El componente además distingue «no ha cargado» de «no
+hay ninguno».
+
+🌐 **Idiomas:** las 11 claves están en `es` y `en`. Los otros **45 locales caen al inglés** por la
+fusión profunda de `i18n/request.ts`, que es el diseño del proyecto. Quedan pendientes de
+traducir.
 
 ### Por qué el de retiro es un documento APARTE del mensual
 

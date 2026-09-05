@@ -13,6 +13,7 @@ import WalletChannelFilter from "./WalletChannelFilter";
 import WalletMovementsChart, { type ChartBucket } from "./WalletMovementsChart";
 import WithdrawBreakdown, { type DesgloseRetiro } from "./WithdrawBreakdown";
 import RetencionesDeVentas, { type RetencionesVista } from "./RetencionesDeVentas";
+import ComprobantesDelCreador from "./ComprobantesDelCreador";
 import {
   suscribirMisRetiros,
   type WithdrawalRequestDoc,
@@ -599,6 +600,10 @@ export default function WalletTransactions({
           {/* Lo que ya se le descontó. Va DEBAJO del disponible porque es donde el creador
               mira cuando piensa en su dinero, y porque su contador lo va a pedir. */}
           {retencionesDeVentas && <RetencionesDeVentas datos={retencionesDeVentas} />}
+          {/* Los comprobantes que el backend ya generaba y nadie podía ver: el de cada
+              retiro y el cierre de cada mes. Van aquí porque es donde el creador mira
+              cuando piensa en su dinero. */}
+          <ComprobantesDelCreador uid={uid} />
         </div>
       ) : null}
 

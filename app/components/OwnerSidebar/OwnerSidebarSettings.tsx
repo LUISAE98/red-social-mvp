@@ -61,7 +61,13 @@ import { SidebarSettingsIcon } from "@/app/components/VibraServiceIcons/OwnerSid
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import {
-  SettingsIcon,
+  ICONO_BIO,
+  ICONO_BLOQUEADAS,
+  ICONO_CUENTA,
+  ICONO_IDIOMA,
+  ICONO_MENSAJES,
+  ICONO_NOTIFICACIONES,
+  ICONO_SESIONES,
   SettingsSection,
   settingsHint,
   settingsLabel,
@@ -147,64 +153,6 @@ function toDateValue(value: FirestoreDateLike): string | Date | null {
 // `components/settings/settingsKit`: la configuracion de la comunidad usa
 // exactamente las mismas piezas, y copiarlas garantizaba que una se quedara
 // atras en cuanto alguien retocara la otra.
-
-/** Quién puede escribirte: un globo de mensaje. */
-const ICONO_MENSAJES = (
-  <SettingsIcon>
-    <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.6-.7L3 21l1.9-4.9A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z" />
-  </SettingsIcon>
-);
-
-/** Notificaciones: la campana. */
-const ICONO_NOTIFICACIONES = (
-  <SettingsIcon>
-    <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-    <path d="M13.7 21a2 2 0 0 1-3.4 0" />
-  </SettingsIcon>
-);
-
-/** Datos de la cuenta: la persona. */
-const ICONO_CUENTA = (
-  <SettingsIcon>
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </SettingsIcon>
-);
-
-/** Descripción del perfil: renglones de texto. */
-const ICONO_BIO = (
-  <SettingsIcon>
-    <path d="M4 6h16" />
-    <path d="M4 11h16" />
-    <path d="M4 16h9" />
-  </SettingsIcon>
-);
-
-/** Idioma y moneda: el globo terráqueo. */
-const ICONO_IDIOMA = (
-  <SettingsIcon>
-    <circle cx="12" cy="12" r="9" />
-    <path d="M3 12h18" />
-    <path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z" />
-  </SettingsIcon>
-);
-
-/** Cuentas bloqueadas: el círculo tachado. */
-const ICONO_BLOQUEADAS = (
-  <SettingsIcon>
-    <circle cx="12" cy="12" r="9" />
-    <path d="M5.6 5.6l12.8 12.8" />
-  </SettingsIcon>
-);
-
-/** Sesiones activas: la pantalla de otro aparato. */
-const ICONO_SESIONES = (
-  <SettingsIcon>
-    <rect x="3" y="4" width="18" height="12" rx="2" />
-    <path d="M8 20h8" />
-    <path d="M12 16v4" />
-  </SettingsIcon>
-);
 
 /** Las siete pestañas del cajón de ajustes, en el orden en que se ven. */
 type SeccionId =

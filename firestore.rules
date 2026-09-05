@@ -509,6 +509,15 @@ service cloud.firestore {
     // Comprobantes de liquidación del creador (payout statements). Los escribe SOLO el
     // proceso mensual desde el backend; el dueño puede leer los suyos y listarlos, porque
     // la pantalla los enseña como historial. Nadie puede leer los de otro.
+    // Comprobante de CADA RETIRO. Lo escribe solo el backend cuando el pago sale; el dueño
+    // lee los suyos y los lista, porque la wallet los enseña como historial. Es el único
+    // papel que tiene el creador EXTRANJERO de que ese dinero le llegó, así que negarle la
+    // lectura lo deja sin nada.
+    match /users/{uid}/comprobantesRetiro/{withdrawalId} {
+      allow get, list: if signedIn() && request.auth.uid == uid;
+      allow create, update, delete: if false;
+    }
+
     match /users/{uid}/payoutStatements/{periodo} {
       allow get, list: if signedIn() && request.auth.uid == uid;
       allow create, update, delete: if false;

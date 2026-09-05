@@ -21,6 +21,18 @@ import SocialLinksEditor, {
   socialLinksToDraft,
 } from "@/components/profile/SocialLinksEditor";
 import { listSocialLinks } from "@/lib/profile/socialNetworks";
+import {
+  ICONO_BIO,
+  ICONO_BLOQUEADAS,
+  ICONO_CUENTA,
+  ICONO_MENSAJES,
+  ICONO_NOTIFICACIONES,
+  ICONO_SESIONES,
+  SettingsSection,
+  settingsLabel,
+  settingsRow,
+  settingsValue,
+} from "@/components/settings/settingsKit";
 import { DEFAULT_MESSAGE_POLICY, type MessagePolicy } from "@/lib/chat/types";
 
 export default function ProfileSettingsTab({
@@ -76,6 +88,7 @@ export default function ProfileSettingsTab({
   const { toast: settingsToast, showToast: showSettingsToast } = useVibraToast();
   const tCommon = useTranslations("common");
   const tProfile = useTranslations("profile");
+  const tNav = useTranslations("nav");
   const locale = useLocale();
   const push = usePushNotifications(uid);
 
@@ -338,30 +351,12 @@ export default function ProfileSettingsTab({
     boxSizing: "border-box",
   };
 
-  const item: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) auto",
-    gap: 10,
-    alignItems: "center",
-    padding: "12px 0",
-    position: "relative",
-  };
-
-  const labelStyle: CSSProperties = {
-    fontSize: 11,
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.58)",
-    lineHeight: 1.2,
-  };
-
-  const valueStyle: CSSProperties = {
-    marginTop: 4,
-    fontSize: 14,
-    color: "rgba(255,255,255,0.92)",
-    fontWeight: 600,
-    lineHeight: 1.4,
-    overflowWrap: "anywhere",
-  };
+  // Renglon, etiqueta y valor son los mismos objetos que en la configuracion
+  // de la comunidad y en el espacio personal, no una copia con las mismas
+  // cifras.
+  const item = settingsRow;
+  const labelStyle = settingsLabel;
+  const valueStyle = settingsValue;
 
   // Mismo estilo que el botón de desbloquear/cerrar sesión (gris neutro), pero
   // cubriendo todo el renglón.
@@ -452,6 +447,12 @@ export default function ProfileSettingsTab({
 
         /* Línea sutil bajo cada opción, igual a la de la pestaña de experiencias
            (.owner-sidebar-menu-divider): 1px, inset 6px, rgba(255,255,255,0.1). */
+        /* Dentro de una pestana la ultima fila NO lleva raya: chocaria con el
+           canto de la tarjeta y saldrian dos lineas pegadas. */
+        .profile-setting-item:last-child::after {
+          display: none;
+        }
+
         .profile-setting-item::after {
           content: "";
           position: absolute;
@@ -517,9 +518,233 @@ export default function ProfileSettingsTab({
         }
       `}</style>
 
-      <h3 style={titleStyle}>{tProfile("settingsTitle")}</h3>
+      <h3 style={titleStyle}>{tNav("settings")}</h3>
 
       <div style={panel}>
+        {/* 1. Quien puede escribirte */}
+        <SettingsSection
+          icono={ICONO_MENSAJES}
+          titulo={tProfile("messagePolicyLabel")}
+          abierta
+          fija
+          onToggle={() => {}}
+        >
+        {onChangeMessagePolicy && (
+          // A una sola columna: son cuatro opciones con etiquetas largas, no un
+          // switch, y no caben en la columna estrecha de la derecha.
+          <div
+            className="profile-setting-item"
+            style={{ ...item, gridTemplateColumns: "1fr", gap: 8 }}
+          >
+            {/* Sin texto de ayuda aquí: cada opción trae su propia descripción,
+                como en el selector de visibilidad del compositor de lives. */}
+
+            <MessagePolicySetting
+              value={localMessagePolicy}
+              disabled={isSavingMessagePolicy}
+              onChange={handleMessagePolicyChange}
+            />
+          </div>
+        )}
+        </SettingsSection>
+
+        {/* 2. Notificaciones */}
+        <SettingsSection
+          icono={ICONO_NOTIFICACIONES}
+          titulo={tProfile("pushLabel")}
+          abierta
+          fija
+          onToggle={() => {}}
+        >
+        {push.supported === true && (
+          <div className="profile-setting-item profile-setting-item--switch" style={item}>
+            <div>
+              <div style={valueStyle}>
+                {push.enabled ? tProfile("pushOn") : tProfile("pushOff")}
+              </div>
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 11.5,
+                  color: "rgba(255,255,255,0.58)",
+                  lineHeight: 1.4,
+                  maxWidth: 620,
+                }}
+              >
+                {push.permission === "denied"
+                  ? tProfile("pushDeniedHint")
+                  : tProfile("pushHint")}
+              </div>
+            </div>
+
+            <Switch
+              checked={push.enabled}
+              disabled={push.busy || push.permission === "denied"}
+              onChange={handlePushChange}
+              label={push.enabled ? tProfile("disablePush") : tProfile("enablePush")}
+            />
+          </div>
+        )}
+        </SettingsSection>
+
+        {/* 3. Datos de la cuenta, lo que identifica a la persona */}
+        <SettingsSection
+          icono={ICONO_CUENTA}
+          titulo={tProfile("accountDataLabel")}
+          abierta
+          fija
+          onToggle={() => {}}
+        >
+        <div
+          className="profile-setting-item profile-setting-item--split"
+          style={{
+            ...item,
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+            alignItems: "start",
+          }}
+        >
+          {/* Nombre — columna izquierda (contenido centrado) */}
+          <div style={{ display: "grid", gap: 8, minWidth: 0, justifyItems: "center", textAlign: "center" }}>
+            <div>
+              <div style={labelStyle}>{tProfile("nameFieldLabel")}</div>
+              <div style={valueStyle}>{resolvedDisplayName}</div>
+            </div>
+
+            {canChangeName ? (
+              <TextButton
+                tone="brand"
+                size="sm"
+                style={{ justifySelf: "center", fontFamily: fontStack, whiteSpace: "nowrap" }}
+                onClick={() => {
+                  setErr(null);
+                  setMsg(null);
+                  setDraftName(resolvedDisplayName === unavailableText ? "" : resolvedDisplayName);
+                  setEditNameOpen(true);
+                }}
+              >
+                {tProfile("changeNameLabel")}
+              </TextButton>
+            ) : (
+              <div
+                style={{
+                  justifySelf: "center",
+                  fontSize: 10,
+                  fontWeight: 400,
+                  lineHeight: 1.35,
+                  color: "rgba(255,255,255,0.38)",
+                  maxWidth: 220,
+                }}
+              >
+                {tProfile("nameChangeCountdown", { days: remainingDays })}
+              </div>
+            )}
+          </div>
+
+          {/* Usuario — columna derecha (contenido centrado) */}
+          <div style={{ minWidth: 0, textAlign: "center" }}>
+            <div style={labelStyle}>{tProfile("usernameFieldLabel")}</div>
+            <div style={valueStyle}>{resolvedUsername}</div>
+          </div>
+        </div>
+
+        <div className="profile-setting-item profile-setting-item--action" style={item}>
+          <div>
+            <div style={labelStyle}>{tProfile("emailFieldLabel")}</div>
+            <div style={valueStyle}>{resolvedEmail}</div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gap: 6,
+              justifyItems: passwordSent ? "center" : "end",
+              minWidth: 0,
+            }}
+          >
+            {passwordSent && (
+              <div
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 400,
+                  lineHeight: 1.35,
+                  color: "rgba(255,255,255,0.42)",
+                  textAlign: "center",
+                  maxWidth: 240,
+                }}
+              >
+                {tProfile("passwordEmailSentLegend", { email: resolvedEmail })}
+              </div>
+            )}
+
+            <TextButton tone="brand" size="sm" style={{ justifySelf: passwordSent ? "center" : "end", alignSelf: "center", fontFamily: fontStack, whiteSpace: "nowrap" }} disabled={sendingPassword || pwdCooldown > 0} onClick={handlePasswordReset}>
+              {sendingPassword
+                ? tCommon("sending")
+                : pwdCooldown > 0
+                ? tProfile("resendEmailIn", { seconds: pwdCooldown })
+                : passwordSent
+                ? tProfile("sendNewEmail")
+                : tProfile("changePasswordLabel")}
+            </TextButton>
+          </div>
+        </div>
+
+        <div
+          className="profile-setting-item profile-setting-item--split"
+          style={{
+            ...item,
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+            alignItems: "start",
+          }}
+        >
+          {/* Fecha de nacimiento — columna izquierda (centrada) */}
+          <div style={{ minWidth: 0, textAlign: "center" }}>
+            <div style={labelStyle}>{tProfile("birthDateFieldLabel")}</div>
+            <div style={valueStyle}>{resolvedBirthDate}</div>
+          </div>
+
+          {/* Fecha de creación — columna derecha (centrada) */}
+          <div style={{ minWidth: 0, textAlign: "center" }}>
+            <div style={labelStyle}>{tProfile("creationDateFieldLabel")}</div>
+            <div style={valueStyle}>{resolvedAppCreatedAt}</div>
+          </div>
+        </div>
+        </SettingsSection>
+
+        {/* 4. Configuracion de perfil, lo que ve quien entra al perfil */}
+        <SettingsSection
+          icono={ICONO_BIO}
+          titulo={tProfile("settingsTitle")}
+          abierta
+          fija
+          onToggle={() => {}}
+        >
+        {onUpdateBio && (
+          <div className="profile-setting-item" style={item}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>{tProfile("bioFieldLabel")}</div>
+              <div
+                style={{
+                  ...valueStyle,
+                  fontWeight: 400,
+                  color: bio?.trim()
+                    ? "rgba(255,255,255,0.82)"
+                    : "rgba(255,255,255,0.38)",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {bio?.trim() || tProfile("noDescription")}
+              </div>
+            </div>
+
+            <TextButton tone="brand" size="sm" style={{ justifySelf: "center", alignSelf: "center", fontFamily: fontStack, whiteSpace: "nowrap" }} onClick={() => { setErr(null); setMsg(null); setDraftBio(bio ?? ""); setEditBioOpen(true); }}>
+              {tProfile("editLabel")}
+            </TextButton>
+          </div>
+        )}
+
         <div className="profile-setting-item profile-setting-item--switch" style={item}>
           <div>
             <div style={labelStyle}>{tProfile("restricted")}</div>
@@ -585,134 +810,6 @@ export default function ProfileSettingsTab({
           </div>
         )}
 
-        {onChangeMessagePolicy && (
-          // A una sola columna: son cuatro opciones con etiquetas largas, no un
-          // switch, y no caben en la columna estrecha de la derecha.
-          <div
-            className="profile-setting-item"
-            style={{ ...item, gridTemplateColumns: "1fr", gap: 8 }}
-          >
-            {/* Sin texto de ayuda aquí: cada opción trae su propia descripción,
-                como en el selector de visibilidad del compositor de lives. */}
-            <div style={labelStyle}>{tProfile("messagePolicyLabel")}</div>
-
-            <MessagePolicySetting
-              value={localMessagePolicy}
-              disabled={isSavingMessagePolicy}
-              onChange={handleMessagePolicyChange}
-            />
-          </div>
-        )}
-
-        {push.supported === true && (
-          <div className="profile-setting-item profile-setting-item--switch" style={item}>
-            <div>
-              <div style={labelStyle}>{tProfile("pushLabel")}</div>
-              <div style={valueStyle}>
-                {push.enabled ? tProfile("pushOn") : tProfile("pushOff")}
-              </div>
-              <div
-                style={{
-                  marginTop: 5,
-                  fontSize: 11.5,
-                  color: "rgba(255,255,255,0.58)",
-                  lineHeight: 1.4,
-                  maxWidth: 620,
-                }}
-              >
-                {push.permission === "denied"
-                  ? tProfile("pushDeniedHint")
-                  : tProfile("pushHint")}
-              </div>
-            </div>
-
-            <Switch
-              checked={push.enabled}
-              disabled={push.busy || push.permission === "denied"}
-              onChange={handlePushChange}
-              label={push.enabled ? tProfile("disablePush") : tProfile("enablePush")}
-            />
-          </div>
-        )}
-
-        <div
-          className="profile-setting-item profile-setting-item--split"
-          style={{
-            ...item,
-            gridTemplateColumns: "1fr 1fr",
-            gap: 16,
-            alignItems: "start",
-          }}
-        >
-          {/* Nombre — columna izquierda (contenido centrado) */}
-          <div style={{ display: "grid", gap: 8, minWidth: 0, justifyItems: "center", textAlign: "center" }}>
-            <div>
-              <div style={labelStyle}>{tProfile("nameFieldLabel")}</div>
-              <div style={valueStyle}>{resolvedDisplayName}</div>
-            </div>
-
-            {canChangeName ? (
-              <TextButton
-                tone="brand"
-                size="sm"
-                style={{ justifySelf: "center", fontFamily: fontStack, whiteSpace: "nowrap" }}
-                onClick={() => {
-                  setErr(null);
-                  setMsg(null);
-                  setDraftName(resolvedDisplayName === unavailableText ? "" : resolvedDisplayName);
-                  setEditNameOpen(true);
-                }}
-              >
-                {tProfile("changeNameLabel")}
-              </TextButton>
-            ) : (
-              <div
-                style={{
-                  justifySelf: "center",
-                  fontSize: 10,
-                  fontWeight: 400,
-                  lineHeight: 1.35,
-                  color: "rgba(255,255,255,0.38)",
-                  maxWidth: 220,
-                }}
-              >
-                {tProfile("nameChangeCountdown", { days: remainingDays })}
-              </div>
-            )}
-          </div>
-
-          {/* Usuario — columna derecha (contenido centrado) */}
-          <div style={{ minWidth: 0, textAlign: "center" }}>
-            <div style={labelStyle}>{tProfile("usernameFieldLabel")}</div>
-            <div style={valueStyle}>{resolvedUsername}</div>
-          </div>
-        </div>
-
-        {onUpdateBio && (
-          <div className="profile-setting-item" style={item}>
-            <div style={{ minWidth: 0 }}>
-              <div style={labelStyle}>{tProfile("bioFieldLabel")}</div>
-              <div
-                style={{
-                  ...valueStyle,
-                  fontWeight: 400,
-                  color: bio?.trim()
-                    ? "rgba(255,255,255,0.82)"
-                    : "rgba(255,255,255,0.38)",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                }}
-              >
-                {bio?.trim() || tProfile("noDescription")}
-              </div>
-            </div>
-
-            <TextButton tone="brand" size="sm" style={{ justifySelf: "center", alignSelf: "center", fontFamily: fontStack, whiteSpace: "nowrap" }} onClick={() => { setErr(null); setMsg(null); setDraftBio(bio ?? ""); setEditBioOpen(true); }}>
-              {tProfile("editLabel")}
-            </TextButton>
-          </div>
-        )}
-
         {onUpdateSocialLinks && (
           <div className="profile-setting-item" style={item}>
             <div style={{ minWidth: 0 }}>
@@ -750,73 +847,18 @@ export default function ProfileSettingsTab({
             </TextButton>
           </div>
         )}
+        </SettingsSection>
 
-        <div className="profile-setting-item profile-setting-item--action" style={item}>
-          <div>
-            <div style={labelStyle}>{tProfile("emailFieldLabel")}</div>
-            <div style={valueStyle}>{resolvedEmail}</div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gap: 6,
-              justifyItems: passwordSent ? "center" : "end",
-              minWidth: 0,
-            }}
-          >
-            {passwordSent && (
-              <div
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 400,
-                  lineHeight: 1.35,
-                  color: "rgba(255,255,255,0.42)",
-                  textAlign: "center",
-                  maxWidth: 240,
-                }}
-              >
-                {tProfile("passwordEmailSentLegend", { email: resolvedEmail })}
-              </div>
-            )}
-
-            <TextButton tone="brand" size="sm" style={{ justifySelf: passwordSent ? "center" : "end", alignSelf: "center", fontFamily: fontStack, whiteSpace: "nowrap" }} disabled={sendingPassword || pwdCooldown > 0} onClick={handlePasswordReset}>
-              {sendingPassword
-                ? tCommon("sending")
-                : pwdCooldown > 0
-                ? tProfile("resendEmailIn", { seconds: pwdCooldown })
-                : passwordSent
-                ? tProfile("sendNewEmail")
-                : tProfile("changePasswordLabel")}
-            </TextButton>
-          </div>
-        </div>
-
-        <div
-          className="profile-setting-item profile-setting-item--split"
-          style={{
-            ...item,
-            gridTemplateColumns: "1fr 1fr",
-            gap: 16,
-            alignItems: "start",
-          }}
+        {/* 5. Cuentas bloqueadas. La lista entera vive en su panel, aqui va la puerta */}
+        <SettingsSection
+          icono={ICONO_BLOQUEADAS}
+          titulo={tProfile("blockedAccountsLabel")}
+          abierta
+          fija
+          onToggle={() => {}}
         >
-          {/* Fecha de nacimiento — columna izquierda (centrada) */}
-          <div style={{ minWidth: 0, textAlign: "center" }}>
-            <div style={labelStyle}>{tProfile("birthDateFieldLabel")}</div>
-            <div style={valueStyle}>{resolvedBirthDate}</div>
-          </div>
-
-          {/* Fecha de creación — columna derecha (centrada) */}
-          <div style={{ minWidth: 0, textAlign: "center" }}>
-            <div style={labelStyle}>{tProfile("creationDateFieldLabel")}</div>
-            <div style={valueStyle}>{resolvedAppCreatedAt}</div>
-          </div>
-        </div>
-
         <div className="profile-setting-item profile-setting-item--action" style={item}>
           <div>
-            <div style={labelStyle}>{tProfile("blockedAccountsLabel")}</div>
             <div style={valueStyle}>{tProfile("profilesAndCommunities")}</div>
 
             <div
@@ -836,10 +878,18 @@ export default function ProfileSettingsTab({
             {tCommon("viewLabel")}
           </TextButton>
         </div>
+        </SettingsSection>
 
+        {/* 6. Sesiones activas */}
+        <SettingsSection
+          icono={ICONO_SESIONES}
+          titulo={tProfile("sessionsLabel")}
+          abierta
+          fija
+          onToggle={() => {}}
+        >
         <div className="profile-setting-item profile-setting-item--action" style={item}>
           <div>
-            <div style={labelStyle}>{tProfile("sessionsLabel")}</div>
             <div style={valueStyle}>{tProfile("sessionsValue")}</div>
 
             <div
@@ -859,6 +909,7 @@ export default function ProfileSettingsTab({
             {tCommon("viewLabel")}
           </TextButton>
         </div>
+        </SettingsSection>
 
         <div
           className="profile-logout-wrap"

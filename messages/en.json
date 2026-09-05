@@ -1728,7 +1728,18 @@
     "fiscalSealExpiresOn": "Your CSD expires on {date}.",
     "fiscalDoneCta": "Done",
     "salesRetainedTitle": "Already deducted from your sales",
-    "salesRetainedNote": "These are the totals across all your sales, not just what's available right now."
+    "salesRetainedNote": "These are the totals across all your sales, not just what's available right now.",
+    "receiptsTitle": "Your receipts",
+    "receiptsNote": "Records of what you were paid and of each month closing. These are not invoices.",
+    "receiptsWithdrawals": "Per withdrawal",
+    "receiptsMonthly": "Monthly closing",
+    "receiptsCredited": "You received",
+    "receiptsAccount": "Account",
+    "receiptsReference": "Reference",
+    "receiptsSales": "Sales",
+    "receiptsCommission": "Commission",
+    "receiptsIsr": "Income tax withheld",
+    "receiptsVat": "VAT withheld"
   },
   "services": {
     "confirmLabel": "Confirm",

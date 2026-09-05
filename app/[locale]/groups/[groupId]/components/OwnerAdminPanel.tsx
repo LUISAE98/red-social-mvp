@@ -68,11 +68,19 @@ export default function OwnerAdminPanel({
     minWidth: 0,
   };
 
+  const titleStyle: React.CSSProperties = {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 600,
+    lineHeight: 1.2,
+    color: "#fff",
+  };
+
   return (
     <section style={shellStyle}>
-      {/* `.vibra-page-title` es el mismo titulo que encabeza la configuracion
-          del perfil. Aqui era un h3 de 16px y peso 600, de otra epoca. */}
-      <h3 className="vibra-page-title">{tGroups("generalSettings")}</h3>
+      {/* El mismo titulo que encabeza la pestana de configuracion del
+          perfil, que es la pantalla hermana de esta. */}
+      <h3 style={titleStyle}>{tGroups("generalSettings")}</h3>
 
       <div style={panelStyle}>
         <div style={{ display: "grid", gap: 8 }}>

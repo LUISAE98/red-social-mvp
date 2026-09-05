@@ -260,3 +260,69 @@ export function SettingsSection({
     </div>
   );
 }
+
+/* ── Los glifos de las pestañas ────────────────────────────────────────────
+ *
+ * 🚨 VIVEN AQUÍ Y NO EN CADA PANTALLA. Los mismos siete ajustes aparecen en la
+ * pestaña del perfil, en el espacio personal y en la página de configuración de
+ * laptop; con un juego de iconos por archivo, "cuentas bloqueadas" acababa
+ * siendo un candado en una pantalla y un círculo tachado en otra.
+ */
+
+/** Quién puede escribirte: un globo de mensaje. */
+export const ICONO_MENSAJES = (
+  <SettingsIcon>
+    <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.6-.7L3 21l1.9-4.9A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z" />
+  </SettingsIcon>
+);
+
+/** Notificaciones: la campana. */
+export const ICONO_NOTIFICACIONES = (
+  <SettingsIcon>
+    <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+  </SettingsIcon>
+);
+
+/** Datos de la cuenta: la persona. */
+export const ICONO_CUENTA = (
+  <SettingsIcon>
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </SettingsIcon>
+);
+
+/** Descripción del perfil: renglones de texto. */
+export const ICONO_BIO = (
+  <SettingsIcon>
+    <path d="M4 6h16" />
+    <path d="M4 11h16" />
+    <path d="M4 16h9" />
+  </SettingsIcon>
+);
+
+/** Idioma y moneda: el globo terráqueo. */
+export const ICONO_IDIOMA = (
+  <SettingsIcon>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18" />
+    <path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z" />
+  </SettingsIcon>
+);
+
+/** Cuentas bloqueadas: el círculo tachado. */
+export const ICONO_BLOQUEADAS = (
+  <SettingsIcon>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M5.6 5.6l12.8 12.8" />
+  </SettingsIcon>
+);
+
+/** Sesiones activas: la pantalla de otro aparato. */
+export const ICONO_SESIONES = (
+  <SettingsIcon>
+    <rect x="3" y="4" width="18" height="12" rx="2" />
+    <path d="M8 20h8" />
+    <path d="M12 16v4" />
+  </SettingsIcon>
+);

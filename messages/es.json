@@ -1728,7 +1728,18 @@
     "fiscalSealExpiresOn": "Tu CSD vence el {date}.",
     "fiscalDoneCta": "Listo",
     "salesRetainedTitle": "Ya descontado de tus ventas",
-    "salesRetainedNote": "Son los totales de todas tus ventas, no solo de lo que tienes disponible ahora."
+    "salesRetainedNote": "Son los totales de todas tus ventas, no solo de lo que tienes disponible ahora.",
+    "receiptsTitle": "Tus comprobantes",
+    "receiptsNote": "Constancias de lo que se te pagó y del cierre de cada mes. No son facturas.",
+    "receiptsWithdrawals": "Por retiro",
+    "receiptsMonthly": "Cierre mensual",
+    "receiptsCredited": "Te llegó",
+    "receiptsAccount": "Cuenta",
+    "receiptsReference": "Referencia",
+    "receiptsSales": "Ventas",
+    "receiptsCommission": "Comisión",
+    "receiptsIsr": "ISR retenido",
+    "receiptsVat": "IVA retenido"
   },
   "services": {
     "confirmLabel": "Confirmar",
