@@ -232,17 +232,34 @@ premiumUnlocked: {
     ),
   },
 
-  // El engrane del menu derecho de laptop, que lleva a /configuracion. Hereda
-  // el trazo con degradado del resto de la navegacion, como los demas.
+  /**
+   * El engrane del menu derecho de laptop, que lleva a /configuracion.
+   *
+   * 🚨 SU EXTENSION ESTA IGUALADA A MANO A LA DE LOS DEMAS. El mismo `size` no
+   * da el mismo peso visual: cada dibujo llena una parte distinta de su lienzo.
+   * Inicio ocupa 17x16 del de 24, la estrella 17.5x17.5 y el marcador 11x15;
+   * el primer engrane llegaba a 19x22 y al lado de ellos se veia mas grande.
+   * Este mide 16.8x16.8 —cuerpo de r 6.6, dientes hasta 8.4, centro 12,12—.
+   *
+   * Se redibujo en vez de encogerlo con un `transform`: escalar el grupo
+   * encoge tambien el trazo, y el engrane habria quedado mas fino que el resto.
+   */
   settings: {
     label: "Configuracion",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="3.1" stroke={gradientStroke} fill="none" />
-        <path
-          stroke={gradientStroke}
-          d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a1.9 1.9 0 1 1-2.7 2.7l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a1.9 1.9 0 1 1-3.8 0V21a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a1.9 1.9 0 1 1-2.7-2.7l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a1.9 1.9 0 1 1 0-3.8h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a1.9 1.9 0 1 1 2.7-2.7l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a1.9 1.9 0 1 1 3.8 0v.2a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a1.9 1.9 0 1 1 2.7 2.7l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1h.2a1.9 1.9 0 1 1 0 3.8H21a1.6 1.6 0 0 0-1.5 1Z"
-        />
+        {/* El relleno y el grosor los pone la hoja del componente en el <svg>,
+            como en el resto de iconos de esta familia. */}
+        <circle cx="12" cy="12" r="6.6" stroke={gradientStroke} />
+        <circle cx="12" cy="12" r="2.6" stroke={gradientStroke} />
+        <path stroke={gradientStroke} d="M18.60 12.00L20.40 12.00" />
+        <path stroke={gradientStroke} d="M16.67 7.33L17.94 6.06" />
+        <path stroke={gradientStroke} d="M12.00 5.40L12.00 3.60" />
+        <path stroke={gradientStroke} d="M7.33 7.33L6.06 6.06" />
+        <path stroke={gradientStroke} d="M5.40 12.00L3.60 12.00" />
+        <path stroke={gradientStroke} d="M7.33 16.67L6.06 17.94" />
+        <path stroke={gradientStroke} d="M12.00 18.60L12.00 20.40" />
+        <path stroke={gradientStroke} d="M16.67 16.67L17.94 17.94" />
       </svg>
     ),
   },
