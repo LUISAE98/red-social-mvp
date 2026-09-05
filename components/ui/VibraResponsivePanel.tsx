@@ -145,6 +145,23 @@ export default function VibraResponsivePanel({
    */
   const conCristal = !bareSurface;
 
+  /**
+   * El relleno vertical del contenido, que depende del cristal.
+   *
+   * 🚨 CON CRISTAL NO LLEVA NINGUNO. La cabecera y el pie van en
+   * `position: absolute` por encima del scroller, y el hueco se reserva con
+   * dos espaciadores que miden lo que ellos MAS los 26px de `overhang` de
+   * GlassEdge —el margen por el que el contenido se mete debajo para que el
+   * desenfoque tenga algo que desenfocar—. Sumarle encima 14 o 16px de
+   * relleno dejaba mas de 40px de aire muerto arriba y abajo, que en un panel
+   * corto —un campo y un boton— era casi la mitad de lo que se veia.
+   *
+   * El borde que NO tiene cristal si lo lleva: sin cabecera, o sin pie, no hay
+   * espaciador que reserve nada y el contenido quedaria pegado al canto.
+   */
+  const aireArriba = conCristal && !hideHeader ? 0 : 14;
+  const aireAbajo = conCristal && footer ? 0 : 14;
+
   const [isDragging, setIsDragging] = useState(false);
   const dragStartYRef = useRef(0);
   const dragStartOffsetRef = useRef(0);
@@ -484,7 +501,7 @@ export default function VibraResponsivePanel({
             style={{
               padding:
                 contentPadding ??
-                "14px 14px calc(14px + var(--vb-safe-bottom, 0px))",
+                `${aireArriba}px 14px calc(${aireAbajo}px + var(--vb-safe-bottom, 0px))`,
               overflowY: "auto",
               flex: 1,
               minHeight: 0,
@@ -595,7 +612,9 @@ export default function VibraResponsivePanel({
 
             <div
               style={{
-                padding: contentPadding ?? "16px 18px",
+                padding:
+                  contentPadding ??
+                  `${aireArriba ? 16 : 0}px 18px ${aireAbajo ? 16 : 0}px`,
                 overflowY: "auto",
                 flex: 1,
                 minHeight: 0,
