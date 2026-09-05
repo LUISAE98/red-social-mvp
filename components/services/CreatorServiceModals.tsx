@@ -392,7 +392,9 @@ function Panel({
           style={{
             ...panelStyle,
             // El hueco que hay que reservarle a cada capa flotante.
-            ["--svc-top" as string]: `${topH}px`,
+            // La barra MÁS el sobresaliente del fundido: sin sumarlo, lo
+            // primero del formulario nacía ya difuminado, sin scrollear.
+            ["--svc-top" as string]: `${topH + SVC_FADE_OVERHANG}px`,
             ["--svc-bottom" as string]: `${bottomH}px`,
           } as React.CSSProperties}
           onClick={(e) => e.stopPropagation()}

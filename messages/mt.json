@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Installa Vibra",
-    "body": "Iftaħha mill-iskrin prinċipali, mingħajr bar tal-browser.",
+    "body": "Vibra tibqa' fuq l-iskrin prinċipali tiegħek, ħdejn l-apps l-oħra.",
+    "benefit1": "Idħol f'Vibra b'tektika waħda",
+    "benefit2": "Gawdi l-live u l-vidjows fuq skrin sħiħ",
+    "benefit3": "Irċievi avviżi ta' dak li ma tridx titlef",
     "install": "Installa",
     "later": "Mhux issa"
   },

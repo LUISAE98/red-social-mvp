@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Zainstaluj Vibrę",
-    "body": "Otwieraj ją z ekranu głównego, bez paska przeglądarki.",
+    "body": "Vibra zostaje na twoim ekranie głównym, obok innych aplikacji.",
+    "benefit1": "Wejdź do Vibry jednym dotknięciem",
+    "benefit2": "Oglądaj transmisje i filmy na pełnym ekranie",
+    "benefit3": "Dostawaj powiadomienia o tym, czego nie chcesz przegapić",
     "install": "Zainstaluj",
     "later": "Nie teraz"
   },

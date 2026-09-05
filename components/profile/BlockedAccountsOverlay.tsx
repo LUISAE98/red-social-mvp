@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { intlLocale } from "@/i18n/locales";
 import { useTranslations, useLocale } from "next-intl";
 import { CSSProperties, useEffect, useMemo, useState } from "react";

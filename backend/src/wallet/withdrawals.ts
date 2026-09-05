@@ -23,6 +23,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
+import { guardarComprobanteRetiro } from "./comprobanteRetiro";
 import * as admin from "firebase-admin";
 import { requirePlatformMod } from "../authz";
 import { calcularRetiro } from "../tax/fiscalEngine";
@@ -987,6 +988,14 @@ export const markWithdrawalPaid = onCall(
       reason: referenciaLimpia,
     });
 
+    // 🧾 La constancia de que el dinero salió. Va fuera de la transacción y con el fallo
+    //    tragado, igual que el aviso: no documentarlo no puede deshacer un pago hecho.
+    await guardarComprobanteRetiro({
+      withdrawalId: requestId,
+      retiro: cerrado,
+      referencia: referenciaLimpia,
+    });
+
     logger.info("retiro_marcado_pagado", { id: requestId, revisor: revisorUid });
     return { ok: true };
   }
@@ -1187,6 +1196,10 @@ export async function conciliarUnRetiro(
       amountText: textoDinero(w.neto, w.currency),
       creditedText: w.acreditado ? textoDinero(w.acreditado, w.acreditadoCurrency) : null,
     });
+
+    // 🧾 Aquí es donde el comprobante sale COMPLETO: la conciliación ya trae lo acreditado en
+    //    su moneda y el tipo de cambio, que es lo que el creador necesita de verdad.
+    await guardarComprobanteRetiro({ withdrawalId: ref.id, retiro: (await ref.get()).data() ?? {} });
 
     logger.info("retiro_conciliado_pagado", { id: ref.id, creatorId: w.creatorId });
     return "paid";

@@ -1034,7 +1034,10 @@ export default function ConversationPage() {
           selfUid={selfUid}
           // Lo que le tapa la cabecera superpuesta. Sin esto, el mensaje más
           // antiguo se quedaría escondido detrás de ella al llegar arriba.
-          topInset={headerHeight}
+          // ⚠️ La barra MÁS el sobresaliente: el fundido baja
+          // HEADER_FADE_OVERHANG más adentro y, reservando solo la barra, el
+          // primer mensaje nacía ya difuminado.
+          topInset={headerHeight + HEADER_FADE_OVERHANG}
           safeAreaBottom
         />
       </div>

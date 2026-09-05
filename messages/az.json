@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Vibra-nı quraşdır",
-    "body": "Onu ana ekranından aç, brauzer paneli olmadan.",
+    "body": "Vibra ana ekranında qalır, digər tətbiqlərinin yanında.",
+    "benefit1": "Vibra-ya bir toxunuşla gir",
+    "benefit2": "Canlı yayımlardan və videolardan tam ekranda həzz al",
+    "benefit3": "Buraxmaq istəmədiyin şeylərin bildirişini al",
     "install": "Quraşdır",
     "later": "İndi yox"
   },

@@ -17,7 +17,7 @@ import type { Report } from "@/lib/moderation/types";
 import { REPORT_REASON_LABELS } from "@/lib/moderation/types";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 type FireReport = Omit<Report, "createdAt" | "claimedAt" | "resolvedAt"> & {
   createdAt: Timestamp;

@@ -14,7 +14,7 @@ import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { createGreetingMuxUpload } from "@/lib/greetings/greetingRequests";

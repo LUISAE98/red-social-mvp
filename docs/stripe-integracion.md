@@ -953,11 +953,11 @@ Mínimo: **1.50 USD** al mes.
 | Impuestos | 147 jurisdicciones, 50 cobran · las 21 altas hechas |
 | Webhooks | Llegan y materializan compras, retenciones y renovaciones |
 | Devoluciones | Crédito y efectivo — **sin auditar todavía** |
-| **Retiros al creador** | 🔴 **NO EXISTEN.** Y Stripe tiene las transferencias suspendidas |
+| **Retiros al creador** | ✅ **EXISTEN** desde el 2026-08-27, por Global Payouts. Solicitud → revisión humana → `OutboundPayment` (`wallet/withdrawals.ts`, `payments/stripe/outboundPayment.ts`). 🔴 Nunca se ha completado uno de verdad |
 
 **Lo que falta para producción**, en orden:
 
-1. 🔴 **Retiros.** No hay forma de que el creador cobre. Es el hueco grande.
+1. 🟡 **Retiros.** Ya existen y están cableados; lo que falta es **completar uno de extremo a extremo** y resolver la tarea vencida de Stripe. *(Corregido el 2026-09-05: esta línea decía que no existían, y llevaba desfasada desde el corte a Global Payouts.)*
 2. 🔴 **Tarea vencida en Stripe** que mantiene las transferencias suspendidas.
 3. 🔴 **Confirmación por escrito** de que una plataforma estadounidense puede pagar a
    creadores en México. El soporte dijo que sí; la documentación dice otra cosa.

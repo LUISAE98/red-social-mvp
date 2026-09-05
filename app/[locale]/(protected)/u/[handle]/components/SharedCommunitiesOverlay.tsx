@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import type { SharedCommunity } from "@/lib/social/sharedCommunities";
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";

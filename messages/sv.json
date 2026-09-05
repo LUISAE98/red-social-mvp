@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Installera Vibra",
-    "body": "Öppna den från hemskärmen, utan webbläsarfält.",
+    "body": "Vibra ligger kvar på hemskärmen, bredvid dina andra appar.",
+    "benefit1": "Gå in i Vibra med ett enda tryck",
+    "benefit2": "Njut av sändningar och videor i helskärm",
+    "benefit3": "Få aviseringar om det du inte vill missa",
     "install": "Installera",
     "later": "Inte nu"
   },

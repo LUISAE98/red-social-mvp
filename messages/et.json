@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Paigalda Vibra",
-    "body": "Ava see avaekraanilt, ilma brauseriribata.",
+    "body": "Vibra jääb sinu avaekraanile, teiste rakenduste kõrvale.",
+    "benefit1": "Ava Vibra ühe puudutusega",
+    "benefit2": "Naudi otseülekandeid ja videoid täisekraanil",
+    "benefit3": "Saa teateid selle kohta, millest sa ilma jääda ei taha",
     "install": "Paigalda",
     "later": "Mitte praegu"
   },

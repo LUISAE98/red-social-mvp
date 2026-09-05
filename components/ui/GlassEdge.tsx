@@ -24,8 +24,14 @@ export type GlassEdgeProps = {
   /** Borde al que se pega, y donde el efecto es más fuerte. */
   side?: "top" | "bottom";
   /**
-   * Se llama con el alto real de la barra cada vez que cambia. Quien la monta
-   * lo usa como relleno de su scroller.
+   * Se llama con el hueco que hay que reservarle, cada vez que cambia. Quien la
+   * monta lo usa como relleno de su scroller.
+   *
+   * ⚠️ Es la barra MÁS el sobresaliente, no solo la barra. El fundido no acaba
+   * en el canto de la barra: baja `overhang` píxeles más adentro. Reservando
+   * solo la barra, lo primero del contenido nacía dentro de la rampa y se veía
+   * difuminado desde el principio, sin haber scrolleado. Con el sobresaliente
+   * incluido, el contenido empieza justo donde el fundido termina.
    */
   onHeight?: (height: number) => void;
   /** Cuánto se mete el cristal en el contenido, más allá de la barra. */
@@ -79,11 +85,13 @@ export default function GlassEdge({
       // Cero es que está oculta, no que mida cero.
       if (next <= 0) return;
       setHeight(next);
-      onHeightRef.current?.(next);
+      // El alto del cristal es la barra + el sobresaliente, y eso es justo lo
+      // que hay que reservar para que el contenido nazca limpio.
+      onHeightRef.current?.(next + overhang);
     });
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [overhang]);
 
   return (
     <div

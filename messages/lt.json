@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Įdiek Vibra",
-    "body": "Atidaryk ją iš pradžios ekrano, be naršyklės juostos.",
+    "body": "Vibra lieka tavo pradžios ekrane, šalia kitų programėlių.",
+    "benefit1": "Įeik į Vibra vienu bakstelėjimu",
+    "benefit2": "Mėgaukis tiesioginėmis ir vaizdo įrašais per visą ekraną",
+    "benefit3": "Gauk pranešimus apie tai, ko nenori praleisti",
     "install": "Įdiegti",
     "later": "Ne dabar"
   },

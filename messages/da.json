@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Installér Vibra",
-    "body": "Åbn den fra din hjemmeskærm, uden browserlinje.",
+    "body": "Vibra bliver på din hjemmeskærm, ved siden af dine andre apps.",
+    "benefit1": "Gå ind i Vibra med ét tryk",
+    "benefit2": "Nyd livestreams og videoer i fuld skærm",
+    "benefit3": "Få besked om det, du ikke vil gå glip af",
     "install": "Installér",
     "later": "Ikke nu"
   },

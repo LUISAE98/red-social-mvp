@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Nainstaluj Vibru",
-    "body": "Otevírej ji z domovské obrazovky, bez lišty prohlížeče.",
+    "body": "Vibra zůstane na tvé ploše, vedle ostatních aplikací.",
+    "benefit1": "Vstup do Vibry jedním klepnutím",
+    "benefit2": "Užij si přenosy a videa na celou obrazovku",
+    "benefit3": "Dostávej upozornění na to, co si nechceš nechat ujít",
     "install": "Nainstalovat",
     "later": "Teď ne"
   },

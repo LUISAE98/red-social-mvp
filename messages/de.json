@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Vibra installieren",
-    "body": "Öffne sie über deinen Startbildschirm, ohne Browserleiste.",
+    "body": "Vibra bleibt auf deinem Startbildschirm, neben deinen anderen Apps.",
+    "benefit1": "Öffne Vibra mit einem einzigen Tipp",
+    "benefit2": "Genieße Livestreams und Videos im Vollbild",
+    "benefit3": "Erhalte Hinweise zu allem, was du nicht verpassen willst",
     "install": "Installieren",
     "later": "Jetzt nicht"
   },

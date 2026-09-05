@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Installer Vibra",
-    "body": "Åpne den fra startskjermen, uten nettleserlinje.",
+    "body": "Vibra blir liggende på startskjermen din, ved siden av de andre appene.",
+    "benefit1": "Gå inn i Vibra med ett trykk",
+    "benefit2": "Nyt sendinger og videoer i fullskjerm",
+    "benefit3": "Få varsler om det du ikke vil gå glipp av",
     "install": "Installer",
     "later": "Ikke nå"
   },

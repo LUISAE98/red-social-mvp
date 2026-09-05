@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Cài đặt Vibra",
-    "body": "Mở từ màn hình chính, không có thanh trình duyệt.",
+    "body": "Vibra nằm luôn trên màn hình chính, cạnh các ứng dụng khác của bạn.",
+    "benefit1": "Vào Vibra chỉ với một chạm",
+    "benefit2": "Thưởng thức livestream và video toàn màn hình",
+    "benefit3": "Nhận thông báo về những gì bạn không muốn bỏ lỡ",
     "install": "Cài đặt",
     "later": "Để sau"
   },

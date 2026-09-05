@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Asenna Vibra",
-    "body": "Avaa se aloitusnäytöltä, ilman selainpalkkia.",
+    "body": "Vibra pysyy aloitusnäytölläsi, muiden sovellusten vieressä.",
+    "benefit1": "Avaa Vibra yhdellä napautuksella",
+    "benefit2": "Nauti lähetyksistä ja videoista koko näytöllä",
+    "benefit3": "Saa ilmoitukset siitä, mitä et halua missata",
     "install": "Asenna",
     "later": "Ei nyt"
   },

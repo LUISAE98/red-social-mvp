@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Pasang Vibra",
-    "body": "Buka dari layar utama, tanpa bilah peramban.",
+    "body": "Vibra tetap di layar utamamu, bersama aplikasi lainmu.",
+    "benefit1": "Masuk ke Vibra dengan sekali ketuk",
+    "benefit2": "Nikmati siaran langsung dan video layar penuh",
+    "benefit3": "Terima pemberitahuan hal yang tak ingin kamu lewatkan",
     "install": "Pasang",
     "later": "Nanti saja"
   },

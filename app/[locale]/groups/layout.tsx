@@ -2,11 +2,10 @@
 
 "use client";
 
-import Link from "next/link";
 import { IconButton } from "@/components/ui";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { usePathname, useRouter } from "@/i18n/navigation";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";

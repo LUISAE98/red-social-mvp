@@ -22,16 +22,17 @@ import { useTranslations } from "next-intl";
 
 import { usePwaInstalled } from "@/lib/hooks/usePwaInstalled";
 import { aplazar, puedePreguntar } from "@/lib/pwa/aplazarAviso";
+import PanelModal from "./PanelModal";
 
 /** Clave propia: posponer este aviso no calla al de Android, ni al revés. */
 const CLAVE_APLAZADO = "vibra:iosInstallPromptAplazado";
 
 /** El glifo de Compartir de iOS, para que el paso 1 se reconozca sin leerlo. */
-function IconoCompartir() {
+function IconoCompartir({ size = 22 }: { size?: number }) {
   return (
     <svg
-      width="13"
-      height="13"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -39,7 +40,7 @@ function IconoCompartir() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      style={{ display: "inline-block", verticalAlign: "-2px", flexShrink: 0 }}
+      style={{ display: "block", flexShrink: 0 }}
     >
       <path d="M12 15V3" />
       <path d="M8 7l4-4 4 4" />
@@ -78,62 +79,13 @@ export default function IosInstallPrompt() {
   if (!visible) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-live="polite"
-      style={{
-        position: "fixed",
-        left: "50%",
-        transform: "translateX(-50%)",
-        // La misma altura que el aviso de Android. Nunca coinciden —o es un
-        // aparato de Apple o no lo es—, así que compartir sitio es coherente.
-        bottom: "calc(154px + var(--vb-safe-bottom, 0px))",
-        zIndex: 150,
-        width: "min(420px, calc(100vw - 24px))",
-        boxSizing: "border-box",
-        padding: 14,
-        borderRadius: 14,
-        border: "1px solid rgba(168,85,255,0.45)",
-        background: "rgba(14,10,28,0.96)",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
-        boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-        color: "#fff",
-        display: "grid",
-        gap: 10,
-      }}
+    <PanelModal
+      titulo={t("title")}
+      cuerpo={t("body")}
+      textoDescartar={t("later")}
+      onDescartar={noAhora}
+      icono={<IconoCompartir />}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span
-          aria-hidden="true"
-          style={{
-            flex: "0 0 auto",
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            display: "grid",
-            placeItems: "center",
-            background: "rgba(168,85,255,0.16)",
-            color: "#a855f7",
-          }}
-        >
-          <IconoCompartir />
-        </span>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>{t("title")}</div>
-          <div
-            style={{
-              fontSize: 12,
-              color: "rgba(255,255,255,0.7)",
-              lineHeight: 1.35,
-              marginTop: 2,
-            }}
-          >
-            {t("body")}
-          </div>
-        </div>
-      </div>
-
       {/* Los dos pasos, numerados. Es lo único que puede hacer este aviso, así
           que se dicen enteros en vez de insinuarlos. */}
       <ol
@@ -142,7 +94,7 @@ export default function IosInstallPrompt() {
           margin: 0,
           padding: 0,
           display: "grid",
-          gap: 6,
+          gap: 8,
           fontSize: 12.5,
           color: "rgba(255,255,255,0.88)",
           lineHeight: 1.35,
@@ -158,7 +110,7 @@ export default function IosInstallPrompt() {
                 height: 18,
                 borderRadius: "50%",
                 background: "rgba(168,85,255,0.22)",
-                color: "#c99bf5",
+                color: "#d8b4fe",
                 fontSize: 10.5,
                 fontWeight: 700,
                 display: "grid",
@@ -171,33 +123,14 @@ export default function IosInstallPrompt() {
               {paso}
               {/* El glifo va junto al paso que lo menciona, no suelto. */}
               {i === 0 ? (
-                <span style={{ color: "#c99bf5", display: "flex" }}>
-                  <IconoCompartir />
+                <span style={{ color: "#d8b4fe", display: "flex" }}>
+                  <IconoCompartir size={13} />
                 </span>
               ) : null}
             </span>
           </li>
         ))}
       </ol>
-
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <button
-          type="button"
-          onClick={noAhora}
-          style={{
-            appearance: "none",
-            border: "none",
-            background: "transparent",
-            color: "rgba(255,255,255,0.7)",
-            fontSize: 13,
-            fontFamily: "inherit",
-            padding: "8px 10px",
-            cursor: "pointer",
-          }}
-        >
-          {t("later")}
-        </button>
-      </div>
-    </div>
+    </PanelModal>
   );
 }

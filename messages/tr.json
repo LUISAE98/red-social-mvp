@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Vibra'yı yükle",
-    "body": "Ana ekranından aç, tarayıcı çubuğu olmadan.",
+    "body": "Vibra ana ekranında kalır, diğer uygulamalarının yanında.",
+    "benefit1": "Vibra'ya tek dokunuşla gir",
+    "benefit2": "Yayınların ve videoların tadını tam ekranda çıkar",
+    "benefit3": "Kaçırmak istemediklerinin bildirimini al",
     "install": "Yükle",
     "later": "Şimdi değil"
   },

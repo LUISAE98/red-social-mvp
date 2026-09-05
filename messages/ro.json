@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Instalează Vibra",
-    "body": "Deschide-o din ecranul principal, fără bara browserului.",
+    "body": "Vibra rămâne pe ecranul tău principal, lângă celelalte aplicații.",
+    "benefit1": "Intră în Vibra cu o singură atingere",
+    "benefit2": "Bucură-te de live-uri și clipuri pe tot ecranul",
+    "benefit3": "Primește alerte pentru ce nu vrei să ratezi",
     "install": "Instalează",
     "later": "Nu acum"
   },

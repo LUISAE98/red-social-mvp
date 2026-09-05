@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 // Quita el prefijo de idioma de forma determinista (sin depender del provider
 // de next-intl), para que la detección de rutas del guardián de auth funcione

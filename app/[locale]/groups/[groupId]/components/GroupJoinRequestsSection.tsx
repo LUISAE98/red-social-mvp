@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";

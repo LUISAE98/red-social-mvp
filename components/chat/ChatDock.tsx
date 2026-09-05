@@ -426,7 +426,10 @@ export default function ChatDock({
           active={!minimized}
           // Lo que le tapa la cabecera superpuesta. Sin esto, el mensaje más
           // antiguo se quedaría escondido detrás de ella al llegar arriba.
-          topInset={headerHeight}
+          // ⚠️ La barra MÁS el sobresaliente. El fundido no acaba en el canto de
+          // la cabecera: baja HEADER_FADE_OVERHANG más adentro, y reservando solo
+          // la barra el primer mensaje nacía ya difuminado, sin scrollear.
+          topInset={headerHeight + HEADER_FADE_OVERHANG}
           // El dock solo existe en laptop: aquí siempre hay cursor.
           pointerActions
         />

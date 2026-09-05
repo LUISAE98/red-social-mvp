@@ -2,7 +2,6 @@
 
 "use client";
 
-import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useIsCompact } from "@/lib/hooks/useMediaQuery";
 import { BlurFade, IconButton } from "@/components/ui";
@@ -10,7 +9,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import { consumeNavSlideDir } from "@/lib/nav-slide";
-import { usePathname, useRouter } from "@/i18n/navigation";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
 /**

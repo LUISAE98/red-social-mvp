@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { TextButton } from "@/components/ui";

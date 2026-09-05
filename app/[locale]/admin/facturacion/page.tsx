@@ -61,6 +61,17 @@ type Liberacion = {
   ventasRestantes: number;
 };
 
+/** Lo que devuelve la cancelación de un comprobante mensual. */
+type Cancelacion = {
+  tipo: "comision" | "retenciones";
+  folio: string | null;
+  uuid: string | null;
+  /** `en_proceso` significa que el creador todavía tiene que aceptar la cancelación. */
+  estado: "cancelado" | "en_proceso" | "sin_timbrar";
+  /** Si el mes quedó libre para volver a emitirse. */
+  liberado: boolean;
+};
+
 type Phase = "idle" | "running" | "done" | "error";
 
 /** El mes mexicano de hoy. */
@@ -292,6 +303,8 @@ export default function AdminFacturacionPage() {
       <ComprobantesDelMes onError={setError} showToast={showToast} />
 
       <LiberarDeGlobal onError={setError} showToast={showToast} />
+
+      <CancelarComprobanteMensual onError={setError} showToast={showToast} />
 
       <VibraToast toast={toast} />
 
@@ -987,6 +1000,266 @@ function LiberarDeGlobal({
           border: 1px solid #1a1a1a;
           border-radius: 8px;
           overflow: hidden;
+        }
+        .hint {
+          margin-top: 10px;
+          font-size: 11.5px;
+          color: #666;
+          line-height: 1.5;
+        }
+      `}</style>
+    </section>
+  );
+}
+/**
+ * Cancela un comprobante mensual del creador para poder volver a emitir ese mes.
+ *
+ * 🚨 Sustituye a `scripts/anular-comprobante-mensual.mjs`, que solo quitaba el candado y **dejaba
+ *    el CFDI vivo en Facturapi**. En pruebas daba igual; en producción eso son dos comprobantes
+ *    vigentes del mismo periodo.
+ *
+ * ⚠️ La constancia se cancela en firme al instante. La comisión va a nombre del creador, así que
+ *    por encima de 1 000 pesos el SAT exige que él acepte, y hasta entonces queda EN PROCESO —
+ *    el mes NO se libera, porque reexpedir con el anterior vigente es el error caro.
+ */
+function CancelarComprobanteMensual({
+  onError,
+  showToast,
+}: {
+  onError: (m: string | null) => void;
+  showToast: (m: string | null, tipo?: ToastType) => void;
+}) {
+  const [creatorId, setCreatorId] = useState("");
+  const [periodo, setPeriodo] = useState(mesMx);
+  const [tipo, setTipo] = useState<"comision" | "retenciones">("retenciones");
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [salida, setSalida] = useState<Cancelacion | null>(null);
+  const [crudo, setCrudo] = useState<string | null>(null);
+
+  const corriendo = phase === "running";
+  const listo = creatorId.trim().length > 0 && /^\d{4}-\d{2}$/.test(periodo);
+
+  async function cancelar() {
+    if (corriendo || !listo) return;
+    setPhase("running");
+    setSalida(null);
+    setCrudo(null);
+    onError(null);
+    try {
+      const fn = httpsCallable<{ creatorId: string; periodo: string; tipo: string }, Cancelacion>(
+        functions,
+        "cancelarComprobanteMensualCallable"
+      );
+      const r = await fn({ creatorId: creatorId.trim(), periodo, tipo });
+      setSalida(r.data);
+      setPhase("done");
+      showToast(
+        r.data.liberado
+          ? "Cancelado. Ese mes ya se puede volver a emitir."
+          : "Pedida la cancelación. Falta que el creador la acepte.",
+        r.data.liberado ? "success" : "warning"
+      );
+    } catch (err) {
+      setPhase("error");
+      const codigo = (err as { code?: string })?.code;
+      const mensaje = err instanceof Error ? err.message : String(err);
+      setCrudo(codigo ? `${codigo} — ${mensaje}` : mensaje);
+      onError(mensaje);
+    }
+  }
+
+  return (
+    <section className="card">
+      <span className="badge">Cancelar comprobante mensual</span>
+      <p className="desc">
+        Cancela la comisión o la constancia de un creador en un mes, para poder volver a emitirla
+        corregida. Cancela en Facturapi y retira el candado que impide repetir el mes.
+      </p>
+
+      <div className="warn">
+        🚨 Cancela un CFDI ya timbrado, con motivo 02, «emitido con errores sin sustitución». El
+        documento corregido se emite después, desde el panel de comprobantes del mes.
+      </div>
+
+      <label className="label" htmlFor="cancelCreator">
+        Creador
+      </label>
+      <input
+        id="cancelCreator"
+        className="input"
+        value={creatorId}
+        disabled={corriendo}
+        placeholder="uid del creador"
+        onChange={(ev) => setCreatorId(ev.target.value)}
+      />
+
+      <label className="label" htmlFor="cancelMes">
+        Mes
+      </label>
+      <input
+        id="cancelMes"
+        className="input"
+        type="month"
+        value={periodo}
+        disabled={corriendo}
+        onChange={(ev) => setPeriodo(ev.target.value)}
+      />
+
+      <label className="label" htmlFor="cancelTipo">
+        Documento
+      </label>
+      <select
+        id="cancelTipo"
+        className="input"
+        value={tipo}
+        disabled={corriendo}
+        onChange={(ev) => setTipo(ev.target.value as "comision" | "retenciones")}
+      >
+        <option value="retenciones">Constancia de retenciones</option>
+        <option value="comision">CFDI de comisión</option>
+      </select>
+
+      <div className="actions">
+        <button
+          type="button"
+          className="btn btnDanger"
+          disabled={corriendo || !listo}
+          onClick={cancelar}
+        >
+          {corriendo ? "Cancelando…" : "Cancelar comprobante"}
+        </button>
+      </div>
+
+      {crudo ? (
+        <div className="errores">
+          <p className="errorLinea">{crudo}</p>
+        </div>
+      ) : null}
+
+      {salida ? (
+        <div className="rows">
+          <Fila
+            k="Estado"
+            v={
+              salida.estado === "cancelado"
+                ? "cancelado en firme"
+                : salida.estado === "en_proceso"
+                  ? "esperando al creador"
+                  : "no estaba timbrado"
+            }
+            hint={
+              salida.liberado
+                ? "El mes quedó libre, ya se puede volver a emitir."
+                : "El mes SIGUE bloqueado hasta que la cancelación quede en firme."
+            }
+          />
+          <Fila k="Folio" v={salida.folio ?? "no tenía"} />
+          <Fila k="UUID" v={salida.uuid ?? "no tenía"} />
+        </div>
+      ) : null}
+
+      <p className="hint">
+        El registro no se borra, se archiva en creatorMonthlyDocsAnulados con quién lo pidió y en
+        qué estado quedó el CFDI.
+      </p>
+
+      {/* ⚠️ styled-jsx no cruza de un componente a otro: este bloque es obligatorio. */}
+      <style jsx>{`
+        .card {
+          margin-top: 18px;
+          border: 1px solid #1a1a1a;
+          border-radius: 12px;
+          padding: 18px;
+          background: #0a0a0a;
+        }
+        .badge {
+          display: inline-block;
+          margin-bottom: 10px;
+          padding: 3px 9px;
+          border-radius: 999px;
+          font-size: 10.5px;
+          font-weight: 700;
+          letter-spacing: 0.4px;
+          text-transform: uppercase;
+          background: #17111f;
+          color: #a855f7;
+        }
+        .desc {
+          font-size: 13px;
+          color: #999;
+          line-height: 1.55;
+        }
+        .warn {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: #181004;
+          color: #d9a441;
+          font-size: 12px;
+          line-height: 1.5;
+        }
+        .label {
+          display: block;
+          margin-top: 16px;
+          margin-bottom: 6px;
+          font-size: 12px;
+          color: #777;
+        }
+        .input {
+          width: 100%;
+          padding: 9px 12px;
+          border-radius: 8px;
+          border: 1px solid #2a2a2a;
+          background: #141414;
+          color: #eee;
+          font-size: 13px;
+          font-family: inherit;
+        }
+        .actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 14px;
+        }
+        .btn {
+          padding: 8px 14px;
+          border-radius: 8px;
+          border: 1px solid #2a2a2a;
+          background: #141414;
+          color: #ddd;
+          font-size: 12.5px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+        .btnDanger {
+          border-color: #3d1515;
+          color: #f87171;
+        }
+        .rows {
+          margin-top: 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          background: #1a1a1a;
+          border: 1px solid #1a1a1a;
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .errores {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: #1a0808;
+          border: 1px solid #3d1515;
+        }
+        .errorLinea {
+          font-size: 11.5px;
+          color: #fca5a5;
+          line-height: 1.55;
+          word-break: break-word;
         }
         .hint {
           margin-top: 10px;

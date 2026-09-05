@@ -24,7 +24,7 @@ import {
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 const TARGET_LABELS: Record<string, string> = {
   post: "Publicación",

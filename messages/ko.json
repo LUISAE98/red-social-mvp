@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Vibra 설치",
-    "body": "홈 화면에서 바로 열 수 있어요. 브라우저 막대 없이.",
+    "body": "Vibra가 홈 화면에, 다른 앱들 옆에 남아요.",
+    "benefit1": "한 번의 탭으로 Vibra 열기",
+    "benefit2": "라이브와 영상을 전체 화면으로 즐기기",
+    "benefit3": "놓치고 싶지 않은 소식 받기",
     "install": "설치",
     "later": "나중에"
   },

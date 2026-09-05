@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Instale o Vibra",
-    "body": "Abra pela tela de início, sem barra do navegador.",
+    "body": "O Vibra fica na sua tela de início, junto com seus outros apps.",
+    "benefit1": "Entre no Vibra com um só toque",
+    "benefit2": "Curta lives e vídeos em tela cheia",
+    "benefit3": "Receba avisos do que você não quer perder",
     "install": "Instalar",
     "later": "Agora não"
   },

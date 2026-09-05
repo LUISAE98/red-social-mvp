@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Installeer Vibra",
-    "body": "Open hem vanaf je beginscherm, zonder browserbalk.",
+    "body": "Vibra blijft op je beginscherm staan, naast je andere apps.",
+    "benefit1": "Ga met één tik Vibra binnen",
+    "benefit2": "Geniet van lives en video's op volledig scherm",
+    "benefit3": "Ontvang meldingen van wat je niet wilt missen",
     "install": "Installeren",
     "later": "Nu niet"
   },

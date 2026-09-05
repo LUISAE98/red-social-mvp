@@ -161,6 +161,105 @@ Arreglado a partir de aquí:
   distintivo de "comunidades en común": que tarde minutos en enterarse de una
   nueva no rompe nada.
 
+### Cada navegación pagaba una redirección 307
+
+Lo destapó la tabla de peticiones del perfil, con las dos filas juntas:
+
+```
+GET https://vibraon.com/u/danieltapia      239 veces   390 ms
+GET https://vibraon.com/es/u/danieltapia   177 veces   244 ms
+```
+
+La misma pantalla pedida **dos veces**. Comprobado contra el servidor:
+`/u/luisae98` responde **307** y redirige a `/{locale}/u/luisae98`.
+
+La causa: todas las rutas viven bajo `[locale]`, así que un `href="/u/x"` crudo
+obliga al middleware a redirigir. **37 archivos importaban `Link` de
+`next/link`** —que no sabe de idiomas— frente a 18 que usaban el de
+`@/i18n/navigation`.
+
+De esos 37, **16 tenían enlaces internos** (21 en total, todos a rutas de la app;
+ninguno a `/api/` ni externo). Ya usan el `Link` con idioma. Verificado sobre el
+HTML servido: el enlace de acceso del armazón pasó de `/login?next=%2F` a
+`/es/login?next=%2F`.
+
+Dos de ellos estaban en `RootChrome` y en el layout autenticado, o sea que la
+redirección se pagaba desde **cualquier** pantalla.
+
+⚠️ **Quedan dos sin tocar, a propósito:** los `<a href="/u/…">` crudos de
+`DonationFeedBanner` y `DonationViewer`. Son peores —recarga completa **más**
+redirección— pero cambiarlos a navegación de cliente altera el comportamiento en
+superficies de directo y donación, y eso es una decisión de producto: ¿tocar el
+nombre del creador desde un live debe recargar la página o no?
+
+### Arranques en frío: la concurrencia estaba forzada a 1
+
+Los p95 de **todas** las Cloud Functions saltaban a 3-4 segundos con medianas de
+300-700 ms. Ese salto de diez veces entre la mitad y la cola no es una consulta
+lenta, es un arranque en frío.
+
+La causa, verificada en el SDK y no deducida
+(`firebase-functions/lib/v2/options.d.ts`):
+
+> *"A value of null restores the default concurrency (**80 when CPU >= 1, 1
+> otherwise**)."*
+
+Las callables se declaraban sin opciones, y con la memoria por defecto la CPU
+asignada queda por debajo de 1 — así que **cada instancia atendía UNA petición a
+la vez**. Dos personas simultáneas eran dos instancias, y la segunda arrancaba
+en frío.
+
+| Función | p50 antes | p95 antes |
+| --- | ---: | ---: |
+| `getMyHiddenJoinedGroups` | 319 ms | **3 326 ms** |
+| `getDirectMessageImageUrls` | 719 ms | **4 460 ms** |
+| `getSharedCommunitiesWithProfile` | 491 ms | **4 232 ms** |
+| `getMuxPlaybackToken` | 287 ms | **3 282 ms** |
+
+Las cuatro llevan ahora `cpu: 1` y `concurrency: 80`. Desplegadas por nombre y
+confirmadas una a una.
+
+🚨 **Esto NO es `minInstances`.** No mantiene nada encendido ni añade un cargo
+fijo mensual; cambia cuántas instancias hacen falta para el mismo tráfico. Si
+alguna vez se quiere eliminar el frío del todo, eso sí es `minInstances` y sí
+cuesta cada mes, se use o no.
+
+`getMuxPlaybackToken` recibió además caché en el cliente: su respuesta trae
+`expiresInSeconds` y se respeta tal cual, con un minuto de margen — un permiso
+guardado no vive ni un segundo más de lo que decidió el backend, así que el
+control de acceso al contenido de pago queda intacto.
+
+### Avatares y portadas ya guardados — backfill APLICADO
+
+El tope de 512/1600 px solo valía para lo que se subiera desde entonces. Lo que
+ya estaba en Storage se midió y se redimensionó
+(`scripts/backfill-avatares-grandes.ts`, aplicado el 2026-09-05):
+
+| | antes | después |
+| --- | ---: | ---: |
+| Peso total de avatares y portadas | **25 MB** | **8,8 MB** (−65 %) |
+| Archivos pasados de tope | 29 | 14 (portadas de 1600 px, legítimas) |
+| El peor | **4 481 KB** | 82 KB |
+
+Ese peor caso era un avatar de 4 284 px que se pinta a 40 px en el feed:
+descargaba 4,5 MB para enseñarse del tamaño de una uña.
+
+Resultado: **23 redimensionados, 6 que ya cabían, 0 sin token, 0 fallos.**
+
+🚨 **El truco que hace esto seguro: se conserva el token de descarga.** Las URLs
+de Storage llevan `?token=…`, y sobrescribir un objeto normalmente genera uno
+nuevo — con lo que la URL guardada en `photoURL` dejaría de servir y todos los
+avatares se romperían. El script lee el token existente y lo vuelve a poner al
+subir, así que **Firestore no se toca ni una vez**. Verificado después: las URLs
+guardadas siguen devolviendo HTTP 200, ahora con el archivo pequeño y con
+`cache-control: public, max-age=604800` — que a lo ya guardado le faltaba.
+
+El script es idempotente: lo que ya cabe en el tope se salta, así que se puede
+volver a correr sin miedo.
+
+⚠️ Usa `sharp`, que está en `node_modules` por dependencia transitiva pero **no
+declarada** en `package.json`. Si algún día falla al correrlo, es eso.
+
 ### Verdad de campo: qué descarga el navegador de verdad
 
 ```bash

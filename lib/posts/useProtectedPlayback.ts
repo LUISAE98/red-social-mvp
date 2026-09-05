@@ -49,10 +49,51 @@ type SignedPlaybackResponse = {
 };
 
 /**
+ * Permisos de reproducción ya pedidos, por publicación.
+ *
+ * 🚨 Medido en Sentry (30 días): `getMuxPlaybackToken` se llamó **145 veces**
+ * con una mediana de **287 ms** y un p95 de **3,3 s**, unos 87 segundos en
+ * total. No tenía caché, así que volver a un video ya visto —o pasar dos veces
+ * por el mismo post en el feed— lo pedía otra vez entero.
+ *
+ * Quien manda sobre la caducidad es el SERVIDOR, no un TTL nuestro: la respuesta
+ * trae `expiresInSeconds` y se respeta tal cual, con un minuto de margen para no
+ * entregar un permiso que caduca mientras el video arranca. Eso mantiene intacto
+ * el control de acceso — un permiso cacheado no vive ni un segundo más de lo que
+ * el backend decidió que valiera.
+ *
+ * En memoria y no en disco a propósito: son permisos de contenido de pago y
+ * duran minutos; guardarlos entre sesiones no aporta y ensucia el almacenamiento
+ * con credenciales caducadas.
+ */
+const MARGEN_CADUCIDAD_MS = 60_000;
+const permisos = new Map<string, { valor: ProtectedPlayback; caducaEn: number }>();
+const permisosEnVuelo = new Map<string, Promise<ProtectedPlayback | null>>();
+
+/**
  * Pide al backend los permisos temporales de reproducción. Solo se llama cuando
  * el subdocumento protegido dice que el asset está firmado.
  */
 async function fetchSignedPlayback(postId: string): Promise<ProtectedPlayback | null> {
+  const guardado = permisos.get(postId);
+  if (guardado && guardado.caducaEn > Date.now()) return guardado.valor;
+
+  // Varios reproductores del mismo post pueden pedirlo a la vez; se cuelgan de
+  // la misma petición en vez de abrir una cada uno.
+  const enVuelo = permisosEnVuelo.get(postId);
+  if (enVuelo) return enVuelo;
+
+  const peticion = pedirPermisoDeReproduccion(postId).finally(() => {
+    permisosEnVuelo.delete(postId);
+  });
+
+  permisosEnVuelo.set(postId, peticion);
+  return peticion;
+}
+
+async function pedirPermisoDeReproduccion(
+  postId: string
+): Promise<ProtectedPlayback | null> {
   const call = httpsCallable<{ postId: string }, SignedPlaybackResponse>(
     functions,
     "getMuxPlaybackToken"
@@ -77,6 +118,16 @@ async function fetchSignedPlayback(postId: string): Promise<ProtectedPlayback | 
   }
 
   if (Object.keys(media).length > 0) result.media = media;
+
+  // El servidor dice cuánto vale; si no lo dijera, no se guarda nada — mejor
+  // repetir la llamada que inventarse una caducidad para una credencial.
+  const vigenciaMs = (data.expiresInSeconds ?? 0) * 1000;
+  if (vigenciaMs > MARGEN_CADUCIDAD_MS) {
+    permisos.set(postId, {
+      valor: result,
+      caducaEn: Date.now() + vigenciaMs - MARGEN_CADUCIDAD_MS,
+    });
+  }
 
   return result;
 }

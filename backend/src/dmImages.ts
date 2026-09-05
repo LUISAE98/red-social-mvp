@@ -94,7 +94,15 @@ async function filterPathsWithLiveMessage(
 }
 
 export const getDirectMessageImageUrls = onCall<RequestData, Promise<ResponseData>>(
-  { region: REGION },
+  {
+    region: REGION,
+    // Ver la nota extensa en sidebarGroups.ts: con la CPU por defecto la
+    // concurrencia queda forzada a 1 y cada petición simultánea arranca una
+    // instancia nueva, en frío. Esto NO es minInstances: no mantiene nada
+    // encendido, solo deja que una instancia caliente sirva a muchos.
+    cpu: 1,
+    concurrency: 80,
+  },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) {

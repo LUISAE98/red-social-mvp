@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Namesti Vibro",
-    "body": "Odpiraj jo z domačega zaslona, brez vrstice brskalnika.",
+    "body": "Vibra ostane na tvojem začetnem zaslonu, ob drugih aplikacijah.",
+    "benefit1": "Vstopi v Vibro z enim samim tapom",
+    "benefit2": "Uživaj v prenosih in videih na celotnem zaslonu",
+    "benefit3": "Prejemaj obvestila o tem, česar nočeš zamuditi",
     "install": "Namesti",
     "later": "Ne zdaj"
   },

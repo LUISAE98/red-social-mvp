@@ -7,7 +7,7 @@ import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";

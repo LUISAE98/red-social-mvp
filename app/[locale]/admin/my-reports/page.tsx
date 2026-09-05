@@ -14,7 +14,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import type { Report } from "@/lib/moderation/types";
 import { REPORT_REASON_LABELS } from "@/lib/moderation/types";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 
 type FireReport = Omit<Report, "createdAt" | "claimedAt" | "resolvedAt"> & {

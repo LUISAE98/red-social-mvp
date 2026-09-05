@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "I-install ang Vibra",
-    "body": "Buksan ito mula sa home screen, walang browser bar.",
+    "body": "Nananatili ang Vibra sa home screen mo, katabi ng ibang apps.",
+    "benefit1": "Pumasok sa Vibra sa isang tap lang",
+    "benefit2": "Manood ng lives at videos nang full screen",
+    "benefit3": "Makatanggap ng abiso sa hindi mo gustong makaligtaan",
     "install": "I-install",
     "later": "Hindi ngayon"
   },

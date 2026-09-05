@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Telepítsd a Vibrát",
-    "body": "Nyisd meg a kezdőképernyőről, böngészősáv nélkül.",
+    "body": "A Vibra ott marad a kezdőképernyődön, a többi appod mellett.",
+    "benefit1": "Lépj be a Vibrába egyetlen koppintással",
+    "benefit2": "Élvezd az élőket és a videókat teljes képernyőn",
+    "benefit3": "Kapj értesítést arról, amiről nem akarsz lemaradni",
     "install": "Telepítés",
     "later": "Most nem"
   },

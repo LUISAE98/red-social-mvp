@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Install Vibra",
-    "body": "Open it from your home screen, with no browser bar.",
+    "body": "Vibra stays on your home screen, next to your other apps.",
+    "benefit1": "Open Vibra with a single tap",
+    "benefit2": "Enjoy lives and videos in full screen",
+    "benefit3": "Get alerts for what you don't want to miss",
     "install": "Install",
     "later": "Not now"
   },

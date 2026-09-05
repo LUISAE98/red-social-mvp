@@ -884,7 +884,10 @@ export default function PostCommentsPanel({
                 // el relleno superior le devuelve el hueco, así que la hoja
                 // sigue midiendo exactamente lo mismo que antes.
                 marginTop: -SHEET_HEADER_H,
-                padding: `${SHEET_HEADER_H + 12}px 14px 26px`,
+                // La cabecera MÁS el sobresaliente del fundido: sin sumarlo,
+                // el primer comentario nacía dentro de la rampa y se veía
+                // difuminado desde el principio.
+                padding: `${SHEET_HEADER_H + SHEET_FADE_OVERHANG + 12}px 14px 26px`,
                 display: "grid",
                 gap: 12,
                 alignContent: "start",

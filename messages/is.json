@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Settu upp Vibra",
-    "body": "Opnaðu það af heimaskjánum, án vafrastiku.",
+    "body": "Vibra situr á heimaskjánum þínum, við hliðina á hinum forritunum.",
+    "benefit1": "Farðu inn á Vibra með einu banki",
+    "benefit2": "Njóttu útsendinga og myndbanda í fullum skjá",
+    "benefit3": "Fáðu tilkynningar um það sem þú vilt ekki missa af",
     "install": "Setja upp",
     "later": "Ekki núna"
   },

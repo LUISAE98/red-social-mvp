@@ -268,7 +268,9 @@ export default function NotificationBell({ active }: NotificationBellProps) {
                 insetInlineEnd: pos.right,
                 // El hueco que hay que reservarle a la capa de arriba, que ya no
                 // ocupa sitio en el flujo.
-                ["--notif-top" as string]: `${topHeight}px`,
+                // La barra MÁS el sobresaliente del fundido: sin sumarlo, la
+                // primera notificación nacía ya difuminada.
+                ["--notif-top" as string]: `${topHeight + HEAD_FADE_OVERHANG}px`,
                 ["--notif-bottom" as string]: `${bottomHeight}px`,
                 ...(detailOpen ? { display: "none" } : {}),
               }}

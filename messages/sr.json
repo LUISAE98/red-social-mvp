@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Instaliraj Vibru",
-    "body": "Otvaraj je sa početnog ekrana, bez trake pregledača.",
+    "body": "Vibra ostaje na tvom početnom ekranu, pored ostalih aplikacija.",
+    "benefit1": "Uđi u Vibru jednim dodirom",
+    "benefit2": "Uživaj u prenosima i snimcima preko celog ekrana",
+    "benefit3": "Primaj obaveštenja o onome što ne želiš da propustiš",
     "install": "Instaliraj",
     "later": "Ne sada"
   },

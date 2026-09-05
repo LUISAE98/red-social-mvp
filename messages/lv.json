@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Instalē Vibra",
-    "body": "Atver to no sākuma ekrāna, bez pārlūka joslas.",
+    "body": "Vibra paliek tavā sākuma ekrānā, blakus citām lietotnēm.",
+    "benefit1": "Ienāc Vibra ar vienu pieskārienu",
+    "benefit2": "Baudi tiešraides un video pilnekrānā",
+    "benefit3": "Saņem paziņojumus par to, ko nevēlies palaist garām",
     "install": "Instalēt",
     "later": "Ne tagad"
   },

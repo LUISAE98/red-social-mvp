@@ -441,7 +441,28 @@ function buildSidebarRowFromIndexedMembership(params: {
   };
 }
 
-export const getMyHiddenJoinedGroups = onCall(async (request) => {
+/**
+ * 🚨 `cpu: 1` NO es por potencia de cálculo. Es lo único que permite atender
+ * más de una petición por instancia.
+ *
+ * Con la memoria por defecto (256 MiB) la CPU asignada queda por debajo de 1, y
+ * ahí Cloud Functions fuerza la concurrencia a **uno**: cada instancia atiende
+ * una sola petición a la vez, así que dos personas a la vez son dos instancias
+ * — y la segunda arranca en frío. Está en el propio SDK
+ * (`firebase-functions/lib/v2/options.d.ts`): «default concurrency (80 when CPU
+ * >= 1, 1 otherwise)».
+ *
+ * Medido en Sentry sobre 30 días de producción: esta función tiene una mediana
+ * de **319 ms** y un p95 de **3 326 ms**. Ese salto de diez veces entre la
+ * mitad y la cola es la firma del arranque en frío, no de una consulta lenta.
+ *
+ * ⚠️ Esto NO es `minInstances`: no mantiene nada encendido ni añade un cargo
+ * fijo mensual. Lo que cambia es cuántas instancias hacen falta para el mismo
+ * tráfico — bastantes menos, porque una caliente ahora sirve a muchos.
+ */
+export const getMyHiddenJoinedGroups = onCall(
+  { cpu: 1, concurrency: 80 },
+  async (request) => {
   const callerUid = request.auth?.uid;
   if (!callerUid) {
     throw new HttpsError("unauthenticated", "Debes estar autenticado.");
@@ -645,4 +666,5 @@ export const getMyHiddenJoinedGroups = onCall(async (request) => {
     success: true,
     groups: Array.from(merged.values()),
   };
-});
+  }
+);

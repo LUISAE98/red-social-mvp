@@ -1377,7 +1377,7 @@ eso, nota de crédito.**
 | # | Pieza | Estado |
 |---|---|---|
 | 1 | Ejercitar el **motivo 04** (AUD-11) | ✅ **HECHO Y VERIFICADO** el 2026-09-04 |
-| 2 | **Cancelación de comprobantes mensuales** — hoy obliga al script manual y bloquea el cutover | ⬜ |
+| 2 | **Cancelación de comprobantes mensuales** | ✅ **HECHO** el 2026-09-04 |
 | 3 | **Notas de crédito** (Bloque 6), con su botón en la tarjeta de «Mis experiencias» | ⬜ |
 | 4 | Cancelación de global por devolución (motivo 01) | ⬜ |
 | 5 | Guardas de plazo y de aceptación del receptor | ⬜ |
@@ -1448,6 +1448,43 @@ Muy probablemente la creó a medias el tope de cuota, que ya nos había mordido 
 3. **La función no registraba nada.** Se le añadieron trazas por paso y una red que convierte una
    excepción no controlada en un error con mensaje y stack.
 
+## Paso 2 · Cancelación de comprobantes mensuales ✅ (2026-09-04)
+
+🆕 `backend/src/facturacion/cancelacionMensual.ts` y su panel en `/admin/facturacion`.
+
+Sustituye a `scripts/anular-comprobante-mensual.mjs`, **que se borró**: solo quitaba el candado y
+dejaba el CFDI vivo en Facturapi. En sandbox daba igual; en producción eso son dos comprobantes
+vigentes del mismo periodo, que es justo lo que el candado evita.
+
+### El motivo es el `02`, y no es intercambiable
+
+El `01` es «con errores CON sustitución» y **exige que el documento nuevo ya exista**. Aquí se
+cancela ANTES de reexpedir —el mes se vuelve a correr después, desde el otro panel— así que no
+hay nada con qué relacionar. El honesto es el `02`, «sin sustitución».
+
+### 🚨 Los dos documentos NO se cancelan igual
+
+| Documento | Endpoint | Cómo cancela |
+|---|---|---|
+| Constancia de retenciones | `/retentions/{id}` | **En firme al instante.** La documentación de Facturapi es explícita: no requiere autorización del receptor |
+| CFDI de comisión | `/invoices/{id}` | Va a nombre del creador. Por encima de 1 000 pesos **el SAT exige que él acepte** |
+
+De ahí la regla del módulo: **el candado solo se suelta cuando el CFDI está de verdad cancelado**.
+Si Facturapi no devuelve `canceled`, el registro se marca `cancelacionPendiente` y **se queda**
+**donde está**. Soltarlo antes permitiría reexpedir con el anterior todavía vigente, que es
+exactamente el error caro.
+
+### Lo que queda registrado
+
+El registro no se borra: se archiva en `creatorMonthlyDocsAnulados` con quién lo pidió, en qué
+estado quedó el CFDI y un `cfdiCanceladoEnFacturapi` que dice la verdad. Un mes emitido dos veces
+tiene que poder explicarse años después.
+
+### Sin errores mudos
+
+El callable lleva desde el primer día la red que atrapa la excepción no controlada y la devuelve
+con mensaje y stack, más `logger` por paso. Es la lección del paso 1.
+
 ## 🎨 Diseño de documentos — pendiente aparte (Luis, 2026-09-04)
 
 Trabajo de diseño, no de fiscalidad. Va después de que la maquinaria funcione:
@@ -1491,22 +1528,115 @@ cobro tenga pantalla propia.
 
 # Tabla de estado
 
-| # | Pendiente | Grupo | Depende de | Estado |
-|---|---|---|---|---|
-| A0 | Moneda del CFDI, USD etiquetado MXN | A | — | ✅ **Hecho** |
-| A2 | La global marca las ventas | A | A0 | ✅ **Hecho** |
-| A3 | Candado del doble timbrado | A | A2 | ✅ **Hecho** |
-| A5 | Retención movida a la venta | A | — | ✅ **Hecho** |
-| B5 | Cola de facturas pendientes | B | A2 | ✅ **Hecho** |
-| A1 | Cadencia de 24 h | A | A2, A3, B5 | ✅ **Hecho** |
-| B7 | Cancelación motivo 04 | B | A2 | ✅ **Hecho** |
-| B6 | Botón «Ver detalles» más notificación | B | — | 🟡 **Siguiente** |
-| B8 | Recibo internacional | B | — | ⬜ Abierto |
-| A4 | Clave de retención y su complemento | A | — | ✅ **Hecho** |
-| C1–C9 | Preguntas del contador | C | Contador | 🟠 Fuera de código |
-| E1 | País de cobro en la interfaz | E | — | ⚪ Mitigado |
-| D | Cutover a producción | D | Grupo A y contador | ⬜ Al final |
-| — | **Encender `TIMBRAR`** | — | ✅ Grupo A completo · falta probarlo en sandbox | 🚧 Apagado |
+## Grupo A — el modelo fiscal ✅ COMPLETO Y PROBADO
+
+| # | Pendiente | Estado |
+|---|---|---|
+| A0 | Moneda del CFDI, USD etiquetado MXN | ✅ Hecho |
+| A1 | Cadencia de 24 h | ✅ Hecho |
+| A2 | La global marca las ventas | ✅ Hecho |
+| A3 | Candado del doble timbrado | ✅ Hecho |
+| A4 | Clave de retención y su complemento | ✅ Hecho y **timbrado** |
+| A5 | Retención movida a la venta | ✅ Hecho |
+| — | Tipo de cambio oficial (Banxico FIX) | ✅ Hecho |
+| — | Los tres CFDI timbrando en sandbox | ✅ Verificado con UUID reales |
+
+## Cancelaciones — plan de 5 pasos
+
+| # | Pieza | Estado |
+|---|---|---|
+| 1 | Motivo 04, sacar una venta de la global | ✅ **Ejercitado y verificado** |
+| 2 | Cancelar comprobantes mensuales | ✅ **Desplegado**, sin probar con un CFDI real |
+| 3 | **Notas de crédito** (Bloque 6) | ⬜ Siguiente |
+| 4 | Motivo 01 por devolución | ⬜ |
+| 5 | Guardas de plazo y de aceptación del receptor | ⬜ |
+
+## Grupo B — lo que ve el usuario
+
+| # | Pendiente | Estado |
+|---|---|---|
+| B5 | Cola de facturas pendientes | ✅ Hecho |
+| B7 | Cancelación motivo 04 | ✅ Hecho |
+| B6 | Botón de facturar en «Ver detalles» más notificación | ⬜ Va con las notas de crédito |
+| B8 | Recibo para comprador extranjero | ⬜ Abierto |
+| — | **Comprobante de liquidación mensual: la PANTALLA** | ⬜ El backend lo genera y lo guarda, pero **nadie puede verlo** |
+| — | **Comprobante por RETIRO** | ✅ **Backend hecho** el 2026-09-05 · ⬜ falta pantalla y PDF |
+| — | 🎨 Diseño de los PDF (nota de crédito, retiro extranjero, las dos facturas) | ⬜ Después de la maquinaria |
+
+## 🚨 Los comprobantes del creador — tres huecos distintos (2026-09-05)
+
+Es fácil darlos por hechos porque el panel los cuenta. No lo están.
+
+| Documento | Backend | Pantalla | PDF |
+|---|---|---|---|
+| Liquidación **mensual** (`comprobanteLiquidacion.ts`) | ✅ Genera y guarda en Firestore | ❌ **Ninguna** | ❌ A propósito |
+| Comprobante por **RETIRO** | ✅ **Hecho** (`wallet/comprobanteRetiro.ts`) | ❌ | ❌ |
+| Recibo al comprador extranjero (B8) | ❌ | ❌ | ❌ |
+
+### ✅ El comprobante de retiro, hecho el 2026-09-05
+
+`backend/src/wallet/comprobanteRetiro.ts`, enganchado en **los dos** puntos donde un retiro pasa
+a pagado: el cierre manual de Wallbit y la conciliación de Stripe. Se guarda en
+`users/{creatorId}/comprobantesRetiro/{withdrawalId}`.
+
+**Idempotente por construcción**: el id del documento es el del retiro, así que un webhook
+repetido —cosa que pasa— sobreescribe en vez de duplicar. Y **nunca tumba el retiro**: si falla,
+se registra y se sigue, porque el dinero ya salió y no documentarlo no puede deshacer un pago.
+
+⚠️ **Corrección de una suposición mía.** Di por hecho que faltaban la comisión del pago y el tipo
+de cambio. **No faltaban**: el retiro ya persiste `debitado`, `acreditado`, `acreditadoCurrency`,
+`tipoCambio` y el desglose de comisiones de Stripe. El comprobante sale completo.
+
+🚨 **Lo que NO lleva, a propósito: la comisión que Stripe le cobra a Vibra.** Está persistida y es
+tentador ponerla «por transparencia», pero **esa comisión la absorbe Vibra** y no sale del dinero
+del creador. Enseñarla en su comprobante le haría pensar que se le descontó algo que nunca se le
+descontó. Hay una prueba que lo fija.
+
+Y sin conversión, `tipoCambio` queda en `null`, no en `1.0`: inventar un uno haría creer que hubo
+un cambio de moneda que no ocurrió.
+
+7 pruebas en `backend/test/comprobanteRetiro.pure.test.ts`.
+
+### Por qué el de retiro es un documento APARTE del mensual
+
+No se solapan, responden preguntas distintas:
+
+| | Qué documenta |
+|---|---|
+| **Mensual** | Qué ganó en el periodo y qué se le descontó — comisión, retenciones, impuestos |
+| **Por retiro** | Que el dinero **salió de verdad**: fecha, importe, comisiones del pago, tipo de cambio de dólar a su moneda y cuenta de destino |
+
+El mensual no puede cubrirlo porque **las comisiones del payout y la conversión ocurren al
+retirar**, no al vender, y un retiro junta ventas de varios meses.
+
+🚨 **Al creador EXTRANJERO le urge más**, porque no recibe ningún CFDI: el comprobante de retiro
+es su único papel de que ese dinero entró y de dónde vino. Pero el mexicano tampoco tiene hoy
+nada que documente las comisiones ni la conversión de su retiro.
+
+### El comentario del código lo anticipaba
+
+`comprobanteLiquidacion.ts` dice que **no se genera PDF a propósito**: se guarda el dato para
+poder reconstruirlo con cualquier formato después. «Generar un PDF sin guardar el dato no se
+puede deshacer». La decisión sigue siendo buena; lo que falta es la pantalla y el formato.
+
+## Fuera de código
+
+| # | Pendiente | Estado |
+|---|---|---|
+| C | Las 17 preguntas fiscales | ✅ Investigadas · 🟠 quedan 3 de criterio (2, 11-clave, 17) |
+| D | Cutover a producción | ⬜ Necesita RFC real, `sk_live` y CSD |
+| E1 | País de cobro en la interfaz | ⚪ Mitigado por el KYC |
+
+## 🚧 Interruptores
+
+| Qué | Estado |
+|---|---|
+| `TIMBRAR` del cron de la **global** | 🚧 **Apagado** (`runGlobalInvoice.ts:56`) |
+| `TIMBRAR` del cron de los **mensuales** | 🚧 **Apagado** (`runCreatorMonthlyDocs.ts:54`) |
+| Botón «de verdad» del panel | ✅ Sí timbra, pasa `timbrar: true` |
+
+⚠️ Los dos cron **calculan pero no timbran**. Solo se emite lo que se dispara a mano desde
+`/admin/facturacion`. Encenderlos es parte del cutover, no antes del RFC real.
 
 > Regla del proyecto: al cerrar cada punto se actualiza **esta tabla** y el documento informativo
 > que quede obsoleto, en el mismo ticket.

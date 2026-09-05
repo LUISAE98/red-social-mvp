@@ -16,7 +16,7 @@ import { useAuth } from "@/app/providers";
 import type { Report } from "@/lib/moderation/types";
 import { REPORT_REASON_LABELS, MODERATOR_ACTION_LABELS } from "@/lib/moderation/types";
 import type { ModeratorAction } from "@/lib/moderation/types";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
 
 const ACTION_COLOR: Record<string, string> = {

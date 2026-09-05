@@ -21,6 +21,7 @@ import { useTranslations } from "next-intl";
 import { usePwaInstalled } from "@/lib/hooks/usePwaInstalled";
 import { usePwaInstallPrompt } from "@/lib/hooks/usePwaInstallPrompt";
 import { aplazar, puedePreguntar } from "@/lib/pwa/aplazarAviso";
+import PanelModal from "./PanelModal";
 
 /** Cuándo se pospuso por última vez y cuántas veces se ha pospuesto ya. */
 const CLAVE_APLAZADO = "vibra:installPromptAplazado";
@@ -71,109 +72,56 @@ export default function InstallAppPrompt() {
   if (!visible) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-live="polite"
-      style={{
-        position: "fixed",
-        left: "50%",
-        transform: "translateX(-50%)",
-        // Por encima del de notificaciones, que vive a 86px: si algún día
-        // coincidieran, se leerían como dos tarjetas y no como una encima de otra.
-        bottom: "calc(154px + var(--vb-safe-bottom, 0px))",
-        zIndex: 150,
-        width: "min(420px, calc(100vw - 24px))",
-        boxSizing: "border-box",
-        padding: 14,
-        borderRadius: 14,
-        border: "1px solid rgba(168,85,255,0.45)",
-        background: "rgba(14,10,28,0.96)",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
-        boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-        color: "#fff",
-        display: "grid",
-        gap: 10,
-      }}
+    <PanelModal
+      titulo={t("title")}
+      cuerpo={t("body")}
+      textoDescartar={t("later")}
+      onDescartar={noAhora}
+      accion={{ texto: t("install"), onClick: () => void aceptar(), ocupado: trabajando }}
+      icono={
+        /* Teléfono con una flecha entrando: instalar en el aparato. */
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M17 1H7a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2Zm-5 20.5a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4ZM17 18H7V4h10Z" />
+          <path d="M12 6a.9.9 0 0 1 .9.9v4.7l1.5-1.5a.9.9 0 1 1 1.3 1.3l-3 3a.9.9 0 0 1-1.3 0l-3-3a.9.9 0 0 1 1.3-1.3l1.4 1.5V6.9A.9.9 0 0 1 12 6Z" />
+        </svg>
+      }
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span
-          aria-hidden="true"
-          style={{
-            flex: "0 0 auto",
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            display: "grid",
-            placeItems: "center",
-            background: "rgba(168,85,255,0.16)",
-          }}
-        >
-          {/* Teléfono con una flecha entrando: instalar en el aparato. */}
-          <svg width="20" height="20" viewBox="0 0 24 24" style={{ display: "block" }}>
-            <path
-              fill="#a855f7"
-              d="M17 1H7a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2Zm-5 20.5a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4ZM17 18H7V4h10Z"
-            />
-            <path
-              fill="#a855f7"
-              d="M12 6a.9.9 0 0 1 .9.9v4.7l1.5-1.5a.9.9 0 1 1 1.3 1.3l-3 3a.9.9 0 0 1-1.3 0l-3-3a.9.9 0 0 1 1.3-1.3l1.4 1.5V6.9A.9.9 0 0 1 12 6Z"
-            />
-          </svg>
-        </span>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>{t("title")}</div>
-          <div
+      {/* Qué GANA instalando, no qué es una PWA.
+          Van con palomita y no numerados: son tres ventajas sueltas, no un
+          procedimiento — numerarlas diría que hay que hacerlas en orden.
+          Y las tres son verificables: el service worker precachea de verdad,
+          así que lo de arrancar con mala señal no es una promesa vacía. */}
+      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 7 }}>
+        {[t("benefit1"), t("benefit2"), t("benefit3")].map((ventaja) => (
+          <li
+            key={ventaja}
             style={{
-              fontSize: 12,
-              color: "rgba(255,255,255,0.7)",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+              fontSize: 12.5,
               lineHeight: 1.35,
-              marginTop: 2,
+              color: "rgba(255,255,255,0.88)",
             }}
           >
-            {t("body")}
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-        <button
-          type="button"
-          onClick={noAhora}
-          style={{
-            appearance: "none",
-            border: "none",
-            background: "transparent",
-            color: "rgba(255,255,255,0.7)",
-            fontSize: 13,
-            fontFamily: "inherit",
-            padding: "8px 10px",
-            cursor: "pointer",
-          }}
-        >
-          {t("later")}
-        </button>
-        <button
-          type="button"
-          onClick={() => void aceptar()}
-          disabled={trabajando}
-          style={{
-            appearance: "none",
-            border: "none",
-            borderRadius: 10,
-            background: "#a855f7",
-            color: "#fff",
-            fontSize: 13,
-            fontWeight: 700,
-            fontFamily: "inherit",
-            padding: "8px 16px",
-            cursor: trabajando ? "default" : "pointer",
-            opacity: trabajando ? 0.7 : 1,
-          }}
-        >
-          {t("install")}
-        </button>
-      </div>
-    </div>
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#d8b4fe"
+              strokeWidth="2.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              style={{ flexShrink: 0, marginTop: 1.5 }}
+            >
+              <path d="M4 12.5l5 5L20 6.5" />
+            </svg>
+            <span>{ventaja}</span>
+          </li>
+        ))}
+      </ul>
+    </PanelModal>
   );
 }

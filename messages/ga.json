@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Suiteáil Vibra",
-    "body": "Oscail é ó do scáileán baile, gan barra brabhsálaí.",
+    "body": "Fanann Vibra ar do scáileán baile, in aice le d'aipeanna eile.",
+    "benefit1": "Téigh isteach in Vibra le tapáil amháin",
+    "benefit2": "Bain sult as beo agus físeáin ar an scáileán iomlán",
+    "benefit3": "Faigh foláirimh faoina bhfuil uait a fheiceáil",
     "install": "Suiteáil",
     "later": "Ní anois"
   },

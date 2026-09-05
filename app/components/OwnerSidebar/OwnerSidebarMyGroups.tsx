@@ -3,7 +3,7 @@
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { IconButton } from "@/components/ui";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import {

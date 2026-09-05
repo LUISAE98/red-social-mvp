@@ -7,7 +7,7 @@ import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import {
   collection,
   doc,

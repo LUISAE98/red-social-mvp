@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Instalo Vibra",
-    "body": "Hape nga ekrani kryesor, pa shiritin e shfletuesit.",
+    "body": "Vibra rri në ekranin tënd bazë, pranë aplikacioneve të tjera.",
+    "benefit1": "Hyr në Vibra me një prekje të vetme",
+    "benefit2": "Shijo drejtpërdrejtat dhe videot në ekran të plotë",
+    "benefit3": "Merr njoftime për atë që nuk do ta humbasësh",
     "install": "Instalo",
     "later": "Jo tani"
   },

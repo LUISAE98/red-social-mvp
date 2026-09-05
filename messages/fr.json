@@ -2626,7 +2626,10 @@
   },
   "installPrompt": {
     "title": "Installe Vibra",
-    "body": "Ouvre-la depuis ton écran d'accueil, sans barre du navigateur.",
+    "body": "Vibra reste sur ton écran d'accueil, à côté de tes autres apps.",
+    "benefit1": "Entre dans Vibra en un seul geste",
+    "benefit2": "Profite des lives et des vidéos en plein écran",
+    "benefit3": "Reçois les alertes de ce que tu ne veux pas rater",
     "install": "Installer",
     "later": "Pas maintenant"
   },
