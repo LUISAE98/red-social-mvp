@@ -52,28 +52,10 @@ export type GroupPostComposerSubmitPayload = {
 };
 
 
-/**
- * Forma y letra de los botones de acción del compositor.
- *
- * Sale del botón «Seguir» del perfil, que es la referencia de la plataforma
- * para un botón de acción. Antes cada uno traía su propia altura, su radio y su
- * tamaño de letra —46/12/16 en publicar de celular, 42/5/17 en el de laptop,
- * 34/5/13 en monetizar—, así que tres botones de la misma pantalla no se
- * parecían entre sí.
- *
- * 🚨 SOLO FORMA Y LETRA. El color NO va aquí: cada acción tiene el suyo y esa
- * diferencia sí es intencionada. Quien use esto pone su fondo encima.
- */
-export const BOTON_ACCION_FORMA = {
-  minHeight: 40,
-  borderRadius: 10,
-  border: "none",
-  fontFamily: "inherit",
-  fontWeight: 600,
-  fontSize: 14,
-  letterSpacing: "-0.01em",
-  padding: "0 14px",
-} as const;
+// La forma de los botones de accion se mudo a `components/ui`: la comparten
+// publicaciones y el compositor de live, que son rutas distintas. Se reexporta
+// para no tocar los sitios que ya la importan de aqui.
+export { BOTON_ACCION_FORMA } from "@/components/ui";
 
 /**
  * En qué anda una publicación. Decide el TEXTO del botón.

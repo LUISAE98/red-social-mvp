@@ -23,6 +23,10 @@ export type { TextAreaProps } from "./TextArea";
 
 // Contraseña con ojo para revelarla. Hereda el aspecto de quien lo usa, así que
 // vale igual en el alta, en el login y en cualquier formulario con estilo propio.
+// Forma y letra de un boton de accion: la del boton de seguir del perfil.
+// Solo forma y letra, el color lo pone cada boton.
+export { BOTON_ACCION_FORMA } from "./botonAccion";
+
 export { PasswordInput } from "./PasswordInput";
 export type { PasswordInputProps } from "./PasswordInput";
 

@@ -4,7 +4,7 @@ import Image from "next/image";
 import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_LABEL, FIXED_SERVICE_FEE_NOTE } from "@/lib/currency/catalog";
 import { LocalPriceHint } from "@/components/services/config/serviceConfigKit";
 import { formatCurrency } from "@/lib/currency/format";
-import { GlassEdge, TextButton, IconButton } from "@/components/ui";
+import { BOTON_ACCION_FORMA, GlassEdge, TextButton, IconButton } from "@/components/ui";
 import { intlLocale } from "@/i18n/locales";
 import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -52,6 +52,7 @@ export default function LiveComposerModal({
   // casi siempre se cambia una cosa o la otra, no las dos.
   /** Hueco de la cabecera flotante; el scroller lo repone con relleno. */
   const [topInset, setTopInset] = useState(0);
+  const [footInset, setFootInset] = useState(0);
 
   const [wheelOpen, setWheelOpen] = useState<"date" | "time" | null>(null);
   const tLive = useTranslations("live");
@@ -552,7 +553,7 @@ export default function LiveComposerModal({
   const ticketEarningsVisible = ticketEarnings != null && ticketEarnings > 0 && !ticketBelowMin;
 
   const scrollContent = (
-    <div className="vibra-live-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: `${topInset + 18}px 20px 8px` }}>
+    <div className="vibra-live-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: `${topInset + 18}px 20px ${footInset + 8}px` }}>
 
       {/* Ticket */}
       <label style={{ ...labelStyle, marginTop: 2 }}>{tServices("liveAccessTicketLabel")}</label>
@@ -1146,13 +1147,22 @@ export default function LiveComposerModal({
     </div>
   );
 
+  // El botón de publicar es fijo abajo, así que flota igual que la cabecera:
+  // el formulario se disuelve al bajar por detrás en vez de cortarse contra la
+  // línea que había aquí. Se envuelve en la DEFINICIÓN, no en cada rama, porque
+  // el mismo pie lo usan escritorio y celular.
   const footerContent = (
+    <GlassEdge
+      side="bottom"
+      onHeight={setFootInset}
+      veil={isDesktop ? "rgba(10,10,10,0.68)" : "rgba(8,9,11,0.68)"}
+      zIndex={4}
+    >
     <div style={{
       paddingTop: isDesktop ? 14 : 10,
       paddingInlineEnd: 20,
       paddingBottom: isDesktop ? 18 : "calc(14px + var(--vb-safe-bottom, 0px))" as CSSProperties["paddingBottom"],
       paddingInlineStart: 20,
-      borderTop: `1px solid rgba(255,255,255,${isDesktop ? "0.12" : "0.07"})`,
       flexShrink: 0,
     }}>
       <button
@@ -1160,12 +1170,14 @@ export default function LiveComposerModal({
         onClick={handleSubmit}
         disabled={saving}
         style={{
-          width: "100%", height: 42, borderRadius: 5, border: "none",
+          // Misma forma y letra que el resto de acciones de la plataforma, la
+          // del boton de seguir. El color se queda como estaba.
+          ...BOTON_ACCION_FORMA,
+          width: "100%",
           background: saving ? "rgba(255,255,255,0.1)" : "#a855f7",
           color: saving ? "rgba(255,255,255,0.36)" : "rgba(255,255,255,0.98)",
-          fontSize: 17, fontWeight: 500, fontFamily: fontStack,
           cursor: saving ? "not-allowed" : "pointer",
-          letterSpacing: "-0.02em", display: "grid", placeItems: "center",
+          display: "grid", placeItems: "center",
         }}
       >
         {saving
@@ -1174,6 +1186,7 @@ export default function LiveComposerModal({
         }
       </button>
     </div>
+    </GlassEdge>
   );
 
   return createPortal(
