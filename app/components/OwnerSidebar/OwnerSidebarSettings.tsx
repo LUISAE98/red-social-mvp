@@ -233,14 +233,25 @@ function SeccionAjuste({
   titulo,
   abierta,
   onToggle,
+  fija = false,
   children,
 }: {
   icono: React.ReactNode;
   titulo: string;
   abierta: boolean;
   onToggle: () => void;
+  /**
+   * Siempre abierta y sin nada que pulsar.
+   *
+   * En laptop hay sitio de sobra para las siete a la vez, y plegarlas solo
+   * anade un clic para ver lo que ya cabe. Cuando esta fija la cabecera deja de
+   * ser un boton y pierde el chevron: una flecha que no hace nada promete algo
+   * que no va a pasar.
+   */
+  fija?: boolean;
   children: React.ReactNode;
 }) {
+  const desplegada = fija || abierta;
   return (
     <div
       style={{
@@ -261,8 +272,10 @@ function SeccionAjuste({
     >
       <button
         type="button"
-        onClick={onToggle}
-        aria-expanded={abierta}
+        onClick={fija ? undefined : onToggle}
+        // Fija no es un control: ni se puede pulsar ni anuncia estado plegable.
+        disabled={fija}
+        aria-expanded={fija ? undefined : abierta}
         style={{
           width: "100%",
           minHeight: 39,
@@ -274,7 +287,7 @@ function SeccionAjuste({
           background: "transparent",
           border: "none",
           borderRadius: 10,
-          cursor: "pointer",
+          cursor: fija ? "default" : "pointer",
           padding: "9px 6px",
           textAlign: "start",
           WebkitTapHighlightColor: "transparent",
@@ -285,7 +298,7 @@ function SeccionAjuste({
           style={{
             flexShrink: 0,
             display: "inline-flex",
-            color: abierta ? "#ffffff" : "rgba(255,255,255,0.72)",
+            color: desplegada ? "#ffffff" : "rgba(255,255,255,0.72)",
           }}
         >
           {icono}
@@ -301,12 +314,13 @@ function SeccionAjuste({
             overflow: "hidden",
             textOverflow: "ellipsis",
             color: "#ffffff",
-            fontWeight: abierta ? 700 : 600,
+            fontWeight: desplegada ? 700 : 600,
           }}
         >
           {titulo}
         </span>
 
+        {!fija && (
         <span
           aria-hidden
           style={{
@@ -327,13 +341,14 @@ function SeccionAjuste({
             />
           </svg>
         </span>
+        )}
       </button>
 
       <div
         style={{
           display: "grid",
-          gridTemplateRows: abierta ? "1fr" : "0fr",
-          opacity: abierta ? 1 : 0,
+          gridTemplateRows: desplegada ? "1fr" : "0fr",
+          opacity: desplegada ? 1 : 0,
           transition:
             "grid-template-rows 380ms cubic-bezier(0.4,0,0.2,1), opacity 240ms ease",
         }}
@@ -352,12 +367,26 @@ export default function OwnerSidebarSettings({
   uid,
   email,
   onToast,
+  variante = "sidebar",
 }: {
   uid: string | null;
   email: string | null;
   /** Reusa el VibraToast del sidebar; no montamos una segunda capa de toasts. */
   onToast: (text: string | null, type?: ToastType) => void;
+  /**
+   * Donde se esta pintando.
+   *
+   *  · `sidebar` — dentro del espacio personal de celular. Columna estrecha, asi
+   *    que las pestanas se pliegan y solo una esta abierta a la vez.
+   *  · `pagina` — la pantalla propia de laptop (/configuracion). Ahi hay alto de
+   *    sobra para las siete a la vez, y plegarlas solo anadiria un clic para ver
+   *    lo que ya cabe. El titulo pasa a ser el de una pagina cualquiera, sin el
+   *    engrane: en el sidebar el icono distinguia el modulo entre otros diez, y
+   *    en una pantalla que ya se llama Configuracion no distingue nada.
+   */
+  variante?: "sidebar" | "pagina";
 }) {
+  const enPagina = variante === "pagina";
   const tNav = useTranslations("nav");
   const tCommon = useTranslations("common");
   const tProfile = useTranslations("profile");
@@ -785,35 +814,39 @@ export default function OwnerSidebarSettings({
           Antes era un solo desplegable con doce renglones dentro, y para llegar
           a cualquiera había que abrirlo y recorrerlos todos. Con una pestaña por
           ajuste se ve de un vistazo qué hay, y solo se abre lo que se busca. */}
-      <div
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "0 8px 0 6px",
-        }}
-      >
-        <span style={{ display: "inline-flex" }}>
-          <SidebarSettingsIcon size={28} strokeWidth={1.8} color="#ffffff" />
-        </span>
-
-        <span
+      {enPagina ? (
+        <h1 className="vibra-page-title">{tNav("settings")}</h1>
+      ) : (
+        <div
           style={{
-            flex: 1,
-            minWidth: 0,
-            fontSize: 13,
-            lineHeight: 1.15,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            color: "#ffffff",
-            fontWeight: 700,
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "0 8px 0 6px",
           }}
         >
-          {tNav("settings")}
-        </span>
-      </div>
+          <span style={{ display: "inline-flex" }}>
+            <SidebarSettingsIcon size={28} strokeWidth={1.8} color="#ffffff" />
+          </span>
+
+          <span
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontSize: 13,
+              lineHeight: 1.15,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              color: "#ffffff",
+              fontWeight: 700,
+            }}
+          >
+            {tNav("settings")}
+          </span>
+        </div>
+      )}
 
         {/* 1. Quién puede escribirte. Va primero porque es el ajuste que más se
                toca y el único que cambia quién puede llegar a ti. */}
@@ -822,6 +855,7 @@ export default function OwnerSidebarSettings({
           titulo={tProfile("messagePolicyLabel")}
           abierta={abierta === "mensajes"}
           onToggle={() => alternar("mensajes")}
+          fija={enPagina}
         >
           <MessagePolicySetting
             value={localMessagePolicy}
@@ -842,6 +876,7 @@ export default function OwnerSidebarSettings({
           titulo={tProfile("pushLabel")}
           abierta={abierta === "notificaciones"}
           onToggle={() => alternar("notificaciones")}
+          fija={enPagina}
         >
           <div className="sidebar-setting-row" style={row}>
             <div>
@@ -887,6 +922,7 @@ export default function OwnerSidebarSettings({
           titulo={tProfile("accountDataLabel")}
           abierta={abierta === "cuenta"}
           onToggle={() => alternar("cuenta")}
+          fija={enPagina}
         >
           {/* Nombre */}
           <div className="sidebar-setting-row" style={row}>
@@ -979,6 +1015,7 @@ export default function OwnerSidebarSettings({
           titulo={tProfile("bioFieldLabel")}
           abierta={abierta === "bio"}
           onToggle={() => alternar("bio")}
+          fija={enPagina}
         >
           <div className="sidebar-setting-row" style={row}>
             <div style={{ minWidth: 0 }}>
@@ -1015,6 +1052,7 @@ export default function OwnerSidebarSettings({
           titulo={tProfile("languageAndCurrencyLabel")}
           abierta={abierta === "idioma"}
           onToggle={() => alternar("idioma")}
+          fija={enPagina}
         >
           <div className="sidebar-setting-row" style={row}>
             <div style={{ minWidth: 0 }}>
@@ -1042,6 +1080,7 @@ export default function OwnerSidebarSettings({
           titulo={tProfile("blockedAccountsLabel")}
           abierta={abierta === "bloqueadas"}
           onToggle={() => alternar("bloqueadas")}
+          fija={enPagina}
         >
           <div className="sidebar-setting-row" style={row}>
             <div style={{ minWidth: 0 }}>
@@ -1061,6 +1100,7 @@ export default function OwnerSidebarSettings({
           titulo={tProfile("sessionsLabel")}
           abierta={abierta === "sesiones"}
           onToggle={() => alternar("sesiones")}
+          fija={enPagina}
         >
           <div className="sidebar-setting-row" style={row}>
             <div style={{ minWidth: 0 }}>

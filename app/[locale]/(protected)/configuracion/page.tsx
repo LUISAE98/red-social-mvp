@@ -33,6 +33,9 @@ export default function ConfiguracionPage() {
         uid={user?.uid ?? null}
         email={user?.email ?? null}
         onToast={showToast}
+        // Aquí hay alto de sobra: las siete pestañas van abiertas, y el título
+        // es el de una página cualquiera en vez del renglón del sidebar.
+        variante="pagina"
       />
 
       <VibraToast toast={toast} />
