@@ -15,6 +15,13 @@ import {
   panelPrimaryBtnDisabled,
   panelSecondaryBtnStyle,
 } from "@/components/ui";
+import {
+  SettingsIcon,
+  SettingsSection,
+  settingsLabel,
+  settingsRow,
+  settingsValue,
+} from "@/components/settings/settingsKit";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
@@ -131,6 +138,15 @@ function SpinningGear() {
 // scroll y su cierre. Con el se fueron `createPortal` y `useBodyScrollLock`, que
 // solo existian para sostenerlo.
 
+/** Nombre, descripcion, estado, categoria y tags: la ficha de la comunidad. */
+const ICONO_DATOS = (
+  <SettingsIcon>
+    <path d="M4.6 5.4h14.8v13.2H4.6z" />
+    <path d="M8 9.4h8" />
+    <path d="M8 13h5.4" />
+  </SettingsIcon>
+);
+
 export default function OwnerAdminGeneral({
   groupId,
   ownerId,
@@ -230,32 +246,11 @@ const data = snap.data() as {
     gap: 10,
   };
 
-  const itemStyle: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) auto",
-    gap: 10,
-    alignItems: "center",
-    padding: "12px 0",
-    // La linea la pinta el ::after de la hoja, igual que en la configuracion
-    // del perfil: entra 6px por cada lado en vez de cruzar de borde a borde.
-    position: "relative",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: 11,
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.58)",
-    lineHeight: 1.2,
-  };
-
-  const valueStyle: React.CSSProperties = {
-    marginTop: 4,
-    fontSize: 14,
-    color: "rgba(255,255,255,0.92)",
-    fontWeight: 600,
-    lineHeight: 1.4,
-    overflowWrap: "anywhere",
-  };
+  // Renglon, etiqueta y valor son los mismos objetos que en la configuracion
+  // del perfil, no una copia con las mismas cifras.
+  const itemStyle = settingsRow;
+  const labelStyle = settingsLabel;
+  const valueStyle = settingsValue;
 
   // Campo canonico de Vibra (vibra_style.md), el mismo que la configuracion del
   // perfil: fondo sutil SIN borde, radio 12, texto 13. El borde de 1px y el
@@ -472,6 +467,16 @@ await updateDoc(groupRef, {
         }
       `}</style>
 
+      {/* La misma tarjeta con icono que cada ajuste del perfil. Antes estos
+          cinco renglones colgaban sueltos del panel, sin fondo ni titulo, y
+          era lo que hacia que la pantalla se leyera de otra epoca. */}
+      <SettingsSection
+        icono={ICONO_DATOS}
+        titulo="Datos de la comunidad"
+        abierta
+        fija
+        onToggle={() => {}}
+      >
       <div className="general-edit-item" style={itemStyle}>
         <div>
           <div style={labelStyle}>Nombre</div>
@@ -557,6 +562,7 @@ await updateDoc(groupRef, {
           Modificar
         </TextButton>
       </div>
+      </SettingsSection>
 
       {/* El mismo panel que la configuracion del perfil: hoja por abajo en
           celular, tarjeta centrada en laptop, y su titulo y su cruz de cerrar

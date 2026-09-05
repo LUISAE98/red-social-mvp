@@ -4,7 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { useTranslations } from "next-intl";
-import { TextButton } from "@/components/ui";
+import {
+  panelPrimaryBtn,
+  panelPrimaryBtnDisabled,
+  panelSecondaryBtnStyle,
+} from "@/components/ui";
+import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
+import {
+  SettingsIcon,
+  SettingsSection,
+  settingsLabel,
+} from "@/components/settings/settingsKit";
 import { db } from "@/lib/firebase";
 import { softDeleteGroup } from "@/lib/groups/groupDeletion";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -14,6 +24,15 @@ type OwnerAdminDangerZoneProps = {
   groupId: string;
   groupName?: string | null;
 };
+
+/** Lo que no tiene vuelta atras: el triangulo de aviso. */
+const ICONO_PELIGRO = (
+  <SettingsIcon>
+    <path d="M12 4.4L3.2 19.2h17.6L12 4.4z" />
+    <path d="M12 10.2v3.6" />
+    <path d="M12 16.6h.01" />
+  </SettingsIcon>
+);
 
 export default function OwnerAdminDangerZone({
   groupId,
@@ -99,318 +118,191 @@ export default function OwnerAdminDangerZone({
     }
   }
 
+  const ocupado = isDeleting || isPausing;
+
+  // Campo canonico de Vibra, el mismo que la configuracion del perfil: fondo
+  // sutil SIN borde, radio 12, texto 13. El borde de 1px y el texto de 12.5
+  // eran del estilo viejo.
+  const campoStyle: React.CSSProperties = {
+    width: "100%",
+    borderRadius: 12,
+    border: "none",
+    background: "rgba(255,255,255,0.06)",
+    color: "#fff",
+    padding: "10px 12px",
+    fontSize: 13,
+    lineHeight: 1.5,
+    outline: "none",
+    boxSizing: "border-box",
+    fontFamily: "inherit",
+  };
+
+  // El rojo de la plataforma. Eliminar era un boton blanco sobre negro, que
+  // en esta pantalla se leia igual que un guardar cualquiera.
+  const botonEliminar: React.CSSProperties = canDelete
+    ? { ...panelPrimaryBtn, background: "#ef4444" }
+    : panelPrimaryBtnDisabled;
+
   return (
     <>
-      <section
-        style={{
-          display: "grid",
-          gap: 12,
-          borderRadius: 16,
-          border: "1px solid rgba(255,255,255,0.10)",
-          background: "rgba(255,255,255,0.035)",
-          padding: 12,
+      {/* La misma pestana desplegable que cada ajuste del perfil. Antes era
+          una caja con borde propio y un boton suelto dentro, que no se
+          parecia a nada de lo que hay arriba. */}
+      <SettingsSection
+        icono={ICONO_PELIGRO}
+        titulo={tGroups("deleteCommunityButton")}
+        abierta={isOpen}
+        onToggle={() => {
+          const abriendo = !isOpen;
+          setIsOpen(abriendo);
+
+          // Al cerrar se limpia lo escrito: dejar un ELIMINAR a medias dentro
+          // de una pestana plegada es una trampa esperando a que alguien la
+          // vuelva a abrir.
+          if (!abriendo) {
+            setErrorMessage(null);
+            setConfirmText("");
+            setReason("");
+          }
         }}
       >
-        {!isOpen ? (
-          <button
-            type="button"
-            onClick={() => setIsOpen(true)}
+        <div style={{ display: "grid", gap: 12, paddingTop: 2 }}>
+          <p
             style={{
-              minHeight: 38,
-              borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(255,255,255,0.08)",
-              color: "#fff",
-              fontSize: 12.5,
-              fontWeight: 700,
-              cursor: "pointer",
+              margin: 0,
+              fontSize: 11.5,
+              lineHeight: 1.5,
+              color: "rgba(255,255,255,0.58)",
             }}
           >
-            {tGroups("deleteCommunityButton")}
-          </button>
-        ) : (
-          <div style={{ display: "grid", gap: 12 }}>
-            <div style={{ display: "grid", gap: 8 }}>
-              <h4
-                style={{
-                  margin: 0,
-                  fontSize: 13.5,
-                  fontWeight: 700,
-                  color: "#fff",
-                }}
-              >
-                {tGroups("deleteCommunityButton")}
-              </h4>
+            {tGroups("hideCommunityWarning")}
+          </p>
 
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 12,
-                  lineHeight: 1.6,
-                  color: "rgba(255,255,255,0.72)",
-                  textAlign: "justify",
-                }}
-              >
-                {tGroups("hideCommunityWarning")}
-
-              </p>
-
-              {groupName ? (
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 11.5,
-                    lineHeight: 1.45,
-                    color: "rgba(255,255,255,0.62)",
-                  }}
-                >
-                  {tGroups("communityLabel")}{" "}
-                  <span style={{ color: "#fff", fontWeight: 500 }}>
-                    {groupName}
-                  </span>
-                </p>
-              ) : null}
-            </div>
-
-            <label style={{ display: "grid", gap: 6 }}>
-              <span
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 650,
-                  color: "rgba(255,255,255,0.86)",
-                }}
-              >
-                {tGroups("internalReasonOptional")}
-              </span>
-
-              <textarea
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                disabled={isDeleting || isPausing}
-                rows={1}
-                maxLength={240}
-                placeholder={tGroups("deletionReasonPlaceholder")}
-                style={{
-                  width: "100%",
-                  minHeight: 42,
-                  maxHeight: 110,
-                  resize: "vertical",
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(255,255,255,0.06)",
-                  color: "#fff",
-                  padding: "10px 11px",
-                  fontSize: 12.5,
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-            </label>
-
-            <label style={{ display: "grid", gap: 6 }}>
-              <span
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 650,
-                  color: "rgba(255,255,255,0.86)",
-                }}
-              >
-                {tGroups("typeDeleteToConfirm")}
-              </span>
-
-              <input
-                value={confirmText}
-                onChange={(event) => setConfirmText(event.target.value)}
-                disabled={isDeleting || isPausing}
-                placeholder="ELIMINAR"
-                style={{
-                  width: "100%",
-                  minHeight: 40,
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(255,255,255,0.06)",
-                  color: "#fff",
-                  padding: "0 11px",
-                  fontSize: 12.5,
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-            </label>
-
-            <div
+          {groupName ? (
+            <p
               style={{
-                display: "flex",
-                gap: 8,
-                flexWrap: "wrap",
-                justifyContent: "space-between",
+                margin: 0,
+                fontSize: 11.5,
+                lineHeight: 1.45,
+                color: "rgba(255,255,255,0.58)",
               }}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOpen(false);
-                  setErrorMessage(null);
-                  setConfirmText("");
-                  setReason("");
-                }}
-                disabled={isDeleting || isPausing}
-                style={{
-                  minHeight: 38,
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(255,255,255,0.06)",
-                  color: "#fff",
-                  fontSize: 12.5,
-                  fontWeight: 650,
-                  cursor: isDeleting || isPausing ? "not-allowed" : "pointer",
-                  opacity: isDeleting || isPausing ? 0.65 : 1,
-                }}
+              {tGroups("communityLabel")}{" "}
+              <span
+                style={{ color: "rgba(255,255,255,0.92)", fontWeight: 600 }}
               >
-                {tCommon("cancel")}
-              </button>
+                {groupName}
+              </span>
+            </p>
+          ) : null}
 
-              <button
-                type="button"
-                onClick={() => setShowFinalOverlay(true)}
-                disabled={!canDelete || isDeleting || isPausing}
-                style={{
-                  minHeight: 38,
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  background: canDelete
-                    ? "rgba(255,255,255,0.92)"
-                    : "rgba(255,255,255,0.12)",
-                  color: canDelete ? "#000" : "rgba(255,255,255,0.52)",
-                  fontSize: 12.5,
-                  fontWeight: 750,
-                  cursor:
-                    !canDelete || isDeleting || isPausing
-                      ? "not-allowed"
-                      : "pointer",
-                }}
-              >
-                {tGroups("deleteCommunityButton")}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={settingsLabel}>
+              {tGroups("internalReasonOptional")}
+            </span>
 
-      {showFinalOverlay ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            height: "var(--vb-alto-pantalla)",
-            zIndex: 9999,
-            background: "rgba(0,0,0,0.68)",
-            display: "grid",
-            placeItems: "center",
-            padding: 18,
-          }}
-        >
-          <div
-            style={{
-              width: "min(460px, 100%)",
-              borderRadius: 18,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background:
-                "linear-gradient(135deg, rgb(12,10,18) 0%, rgb(5,5,8) 100%)",
-              boxShadow: "0 24px 80px rgba(0,0,0,0.72)",
-              padding: 18,
-              display: "grid",
-              gap: 14,
-            }}
-          >
-            <div style={{ display: "grid", gap: 8 }}>
-              <h3
-                style={{
-                  margin: 0,
-                  color: "#fff",
-                  fontSize: 17,
-                  fontWeight: 800,
-                  lineHeight: 1.2,
-                }}
-              >
-                {tGroups("deleteOrPauseQuestion")}
-
-              </h3>
-
-              <p
-                style={{
-                  margin: 0,
-                  color: "rgba(255,255,255,0.68)",
-                  fontSize: 12.5,
-                  lineHeight: 1.55,
-                }}
-              >
-                {tGroups("deleteOrPauseExplain")}
-
-              </p>
-            </div>
-
-            <div
+            <textarea
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              disabled={ocupado}
+              rows={2}
+              maxLength={240}
+              placeholder={tGroups("deletionReasonPlaceholder")}
               style={{
-                display: "grid",
-                gap: 8,
+                ...campoStyle,
+                minHeight: 64,
+                maxHeight: 130,
+                resize: "vertical",
               }}
+            />
+          </label>
+
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={settingsLabel}>{tGroups("typeDeleteToConfirm")}</span>
+
+            <input
+              value={confirmText}
+              onChange={(event) => setConfirmText(event.target.value)}
+              disabled={ocupado}
+              placeholder="ELIMINAR"
+              style={campoStyle}
+            />
+          </label>
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => setShowFinalOverlay(true)}
+              disabled={!canDelete || ocupado}
+              style={botonEliminar}
             >
-              <button
-                type="button"
-                onClick={handlePauseGroup}
-                disabled={isPausing || isDeleting}
-                style={{
-                  minHeight: 40,
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "#fff",
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  cursor: isPausing || isDeleting ? "not-allowed" : "pointer",
-                  opacity: isPausing || isDeleting ? 0.7 : 1,
-                }}
-              >
-                {isPausing ? "Pausando..." : tGroups("justPause")}
-              </button>
+              {tGroups("deleteCommunityButton")}
+            </button>
 
-              <button
-                type="button"
-                onClick={handleDeleteGroup}
-                disabled={isPausing || isDeleting}
-                style={{
-                  minHeight: 40,
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  background: "#fff",
-                  color: "#000",
-                  fontSize: 12.5,
-                  fontWeight: 800,
-                  cursor: isPausing || isDeleting ? "not-allowed" : "pointer",
-                  opacity: isPausing || isDeleting ? 0.76 : 1,
-                }}
-              >
-                {isDeleting ? "Eliminando..." : tGroups("yesDeleteCommunity")}
-              </button>
-
-              <TextButton
-                tone="mute"
-                size="sm"
-                onClick={() => setShowFinalOverlay(false)}
-                disabled={isPausing || isDeleting}
-                style={{ minHeight: 36, justifyContent: "center" }}
-              >
-                Volver
-              </TextButton>
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setErrorMessage(null);
+                setConfirmText("");
+                setReason("");
+              }}
+              disabled={ocupado}
+              style={panelSecondaryBtnStyle(ocupado)}
+            >
+              {tCommon("cancel")}
+            </button>
           </div>
         </div>
-      ) : null}
+      </SettingsSection>
+
+      {/* El panel canonico, el mismo que abre Modificar en los datos de la
+          comunidad. Antes era un modal a mano con su fondo, su tarjeta y su
+          degradado propios, y encima un tercer boton de Volver que aqui ya
+          hace la cruz de cerrar. */}
+      <VibraResponsivePanel
+        open={showFinalOverlay}
+        onClose={() => !ocupado && setShowFinalOverlay(false)}
+        title={tGroups("deleteOrPauseQuestion")}
+        closeAriaLabel={tCommon("closeAriaLabel")}
+        maxWidthDesktop={440}
+        footer={
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              onClick={handleDeleteGroup}
+              disabled={ocupado}
+              style={
+                ocupado
+                  ? panelPrimaryBtnDisabled
+                  : { ...panelPrimaryBtn, background: "#ef4444" }
+              }
+            >
+              {isDeleting ? "Eliminando" : tGroups("yesDeleteCommunity")}
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePauseGroup}
+              disabled={ocupado}
+              style={panelSecondaryBtnStyle(ocupado)}
+            >
+              {isPausing ? "Pausando" : tGroups("justPause")}
+            </button>
+          </div>
+        }
+      >
+        <p
+          style={{
+            margin: 0,
+            fontSize: 12.5,
+            lineHeight: 1.55,
+            color: "rgba(255,255,255,0.68)",
+          }}
+        >
+          {tGroups("deleteOrPauseExplain")}
+        </p>
+      </VibraResponsivePanel>
 
       <VibraToast toast={toast} />
     </>

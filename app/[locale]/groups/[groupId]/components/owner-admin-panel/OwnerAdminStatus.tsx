@@ -6,6 +6,16 @@ import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { Switch } from "@/components/profile/ProfileSettings.parts";
+import {
+  SettingsIcon,
+  SettingsRow,
+  SettingsSection,
+  settingsHint,
+  settingsLabel,
+  settingsValue,
+} from "@/components/settings/settingsKit";
+import { BOTON_ACCION_FORMA } from "@/components/ui";
 
 type PostingMode = "members" | "owner_only";
 
@@ -45,126 +55,21 @@ function SpinningGear() {
   );
 }
 
-type SwitchRowProps = {
-  label: string;
-  description: string;
-  checked: boolean;
-  busy: boolean;
-  leftLabel: string;
-  rightLabel: string;
-  onToggle: () => void;
-};
+/** Quien puede publicar y comentar: un escudo. */
+const ICONO_PERMISOS = (
+  <SettingsIcon>
+    <path d="M12 3l7 3v5.4c0 4.2-2.9 7.7-7 8.6-4.1-.9-7-4.4-7-8.6V6l7-3z" />
+    <path d="M9.2 11.8l2 2 3.6-3.8" />
+  </SettingsIcon>
+);
 
-function PermissionSwitchRow({
-  label,
-  description,
-  checked,
-  busy,
-  leftLabel,
-  rightLabel,
-  onToggle,
-}: SwitchRowProps) {
-  return (
-    <div
-      style={{
-        padding: "12px 2px",
-        display: "grid",
-        gap: 10,
-      }}
-    >
-      <div style={{ display: "grid", gap: 4 }}>
-        <div
-          style={{
-            fontSize: 12.5,
-            fontWeight: 600,
-            color: "#fff",
-            lineHeight: 1.2,
-          }}
-        >
-          {label}
-        </div>
-
-        <div
-          style={{
-            fontSize: 11,
-            color: "rgba(255,255,255,0.66)",
-            lineHeight: 1.35,
-          }}
-        >
-          {description}
-        </div>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            color: checked ? "rgba(255,255,255,0.58)" : "#fff",
-            fontWeight: checked ? 500 : 600,
-          }}
-        >
-          {leftLabel}
-        </span>
-
-        <button
-          type="button"
-          role="switch"
-          aria-checked={checked}
-          aria-label={label}
-          onClick={onToggle}
-          disabled={busy}
-          style={{
-            position: "relative",
-            width: 52,
-            height: 30,
-            borderRadius: 999,
-            border: "1px solid rgba(255,255,255,0.14)",
-            background: checked ? "#fff" : "rgba(255,255,255,0.10)",
-            cursor: busy ? "not-allowed" : "pointer",
-            transition: "all 160ms ease",
-            opacity: busy ? 0.72 : 1,
-            padding: 0,
-            WebkitAppearance: "none",
-            appearance: "none",
-          }}
-        >
-          <span
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              top: 3,
-              insetInlineStart: checked ? 25 : 3,
-              width: 22,
-              height: 22,
-              borderRadius: "50%",
-              background: checked ? "#000" : "#fff",
-              transition: "all 160ms ease",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.28)",
-            }}
-          />
-        </button>
-
-        <span
-          style={{
-            fontSize: 11,
-            color: checked ? "#fff" : "rgba(255,255,255,0.58)",
-            fontWeight: checked ? 600 : 500,
-          }}
-        >
-          {rightLabel}
-        </span>
-      </div>
-    </div>
-  );
-}
+/** Activa o en pausa: el glifo de encendido. */
+const ICONO_ESTADO = (
+  <SettingsIcon>
+    <path d="M12 3.8v8" />
+    <path d="M7.4 6.6a7 7 0 1 0 9.2 0" />
+  </SettingsIcon>
+);
 
 export default function OwnerAdminStatus({
   groupId,
@@ -308,171 +213,134 @@ export default function OwnerAdminStatus({
 
   if (!isOwner) return null;
 
-  const fontStack =
-    'inherit';
+  // El interruptor encendido siempre significa "restringido", igual que en la
+  // configuracion del perfil. Antes eran dos textos a los lados del control y
+  // habia que leer los dos para saber cual estaba activo.
+  const soloYoPublico = postingMode === "owner_only";
+  const soloYoComento = !commentsEnabled;
 
-  const contentStyle: React.CSSProperties = {
-    display: "grid",
-    gap: 12,
-  };
-
-  const subtleTextStyle: React.CSSProperties = {
-    fontSize: 10.5,
-    color: "rgba(255,255,255,0.60)",
-    lineHeight: 1.35,
-  };
-
-  const sectionTitleStyle: React.CSSProperties = {
-    margin: 0,
-    fontSize: 12.5,
-    fontWeight: 600,
+  // Forma y letra del boton de seguir, la misma que ya usan publicar, editar y
+  // monetizar. Solo cambia el color. Antes eran dos cajas, una blanca y otra
+  // negra, del estilo viejo.
+  const botonEstado = (destacado: boolean): React.CSSProperties => ({
+    ...BOTON_ACCION_FORMA,
+    flex: "1 1 0",
+    maxWidth: 180,
+    background: destacado ? "#a855f7" : "rgba(255,255,255,0.08)",
     color: "#fff",
-    letterSpacing: "-0.01em",
-  };
-
-  // Línea sutil para separar opciones, igual a la de la pestaña de experiencias.
-  const dividerStyle: React.CSSProperties = {
-    height: 1,
-    margin: "0 6px",
-    background: "rgba(255,255,255,0.1)",
-  };
-
-  const primaryButtonStyle: React.CSSProperties = {
-    minHeight: 36,
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "#fff",
-    color: "#000",
-    fontSize: 12.5,
-    fontWeight: 600,
-    fontFamily: fontStack,
-    cursor: "pointer",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+    cursor: statusBusy ? "not-allowed" : "pointer",
+    opacity: statusBusy ? 0.72 : 1,
     WebkitAppearance: "none",
     appearance: "none",
-    width: "auto",
-  };
-
-  const secondaryButtonStyle: React.CSSProperties = {
-    ...primaryButtonStyle,
-    background: "rgba(255,255,255,0.08)",
-    color: "#fff",
-  };
-
-  const statusActionsStyle: React.CSSProperties = {
-    display: "flex",
-    gap: 8,
-    flexWrap: "wrap",
-  };
+  });
 
   return (
-    <div style={contentStyle}>
-      <div
-        style={{
-          display: "grid",
-          gap: 10,
-          marginTop: 10,
-        }}
+    <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+      {/* Las dos pestanas van fijas: este panel ya vive dentro de una pestana
+          del panel del creador, y plegarlas otra vez seria un segundo nivel de
+          desplegables para ver cuatro renglones. */}
+      <SettingsSection
+        icono={ICONO_PERMISOS}
+        titulo={tGroups("permissionsTitle")}
+        abierta
+        fija
+        onToggle={() => {}}
       >
-        <h4 style={sectionTitleStyle}>{tGroups("permissionsTitle")}</h4>
+        <SettingsRow>
+          <div style={{ minWidth: 0 }}>
+            <div style={settingsLabel}>Publicaciones</div>
+            <div style={settingsValue}>
+              {soloYoPublico
+                ? "Solo yo puedo publicar"
+                : "Cualquier miembro puede publicar"}
+            </div>
+            <div style={settingsHint}>{tGroups("permissionsWhoPosts")}</div>
+          </div>
 
-        <PermissionSwitchRow
-          label="Publicaciones"
-          description={tGroups("permissionsWhoPosts")}
-          checked={postingMode === "owner_only"}
-          busy={postingBusy}
-          leftLabel="Cualquier miembro puede publicar"
-          rightLabel="Solo yo puedo publicar"
-          onToggle={() =>
-            savePostingMode(
-              postingMode === "owner_only" ? "members" : "owner_only"
-            )
-          }
-        />
+          <Switch
+            checked={soloYoPublico}
+            disabled={postingBusy}
+            onChange={() =>
+              savePostingMode(soloYoPublico ? "members" : "owner_only")
+            }
+            label="Publicaciones"
+          />
+        </SettingsRow>
 
-        <PermissionSwitchRow
-          label="Comentarios"
-          description={tGroups("permissionsWhoComments")}
-          checked={!commentsEnabled}
-          busy={commentsBusy}
-          leftLabel="Cualquier miembro puede comentar"
-          rightLabel="Solo yo puedo comentar"
-          onToggle={() => saveCommentsEnabled(!commentsEnabled)}
-        />
-      </div>
+        <SettingsRow>
+          <div style={{ minWidth: 0 }}>
+            <div style={settingsLabel}>Comentarios</div>
+            <div style={settingsValue}>
+              {soloYoComento
+                ? "Solo yo puedo comentar"
+                : "Cualquier miembro puede comentar"}
+            </div>
+            <div style={settingsHint}>{tGroups("permissionsWhoComments")}</div>
+          </div>
 
-      <div aria-hidden="true" style={dividerStyle} />
+          <Switch
+            checked={soloYoComento}
+            disabled={commentsBusy}
+            onChange={() => saveCommentsEnabled(soloYoComento)}
+            label="Comentarios"
+          />
+        </SettingsRow>
+      </SettingsSection>
 
-      <div
-        style={{
-          display: "grid",
-          gap: 10,
-          marginTop: 2,
-        }}
+      <SettingsSection
+        icono={ICONO_ESTADO}
+        titulo="Estado de la comunidad"
+        abierta
+        fija
+        onToggle={() => {}}
       >
-        <h4 style={sectionTitleStyle}>Estado de la comunidad</h4>
+        {/* Aqui no hay control a la derecha: esta pantalla no recibe si la
+            comunidad esta activa, asi que se ofrecen las dos salidas. Van
+            debajo del texto y no al lado para que en celular no se aplasten
+            contra la explicacion. */}
+        <SettingsRow style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={settingsLabel}>Disponibilidad</div>
+            <div style={settingsHint}>{tGroups("pauseExplains")}</div>
 
-        <div style={subtleTextStyle}>
-          {tGroups("pauseExplains")}
-        </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={() => setActive(false)}
+                disabled={statusBusy}
+                style={botonEstado(false)}
+              >
+                {statusBusy ? (
+                  <>
+                    <SpinningGear /> Procesando
+                  </>
+                ) : (
+                  "Pausar"
+                )}
+              </button>
 
-        <div style={statusActionsStyle}>
-          <button
-            type="button"
-            onClick={() => setActive(false)}
-            disabled={statusBusy}
-            style={{
-              ...secondaryButtonStyle,
-              flex: "1 1 160px",
-              opacity: statusBusy ? 0.72 : 1,
-              cursor: statusBusy ? "not-allowed" : "pointer",
-            }}
-          >
-            {statusBusy ? (
-              <>
-                <SpinningGear />
-                Procesando...
-              </>
-            ) : (
-              "Pausar"
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActive(true)}
-            disabled={statusBusy}
-            style={{
-              ...primaryButtonStyle,
-              flex: "1 1 160px",
-              opacity: statusBusy ? 0.84 : 1,
-              cursor: statusBusy ? "not-allowed" : "pointer",
-              background: statusBusy ? "rgba(255,255,255,0.18)" : "#fff",
-              color: statusBusy ? "#fff" : "#000",
-            }}
-          >
-            {statusBusy ? (
-              <>
-                <SpinningGear />
-                Procesando...
-              </>
-            ) : (
-              "Reactivar"
-            )}
-          </button>
-        </div>
-      </div>
-
-      <div style={subtleTextStyle}>
-        {tGroups("sourceOfTruthNote")}{" "}
-        <code>permissions.postingMode</code>,{" "}
-        <code>permissions.commentsEnabled</code>, <code>isActive</code> y{" "}
-        <code>updatedAt</code>.
-      </div>
+              <button
+                type="button"
+                onClick={() => setActive(true)}
+                disabled={statusBusy}
+                style={botonEstado(true)}
+              >
+                {statusBusy ? (
+                  <>
+                    <SpinningGear /> Procesando
+                  </>
+                ) : (
+                  "Reactivar"
+                )}
+              </button>
+            </div>
+          </div>
+        </SettingsRow>
+      </SettingsSection>
 
       <VibraToast toast={toast} />
     </div>

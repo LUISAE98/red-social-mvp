@@ -60,6 +60,14 @@ import type { ToastType } from "@/lib/hooks/useVibraToast";
 import { SidebarSettingsIcon } from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
+import {
+  SettingsIcon,
+  SettingsSection,
+  settingsHint,
+  settingsLabel,
+  settingsRow,
+  settingsValue,
+} from "@/components/settings/settingsKit";
 import { useCurrency } from "@/app/components/CurrencyProvider";
 import { readyLocaleMeta } from "@/i18n/locales";
 import { currencyLabel } from "@/lib/currency/format";
@@ -135,86 +143,67 @@ function toDateValue(value: FirestoreDateLike): string | Date | null {
  * del sidebar: trazo de 1.7, `currentColor` y lienzo de 24, para que puestos en
  * columna se lean como un juego y no como siete dibujos sueltos.
  */
-function IconoAjuste({
-  children,
-  size = 20,
-}: {
-  children: React.ReactNode;
-  size?: number;
-}) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.7}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {children}
-    </svg>
-  );
-}
+// El glifo, la tarjeta y las medidas de un renglon viven ahora en
+// `components/settings/settingsKit`: la configuracion de la comunidad usa
+// exactamente las mismas piezas, y copiarlas garantizaba que una se quedara
+// atras en cuanto alguien retocara la otra.
 
 /** Quién puede escribirte: un globo de mensaje. */
 const ICONO_MENSAJES = (
-  <IconoAjuste>
+  <SettingsIcon>
     <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-3.6-.7L3 21l1.9-4.9A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z" />
-  </IconoAjuste>
+  </SettingsIcon>
 );
 
 /** Notificaciones: la campana. */
 const ICONO_NOTIFICACIONES = (
-  <IconoAjuste>
+  <SettingsIcon>
     <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
     <path d="M13.7 21a2 2 0 0 1-3.4 0" />
-  </IconoAjuste>
+  </SettingsIcon>
 );
 
 /** Datos de la cuenta: la persona. */
 const ICONO_CUENTA = (
-  <IconoAjuste>
+  <SettingsIcon>
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
     <circle cx="12" cy="7" r="4" />
-  </IconoAjuste>
+  </SettingsIcon>
 );
 
 /** Descripción del perfil: renglones de texto. */
 const ICONO_BIO = (
-  <IconoAjuste>
+  <SettingsIcon>
     <path d="M4 6h16" />
     <path d="M4 11h16" />
     <path d="M4 16h9" />
-  </IconoAjuste>
+  </SettingsIcon>
 );
 
 /** Idioma y moneda: el globo terráqueo. */
 const ICONO_IDIOMA = (
-  <IconoAjuste>
+  <SettingsIcon>
     <circle cx="12" cy="12" r="9" />
     <path d="M3 12h18" />
     <path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z" />
-  </IconoAjuste>
+  </SettingsIcon>
 );
 
 /** Cuentas bloqueadas: el círculo tachado. */
 const ICONO_BLOQUEADAS = (
-  <IconoAjuste>
+  <SettingsIcon>
     <circle cx="12" cy="12" r="9" />
     <path d="M5.6 5.6l12.8 12.8" />
-  </IconoAjuste>
+  </SettingsIcon>
 );
 
 /** Sesiones activas: la pantalla de otro aparato. */
 const ICONO_SESIONES = (
-  <IconoAjuste>
+  <SettingsIcon>
     <rect x="3" y="4" width="18" height="12" rx="2" />
     <path d="M8 20h8" />
     <path d="M12 16v4" />
-  </IconoAjuste>
+  </SettingsIcon>
 );
 
 /** Las siete pestañas del cajón de ajustes, en el orden en que se ven. */
@@ -226,154 +215,6 @@ type SeccionId =
   | "idioma"
   | "bloqueadas"
   | "sesiones";
-
-/**
- * Una pestaña del cajón de ajustes.
- *
- * Hereda la cabecera que tenía "Configuración" cuando era ella la que se
- * desplegaba: título a la izquierda, chevron que gira, y el cuerpo abriéndose de
- * `0fr` a `1fr` para animar hasta su altura real sin un tope fijo que recorte la
- * lista de dentro.
- *
- * 🚨 VIVE A NIVEL DE MÓDULO, NO DENTRO DEL COMPONENTE. Una función declarada
- * dentro es un tipo nuevo en cada render, así que React desmonta y vuelve a
- * montar todo su subárbol: se perdería el foco de lo que se estuviera
- * escribiendo y se reiniciaría cualquier animación en curso.
- */
-function SeccionAjuste({
-  icono,
-  titulo,
-  abierta,
-  onToggle,
-  fija = false,
-  children,
-}: {
-  icono: React.ReactNode;
-  titulo: string;
-  abierta: boolean;
-  onToggle: () => void;
-  /**
-   * Siempre abierta y sin nada que pulsar.
-   *
-   * En laptop hay sitio de sobra para las siete a la vez, y plegarlas solo
-   * anade un clic para ver lo que ya cabe. Cuando esta fija la cabecera deja de
-   * ser un boton y pierde el chevron: una flecha que no hace nada promete algo
-   * que no va a pasar.
-   */
-  fija?: boolean;
-  children: React.ReactNode;
-}) {
-  const desplegada = fija || abierta;
-  return (
-    <div
-      style={{
-        minWidth: 0,
-        position: "relative",
-        // 🚨 CADA PESTAÑA ES SU PROPIO MÓDULO, con su tarjeta. No van las siete
-        // dentro de una sola: apiladas en un mismo bloque gris se leen como una
-        // lista larga otra vez, que es justo de lo que se venía.
-        //
-        // La tarjeta va EN LÍNEA y no en el <style jsx> del padre: styled-jsx
-        // solo pone su hash en lo que renderiza SU componente, y este div lo
-        // pinta SeccionAjuste. Desde el padre la regla no llegaría, y además
-        // fallaría en silencio.
-        background: "rgba(255,255,255,0.06)",
-        borderRadius: 14,
-        padding: 6,
-      }}
-    >
-      <button
-        type="button"
-        onClick={fija ? undefined : onToggle}
-        // Fija no es un control: ni se puede pulsar ni anuncia estado plegable.
-        disabled={fija}
-        aria-expanded={fija ? undefined : abierta}
-        style={{
-          width: "100%",
-          minHeight: 39,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          // Dentro de la tarjeta gris no lleva fondo propio: dos grises
-          // encimados solo ensucian el contraste.
-          background: "transparent",
-          border: "none",
-          borderRadius: 10,
-          cursor: fija ? "default" : "pointer",
-          padding: "9px 6px",
-          textAlign: "start",
-          WebkitTapHighlightColor: "transparent",
-          fontFamily: "inherit",
-        }}
-      >
-        <span
-          style={{
-            flexShrink: 0,
-            display: "inline-flex",
-            color: desplegada ? "#ffffff" : "rgba(255,255,255,0.72)",
-          }}
-        >
-          {icono}
-        </span>
-
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            fontSize: 13,
-            lineHeight: 1.2,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            color: "#ffffff",
-            fontWeight: desplegada ? 700 : 600,
-          }}
-        >
-          {titulo}
-        </span>
-
-        {!fija && (
-        <span
-          aria-hidden
-          style={{
-            flexShrink: 0,
-            display: "inline-flex",
-            color: "rgba(255,255,255,0.5)",
-            transform: abierta ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)",
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M6 9.5L12 15.5L18 9.5"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-        )}
-      </button>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateRows: desplegada ? "1fr" : "0fr",
-          opacity: desplegada ? 1 : 0,
-          transition:
-            "grid-template-rows 380ms cubic-bezier(0.4,0,0.2,1), opacity 240ms ease",
-        }}
-      >
-        <div style={{ overflow: "hidden" }}>
-          {/* Relleno lateral propio: sin el, el contenido quedaba pegado al
-              borde de la tarjeta y se leia apretado. */}
-          <div style={{ padding: "0 6px 6px" }}>{children}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function OwnerSidebarSettings({
   uid,
@@ -794,37 +635,13 @@ export default function OwnerSidebarSettings({
 
   const currentCurrencyName = `${currency} · ${currencyLabel(currency, locale)}`;
 
-  const row: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) auto",
-    gap: 10,
-    alignItems: "center",
-    padding: "11px 0",
-    position: "relative",
-  };
-
-  const labelStyle: CSSProperties = {
-    fontSize: 11,
-    fontWeight: 600,
-    color: "rgba(255,255,255,0.58)",
-    lineHeight: 1.2,
-  };
-
-  const valueStyle: CSSProperties = {
-    marginTop: 4,
-    fontSize: 13.5,
-    color: "rgba(255,255,255,0.92)",
-    fontWeight: 600,
-    lineHeight: 1.4,
-    overflowWrap: "anywhere",
-  };
-
-  const hintStyle: CSSProperties = {
-    marginTop: 5,
-    fontSize: 11,
-    color: "rgba(255,255,255,0.58)",
-    lineHeight: 1.4,
-  };
+  // Etiqueta gris arriba, valor en blanco debajo y la ayuda al pie. Es el
+  // renglon canonico de una configuracion de Vibra, compartido con la de la
+  // comunidad.
+  const row = settingsRow;
+  const labelStyle = settingsLabel;
+  const valueStyle = settingsValue;
+  const hintStyle = settingsHint;
 
   const linkBtn: CSSProperties = {
     justifySelf: "end",
@@ -965,7 +782,7 @@ export default function OwnerSidebarSettings({
 
         {/* 1. Quién puede escribirte. Va primero porque es el ajuste que más se
                toca y el único que cambia quién puede llegar a ti. */}
-        <SeccionAjuste
+        <SettingsSection
           icono={ICONO_MENSAJES}
           titulo={tProfile("messagePolicyLabel")}
           abierta={abierta === "mensajes"}
@@ -977,7 +794,7 @@ export default function OwnerSidebarSettings({
             disabled={savingMessagePolicy || !data}
             onChange={handleMessagePolicyChange}
           />
-        </SeccionAjuste>
+        </SettingsSection>
 
         {/* 2. Notificaciones. La pestaña entera desaparece donde el navegador no
                las admite: una pestaña que se abre y no tiene nada dentro es peor
@@ -986,7 +803,7 @@ export default function OwnerSidebarSettings({
                navegador no admite avisos: esconderla dejaba la lista distinta
                segun el aparato y sin decir por que faltaba. Cuando no se puede,
                se dice dentro y no se ofrece el interruptor. */}
-        <SeccionAjuste
+        <SettingsSection
           icono={ICONO_NOTIFICACIONES}
           titulo={tProfile("pushLabel")}
           abierta={abierta === "notificaciones"}
@@ -1027,12 +844,12 @@ export default function OwnerSidebarSettings({
               />
             )}
           </div>
-        </SeccionAjuste>
+        </SettingsSection>
 
         {/* 3. Datos de la cuenta: lo que te identifica. Cinco renglones que
                antes andaban sueltos entre los ajustes y que juntos se leen como
                una ficha. */}
-        <SeccionAjuste
+        <SettingsSection
           icono={ICONO_CUENTA}
           titulo={tProfile("accountDataLabel")}
           abierta={abierta === "cuenta"}
@@ -1122,13 +939,13 @@ export default function OwnerSidebarSettings({
               <div style={valueStyle}>{resolvedBirthDate}</div>
             </div>
           </div>
-        </SeccionAjuste>
+        </SettingsSection>
 
         {/* 4. Configuración de perfil: la descripción mas los tres ajustes que
                vivian solo en la pestana del perfil. No son opciones nuevas, es
                el mismo campo de Firestore visto desde aqui, asi que cambiar uno
                en cualquiera de los dos sitios se ve en el otro al instante. */}
-        <SeccionAjuste
+        <SettingsSection
           icono={ICONO_BIO}
           titulo={tProfile("settingsTitle")}
           abierta={abierta === "bio"}
@@ -1249,7 +1066,7 @@ export default function OwnerSidebarSettings({
               {tProfile("editLabel")}
             </TextButton>
           </div>
-        </SeccionAjuste>
+        </SettingsSection>
 
         {/* 5. Idioma y moneda.
 
@@ -1257,7 +1074,7 @@ export default function OwnerSidebarSettings({
                sobre la foto. Un ajuste de la aplicación no es parte del perfil
                de nadie, y ahí solo los encontraba quien pasara por su propia
                portada. En laptop no cambia nada: siguen en la cabecera. */}
-        <SeccionAjuste
+        <SettingsSection
           icono={ICONO_IDIOMA}
           titulo={tProfile("languageAndCurrencyLabel")}
           abierta={abierta === "idioma"}
@@ -1281,11 +1098,11 @@ export default function OwnerSidebarSettings({
 
             <CurrencySwitcher variant="settings" />
           </div>
-        </SeccionAjuste>
+        </SettingsSection>
 
         {/* 6. Cuentas bloqueadas. La lista entera sigue viviendo en su panel:
                aquí dentro va lo que hay y la puerta para abrirlo. */}
-        <SeccionAjuste
+        <SettingsSection
           icono={ICONO_BLOQUEADAS}
           titulo={tProfile("blockedAccountsLabel")}
           abierta={abierta === "bloqueadas"}
@@ -1302,10 +1119,10 @@ export default function OwnerSidebarSettings({
               {tCommon("viewLabel")}
             </TextButton>
           </div>
-        </SeccionAjuste>
+        </SettingsSection>
 
         {/* 7. Sesiones activas */}
-        <SeccionAjuste
+        <SettingsSection
           icono={ICONO_SESIONES}
           titulo={tProfile("sessionsLabel")}
           abierta={abierta === "sesiones"}
@@ -1322,7 +1139,7 @@ export default function OwnerSidebarSettings({
               {tCommon("viewLabel")}
             </TextButton>
           </div>
-        </SeccionAjuste>
+        </SettingsSection>
 
       {/* Cerrar sesión NO va aquí: vive suelto debajo del cajón, en
           OwnerSidebar. Salir de la sesión no es un ajuste más de la lista. */}
