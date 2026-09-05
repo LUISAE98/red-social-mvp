@@ -15,7 +15,6 @@ import {
   settingsLabel,
   settingsValue,
 } from "@/components/settings/settingsKit";
-import { BOTON_ACCION_FORMA } from "@/components/ui";
 
 type PostingMode = "members" | "owner_only";
 
@@ -25,35 +24,16 @@ type Props = {
   currentUserId: string;
   currentPostingMode?: PostingMode | string | null;
   currentCommentsEnabled?: boolean | null;
-};
 
-function SpinningGear() {
-  return (
-    <>
-      <style jsx>{`
-        @keyframes ownerStatusGearSpin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
-      <span
-        aria-hidden="true"
-        style={{
-          display: "inline-block",
-          animation: "ownerStatusGearSpin 0.9s linear infinite",
-          transformOrigin: "50% 50%",
-          opacity: 0.9,
-        }}
-      >
-        ⚙
-      </span>
-    </>
-  );
-}
+  /**
+   * Si la comunidad esta en pie o pausada.
+   *
+   * Esta pantalla no lo leia, y por eso el estado se ofrecia con dos botones
+   * —Pausar y Reactivar— en vez de con un interruptor: sin saber cual de los
+   * dos estaba puesto, no habia nada que encender ni que apagar.
+   */
+  currentIsActive?: boolean | null;
+};
 
 /** Quien puede publicar y comentar: un escudo. */
 const ICONO_PERMISOS = (
@@ -77,6 +57,7 @@ export default function OwnerAdminStatus({
   currentUserId,
   currentPostingMode = "members",
   currentCommentsEnabled = true,
+  currentIsActive = true,
 }: Props) {
   const tGroups = useTranslations("groups");
 
@@ -89,12 +70,15 @@ export default function OwnerAdminStatus({
     currentPostingMode === "owner_only" ? "owner_only" : "members";
 
   const normalizedCommentsEnabled = currentCommentsEnabled !== false;
+  const normalizedIsActive = currentIsActive !== false;
 
   const [postingMode, setPostingMode] =
     useState<PostingMode>(normalizedPostingMode);
   const [commentsEnabled, setCommentsEnabled] = useState<boolean>(
     normalizedCommentsEnabled
   );
+
+  const [isActive, setIsActive] = useState<boolean>(normalizedIsActive);
 
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [statusErr, setStatusErr] = useState<string | null>(null);
@@ -115,29 +99,44 @@ export default function OwnerAdminStatus({
     setCommentsEnabled(normalizedCommentsEnabled);
   }, [normalizedCommentsEnabled]);
 
-  async function setActive(isActive: boolean) {
+  useEffect(() => {
+    setIsActive(normalizedIsActive);
+  }, [normalizedIsActive]);
+
+  async function setActive(next: boolean) {
     if (!isOwner) return;
+
+    const anterior = isActive;
 
     setStatusBusy(true);
     setStatusMsg(null);
     setStatusErr(null);
 
+    // El interruptor cambia de sitio al momento y vuelve solo si la
+    // escritura falla, igual que los de publicaciones y comentarios.
+    setIsActive(next);
+
     try {
       await updateDoc(doc(db, "groups", groupId), {
-        isActive,
+        isActive: next,
         // ⚠️ El índice de búsqueda va junto, no después.
         //
         // El descubrimiento filtra por `search.isActive`, no por `isActive`. Al
         // pausar solo se escribía el segundo, así que **la comunidad pausada
         // seguía saliendo en búsquedas**. Y al reactivar pasaba lo contrario si
         // el índice se había quedado en `false`.
-        "search.isActive": isActive,
+        "search.isActive": next,
         updatedAt: serverTimestamp(),
       });
 
-      setStatusMsg(isActive ? tGroups("statusReactivated") : tGroups("statusPaused"));
+      setStatusMsg(
+        next ? tGroups("statusReactivated") : tGroups("statusPaused")
+      );
     } catch (e: unknown) {
-      setStatusErr((e instanceof Error ? e.message : null) ?? tGroups("statusUpdateError"));
+      setIsActive(anterior);
+      setStatusErr(
+        (e instanceof Error ? e.message : null) ?? tGroups("statusUpdateError")
+      );
     } finally {
       setStatusBusy(false);
     }
@@ -219,25 +218,6 @@ export default function OwnerAdminStatus({
   const soloYoPublico = postingMode === "owner_only";
   const soloYoComento = !commentsEnabled;
 
-  // Forma y letra del boton de seguir, la misma que ya usan publicar, editar y
-  // monetizar. Solo cambia el color. Antes eran dos cajas, una blanca y otra
-  // negra, del estilo viejo.
-  const botonEstado = (destacado: boolean): React.CSSProperties => ({
-    ...BOTON_ACCION_FORMA,
-    flex: "1 1 0",
-    maxWidth: 180,
-    background: destacado ? "#a855f7" : "rgba(255,255,255,0.08)",
-    color: "#fff",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    cursor: statusBusy ? "not-allowed" : "pointer",
-    opacity: statusBusy ? 0.72 : 1,
-    WebkitAppearance: "none",
-    appearance: "none",
-  });
-
   return (
     <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
       {/* Las dos pestanas van fijas: este panel ya vive dentro de una pestana
@@ -298,47 +278,21 @@ export default function OwnerAdminStatus({
         fija
         onToggle={() => {}}
       >
-        {/* Aqui no hay control a la derecha: esta pantalla no recibe si la
-            comunidad esta activa, asi que se ofrecen las dos salidas. Van
-            debajo del texto y no al lado para que en celular no se aplasten
-            contra la explicacion. */}
-        <SettingsRow style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
+        <SettingsRow>
           <div style={{ minWidth: 0 }}>
             <div style={settingsLabel}>Disponibilidad</div>
-            <div style={settingsHint}>{tGroups("pauseExplains")}</div>
-
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button
-                type="button"
-                onClick={() => setActive(false)}
-                disabled={statusBusy}
-                style={botonEstado(false)}
-              >
-                {statusBusy ? (
-                  <>
-                    <SpinningGear /> Procesando
-                  </>
-                ) : (
-                  "Pausar"
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActive(true)}
-                disabled={statusBusy}
-                style={botonEstado(true)}
-              >
-                {statusBusy ? (
-                  <>
-                    <SpinningGear /> Procesando
-                  </>
-                ) : (
-                  "Reactivar"
-                )}
-              </button>
+            <div style={settingsValue}>
+              {isActive ? "Activa" : "En pausa"}
             </div>
+            <div style={settingsHint}>{tGroups("pauseExplains")}</div>
           </div>
+
+          <Switch
+            checked={isActive}
+            disabled={statusBusy}
+            onChange={(next) => setActive(next)}
+            label={isActive ? "Pausar" : "Reactivar"}
+          />
         </SettingsRow>
       </SettingsSection>
 

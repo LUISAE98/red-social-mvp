@@ -3137,6 +3137,7 @@ const avatarNode = (
               >
                 <OwnerAdminPanel
                   groupId={groupId}
+                  currentIsActive={!groupIsPaused}
                   ownerId={group.ownerId}
                   currentUserId={user.uid}
                   currentName={group.name ?? ""}

@@ -25,6 +25,9 @@ type Props = {
 
   currentPostingMode?: PostingMode;
   currentCommentsEnabled?: boolean;
+
+  /** Si la comunidad esta en pie o pausada. Lo pide el interruptor de estado. */
+  currentIsActive?: boolean;
 };
 
 export default function OwnerAdminPanel({
@@ -42,6 +45,7 @@ export default function OwnerAdminPanel({
 
   currentPostingMode = "members",
   currentCommentsEnabled = true,
+  currentIsActive = true,
 }: Props) {
   const tGroups = useTranslations("groups");
   const isOwner = useMemo(() => {
@@ -90,6 +94,7 @@ export default function OwnerAdminPanel({
             currentUserId={currentUserId}
             currentPostingMode={currentPostingMode}
             currentCommentsEnabled={currentCommentsEnabled}
+            currentIsActive={currentIsActive}
           />
 
           <OwnerAdminGeneral
