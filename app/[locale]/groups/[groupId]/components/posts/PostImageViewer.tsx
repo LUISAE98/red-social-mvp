@@ -36,6 +36,7 @@ import {
   VideoPipIcon,
   VideoAirPlayIcon,
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
+import { usePwaInstalled } from "@/lib/hooks/usePwaInstalled";
 import {
   fontStack,
   formatMediaDuration,
@@ -198,6 +199,21 @@ export default function PostImageViewer({
   const [mobileVideoTrueFullscreen, setMobileVideoTrueFullscreen] =
     useState(false);
   const [desktopPostTextExpanded, setDesktopPostTextExpanded] = useState(false);
+  /**
+   * Si se puede sacar el video a la ventanita flotante.
+   *
+   * En el iPhone instalado como app NO se puede: la ventanita es de Safari
+   * y una app en pantalla completa no la tiene, asi que el boton estaba ahi
+   * sin hacer absolutamente nada. En Safari dentro del navegador si, y en
+   * Android tambien, asi que ahi se queda.
+   *
+   * `resuelto` en falso es el primer render, donde todavia no hay navegador
+   * que preguntar. Se oculta hasta saberlo: el visor se abre al tocar un
+   * video, mucho despues de hidratar, asi que no se ve aparecer.
+   */
+  const pwa = usePwaInstalled();
+  const hayPip = pwa.resuelto && !(pwa.plataforma === "ios" && pwa.instalada);
+
   const [mobileChromeVisible, setMobileChromeVisible] = useState(true);
   const [videoDuration, setVideoDuration] = useState(0);
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
@@ -1734,9 +1750,11 @@ const previewUrl = media.url;
           )}
           {isCurrentVideo && !mobileVideoTrueFullscreen ? (
             <div style={{ display: "flex", alignItems: "center", gap: 4, opacity: mobileChromeVisible ? 1 : 0, transition: "opacity 220ms ease", pointerEvents: mobileChromeVisible ? "auto" : "none" }}>
+              {hayPip && (
               <IconButton label="Picture in Picture" size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onTouchEnd={(e) => { e.preventDefault(); const v = videoRef.current; if (!v) return; if (document.pictureInPictureElement) { void document.exitPictureInPicture(); } else if (document.pictureInPictureEnabled) { void v.requestPictureInPicture(); } }} onClick={(e) => { e.stopPropagation(); }}>
                 <VideoPipIcon size={25} />
               </IconButton>
+              )}
               {typeof window !== "undefined" && "WebKitPlaybackTargetAvailabilityEvent" in window && (
                 <IconButton label="AirPlay" size="sm" tone="bare" shape="square" style={{ boxShadow: "none" }} onTouchEnd={(e) => { e.preventDefault(); const v = videoRef.current as HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void }; v?.webkitShowPlaybackTargetPicker?.(); }} onClick={(e) => { e.stopPropagation(); }}>
                   <VideoAirPlayIcon size={25} />
@@ -2237,6 +2255,7 @@ const previewUrl = media.url;
                 }}>
                   {/* IZQUIERDA: PiP · AirPlay */}
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    {hayPip && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -2253,6 +2272,7 @@ const previewUrl = media.url;
                     >
                       <VideoPipIcon size={20} />
                     </button>
+                    )}
                     {typeof window !== "undefined" && "WebKitPlaybackTargetAvailabilityEvent" in window && (
                       <button
                         type="button"

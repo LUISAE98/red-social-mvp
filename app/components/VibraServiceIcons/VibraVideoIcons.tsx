@@ -129,12 +129,14 @@ export function VideoPipIcon({ size = 20, color = "currentColor", strokeWidth = 
 export function VideoAirPlayIcon({ size = 20, color = "currentColor", strokeWidth = 2 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {/* La pantalla va de x=3 a x=21, centrada en 12, que es donde apunta el
-          triangulo. Antes iba de 1 a 19 —centro 10— y el triangulo salia dos
-          pixeles descuadrado; ademas la base de 7 a 17 se desbordaba por la
-          derecha del hueco de la pantalla, que acababa en 15. */}
-      <path d="M6 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1" />
-      <path d="M12 15.2 17.2 21H6.8L12 15.2Z" fill={color} stroke="none" />
+      {/* La pantalla y la flecha comparten eje: las dos centradas en x=12.
+
+          El hueco de abajo mide lo que mide la flecha AL CRUZARLO, no lo
+          que mide su base. Con un hueco de 12 y una flecha que ahi arriba
+          solo tiene 2.4 de ancho, la caja se veia rota por abajo; ahora el
+          hueco es de 6.8 y la flecha lo tapa entero al pasar. */}
+      <path d="M8.6 17.2H5.4A2.4 2.4 0 0 1 3 14.8V6A2.4 2.4 0 0 1 5.4 3.6H18.6A2.4 2.4 0 0 1 21 6V14.8A2.4 2.4 0 0 1 18.6 17.2H15.4" />
+      <path d="M12 13.6 17.2 20.4H6.8L12 13.6Z" fill={color} stroke="none" />
     </svg>
   );
 }
