@@ -425,10 +425,16 @@ export default async function RootLayout({
                 el.setAttribute('data-pop', el.getAttribute('data-pop') === 'a' ? 'b' : 'a');
               }, true);
 
-              document.addEventListener('animationend', function(e) {
+              /* Se limpia con las DOS: si el elemento cambia de estado a mitad
+                 del pop y deja de casar el selector, llega 'animationcancel' y
+                 no 'animationend'. Sin esto el atributo se quedaba pegado y el
+                 pop salia despues, al volver a casar el selector. */
+              function vibraQuitarPop(e) {
                 if (e.animationName !== 'vibraPopA' && e.animationName !== 'vibraPopB') return;
                 if (e.target && e.target.removeAttribute) e.target.removeAttribute('data-pop');
-              }, true);
+              }
+              document.addEventListener('animationend', vibraQuitarPop, true);
+              document.addEventListener('animationcancel', vibraQuitarPop, true);
             `,
           }}
         />

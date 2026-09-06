@@ -44,6 +44,7 @@ import {
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { captureError } from "@/lib/observability/captureError";
+import VibraPhotoIcon from "@/components/ui/VibraPhotoIcon";
 
 /**
  * Hilo de conversación SIN chrome: solo el área de mensajes y el pie de acción.
@@ -318,28 +319,6 @@ function SwipeReplyCue() {
  * ocupa solo 16 de las 24 unidades del lienzo, mientras que la flecha lo llena
  * casi entero. A igual `size` se vería claramente más pequeño.
  */
-function AttachImageIcon({ size = 26 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden style={{ display: "block" }}>
-      <rect
-        x="3.5"
-        y="4"
-        width="14"
-        height="14"
-        rx="2.4"
-        fill="none"
-        stroke="#fff"
-        strokeWidth="2.2"
-      />
-      <circle cx="7.2" cy="8.2" r="1.6" fill="#fff" />
-      <path
-        d="M3.5 15.8 L8 11.2 L10.5 13.8 L14.2 10 L17.5 13.5 V18 H3.5 Z"
-        fill="#fff"
-      />
-    </svg>
-  );
-}
-
 /**
  * Alto del campo. 48 y no 40: un dedo en un campo de 40 con el pulgar en marcha
  * falla más de lo que parece, y el compositor es lo que más se toca del chat.
@@ -2939,7 +2918,7 @@ export default function ConversationThread({
                 cursor: "pointer",
               }}
             >
-              <AttachImageIcon size={34} />
+              <VibraPhotoIcon size={34} />
             </button>
           </div>
 

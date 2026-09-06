@@ -68,7 +68,7 @@ export default function SocialLinksRow({
       {items.map((item) => (
         <a
           key={item.id}
-          className="vb-social-link"
+          className="vb-social-link vibra-pop"
           href={item.url}
           target="_blank"
           rel="me noopener noreferrer nofollow"

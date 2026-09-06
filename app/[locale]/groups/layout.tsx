@@ -1039,7 +1039,7 @@ const contentAreaClassName = isEmbed
         ) : null}
         {user && hasPurchasedExperiences ? (
           <span className="mobileNotifBell">
-            <Link
+            <Link className="vibra-pop"
               href="/experiencias"
               aria-label={tNav("tabExperiences")}
               style={{ position: "relative", display: "inline-grid", placeItems: "center", width: 36, height: 36, borderRadius: 10, color: "#fff" }}

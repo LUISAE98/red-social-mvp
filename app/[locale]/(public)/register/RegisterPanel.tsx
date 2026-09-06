@@ -28,6 +28,7 @@ import OptionWheelPanel from "@/components/ui/OptionWheelPanel";
 import { capitalizeFirst } from "@/i18n/locales";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraPhotoIcon from "@/components/ui/VibraPhotoIcon";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855f7";
@@ -581,11 +582,7 @@ export default function RegisterPanel({
               <img src={coverPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
               <span style={{ position: "absolute", top: 14, insetInlineStart: 0, insetInlineEnd: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <rect x="3" y="5" width="18" height="14" rx="2" />
-                  <circle cx="9" cy="10" r="1.6" />
-                  <path d="m4 17 4.5-4.5a2 2 0 0 1 2.8 0L16 17M14 14l1.5-1.5a2 2 0 0 1 2.8 0L21 15" />
-                </svg>
+                <VibraPhotoIcon size={24} color="currentColor" />
                 <span style={{ fontSize: 11, fontWeight: 600, color: "#fff" }}>{tCP("coverAdd")}</span>
               </span>
             )}

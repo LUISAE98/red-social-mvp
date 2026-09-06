@@ -678,6 +678,14 @@ body::-webkit-scrollbar-button {
    cuánto dure el gesto. El corazón de los mensajes se ve justamente porque lo
    mueve un estado que persiste, no el dedo.
 
+   ⚠️ El selector NO lleva `:not(:disabled)`, y es a propósito. Lo llevaba, y
+   causaba esto: al pulsar enviar el botón se deshabilita a mitad del pop, el
+   selector deja de casar, el navegador RETIRA la animación sin disparar
+   `animationend` y el atributo se queda pegado. Al volver a escribir el botón
+   se rehabilita, el selector casa otra vez y el pop salía ENTONCES. Quien no
+   deja empezar el pop en un botón apagado es el listener, que es donde debe
+   estar la condición; una vez arrancado, se le deja terminar.
+
    El atributo `data-pop` lo enciende `usePopAlPulsar` y lo apaga cuando la
    animación termina. Alterna entre dos nombres —de ahí las dos reglas con
    fotogramas idénticos— porque volver a pulsar durante la animación solo la
@@ -695,14 +703,14 @@ body::-webkit-scrollbar-button {
   38%  { transform: scale(0.84); animation-timing-function: var(--ease-spring); }
   100% { transform: scale(1); }
 }
-.vibra-pop[data-pop="a"]:not(:disabled) {
-  animation: vibraPopA var(--duration-slow, 400ms) both;
+.vibra-pop[data-pop="a"] {
+  animation: vibraPopA var(--duration-slow, 400ms);
 }
-.vibra-pop[data-pop="b"]:not(:disabled) {
-  animation: vibraPopB var(--duration-slow, 400ms) both;
+.vibra-pop[data-pop="b"] {
+  animation: vibraPopB var(--duration-slow, 400ms);
 }
 @media (prefers-reduced-motion: reduce) {
-  .vibra-pop[data-pop]:not(:disabled) { animation: none; }
+  .vibra-pop[data-pop] { animation: none; }
 }
 
 .vibra-btn:focus-visible,

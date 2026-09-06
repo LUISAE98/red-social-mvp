@@ -15,6 +15,7 @@ import { createPortal } from "react-dom";
 import type { CommentImage } from "@/lib/posts/types";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import PostPinchZoomImage from "./PostPinchZoomImage";
+import VibraPhotoIcon from "@/components/ui/VibraPhotoIcon";
 
 /**
  * UI compartida para la imagen adjunta de comentarios/respuestas:
@@ -207,25 +208,7 @@ export function CommentAttachButton({
         style={{ display: "none" }}
       />
       <IconButton label="Adjuntar imagen" size="sm" tone="bare" style={{ placeItems: "center" }} onClick={() => inputRef.current?.click()} disabled={disabled}>
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect
-            x="3"
-            y="3"
-            width="18"
-            height="18"
-            rx="4"
-            stroke="currentColor"
-            strokeWidth="1.7"
-          />
-          <circle cx="8.5" cy="8.5" r="1.6" fill="currentColor" />
-          <path
-            d="M21 15l-5-5L5 21"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+        <VibraPhotoIcon size={19} color="currentColor" />
       </IconButton>
     </>
   );

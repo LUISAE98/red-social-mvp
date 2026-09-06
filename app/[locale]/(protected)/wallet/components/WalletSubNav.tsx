@@ -208,7 +208,7 @@ export default function WalletSubNav({
                 key={tab.key}
                 href={tab.href}
                 ref={(el) => { tabRefs.current[index] = el; }}
-                className="tabLink"
+                className="tabLink vibra-pop"
                 aria-current={isActive ? "page" : undefined}
                 onClick={() => onTabTap?.(tab.key)}
               >
