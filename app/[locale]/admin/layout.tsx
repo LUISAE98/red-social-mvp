@@ -20,6 +20,8 @@ const NAV_ITEMS = [
   { label: "Retiros", href: "/admin/retiros" },
   // 🚨 Timbra documentos fiscales. Cancelar un CFDI es un trámite, no un borrado.
   { label: "Facturación", href: "/admin/facturacion" },
+  // 🚨 Con PLAZO. Una disputa sin responder a tiempo se pierde por incomparecencia.
+  { label: "Disputas", href: "/admin/disputas" },
   { label: "Historial", href: "/admin/audit-log" },
   { label: "Comunidades ocultas", href: "/admin/hidden-communities" },
   { label: "Comunidades privadas", href: "/admin/private-communities" },

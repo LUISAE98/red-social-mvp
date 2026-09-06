@@ -1768,7 +1768,11 @@
     "cfdiTitle_retenciones": "Constancia de retenciones",
     "cfdiWhy_retenciones": "Lo que se te retuvo de ISR e IVA y ya se enteró al SAT a tu nombre. Con esto lo acreditas.",
     "cfdiTitle_liquidacion": "Comprobante de liquidación",
-    "cfdiWhy_liquidacion": "El resumen de lo que ganaste en el mes y lo que se te descontó. No es una factura mexicana."
+    "cfdiWhy_liquidacion": "El resumen de lo que ganaste en el mes y lo que se te descontó. No es una factura mexicana.",
+    "cfdiReissuedInvoice": "Se rehízo {veces, plural, one {una vez} other {# veces}} porque alguien pidió su factura de una venta que estaba aquí dentro. Es normal y no tienes que hacer nada.",
+    "cfdiReissuedRefund": "Se rehízo {veces, plural, one {una vez} other {# veces}} porque se devolvió el dinero de una venta que estaba aquí dentro. Es normal y no tienes que hacer nada.",
+    "purchaseCredited": "Se te devolvieron {monto} de esta compra",
+    "receiptsPrice": "Precio"
   },
   "services": {
     "confirmLabel": "Confirmar",

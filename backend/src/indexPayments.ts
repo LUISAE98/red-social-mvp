@@ -71,6 +71,7 @@ export { cancelarGlobalPorNominativa } from "./facturacion/cancelacionGlobal";
 export { cancelarComprobanteMensualCallable } from "./facturacion/cancelacionMensual";
 export { emitirNotaDeCreditoCallable } from "./facturacion/notaDeCredito";
 export { descargarDocumentoFiscal } from "./facturacion/descargarDocumento";
+export { responderDisputa, listarDisputas } from "./payments/stripe/responderDisputa";
 // 📅 Factura global DIARIA, por el plazo de 24 h. Ver pendientesimpuestos.md §A1.
 export {
   globalInvoiceDailyCron,

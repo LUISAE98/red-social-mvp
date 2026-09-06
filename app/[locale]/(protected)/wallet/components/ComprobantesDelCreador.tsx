@@ -325,6 +325,26 @@ function TarjetaCfdi({
       </div>
 
       {/*
+        🚨 Por qué cambió de folio. Sin esto, el creador ve que su factura del mes no es la que
+        vio la semana pasada y no tiene forma de saber si algo va mal. No va mal: alguien pidió
+        su factura y la global se rehízo sin esa venta.
+      */}
+      {c.reexpedida && (
+        <div
+          style={{
+            marginTop: 6,
+            fontSize: 11,
+            color: "rgba(217,164,65,0.85)",
+            lineHeight: 1.45,
+          }}
+        >
+          {c.reexpedida.causa === "devolucion"
+            ? t("cfdiReissuedRefund", { veces: c.reexpedida.veces })
+            : t("cfdiReissuedInvoice", { veces: c.reexpedida.veces })}
+        </div>
+      )}
+
+      {/*
         Sin folio no hay documento que bajar: ese mes se calculó con el timbrado apagado. Decirlo
         es mejor que ofrecer un botón que va a fallar.
       */}

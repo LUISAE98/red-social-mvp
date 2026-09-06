@@ -21,7 +21,13 @@ export type TipoDocumento =
   | "comision"
   | "retenciones";
 
-type Respuesta = { formato: string; mime: string; base64: string };
+type Respuesta = {
+  formato: string;
+  mime: string;
+  base64: string;
+  /** Folio fiscal. Puede faltar en un documento sin timbrar. */
+  uuid: string | null;
+};
 
 /**
  * Pide el documento y lo guarda en el disco del usuario.
@@ -40,7 +46,12 @@ export async function descargarDocumentoFiscal(params: {
   /** Obligatorio para factura y nota de crédito. */
   buyerId?: string;
   formato?: "pdf" | "xml";
-  /** Nombre con el que se guarda. Sin extensión: la pone el formato. */
+  /**
+   * Nombre con el que se guarda, sin extensión.
+   *
+   * 🚨 Si no se da, se usa el FOLIO FISCAL, que es lo que trae impreso el documento y lo único
+   *    que un contador puede buscar. Nuestro id interno no significa nada fuera de Vibra.
+   */
   nombre?: string;
 }): Promise<void> {
   const fn = httpsCallable<Record<string, unknown>, Respuesta>(
@@ -60,7 +71,7 @@ export async function descargarDocumentoFiscal(params: {
   try {
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${params.nombre ?? params.referencia}.${formato}`;
+    a.download = `${params.nombre ?? r.data.uuid ?? params.referencia}.${formato}`;
     document.body.appendChild(a);
     a.click();
     a.remove();

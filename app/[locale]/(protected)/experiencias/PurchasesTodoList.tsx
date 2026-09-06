@@ -240,6 +240,14 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
          *    una devolución parcial no agota la compra.
          */
         const notas = d.notasCredito?.emitidas ?? [];
+        /*
+         * 🚨 Cuánto se le devolvió DE ESTA compra, sumando todas las notas.
+         *
+         * Sin esta cifra el comprador ve «Nota de crédito PDF» y no sabe si le devolvieron todo
+         * o una parte. Y son cosas muy distintas: con una devolución parcial su factura sigue
+         * siendo válida por el resto.
+         */
+        const acreditado = Number(d.notasCredito?.acumulado ?? 0);
         // Devuelto: a crédito (saldo a favor) o a la tarjeta (rechazo antes de cobrar).
         const returnedToCredit = d.refundDestination === "credit";
         const returnedToCard = d.refundDestination === "card";
@@ -365,6 +373,13 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
                     >
                       {tWallet("receiptsPayment")}
                     </a>
+                  )}
+                  {acreditado > 0 && (
+                    <span style={{ fontSize: 10, fontWeight: 600, color: "#d9a441" }}>
+                      {tWallet("purchaseCredited", {
+                        monto: formatCurrency(acreditado, "MXN", pf.locale),
+                      })}
+                    </span>
                   )}
                   {invoiced && d.invoiceId && uid && (
                     <Bajar

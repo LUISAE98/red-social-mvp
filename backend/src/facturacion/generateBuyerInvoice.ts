@@ -19,20 +19,18 @@
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { liberarDeGlobal } from "./cancelacionGlobal";
+import { resolverDocumento } from "./descargarDocumento";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import {
   facturapiDownload,
   facturapiTestKey,
   facturapiUserKey,
-  type FacturapiAuth,
 } from "./facturapiClient";
-import { getOrganizationTestKey } from "./facturapiOrganizations";
 import { FORMA_PAGO } from "./formaDePago";
 import { leerImporteFiscal } from "./importeFiscal";
 import {
   emitirNominativa,
-  facturapiErrorMessage,
   liberarReservaNominativa,
   reservarParaNominativa,
   type CompraNormalizada,
@@ -365,6 +363,18 @@ export const generateBuyerInvoice = onCall(
 );
 
 // Descarga el PDF de una factura del comprador (base64) para bajarla desde el panel.
+/**
+ * ⚠️ OBSOLETA. Usa `descargarDocumentoFiscal`, que hace lo mismo para CUATRO tipos de documento
+ *    en vez de uno.
+ *
+ * Se conserva porque **el frontend desplegado todavía la llama**: borrarla antes de que salga la
+ * versión nueva dejaría a los compradores sin poder bajar su factura. Se puede retirar en cuanto
+ * `BuyerInvoicePanel` esté arriba con el camino nuevo.
+ *
+ * 🚨 Ya NO tiene lógica propia: delega en `resolverDocumento`, que es donde vive la
+ *    autorización y la elección de llave. Mientras hubo dos implementaciones, un arreglo en una
+ *    —el respaldo de las facturas sin organización— tuvo que portarse a mano a la otra.
+ */
 export const downloadBuyerInvoice = onCall(
   { region: REGION, cors: true, secrets: [facturapiTestKey, facturapiUserKey] },
   async (request) => {
@@ -373,33 +383,17 @@ export const downloadBuyerInvoice = onCall(
     const invoiceId = String((request.data as { invoiceId?: unknown })?.invoiceId ?? "").trim();
     if (!invoiceId) throw new HttpsError("invalid-argument", "Falta la factura a descargar.");
 
-    // El dueño solo baja SUS facturas.
-    const snap = await db.doc(`users/${uid}/invoices/${invoiceId}`).get();
-    if (!snap.exists) throw new HttpsError("not-found", "Factura no encontrada.");
-    const doc = snap.data() ?? {};
-    const facturapiId = String(doc.facturapiInvoiceId ?? invoiceId);
-    const uuid = String(doc.uuid ?? invoiceId);
-
-    // La factura vive en la organización del CREADOR que la emitió. Las anteriores al cambio
-    // de modelo se timbraron en la de Vibra y no traen `facturapiOrgId`: para ésas se usa la
-    // llave de Vibra, o dejarían de poder descargarse.
-    const orgId = String(doc.facturapiOrgId ?? "").trim();
-    let auth: FacturapiAuth = "secret";
-    if (orgId) {
-      try {
-        auth = { orgKey: await getOrganizationTestKey(orgId) };
-      } catch (err) {
-        logger.error("downloadBuyerInvoice org_key_failed", {
-          orgId,
-          err: err instanceof Error ? err.message : String(err),
-        });
-        throw new HttpsError("failed-precondition", "No se pudo acceder a la factura del creador.");
-      }
+    const { path, auth, uuid } = await resolverDocumento({
+      uid,
+      esModerador: false,
+      tipo: "factura",
+      referencia: invoiceId,
+      buyerId: uid,
+    });
+    const res = await facturapiDownload(`${path}/pdf`, { auth });
+    if (!res.ok) {
+      throw new HttpsError("internal", `No se pudo bajar la factura: ${String(res.error).slice(0, 200)}`);
     }
-
-    const res = await facturapiDownload(`/invoices/${facturapiId}/pdf`, { auth });
-    if (!res.ok) throw new HttpsError("failed-precondition", `No se pudo descargar la factura: ${facturapiErrorMessage(res.error)}`);
-
-    return { ok: true, pdfBase64: res.data, filename: `factura-${uuid}.pdf` };
+    return { ok: true, pdfBase64: res.data, filename: `factura-${uuid ?? invoiceId}.pdf` };
   }
 );

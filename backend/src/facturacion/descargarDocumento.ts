@@ -56,7 +56,7 @@ export type Formato = "pdf" | "xml";
  * Devuelve la ruta de Facturapi y con qué llave firmarla. Separado del callable para poder
  * razonarlo de un vistazo: es la parte que, si se equivoca, entrega la factura de un tercero.
  */
-async function resolver(params: {
+export async function resolverDocumento(params: {
   uid: string;
   esModerador: boolean;
   tipo: TipoDocumento;
@@ -64,7 +64,7 @@ async function resolver(params: {
   referencia: string;
   /** Para las facturas y notas, el comprador dueño del registro. */
   buyerId?: string;
-}): Promise<{ path: string; auth: FacturapiAuth }> {
+}): Promise<{ path: string; auth: FacturapiAuth; uuid: string | null }> {
   const { uid, esModerador, tipo, referencia } = params;
 
   if (tipo === "factura" || tipo === "notaCredito") {
@@ -96,6 +96,14 @@ async function resolver(params: {
     return {
       path: `/invoices/${String(snap.get("facturapiInvoiceId") ?? referencia)}`,
       auth,
+      /**
+       * 🚨 EL ARCHIVO SE NOMBRA CON EL FOLIO FISCAL, no con nuestro id interno.
+       *
+       * Es lo que trae impreso el CFDI y lo único que un contador puede buscar. Nuestro id no
+       * significa nada fuera de aquí: un archivo llamado así se pierde en la carpeta de
+       * descargas.
+       */
+      uuid: String(snap.get("uuid") ?? "").trim() || null,
     };
   }
 
@@ -120,6 +128,23 @@ async function resolver(params: {
   const base = tipo === "retenciones" ? "retentions" : "invoices";
 
   /**
+   * Un `uuid` a secas, y basta: en `creatorMonthlyDocs` hay **un documento por tipo** —el id es
+   * `{creador}_{periodo}_{tipo}`—, no un documento del mes con tres folios dentro.
+   */
+  const uuid = String(snap.get("uuid") ?? "").trim() || null;
+
+  /**
+   * ⚠️ El tipo pedido tiene que ser el del registro.
+   *
+   * El id ya lo lleva dentro, así que pedir la global apuntando al registro de la comisión se
+   * firmaría con la llave del creador contra una factura de Vibra y Facturapi contestaría «no
+   * existe» — cierto, pero incomprensible. Mejor decir qué pasó.
+   */
+  if (String(snap.get("tipo") ?? "") !== tipo) {
+    throw new HttpsError("invalid-argument", "Ese registro no es del tipo de documento pedido.");
+  }
+
+  /**
    * 🚨 LA GLOBAL LA FIRMA EL CREADOR, los otros dos VIBRA.
    *
    * La factura global es del creador: la emite él a «público en general», con su propio sello y
@@ -132,10 +157,10 @@ async function resolver(params: {
     if (!orgId) {
       throw new HttpsError("failed-precondition", "El creador no tiene organización de facturación.");
     }
-    return { path: `/${base}/${folio}`, auth: { orgKey: await getOrganizationTestKey(orgId) } };
+    return { path: `/${base}/${folio}`, auth: { orgKey: await getOrganizationTestKey(orgId) }, uuid };
   }
 
-  return { path: `/${base}/${folio}`, auth: "secret" };
+  return { path: `/${base}/${folio}`, auth: "secret", uuid };
 }
 
 /**
@@ -163,7 +188,7 @@ export const descargarDocumentoFiscal = onCall(
     if (!referencia) throw new HttpsError("invalid-argument", "Falta la referencia del documento.");
 
     try {
-      const { path, auth } = await resolver({
+      const { path, auth, uuid } = await resolverDocumento({
         uid,
         esModerador: esPlatformMod(request),
         tipo,
@@ -185,6 +210,8 @@ export const descargarDocumentoFiscal = onCall(
         /** `application/pdf` o `application/xml`, para que el navegador sepa qué hacer con él. */
         mime: formato === "pdf" ? "application/pdf" : "application/xml",
         base64: res.data,
+        /** Folio fiscal, para nombrar el archivo con algo que signifique fuera de Vibra. */
+        uuid,
       };
     } catch (err) {
       if (err instanceof HttpsError) throw err;

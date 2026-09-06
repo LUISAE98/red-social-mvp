@@ -161,7 +161,8 @@ export default function ComprobantePage() {
                   destacado
                 />
               )}
-              <Fila k={t("receiptsBase")} v={dinero(recibo.base, recibo.currency)} />
+              {/* El precio ÍNTEGRO: incluye el cargo fijo y la conversión, sin desglosarlos. */}
+              <Fila k={t("receiptsPrice")} v={dinero(recibo.base, recibo.currency)} />
               {recibo.impuesto > 0 && (
                 <Fila
                   k={t("receiptsLocalTax")}

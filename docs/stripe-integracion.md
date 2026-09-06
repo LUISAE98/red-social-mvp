@@ -1280,12 +1280,38 @@ Cubre también los reembolsos hechos **desde el panel de Stripe**, no solo desde
 aplicación, así que la wallet nunca queda inflada frente a lo que Stripe tiene. Deduplica
 por `event.id`, de modo que un reintento de Stripe no revierte dos veces.
 
-⏳ **PENDIENTE — responder la disputa con evidencia.** Hoy las disputas se registran pero
-nadie las contesta: hay que entrar a Stripe a mano y hay plazo. Cuando se habilite, lo que
-hace falta es reunir la evidencia que ya existe en el sistema —el recibo, la entrega, los
-indicios de país fiscal, la conversación— y subirla por API. Se deja anotado a propósito:
-mientras el volumen sea bajo se atiende a mano, pero conviene una alerta para que ninguna
-se pase de plazo.
+✅ **HECHO el 2026-09-06** — `payments/stripe/responderDisputa.ts`.
+
+Reúne la evidencia que ya existe en el sistema y la envía por API. **No inventa nada**: qué se
+compró, cuándo, si se entregó, con qué correo. Si el servicio consta como NO entregado, la
+evidencia lo dice y avisa a quien responde de que revise si conviene contestar — presentar como
+entregado algo que no lo está es mentir en un procedimiento formal, y se descubre solo porque el
+comprador aporta su versión.
+
+🚨 **`enviar: false` es el modo por defecto.** Devuelve lo que se mandaría **sin mandarlo**, para
+poder leerlo antes. Una evidencia se envía una sola vez.
+
+⚠️ **Y ahora se guarda el PLAZO.** El webhook registra `evidence_details.due_by` y el motivo de
+la disputa. Una disputa sin responder **se pierde por incomparecencia**: el dinero se va aunque
+el servicio se haya prestado, y sin el plazo guardado nadie sabía cuánto quedaba.
+
+✅ **Y HAY PANTALLA, desde el 2026-09-06** — `/admin/disputas`, con `listarDisputas`.
+
+Antes las disputas se registraban y **no se veían en ninguna parte**: había que entrar a Stripe a
+mano para saber que existían. La pantalla las lista **ordenadas por plazo, no por fecha de
+apertura**: lo que vence antes va arriba, porque ordenar al revés esconde la que vence mañana
+debajo de una vieja con plazo holgado. Los días restantes se calculan **en el servidor**; el reloj
+del navegador se puede cambiar y una cuenta atrás que miente cuesta el importe entero.
+
+El botón «Preparar» reúne la evidencia y la enseña; el de «Enviar» no aparece hasta haberla leído.
+
+⚠️ **Y se cierra el registro al cerrarse la disputa.** `charge.dispute.closed` solo reconciliaba el
+ledger, así que el documento de `stripeDisputes` se quedaba en `open` para siempre —ganada o
+perdida—. La lista habría mostrado como pendientes cosas resueltas hacía meses, y una lista que
+nunca se vacía deja de mirarse. También se guarda ya la **moneda** del importe, que faltaba: un
+número de dinero sin moneda no se puede leer.
+
+🔁 Falta el aviso automático cuando el plazo se acerca. El dato ya está para construirlo.
 
 
 ## 8-sexies. Retiros al creador: Global Payouts (investigación 2026-08-23)

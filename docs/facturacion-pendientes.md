@@ -83,7 +83,9 @@ calcula y registra el acumulado, pero **no timbra nada**.
 - Selección de movimientos en `/experiencias → Entregados → Todo` + panel `BuyerInvoicePanel`.
 - Timbrado del CFDI con **MXN real** cobrado (del `settlementAmount` del `paymentIntents/{id}`; fallback FX si no hay intent).
 - **Envío por correo** (PDF+XML) + **descarga de PDF**. Marca `invoiced: true`, no re-facturable.
-- Backend: `generateBuyerInvoice`, `downloadBuyerInvoice`.
+- Backend: `generateBuyerInvoice`. La descarga pasa por **`descargarDocumentoFiscal`**, que es el
+  único camino desde el 2026-09-06; `downloadBuyerInvoice` sigue publicada pero ya solo delega en
+  él, para no romper al frontend desplegado.
 
 ### Bloque 3 — Flujo de retiro
 - **Cerrado y desplegado** (2026-09-01). `requestWithdrawal` / `reviewWithdrawal`, estados

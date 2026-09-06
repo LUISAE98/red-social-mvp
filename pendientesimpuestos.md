@@ -1363,8 +1363,9 @@ decidir qué se le dice a ese comprador.
 
 Se planteó dejar fuera de la global los conceptos en disputa y **se descartó**, por dos motivos:
 
-- **De tiempo:** la global corre cada 24 horas y una disputa llega días o semanas después. Cuando
-  la global se emite casi nunca se sabe todavía.
+- **De tiempo:** la global corre **una vez al mes** y una disputa llega días o semanas después.
+  Cuando la global se emite casi nunca se sabe todavía. (Decía «cada 24 horas», de cuando la
+  ventana era diaria; el argumento no cambia y con la ventana mensual es aún más fuerte.)
 - **Fiscal:** el dinero se cobró, luego el IVA se causó. Dejarla fuera declara de menos ese día, y
   si la disputa se pierde nunca se facturó una operación que sí ocurrió.
 
@@ -1578,6 +1579,76 @@ meses y uno de diciembre tres.
 Ya estaba en la cancelación mensual desde el paso 2 y se deja documentada como la regla general:
 **el candado solo se suelta cuando Facturapi devuelve `canceled`**. Si queda esperando al receptor,
 el registro se marca y no se libera. La global no la necesita, porque va al RFC genérico.
+
+## 🔴 Auditoría de devoluciones — tres huecos, los tres cerrados ✅ (2026-09-06)
+
+### Lo que se encontró
+
+Una devolución revertía el asiento, daba el crédito y marcaba la compra — y **no tocaba nada
+fiscal**. `liberarDeGlobal` con `causa: "devolucion"` existía y **no lo llamaba nadie**.
+
+| # | Hueco | Consecuencia |
+|---|---|---|
+| 1 | La devolución marcaba `refundDestination`, y `compraLibre` mira **`devuelta`** | La venta seguía contando como libre y **la global del mes siguiente la volvía a facturar** |
+| 2 | No se sacaba de la global ya timbrada | El creador **declaraba un ingreso que ya no existe** y pagaba impuesto sobre él |
+| 3 | No pasaba nada con la factura del comprador | Podía **deducir una compra reembolsada** |
+
+### Cómo quedó
+
+🆕 `facturacion/devolucionFiscal.ts`, enganchado en **los dos** caminos —a crédito y a tarjeta—.
+
+| Paso | Qué hace | Automático |
+|---|---|---|
+| 1 | Marca `devuelta` | ✅ Sí, y va **primero**: tiene que quedar hecho aunque lo demás falle |
+| 2 | La saca de la global timbrada y la reexpide | ✅ Sí |
+| 3 | Avisa si tenía factura propia, en `devolucionesPorRevisar` | ⚠️ **No se cancela sola** |
+
+🚨 **El paso 3 no puede ser automático:** cancelar una nominativa de más de 1 000 pesos **exige
+que el comprador acepte**. Administración decide entre cancelarla o emitir una nota de crédito.
+
+⚠️ **Nunca tumba la devolución.** El dinero ya se movió cuando esto corre; un fallo al
+documentarlo no puede deshacer un reembolso ya entregado, y además no sería posible.
+
+### Un hallazgo que reencuadra la nota de crédito
+
+**No existen las devoluciones parciales.** `refundExperienceToCredit` devuelve siempre el total, y
+no hay ninguna vía para devolver una parte. Así que el caso principal de la nota de crédito —la
+devolución parcial— **no puede ocurrir hoy**. Le queda el otro, que sí es real: **devolución total
+con el mes ya cerrado**, cuando cancelar ya no se puede.
+
+### La prueba que documenta el error
+
+`devolucionFiscal.pure.test.ts` afirma explícitamente que **`refundDestination` por sí solo NO
+basta**. Si alguien quitara la marca `devuelta` creyendo que con la otra sobra, esa prueba avisa
+de que la venta vuelve a ser facturable.
+
+### ⚠️ Y una lección de despliegue
+
+Desplegar `functions:payments,functions:media` de golpe son **102 funciones** y topa con la cuota
+por minuto. Hay que desplegar **por nombre** las que de verdad cambian.
+
+## 💬 Cada documento explica qué le pasó ✅ (2026-09-06)
+
+### El problema
+
+Un CFDI que cambia solo, sin explicación, asusta. El creador abría su wallet y su factura del mes
+tenía **otro folio** que la semana anterior, sin ninguna pista de por qué. Y el comprador veía
+«Nota de crédito PDF» sin saber si le habían devuelto **todo o una parte** — que es la diferencia
+entre que su factura siga valiendo o no.
+
+### Qué se ve ahora
+
+| Quién | Qué lee |
+|---|---|
+| **Creador** | «Se rehízo dos veces porque alguien pidió su factura de una venta que estaba aquí dentro. **Es normal y no tienes que hacer nada**» |
+| **Creador**, si fue devolución | La misma frase, pero diciendo que se devolvió el dinero |
+| **Comprador** | «Se te devolvieron 300.00 MXN de esta compra» |
+
+### Se lleva la CUENTA, no solo la última vez
+
+En un mes con varios compradores pidiendo su factura, la global se reexpide **una vez por cada
+uno**. Guardar solo la última haría creer que pasó una sola vez, y el creador que revise los
+folios encontraría más cancelaciones de las que la wallet le confiesa.
 
 ## 🗂️ El feed único de documentos del creador ✅ (2026-09-06)
 
@@ -1841,6 +1912,24 @@ registro que lo ata a alguien, cualquiera con un id ajeno se llevaría la factur
 
 🚨 **La llave importa.** La factura la emitió el creador con su propia organización; pedirla con
 la llave de Vibra devolvería «no existe», y sería cierto: no existe en la organización de Vibra.
+
+### 🔗 Y es el ÚNICO camino, desde el 2026-09-06
+
+Había **dos funciones de descarga**: ésta y `downloadBuyerInvoice`, la vieja, que solo sabía bajar
+la factura del comprador. El coste ya se había pagado una vez: el respaldo de las facturas
+anteriores al modelo de intermediación —las que se timbraron en la organización de Vibra y no
+traen `facturapiOrgId`, y que sin él quedarían sin poder bajarse **para siempre**— hubo que
+portarlo a mano de una a la otra. La segunda vez habría pasado inadvertida.
+
+La lógica vive ahora en `resolverDocumento`, y `downloadBuyerInvoice` **delega en ella**. Se
+conserva porque el frontend desplegado todavía la llama: borrarla antes de que salga la versión
+nueva dejaría a los compradores sin poder bajar su factura. Se retira en cuanto
+`BuyerInvoicePanel` esté arriba con el camino nuevo.
+
+🚨 **Y el archivo se nombra con el FOLIO FISCAL**, no con nuestro id interno. Es lo que trae
+impreso el CFDI y lo único que un contador puede buscar; nuestro id no significa nada fuera de
+Vibra. Lo hacía bien la función vieja y lo hacía mal la nueva, así que el resolutor devuelve ya el
+`uuid` y los dos caminos nombran igual.
 
 ### Dos cosas que ya estaban y no había que rehacer
 

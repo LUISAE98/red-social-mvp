@@ -8,6 +8,7 @@
 // sourceId): el trigger y esta llamada no duplican.
 
 import * as admin from "firebase-admin";
+import { corregirFiscalPorDevolucionSinRomper } from "../facturacion/devolucionFiscal";
 import { SETTLEMENT_CURRENCY } from "./ledger";
 import { reverseEarning, FIXED_SERVICE_FEE_USD } from "./ledger";
 import { issueBuyerCredit } from "./buyerCredit";
@@ -82,6 +83,13 @@ export async function mirrorCardReturnPurchase(params: {
     },
     { merge: true }
   );
+
+  // 🧾 La misma corrección fiscal que en la devolución a crédito. Ver la nota de allí.
+  await corregirFiscalPorDevolucionSinRomper({
+    buyerId,
+    purchaseId: `${sourceType}__${sourceId}`,
+    origen: "devolucion_a_tarjeta",
+  });
 }
 
 /**
@@ -133,5 +141,19 @@ export async function refundExperienceToCredit(params: {
     },
     { merge: true }
   );
+
+  /*
+   * 🧾 La parte FISCAL de la devolución, que hasta el 2026-09-06 no la hacía nadie.
+   *
+   * Marca la venta para que ninguna global futura la vuelva a facturar, la saca de la global
+   * en la que ya estuviera, y avisa si tenía factura propia. Va al final y sin poder tumbar
+   * esto: el crédito ya se emitió y no documentarlo no puede deshacerlo.
+   */
+  await corregirFiscalPorDevolucionSinRomper({
+    buyerId,
+    purchaseId: `${sourceType}__${sourceId}`,
+    origen: "devolucion_a_credito",
+  });
+
   return total;
 }

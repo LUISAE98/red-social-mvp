@@ -264,6 +264,30 @@ export async function liberarDeGlobal(params: {
       uuid: nuevaUuid,
       acumulado: resumen,
     });
+
+    /**
+     * 🧾 SE DEJA ESCRITO POR QUÉ CAMBIÓ DE FOLIO.
+     *
+     * El creador abre su wallet y ve que su factura del mes tiene otro folio que la semana
+     * pasada. Sin esta marca no hay forma de que sepa qué pasó, y lo que pasó es normal y no
+     * requiere que haga nada — pero un CFDI que cambia solo, sin explicación, asusta.
+     *
+     * Se lleva la CUENTA, no solo la última vez: en un mes con varios compradores pidiendo su
+     * factura, la global se reexpide una vez por cada uno.
+     */
+    await db
+      .collection("creatorMonthlyDocs")
+      .doc(`${creatorId}_${periodo}_global`)
+      .set(
+        {
+          reexpedida: {
+            veces: admin.firestore.FieldValue.increment(1),
+            ultimaEn: admin.firestore.FieldValue.serverTimestamp(),
+            causa,
+          },
+        },
+        { merge: true }
+      );
   } else {
     /**
      * La global solo cubría esta venta. No se reexpide nada —una global vacía no existe— pero

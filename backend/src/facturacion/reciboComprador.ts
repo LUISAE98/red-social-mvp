@@ -56,7 +56,7 @@ export type ReciboComprador = {
   /** Lo mismo en la moneda de liquidación, para conciliar por dentro. */
   total: number;
   currency: string;
-  /** Precio del servicio, sin cargos ni impuesto. */
+  /** Precio del servicio, ÍNTEGRO y sin impuesto. Incluye el cargo fijo y la conversión. */
   base: number;
   /**
    * Impuesto del país del comprador, cuando Vibra lo recauda y lo entera allí.
@@ -88,8 +88,23 @@ export function armarRecibo(params: {
   const monedaLocal =
     typeof cobro?.presentmentCurrency === "string" ? cobro.presentmentCurrency : null;
 
-  const base = round2(num(compra.grossAmount));
   const impuesto = round2(num(compra.taxAmount));
+
+  /**
+   * 🚨 EL PRECIO VA ÍNTEGRO, NO DESGLOSADO (Luis, 2026-09-06).
+   *
+   * El cargo fijo y el 2% de conversión **van dentro del precio**, como la pantalla y la memoria
+   * van dentro del precio de un teléfono: nadie los desglosa porque no son productos aparte.
+   *
+   * Antes se ponía aquí `grossAmount` —el precio del creador, sin esos dos— y el recibo **no
+   * cuadraba**: decía precio 100, impuesto 19 y total 121.41, con 2.41 aparecidos de la nada.
+   * Un recibo cuyo desglose no suma no lo firma nadie.
+   *
+   * Se despeja del total para que la resta sea exacta por construcción, en vez de recomponerlo
+   * sumando piezas que podrían no cuadrar por redondeo.
+   */
+  const totalCobrado = round2(num(cobro?.chargedAmount) || num(compra.grossAmount) + impuesto);
+  const base = round2(totalCobrado - impuesto);
 
   return {
     buyerId: String(compra.buyerId ?? ""),
@@ -99,11 +114,8 @@ export function armarRecibo(params: {
     buyerCountry: String(compra.taxCountry ?? "").toUpperCase(),
     pagado: local > 0 ? round2(local) : null,
     monedaPagada: local > 0 ? monedaLocal : null,
-    /**
-     * Si el cobro no guardó el total, se reconstruye con lo que sí hay. Es preferible a dejarlo
-     * en cero: un recibo que dice que pagaste cero no lo firma nadie.
-     */
-    total: round2(num(cobro?.chargedAmount) || base + impuesto),
+    /** Ya despejado arriba. Es lo que de verdad se le cobró. */
+    total: totalCobrado,
     currency: String(compra.currency ?? "USD"),
     base,
     impuesto,

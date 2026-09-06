@@ -26,11 +26,11 @@ import {
   useBuyerBillingProfiles,
   saveBuyerBillingProfile,
   generateBuyerInvoice,
-  downloadBuyerInvoice,
   type BuyerBillingProfile,
   type FacturaEmitida,
   type FacturaOmitida,
 } from "@/lib/facturacion/buyerFiscal";
+import { descargarDocumentoFiscal } from "@/lib/facturacion/descargarDocumento";
 
 export type InvoiceConcept = {
   id: string;
@@ -249,21 +249,20 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
     }
   }
 
-  // Descarga el PDF de la factura (base64 → blob) y cierra el panel.
+  /**
+   * Baja el PDF de la factura.
+   *
+   * 🚨 Usa `descargarDocumentoFiscal`, que es el ÚNICO camino de descarga de CFDI. Hubo dos
+   *    durante un tiempo, y el arreglo de las facturas anteriores al modelo de intermediación
+   *    —las que se timbraron en la organización de Vibra y no traen `facturapiOrgId`— hubo que
+   *    portarlo a mano de una a la otra. La segunda vez habría pasado inadvertida.
+   */
   async function handleDownload(invoiceId: string) {
+    if (!uid) return;
     setDescargando(invoiceId);
     setError(null);
     try {
-      const r = await downloadBuyerInvoice(invoiceId);
-      const bytes = Uint8Array.from(atob(r.pdfBase64), (c) => c.charCodeAt(0));
-      const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = r.filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      await descargarDocumentoFiscal({ tipo: "factura", referencia: invoiceId, buyerId: uid });
     } catch (e) {
       setError(errMsg(e));
     } finally {

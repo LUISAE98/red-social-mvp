@@ -1768,7 +1768,11 @@
     "cfdiTitle_retenciones": "Withholding certificate",
     "cfdiWhy_retenciones": "What was withheld from you and already paid to the tax authority in your name. Use it to claim the credit.",
     "cfdiTitle_liquidacion": "Settlement statement",
-    "cfdiWhy_liquidacion": "A summary of what you earned in the month and what was deducted. It is not a Mexican tax invoice."
+    "cfdiWhy_liquidacion": "A summary of what you earned in the month and what was deducted. It is not a Mexican tax invoice.",
+    "cfdiReissuedInvoice": "It was reissued {veces, plural, one {once} other {# times}} because someone asked for their own invoice of a sale that was inside. This is normal and you do not need to do anything.",
+    "cfdiReissuedRefund": "It was reissued {veces, plural, one {once} other {# times}} because a sale inside it was refunded. This is normal and you do not need to do anything.",
+    "purchaseCredited": "{monto} of this purchase was refunded to you",
+    "receiptsPrice": "Price"
   },
   "services": {
     "confirmLabel": "Confirm",

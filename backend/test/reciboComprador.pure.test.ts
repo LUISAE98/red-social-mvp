@@ -61,11 +61,19 @@ describe("qué dice el recibo", () => {
     expect(r.monedaPagada).toBe("EUR");
   });
 
-  it("y el desglose, con el impuesto de SU país", () => {
+  it("🚨 el precio va ÍNTEGRO y el desglose SUMA", () => {
+    /*
+     * El cargo fijo y el 2% de conversión van dentro del precio, como la pantalla y la memoria
+     * van dentro del precio de un teléfono. Antes se ponía el precio del creador —100— y el
+     * recibo decía 100 + 19 = 121.41, con 2.41 aparecidos de la nada. Un recibo cuyo desglose
+     * no suma no lo firma nadie.
+     */
     const r = armarRecibo({ purchaseId: "p1", compra: compra(), cobro: cobro() });
-    expect(r.base).toBe(100);
-    expect(r.impuesto).toBe(19);
+
     expect(r.total).toBe(121.41);
+    expect(r.impuesto).toBe(19);
+    expect(r.base).toBe(102.41);
+    expect(r.base + r.impuesto).toBeCloseTo(r.total, 2);
     expect(r.buyerCountry).toBe("DE");
   });
 
@@ -73,8 +81,9 @@ describe("qué dice el recibo", () => {
     const r = armarRecibo({ purchaseId: "p1", compra: compra(), cobro: null });
     expect(r.pagado).toBeNull();
     expect(r.monedaPagada).toBeNull();
-    // El total se reconstruye: un recibo que dice que pagaste cero no lo firma nadie.
+    // Sin cobro guardado se reconstruye con lo que hay, y sigue sumando.
     expect(r.total).toBe(119);
+    expect(r.base + r.impuesto).toBeCloseTo(r.total, 2);
   });
 
   it("🚨 si el cobro no trae moneda local, no se inventa una", () => {

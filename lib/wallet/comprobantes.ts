@@ -276,6 +276,14 @@ export type CfdiMensualDoc = {
   facturapiId: string | null;
   uuid: string | null;
   timbrado: boolean;
+  /**
+   * 🧾 Cuántas veces se reexpidió, y por qué.
+   *
+   * Solo la global. Cambia de folio cada vez que un comprador pide su factura de una venta que
+   * ya estaba dentro. Es normal y el creador no tiene que hacer nada — pero un CFDI que cambia
+   * solo, sin explicación, asusta.
+   */
+  reexpedida: { veces: number; causa: string | null } | null;
 };
 
 export function suscribirCfdiMensuales(
@@ -302,6 +310,13 @@ export function suscribirCfdiMensuales(
             facturapiId: texto(x.facturapiId),
             uuid: texto(x.uuid),
             timbrado: x.timbrado === true,
+            reexpedida: (() => {
+              const r = x.reexpedida as { veces?: unknown; causa?: unknown } | undefined;
+              const veces = Number(r?.veces);
+              return Number.isFinite(veces) && veces > 0
+                ? { veces, causa: texto(r?.causa) }
+                : null;
+            })(),
           };
         })
       ),

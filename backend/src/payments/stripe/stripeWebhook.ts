@@ -343,6 +343,38 @@ export const stripeWebhook = onRequest(
         // Reembolso o contracargo perdido → revierte el ledger (fuente de verdad
         // universal para los 11 servicios). Idempotente.
         await reconcileStripeRefundEvent(event.type, event.data.object);
+
+        /**
+         * 🚨 Y SE CIERRA EL REGISTRO DE LA DISPUTA.
+         *
+         * Solo se reconciliaba el ledger, así que el documento de `stripeDisputes` se quedaba
+         * en `open` para siempre — ganada o perdida. La pestaña de disputas mostraba como
+         * pendientes cosas resueltas hace meses, y una lista que nunca se vacía deja de
+         * mirarse: la disputa nueva y urgente se pierde entre las viejas ya cerradas.
+         *
+         * ⚠️ NO toca el dinero. Eso lo hace el reconciliador de arriba, y solo si se perdió.
+         */
+        if (event.type === "charge.dispute.closed") {
+          const cerrada = event.data.object as { id?: string; status?: string };
+          if (cerrada.id) {
+            await db
+              .collection("stripeDisputes")
+              .doc(cerrada.id)
+              .set(
+                {
+                  /** `won`, `lost` o `warning_closed`, tal cual lo dice Stripe. */
+                  status: cerrada.status ?? "closed",
+                  cerrada: true,
+                  cerradaEn: admin.firestore.FieldValue.serverTimestamp(),
+                },
+                { merge: true }
+              );
+            logger.info("stripeWebhook: disputa cerrada", {
+              disputeId: cerrada.id,
+              resultado: cerrada.status,
+            });
+          }
+        }
       } else if (
         event.type === "payment_intent.payment_failed" ||
         event.type === "payment_intent.canceled"
@@ -368,7 +400,15 @@ export const stripeWebhook = onRequest(
         // ganarse, y quitarle el contenido a quien tiene razón sería peor que
         // esperar. Se marca para que aparezca en el panel y no pase inadvertida;
         // el acceso se retira en `charge.dispute.closed` si se pierde.
-        const dispute = event.data.object as { id?: string; charge?: string; amount?: number };
+        const dispute = event.data.object as {
+          id?: string;
+          charge?: string;
+          amount?: number;
+          currency?: string;
+          reason?: string;
+          /** 🚨 El PLAZO. Pasado, la disputa se pierde por incomparecencia. */
+          evidence_details?: { due_by?: number };
+        };
         await db
           .collection("stripeDisputes")
           .doc(String(dispute.id ?? event.id))
@@ -377,12 +417,32 @@ export const stripeWebhook = onRequest(
               disputeId: dispute.id ?? null,
               chargeId: dispute.charge ?? null,
               amount: dispute.amount ?? null,
+              /** ⚠️ Un importe sin moneda no se puede leer. Stripe la manda; hay que guardarla. */
+              currency: dispute.currency ? String(dispute.currency).toUpperCase() : null,
+              /** Por qué la abrió. Cambia qué evidencia convence. */
+              reason: dispute.reason ?? null,
+              /**
+               * 🚨 LA FECHA LÍMITE, en ISO para que se lea sin convertir.
+               *
+               * Una disputa sin responder **se pierde por incomparecencia**: el dinero se va
+               * aunque el servicio se haya prestado. Sin guardar el plazo, nadie sabe cuánto
+               * queda y el aviso llega tarde.
+               */
+              plazoHasta: dispute.evidence_details?.due_by
+                ? new Date(dispute.evidence_details.due_by * 1000).toISOString()
+                : null,
+              respondida: false,
               status: "open",
               openedAt: admin.firestore.FieldValue.serverTimestamp(),
             },
             { merge: true }
           );
-        logger.error("stripeWebhook: DISPUTA ABIERTA", { disputeId: dispute.id, chargeId: dispute.charge });
+        logger.error("stripeWebhook: DISPUTA ABIERTA", {
+          disputeId: dispute.id,
+          chargeId: dispute.charge,
+          motivo: dispute.reason,
+          plazo: dispute.evidence_details?.due_by,
+        });
       } else if (event.type === "refund.failed" || event.type === "refund.updated") {
         // ⚠️ Un reembolso puede fallar DESPUÉS de que Stripe respondiera 200.
         //
