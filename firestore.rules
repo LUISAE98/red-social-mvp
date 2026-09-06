@@ -513,6 +513,14 @@ service cloud.firestore {
     // lee los suyos y los lista, porque la wallet los enseña como historial. Es el único
     // papel que tiene el creador EXTRANJERO de que ese dinero le llegó, así que negarle la
     // lectura lo deja sin nada.
+    // Recibo del comprador EXTRANJERO. Lo escribe solo el backend al espejar la compra; el
+    // dueño lee los suyos y los lista. Es el ÚNICO papel que tiene: el CFDI es un documento
+    // mexicano y a él no le aplica, así que negarle la lectura lo deja sin nada.
+    match /users/{uid}/recibos/{purchaseId} {
+      allow get, list: if signedIn() && request.auth.uid == uid;
+      allow create, update, delete: if false;
+    }
+
     match /users/{uid}/comprobantesRetiro/{withdrawalId} {
       allow get, list: if signedIn() && request.auth.uid == uid;
       allow create, update, delete: if false;

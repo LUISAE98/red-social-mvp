@@ -639,6 +639,35 @@ huecos salen invisibles y quietos. No es el CSS: se comprueba pidiendo la hoja a
 servidor y buscando `vb-skel` dentro. Se arregla reiniciando `npm run dev`, y en el
 navegador con recarga forzada, porque la URL del chunk no cambia.
 
+### Un solo esqueleto por navegación
+
+Durante una navegación se pueden encadenar hasta tres huecos: el `loading.tsx`
+del segmento padre, el de la ruta, y el que pinta el cliente mientras trae sus
+datos. El usuario tiene que ver **una sola silueta**, no una detrás de otra.
+
+**El fallback compartido no dibuja formas.** `app/[locale]/(protected)/loading.tsx`
+se dispara para TODAS las hijas del segmento, no solo para el feed. Cuando
+dibujaba tres tarjetas de publicación, entrar a un perfil se veía así: tres posts
+falsos, luego la cabecera del perfil, luego el contenido. Cualquier forma que se
+ponga ahí va a ser la equivocada en la mayoría de las rutas, así que solo reserva
+el alto de la pantalla. La silueta la pone cada ruta.
+
+**Cada ruta pone la suya, y con la página entera.** No basta con dibujar la
+lista: si la página real lleva un título o un subnav encima y el fallback no, al
+montar la página esa cabecera aparece de golpe y empuja la lista hacia abajo. Ese
+salto se lee exactamente igual que un segundo esqueleto. Copia del componente
+real el ancho, el aire y lo que va arriba.
+
+**El relevo tiene que ser invisible.** Cuando una ruta tiene `loading.tsx` **y**
+su cliente pinta un esqueleto mientras carga, los dos dibujan lo mismo con los
+mismos valores. Perfil y comunidad son el ejemplo a copiar: los dos llaman a
+`ProfileHeaderSkeleton` con el mismo `maxWidth`, así que el cambio no se ve.
+
+**Nada, cuando nada es lo correcto.** `wallet/loading.tsx` y el de la videollamada
+devuelven vacío a propósito: existen solo por la frontera de Suspense —sin el
+archivo heredarían la forma del padre— pero no pintan, porque esas pantallas ya
+resuelven su propia espera y un esqueleto encima solo añade un parpadeo.
+
 ### Revelado del contenido real (fade-in)
 
 Cuando el contenido real llega, **no aparece de golpe**: se envuelve en un revelador

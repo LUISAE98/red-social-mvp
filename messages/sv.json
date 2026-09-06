@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Språk och valuta"
   },
   "feed": {
+    "discoverExperiences": "Upptäck nya upplevelser",
     "pinned": "Fäst",
     "processing": "Bearbetar...",
     "errorLoadFlames": "Det gick inte att läsa in flammorna.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Lägg till Vibra på hemskärmen",
     "body": "Den öppnas som en app, och det är enda sättet att få aviseringar på iPhone.",
-    "step1": "Tryck på Dela",
-    "step2": "Skrolla ner och välj den här",
-    "safariOnly": "Det måste vara från Safari",
+    "step1": "Öppna Safari",
+    "step2": "Tryck på de tre prickarna nere till höger",
+    "step3": "Välj Dela",
+    "step4": "Skrolla ner och välj Lägg till på hemskärmen",
+    "shareLabel": "Dela",
     "addToHomeScreen": "Lägg till på hemskärmen",
     "later": "Inte nu"
   },

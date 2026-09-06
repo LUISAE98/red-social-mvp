@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Sprache und Währung"
   },
   "feed": {
+    "discoverExperiences": "Entdecke neue Erlebnisse",
     "pinned": "Angeheftet",
     "processing": "Wird verarbeitet …",
     "errorLoadFlames": "Flammen konnten nicht geladen werden.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Vibra zum Home-Bildschirm hinzufügen",
     "body": "Sie öffnet sich als App und nur so kommen Mitteilungen auf dem iPhone an.",
-    "step1": "Tippe auf Teilen",
-    "step2": "Scrolle runter und wähle das hier",
-    "safariOnly": "Es muss über Safari gehen",
+    "step1": "Öffne Safari",
+    "step2": "Tippe unten rechts auf die drei Punkte",
+    "step3": "Wähle Teilen",
+    "step4": "Scrolle runter und wähle Zum Home-Bildschirm",
+    "shareLabel": "Teilen",
     "addToHomeScreen": "Zum Home-Bildschirm",
     "later": "Jetzt nicht"
   },

@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "言語と通貨"
   },
   "feed": {
+    "discoverExperiences": "新しい体験を見つけよう",
     "pinned": "固定済み",
     "processing": "処理しています...",
     "errorLoadFlames": "炎を読み込めませんでした。",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Vibra をホーム画面に追加",
     "body": "アプリのように開けます。iPhone で通知を受け取れる唯一の方法です。",
-    "step1": "共有をタップ",
-    "step2": "下にスクロールしてこれを選択",
-    "safariOnly": "Safari から行ってください",
+    "step1": "Safari を開く",
+    "step2": "右下の三点をタップ",
+    "step3": "共有を選ぶ",
+    "step4": "下にスクロールしてホーム画面に追加を選ぶ",
+    "shareLabel": "共有",
     "addToHomeScreen": "ホーム画面に追加",
     "later": "今はしない"
   },

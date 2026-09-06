@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Langue et devise"
   },
   "feed": {
+    "discoverExperiences": "Découvre de nouvelles expériences",
     "pinned": "Épinglé",
     "processing": "Traitement…",
     "errorLoadFlames": "Impossible de charger les flammes.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Ajoute Vibra à ton écran d'accueil",
     "body": "Elle s'ouvre comme une app, et c'est le seul moyen de recevoir des notifications sur iPhone.",
-    "step1": "Touche Partager",
-    "step2": "Descends et choisis celle-ci",
-    "safariOnly": "Ça doit se faire depuis Safari",
+    "step1": "Ouvre Safari",
+    "step2": "Touche les trois points, en bas à droite",
+    "step3": "Choisis Partager",
+    "step4": "Descends et choisis Sur l'écran d'accueil",
+    "shareLabel": "Partager",
     "addToHomeScreen": "Sur l'écran d'accueil",
     "later": "Pas maintenant"
   },

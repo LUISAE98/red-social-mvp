@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Jezik in valuta"
   },
   "feed": {
+    "discoverExperiences": "Odkrij nova doživetja",
     "pinned": "Pripeto",
     "processing": "Obdelava...",
     "errorLoadFlames": "Plamenov ni bilo mogoče naložiti.",
@@ -2636,10 +2637,12 @@
   "iosInstallPrompt": {
     "title": "Dodaj Vibro na začetni zaslon",
     "body": "Odpre se kot aplikacija in je edini način za prejemanje obvestil na iPhonu.",
-    "step1": "Tapni Deli",
-    "step2": "Podrsaj navzdol in izberi to",
-    "safariOnly": "Narediti je treba iz Safarija",
-    "addToHomeScreen": "Dodaj na začetni zaslon",
+    "step1": "Odpri Safari",
+    "step2": "Tapni tri pike spodaj desno",
+    "step3": "Izberi Deli",
+    "step4": "Podrsaj navzdol in izberi Dodaj na začetni zaslon",
+    "shareLabel": "Deli",
+    "addToHomeScreen": "Na začetni zaslon",
     "later": "Ne zdaj"
   },
   "notifications": {

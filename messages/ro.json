@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Limbă și monedă"
   },
   "feed": {
+    "discoverExperiences": "Descoperă experiențe noi",
     "pinned": "Fixat",
     "processing": "Se procesează…",
     "errorLoadFlames": "Flăcările nu au putut fi încărcate.",
@@ -2636,10 +2637,12 @@
   "iosInstallPrompt": {
     "title": "Adaugă Vibra pe ecranul principal",
     "body": "Se deschide ca aplicație și e singurul mod de a primi notificări pe iPhone.",
-    "step1": "Atinge Partajează",
-    "step2": "Derulează și alege asta",
-    "safariOnly": "Trebuie să fie din Safari",
-    "addToHomeScreen": "Adaugă la ecranul principal",
+    "step1": "Deschide Safari",
+    "step2": "Atinge cele trei puncte, jos în dreapta",
+    "step3": "Alege Partajează",
+    "step4": "Derulează și alege Adaugă la ecranul principal",
+    "shareLabel": "Partajează",
+    "addToHomeScreen": "La ecranul principal",
     "later": "Nu acum"
   },
   "notifications": {

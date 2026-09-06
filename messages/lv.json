@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Valoda un valūta"
   },
   "feed": {
+    "discoverExperiences": "Atklāj jaunus piedzīvojumus",
     "pinned": "Piesprausts",
     "processing": "Apstrādā...",
     "errorLoadFlames": "Liesmas neizdevās ielādēt.",
@@ -2636,10 +2637,12 @@
   "iosInstallPrompt": {
     "title": "Pievieno Vibra sākuma ekrānam",
     "body": "Tā atveras kā lietotne, un tas ir vienīgais veids, kā saņemt paziņojumus iPhone.",
-    "step1": "Pieskaries Kopīgot",
-    "step2": "Ritini uz leju un izvēlies šo",
-    "safariOnly": "Tam jābūt no Safari",
-    "addToHomeScreen": "Pievienot sākuma ekrānam",
+    "step1": "Atver Safari",
+    "step2": "Pieskaries trim punktiem apakšā pa labi",
+    "step3": "Izvēlies Kopīgot",
+    "step4": "Ritini lejup un izvēlies Pievienot sākuma ekrānam",
+    "shareLabel": "Kopīgot",
+    "addToHomeScreen": "Sākuma ekrānam",
     "later": "Ne tagad"
   },
   "notifications": {

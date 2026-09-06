@@ -25,7 +25,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { facturapiTestKey, facturapiUserKey } from "./facturapiClient";
-import { diaDe, registrarDocumento, yaEmitido } from "./creatorMonthlyDocs";
+import { diaDe, partesEnMexico, registrarDocumento, yaEmitido } from "./creatorMonthlyDocs";
 import {
   agruparGlobal,
   confirmarVentasEnGlobal,
@@ -64,6 +64,37 @@ const TIMBRAR = false;
  */
 export function diaAnterior(hoy: Date): string {
   return diaDe(new Date(hoy.getTime() - 24 * 3_600_000));
+}
+
+/**
+ * El mes natural ANTERIOR al de `hoy`, en `YYYY-MM`.
+ *
+ * 🚨 Se calcula en hora de MÉXICO, no UTC. El cron corre a la 01:00 del día 1, que en UTC son
+ *    las 07:00 del mismo día — pero si algún día se adelantara, en UTC ya sería día 1 mientras
+ *    en México sigue siendo 31, y el proceso facturaría el mes equivocado.
+ */
+export function mesAnterior(hoy: Date): string {
+  const { a: anio, m: mes } = partesEnMexico(hoy);
+  const a = mes === 1 ? anio - 1 : anio;
+  const m = mes === 1 ? 12 : mes - 1;
+  return `${a}-${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * ¿Es un periodo que el sistema entienda?
+ *
+ * Acepta **mes** (`YYYY-MM`), que es la cadencia desde el 2026-09-05, y también **día**
+ * (`YYYY-MM-DD`), porque los comprobantes emitidos con la cadencia diaria anterior siguen
+ * existiendo y hay que poder reprocesarlos o liberarlos.
+ *
+ * 🚨 Antes había dos comprobaciones escritas a mano y **una estaba rota**: `/^d{4}-d{2}-d{2}$/`,
+ *    sin las barras invertidas, solo casa con el texto literal `dddd-dd-dd`. O sea que
+ *    `liberarVentasAtascadas` rechazaba cualquier fecha real que se le pasara.
+ */
+export function periodoValido(v: string): boolean {
+  /* Con clases de caracteres en vez de d: una barra invertida perdida al editar es justo
+     el bug que esta función arregla, y así no puede volver a pasar. */
+  return /^[0-9]{4}-[0-9]{2}(-[0-9]{2})?$/.test(v);
 }
 
 export type ResumenDelDia = {
@@ -252,12 +283,22 @@ export async function procesarGlobalDelDia(
 export const globalInvoiceDailyCron = onSchedule(
   {
     region: REGION,
-    schedule: "0 1 * * *",
+    /**
+     * 🚨 MENSUAL, el día 1 a la 01:00 de Ciudad de México, sobre el mes que acaba de cerrar.
+     *
+     * La regla 2.7.1.21 da **24 horas desde el cierre del periodo elegido**. Cerrando el mes a
+     * medianoche, emitir a la 01:00 del día 1 deja 23 horas de margen para reintentos.
+     *
+     * ⚠️ Antes corría a diario (`0 1 * * *`). Cumplía, pero eran 365 comprobantes al año por
+     *    creador y metía cada venta en un CFDI timbrado en menos de 24 h, lo que convertía cada
+     *    factura pedida por un comprador en una cancelación. Ver la nota en `globalInvoice.ts`.
+     */
+    schedule: "0 1 1 * *",
     timeZone: "America/Mexico_City",
     secrets: [facturapiTestKey, facturapiUserKey],
   },
   async () => {
-    await procesarGlobalDelDia(diaAnterior(new Date()));
+    await procesarGlobalDelDia(mesAnterior(new Date()));
   }
 );
 
@@ -282,8 +323,8 @@ export const liberarVentasAtascadas = onCall(
      * casi nunca sabe de memoria el id del creador atascado.
      */
     const dia = String((request.data ?? {}).dia ?? "").trim();
-    if (!/^d{4}-d{2}-d{2}$/.test(dia)) {
-      throw new HttpsError("invalid-argument", "El día va en formato AAAA-MM-DD.");
+    if (!periodoValido(dia)) {
+      throw new HttpsError("invalid-argument", "El periodo va como AAAA-MM, o AAAA-MM-DD para los antiguos.");
     }
     let sueltas = 0;
     let conFolio = 0;

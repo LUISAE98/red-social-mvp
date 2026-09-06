@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Gjuha dhe monedha"
   },
   "feed": {
+    "discoverExperiences": "Zbulo përvoja të reja",
     "pinned": "I fiksuar",
     "processing": "Duke u përpunuar...",
     "errorLoadFlames": "Flakët nuk u ngarkuan dot.",
@@ -2636,10 +2637,12 @@
   "iosInstallPrompt": {
     "title": "Shto Vibra në ekranin bazë",
     "body": "Hapet si aplikacion dhe është e vetmja mënyrë për të marrë njoftime në iPhone.",
-    "step1": "Prek Ndaj",
-    "step2": "Zbrit dhe zgjidh këtë",
-    "safariOnly": "Duhet të jetë nga Safari",
-    "addToHomeScreen": "Shto në ekranin bazë",
+    "step1": "Hap Safari",
+    "step2": "Prek tre pikat, poshtë djathtas",
+    "step3": "Zgjidh Ndaj",
+    "step4": "Zbrit dhe zgjidh Shto në ekranin bazë",
+    "shareLabel": "Ndaj",
+    "addToHomeScreen": "Në ekranin bazë",
     "later": "Jo tani"
   },
   "notifications": {

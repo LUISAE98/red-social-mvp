@@ -19,7 +19,7 @@
 // extranjero no recibe ninguno, y para él esto es todo lo que hay.
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   suscribirComprobantesRetiro,
   suscribirComprobantesMensuales,
@@ -33,6 +33,7 @@ function dinero(monto: number, moneda: string): string {
 
 export default function ComprobantesDelCreador({ uid }: { uid: string | null | undefined }) {
   const t = useTranslations("wallet");
+  const locale = useLocale();
   const [retiros, setRetiros] = useState<ComprobanteRetiroDoc[]>([]);
   const [meses, setMeses] = useState<ComprobanteMensualDoc[]>([]);
   /**
@@ -90,7 +91,7 @@ export default function ComprobantesDelCreador({ uid }: { uid: string | null | u
       {retiros.length > 0 && (
         <Grupo titulo={t("receiptsWithdrawals")}>
           {retiros.map((r) => (
-            <TarjetaRetiro key={r.id} r={r} t={t} />
+            <TarjetaRetiro key={r.id} r={r} t={t} locale={locale} />
           ))}
         </Grupo>
       )}
@@ -98,7 +99,7 @@ export default function ComprobantesDelCreador({ uid }: { uid: string | null | u
       {meses.length > 0 && (
         <Grupo titulo={t("receiptsMonthly")}>
           {meses.map((m) => (
-            <TarjetaMes key={m.id} m={m} t={t} />
+            <TarjetaMes key={m.id} m={m} t={t} locale={locale} />
           ))}
         </Grupo>
       )}
@@ -125,12 +126,39 @@ function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode
   );
 }
 
+/**
+ * Enlace a la vista imprimible.
+ *
+ * Se abre en pestaña nueva a propósito: el creador vuelve a su wallet cerrándola, en vez de
+ * perder el sitio en la lista al usar «atrás».
+ */
+function Descargar({ href, texto }: { href: string; texto: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: "inline-block",
+        marginTop: 8,
+        fontSize: 11.5,
+        color: "#a855f7",
+        textDecoration: "none",
+      }}
+    >
+      {texto}
+    </a>
+  );
+}
+
 function TarjetaRetiro({
   r,
   t,
+  locale,
 }: {
   r: ComprobanteRetiroDoc;
   t: ReturnType<typeof useTranslations>;
+  locale: string;
 }) {
   return (
     <div
@@ -162,6 +190,7 @@ function TarjetaRetiro({
       )}
       {r.cuentaLast4 && <Linea k={t("receiptsAccount")} v={`•••• ${r.cuentaLast4}`} />}
       {r.referencia && <Linea k={t("receiptsReference")} v={r.referencia} />}
+      <Descargar href={`/${locale}/comprobante/retiro/${r.id}`} texto={t("receiptsPrint")} />
     </div>
   );
 }
@@ -169,9 +198,11 @@ function TarjetaRetiro({
 function TarjetaMes({
   m,
   t,
+  locale,
 }: {
   m: ComprobanteMensualDoc;
   t: ReturnType<typeof useTranslations>;
+  locale: string;
 }) {
   return (
     <div
@@ -196,6 +227,7 @@ function TarjetaMes({
       {m.ivaRetenido > 0 && (
         <Linea k={t("receiptsVat")} v={dinero(m.ivaRetenido, m.currency)} />
       )}
+      <Descargar href={`/${locale}/comprobante/mensual/${m.id}`} texto={t("receiptsPrint")} />
     </div>
   );
 }

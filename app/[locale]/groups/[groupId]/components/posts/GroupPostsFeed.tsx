@@ -5,6 +5,10 @@
 import { useTranslations } from "next-intl";
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import HomeStoriesRow from "@/app/components/Stories/HomeStoriesRow";
+import { ReelRailsProvider } from "@/lib/reels/reelRails";
+import { buildReelRailPlan, type HuecoRail } from "@/lib/feed/railInterleave";
+import { getFeedRailSeed } from "@/app/components/GroupRecommendations/recommendation-engine";
 import { motion } from "framer-motion";
 import { collection, doc, getDoc, onSnapshot, orderBy, query, Timestamp, where } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -1383,8 +1387,24 @@ const shellStyle: CSSProperties = {
     onMediaTabChange?.(effectiveMediaTab);
   }, [effectiveMediaTab, onMediaTabChange]);
 
+  // Rail de reels intercalado. La semilla es la misma de la sesión, así que las
+  // posiciones no bailan al cargar más publicaciones. Aquí NO va el rail de
+  // recomendaciones: recomendar otras comunidades dentro de una comunidad se
+  // leería como una fuga hacia fuera.
+  const railSeed = useMemo(() => getFeedRailSeed(), []);
+
+  const railPlan = useMemo(() => {
+    if (!currentUid || posts.length === 0) return new Map<number, HuecoRail>();
+    return buildReelRailPlan(posts.length, railSeed);
+  }, [currentUid, posts.length, railSeed]);
+
+  // Sin ningún hueco no se pide el feed de reels: una comunidad con tres
+  // publicaciones no debe pagar una consulta por un rail que no va a salir.
+  const hayHuecoDeReels = railPlan.size > 0;
+
   return (
     <RefreshableArea onRefresh={handleGroupPullRefresh}>
+      <ReelRailsProvider uid={currentUid} activo={hayHuecoDeReels}>
       <section style={shellStyle}>
       <div style={headerStyle}>
         <h2 style={titleStyle}>Publicaciones</h2>
@@ -1530,6 +1550,8 @@ const shellStyle: CSSProperties = {
         const shouldAttachInfiniteScrollTarget =
           !groupSearchActive && hasMore && index === infiniteScrollTriggerIndex;
 
+        const huecoRail = groupSearchActive ? undefined : railPlan.get(index + 1);
+
         return (
           <div key={post.id} style={postShellStyle}>
             {shouldAttachInfiniteScrollTarget ? (
@@ -1578,6 +1600,16 @@ const shellStyle: CSSProperties = {
               }
             />
             </PostReveal>
+
+            {huecoRail && currentUid && (
+              <div style={{ width: "100%", maxWidth: "100%", minWidth: 0, overflowX: "hidden" }}>
+                <HomeStoriesRow
+                  currentUserId={currentUid}
+                  variant="intercalado"
+                  railIndex={huecoRail.indice}
+                />
+              </div>
+            )}
           </div>
         );
         });
@@ -1650,6 +1682,7 @@ const shellStyle: CSSProperties = {
         </div>
       )}
       </section>
+      </ReelRailsProvider>
     </RefreshableArea>
   );
 }

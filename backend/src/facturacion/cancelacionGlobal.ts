@@ -118,7 +118,14 @@ export async function liberarDeGlobal(params: {
    * así que el plazo es el suyo.
    */
   const emitidaEn = (compra.globalInvoice as { emitidaEn?: admin.firestore.Timestamp })?.emitidaEn;
-  const fechaGlobal = emitidaEn?.toDate?.() ?? new Date(`${periodo}T12:00:00Z`);
+  /*
+   * ⚠️ El periodo puede venir como MES (`2026-08`) o como DÍA (`2026-08-31`), porque los
+   *    comprobantes de la cadencia diaria anterior siguen existiendo. `new Date("2026-08")` da
+   *    una fecha válida —el día 1— así que se le añade el día solo cuando falta.
+   */
+  const fechaGlobal =
+    emitidaEn?.toDate?.() ??
+    new Date(`${periodo.length === 7 ? `${periodo}-01` : periodo}T12:00:00Z`);
   if (!dentroDePlazo(fechaGlobal, "moral")) {
     throw new HttpsError("failed-precondition", mensajeFueraDePlazo(fechaGlobal, "moral"));
   }

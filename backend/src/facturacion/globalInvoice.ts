@@ -35,12 +35,24 @@ function round2(n: number): number {
 }
 
 /**
- * Periodicidad diaria **en el vocabulario de Facturapi**, no en el del SAT.
+ * Periodicidad **mensual**, en el vocabulario de Facturapi, no en el del SAT.
  *
- * Equivale a la clave `01` del catálogo `c_Periodicidad`; Facturapi hace la traducción al
- * armar el XML. Ver la nota larga en `emitirFacturaGlobal`.
+ * Equivale a la clave `04` del catálogo `c_Periodicidad`; Facturapi traduce al armar el XML.
+ *
+ * 🚨 VOLVIÓ A MENSUAL EL 2026-09-05, y merece explicación porque antes fue diaria.
+ *
+ *    La regla 2.7.1.21 permite diario, semanal, quincenal, mensual o bimestral, y exige timbrar
+ *    dentro de las 24 horas siguientes al cierre **del periodo elegido**. El incumplimiento que
+ *    se arregló en §A1 no era la periodicidad mensual, era que el proceso corría el día 5 del
+ *    mes siguiente: 120 horas tarde. Se pasó a diaria creyendo que el plazo obligaba a ello, y
+ *    no era así.
+ *
+ *    Diaria cumplía, pero costaba caro: **365 comprobantes al año por creador**, y sobre todo,
+ *    una venta entraba en un CFDI timbrado en menos de 24 horas. Eso convertía cada factura que
+ *    pedía un comprador —y cada devolución— en una cancelación con reexpedición. Con la mensual,
+ *    lo que se pide dentro del mes se resuelve limpio, sin cancelar nada.
  */
-const PERIODICIDAD_FACTURAPI_DIARIA = "day";
+const PERIODICIDAD_FACTURAPI_MENSUAL = "month";
 
 /**
  * Una venta que quedó sin facturar en el mes.
@@ -214,6 +226,21 @@ export function compraLibre(x: Record<string, unknown> | undefined): boolean {
    *    vería sin marca de global y la metería otra vez, facturando una venta que ya no existe.
    */
   if (x.devuelta) return false;
+  /**
+   * 🚨 NI LO QUE NO SE HA ENTREGADO (Luis, 2026-09-05).
+   *
+   * Una sesión pagada y no celebrada puede cancelarse, y entonces habría que cancelar un CFDI ya
+   * timbrado — que por encima de 1 000 pesos exige que el comprador ACEPTE la cancelación. Es
+   * más barato esperar a que ocurra.
+   *
+   * ⚠️ Vale también para la GLOBAL, no solo para la factura del comprador: meter en la global
+   *    una sesión que aún no ocurre tiene el mismo problema, y encima el CFDI es del creador.
+   *    La venta entrará en la global del mes en que se entregue.
+   *
+   * Los servicios que se cobran y entregan a la vez nunca traen esta marca, así que no hay lista
+   * de excepciones que mantener.
+   */
+  if (x.pendienteEntrega === true) return false;
   return true;
 }
 
@@ -232,6 +259,8 @@ export function compraReclamablePorNominativa(x: Record<string, unknown> | undef
   if (compraLibre(x)) return true;
   // Devuelta tampoco se factura por aquí: ese dinero volvió al comprador.
   if (!x || x.invoiced === true || x.globalInvoice || x.devuelta) return false;
+  // Tampoco lo que está por entregarse. Ver `compraLibre`.
+  if (x.pendienteEntrega === true) return false;
   const n = x.nominativaEnCurso as { estado?: string } | undefined;
   return n?.estado === "liberada";
 }
@@ -499,11 +528,11 @@ export async function emitirFacturaGlobal(
        *      day → 01 Diaria · week → 02 Semanal · fortnight → 03 Quincenal
        *      month → 04 Mensual · two_month → 05 Bimestral
        *
-       * ⚠️ `months` sí es el MES en el que cae el día, no el día. Con periodicidad diaria el
-       * Anexo 20 espera igualmente el mes y el año; el día concreto lo dan las operaciones.
+       * ⚠️ `months` es el MES que cubre el comprobante. Con periodicidad mensual es exactamente
+       * el mes del periodo; el Anexo 20 espera la clave de dos dígitos, no el nombre.
        */
       global: {
-        periodicity: PERIODICIDAD_FACTURAPI_DIARIA,
+        periodicity: PERIODICIDAD_FACTURAPI_MENSUAL,
         months: String(desde.getUTCMonth() + 1).padStart(2, "0"),
         year: desde.getUTCFullYear(),
       },

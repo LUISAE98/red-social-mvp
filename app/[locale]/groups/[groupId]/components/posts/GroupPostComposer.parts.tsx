@@ -140,6 +140,16 @@ export type GroupPostComposerProps = {
   onEditClose?: () => void;
   /** Deep-link: al montar, abre el overlay del composer con premium activado. */
   autoOpenPremium?: boolean;
+  /**
+   * Aire propio arriba y abajo del compositor, en píxeles. Por defecto 12, que
+   * es lo que necesita cuando va suelto en una comunidad.
+   *
+   * En el home no va suelto: lo aprieta el rail de reels por arriba y la primera
+   * publicación por abajo, y cada uno trae ya su propio margen. Sumados, el
+   * compositor quedaba flotando en un hueco de más de treinta píxeles por lado.
+   * El horizontal NO se toca: ese sí lo necesita para no pegarse a las orillas.
+   */
+  paddingBlock?: number;
 };
 
 export type SelectedMediaItem = ComposerMediaItem & {

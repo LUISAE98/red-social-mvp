@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Language and currency"
   },
   "feed": {
+    "discoverExperiences": "Discover new experiences",
     "pinned": "Pinned",
     "processing": "Processing...",
     "errorLoadFlames": "Could not load flames.",
@@ -1739,7 +1740,21 @@
     "receiptsSales": "Sales",
     "receiptsCommission": "Commission",
     "receiptsIsr": "Income tax withheld",
-    "receiptsVat": "VAT withheld"
+    "receiptsVat": "VAT withheld",
+    "receiptsLoading": "Loading the receipt…",
+    "receiptsNotFound": "We could not find that receipt.",
+    "receiptsDate": "Payment date",
+    "receiptsSent": "Sent",
+    "receiptsRate": "Exchange rate",
+    "receiptsBase": "Sales in the period",
+    "receiptsCommissionVat": "Tax on the commission",
+    "receiptsNet": "Net",
+    "receiptsPrint": "Print or save as PDF",
+    "receiptsNotCfdi": "This document is not a CFDI and cannot be used for tax deductions in Mexico. It is the record of what Vibra paid you and how it was calculated.",
+    "receiptsPayment": "Payment receipt",
+    "receiptsPaid": "You paid",
+    "receiptsLocalTax": "Tax in your country",
+    "receiptsTotal": "Total"
   },
   "services": {
     "confirmLabel": "Confirm",
@@ -2647,9 +2662,11 @@
   "iosInstallPrompt": {
     "title": "Add Vibra to your home screen",
     "body": "It opens like an app, and it is the only way to get notifications on iPhone.",
-    "step1": "Tap Share",
-    "step2": "Scroll down and pick this one",
-    "safariOnly": "It has to be from Safari",
+    "step1": "Open Safari",
+    "step2": "Tap the three dots, bottom right",
+    "step3": "Choose Share",
+    "step4": "Scroll down and choose Add to Home Screen",
+    "shareLabel": "Share",
     "addToHomeScreen": "Add to Home Screen",
     "later": "Not now"
   },

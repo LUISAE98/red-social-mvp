@@ -9,7 +9,7 @@ import Image from "next/image";
 import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_USD } from "@/lib/currency/catalog";
 import { TextButton } from "@/components/ui";
 import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { formatCurrency } from "@/lib/currency/format";
 import {
@@ -30,6 +30,7 @@ type TodoTypeFilter = LedgerServiceType | "all";
 export default function PurchasesTodoList({ uid }: { uid: string | null | undefined }) {
   const tCommon = useTranslations("common");
   const tWallet = useTranslations("wallet");
+  const locale = useLocale();
   const pf = usePriceFormat();
   const formatMoney = pf.format;
   const { purchases, userMiniMap, groupMetaMap, loading } = useAllPurchases(uid);
@@ -62,9 +63,23 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [panelOpen, setPanelOpen] = useState(false);
 
-  // Solo son facturables las compras pagadas y NO facturadas aún.
+  /*
+   * Facturables: pagadas, no facturadas y YA ENTREGADAS.
+   *
+   * 🚨 Lo de la entrega no es cosmético. El servidor rechaza igualmente lo que está por
+   *    entregarse, así que sin este filtro el comprador podría seleccionar cosas y llevarse un
+   *    error sin entender por qué. La guarda de verdad está en `compraLibre`, del backend.
+   */
   const selectableIds = useMemo(
-    () => visible.filter((r) => r.data.status === "paid" && r.data.invoiced !== true).map((r) => r.id),
+    () =>
+      visible
+        .filter(
+          (r) =>
+            r.data.status === "paid" &&
+            r.data.invoiced !== true &&
+            r.data.pendienteEntrega !== true
+        )
+        .map((r) => r.id),
     [visible]
   );
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
@@ -210,6 +225,15 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
         const typeLabel = tWallet(ledgerTypeLabelKey(d.type));
         const refunded = d.status !== "paid";
         const invoiced = d.invoiced === true;
+        /*
+         * 🧾 El comprador de FUERA tiene recibo, no CFDI.
+         *
+         * El CFDI es un documento mexicano y a él no le aplica. Sin este enlace se quedaba sin
+         * ningún papel de lo que pagó. Al mexicano no se le enseña: su venta la ampara un CFDI
+         * y darle además algo que se le parece lo invitaría a presentarlo en su declaración.
+         */
+        const pais = String(d.taxCountry ?? "").toUpperCase();
+        const tieneRecibo = !refunded && pais !== "" && pais !== "MX";
         // Devuelto: a crédito (saldo a favor) o a la tarjeta (rechazo antes de cobrar).
         const returnedToCredit = d.refundDestination === "credit";
         const returnedToCard = d.refundDestination === "card";
@@ -325,6 +349,16 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
                     <span style={{ fontSize: 10, fontWeight: 600, color: ledgerStatusColor(d.status as LedgerStatus) }}>
                       {tWallet(ledgerStatusLabelKey(d.status as LedgerStatus))}
                     </span>
+                  )}
+                  {tieneRecibo && (
+                    <a
+                      href={`/${locale}/comprobante/recibo/${r.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontSize: 10, fontWeight: 600, color: "#a855f7", textDecoration: "none" }}
+                    >
+                      {tWallet("receiptsPayment")}
+                    </a>
                   )}
                 </>
               )}

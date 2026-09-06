@@ -173,11 +173,17 @@ export default function PanelModal({
           width: "min(360px, 100%)",
           boxSizing: "border-box",
           borderRadius: 20,
-          background: "#14101f",
-          // Sin borde de color: el contorno tenue y la sombra bastan para
-          // despegarlo, y el morado se gasta entero en el icono y el botón.
+          /**
+           * Negro, no el morado oscuro que había antes.
+           *
+           * ⚠️ Siendo negro puro, lo único que separa el panel del velo es el
+           * contorno de una línea de abajo. No lo quites: sin él, sobre una
+           * pantalla oscura el panel se funde con su propio fondo y deja de
+           * leerse como una tarjeta.
+           */
+          background: "#000000",
           boxShadow:
-            "0 24px 60px rgba(0,0,0,0.65), 0 0 0 1px rgba(168,85,255,0.18)",
+            "0 24px 60px rgba(0,0,0,0.75), 0 0 0 1px rgba(168,85,255,0.22)",
           color: "#fff",
           overflow: "hidden",
         }}

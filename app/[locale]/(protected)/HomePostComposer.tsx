@@ -125,12 +125,19 @@ export default function HomePostComposer({
   }
 
   return (
-    <section style={{ width: "100%", minWidth: 0, padding: "8px 12px 4px" }}>
+    // Sin aire vertical propio. En el home el compositor no va suelto: encima
+    // tiene el rail de reels, que ya cierra con 14 de margen, y debajo la
+    // primera publicación, que abre con el suyo. Los 8 de arriba y los 4 de
+    // abajo se sumaban a esos y a los 12 del propio compositor, y el resultado
+    // era un hueco de más de treinta píxeles por lado.
+    <section style={{ width: "100%", minWidth: 0, padding: "0 12px" }}>
       <GroupPostComposer
         contextType="profile"
         isOwner
         onSubmit={handleSubmit}
         onLiveClick={() => setLiveModalOpen(true)}
+        // Aquí basta con la mitad; en una comunidad va suelto y sí necesita 12.
+        paddingBlock={6}
       />
 
       {/* Mismo compositor de live del perfil, con el mismo contexto: la

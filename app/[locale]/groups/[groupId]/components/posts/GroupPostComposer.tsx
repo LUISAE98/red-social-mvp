@@ -51,6 +51,7 @@ export default function GroupPostComposer({
   editPost,
   onEditClose,
   autoOpenPremium = false,
+  paddingBlock = 12,
 }: GroupPostComposerProps) {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
@@ -821,7 +822,7 @@ export default function GroupPostComposer({
     // porque sin nada que tintar era trabajo de pintado a cambio de nada.
     background: "transparent",
     color: "#fff",
-    padding: 12,
+    padding: `${paddingBlock}px 12px`,
     boxSizing: "border-box",
   };
 

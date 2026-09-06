@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Idioma i moneda"
   },
   "feed": {
+    "discoverExperiences": "Descobreix noves experiències",
     "pinned": "Fixada",
     "processing": "S'està processant...",
     "errorLoadFlames": "No s'han pogut carregar les flames.",
@@ -2636,10 +2637,12 @@
   "iosInstallPrompt": {
     "title": "Afegeix Vibra a la pantalla d'inici",
     "body": "S'obre com una app i és l'única manera de rebre avisos a l'iPhone.",
-    "step1": "Toca Comparteix",
-    "step2": "Baixa i tria aquesta opció",
-    "safariOnly": "Ha de ser des de Safari",
-    "addToHomeScreen": "Afegeix a la pantalla d'inici",
+    "step1": "Obre Safari",
+    "step2": "Toca els tres punts, a baix a la dreta",
+    "step3": "Tria Comparteix",
+    "step4": "Baixa i tria Afegeix a la pantalla d'inici",
+    "shareLabel": "Comparteix",
+    "addToHomeScreen": "A la pantalla d'inici",
     "later": "Ara no"
   },
   "notifications": {

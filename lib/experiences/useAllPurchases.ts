@@ -23,6 +23,23 @@ export type PurchaseData = {
   taxAmount?: number; // 🧾 IVA cobrado al comprador ENCIMA de la base (va al SAT). Legacy: ausente → 0
   currency: string;
   invoiced?: boolean; // true si ya se generó su CFDI (generateBuyerInvoice)
+  /**
+   * 🧾 El servicio todavía no se ha entregado, así que NO se puede facturar.
+   *
+   * Una sesión pagada y no celebrada puede cancelarse, y cancelar un CFDI ya timbrado de más de
+   * 1 000 pesos exige que el comprador acepte. Es más barato esperar a que ocurra.
+   *
+   * ⚠️ Ausente en las compras anteriores al 2026-09-05: se trata como entregada, que es como se
+   *    comportaban hasta ahora.
+   */
+  pendienteEntrega?: boolean;
+  /**
+   * 🌍 País fiscal del comprador. Decide si tiene RECIBO.
+   *
+   * El CFDI es un documento mexicano; el comprador de fuera no puede recibirlo y a cambio se le
+   * genera un recibo de pago. Ver `facturacion/reciboComprador.ts`.
+   */
+  taxCountry?: string | null;
   invoiceId?: string | null;
   // Devolución: destino del reembolso + monto devuelto (para "· Devuelto en crédito/tarjeta").
   refundDestination?: "credit" | "card";

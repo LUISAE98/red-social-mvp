@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Teanga agus airgeadra"
   },
   "feed": {
+    "discoverExperiences": "Aimsigh eispéiris nua",
     "pinned": "Pionnáilte",
     "processing": "Á phróiseáil...",
     "errorLoadFlames": "Níorbh fhéidir na lasracha a lódáil.",
@@ -2636,10 +2637,12 @@
   "iosInstallPrompt": {
     "title": "Cuir Vibra le do scáileán baile",
     "body": "Osclaíonn sé mar aip, agus is é an t-aon bhealach fógraí a fháil ar iPhone.",
-    "step1": "Tapáil Comhroinn",
-    "step2": "Scrollaigh síos agus roghnaigh é seo",
-    "safariOnly": "Caithfidh sé a bheith ó Safari",
-    "addToHomeScreen": "Cuir leis an Scáileán Baile",
+    "step1": "Oscail Safari",
+    "step2": "Tapáil na trí phonc, ag bun ar dheis",
+    "step3": "Roghnaigh Comhroinn",
+    "step4": "Scrollaigh síos agus roghnaigh Cuir leis an Scáileán Baile",
+    "shareLabel": "Comhroinn",
+    "addToHomeScreen": "Scáileán Baile",
     "later": "Ní anois"
   },
   "notifications": {

@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Tungumál og gjaldmiðill"
   },
   "feed": {
+    "discoverExperiences": "Uppgötvaðu nýja upplifun",
     "pinned": "Fest",
     "processing": "Vinn úr...",
     "errorLoadFlames": "Ekki tókst að hlaða logum.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Bættu Vibra á heimaskjáinn",
     "body": "Það opnast eins og app og er eina leiðin til að fá tilkynningar í iPhone.",
-    "step1": "Ýttu á Deila",
-    "step2": "Skrunaðu niður og veldu þetta",
-    "safariOnly": "Það verður að vera úr Safari",
+    "step1": "Opnaðu Safari",
+    "step2": "Ýttu á punktana þrjá, neðst til hægri",
+    "step3": "Veldu Deila",
+    "step4": "Skrunaðu niður og veldu Bæta á heimaskjá",
+    "shareLabel": "Deila",
     "addToHomeScreen": "Bæta á heimaskjá",
     "later": "Ekki núna"
   },

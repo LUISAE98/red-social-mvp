@@ -126,7 +126,7 @@ type AsientoConRetenciones = {
 const HORAS_TRAS_UTC_MX = 6;
 
 /** Las partes de una fecha civil mexicana. */
-function partesEnMexico(fecha: Date): { a: number; m: number; d: number } {
+export function partesEnMexico(fecha: Date): { a: number; m: number; d: number } {
   const local = new Date(fecha.getTime() - HORAS_TRAS_UTC_MX * 3_600_000);
   return { a: local.getUTCFullYear(), m: local.getUTCMonth() + 1, d: local.getUTCDate() };
 }

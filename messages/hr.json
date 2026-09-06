@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Jezik i valuta"
   },
   "feed": {
+    "discoverExperiences": "Otkrij nova iskustva",
     "pinned": "Prikvačeno",
     "processing": "Obrađuje se...",
     "errorLoadFlames": "Plamenove nije bilo moguće učitati.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Dodaj Vibru na početni zaslon",
     "body": "Otvara se kao aplikacija i jedini je način za primanje obavijesti na iPhoneu.",
-    "step1": "Dodirni Podijeli",
-    "step2": "Skrolaj i odaberi ovu opciju",
-    "safariOnly": "Mora biti iz Safarija",
+    "step1": "Otvori Safari",
+    "step2": "Dodirni tri točkice dolje desno",
+    "step3": "Odaberi Podijeli",
+    "step4": "Skrolaj i odaberi Dodaj na početni zaslon",
+    "shareLabel": "Podijeli",
     "addToHomeScreen": "Dodaj na početni zaslon",
     "later": "Ne sada"
   },

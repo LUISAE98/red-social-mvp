@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Kieli ja valuutta"
   },
   "feed": {
+    "discoverExperiences": "Löydä uusia elämyksiä",
     "pinned": "Kiinnitetty",
     "processing": "Käsitellään...",
     "errorLoadFlames": "Liekkejä ei voitu ladata.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Lisää Vibra aloitusnäytölle",
     "body": "Se avautuu sovelluksena, ja se on ainoa tapa saada ilmoituksia iPhonessa.",
-    "step1": "Napauta Jaa",
-    "step2": "Vieritä alas ja valitse tämä",
-    "safariOnly": "Sen on tapahduttava Safarissa",
+    "step1": "Avaa Safari",
+    "step2": "Napauta kolmea pistettä oikeassa alareunassa",
+    "step3": "Valitse Jaa",
+    "step4": "Vieritä alas ja valitse Lisää Koti-valikkoon",
+    "shareLabel": "Jaa",
     "addToHomeScreen": "Lisää Koti-valikkoon",
     "later": "Ei nyt"
   },

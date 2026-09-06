@@ -9,6 +9,7 @@ import HomePostComposer from "./HomePostComposer";
 import HomeStoriesRow, { invalidateFollowedIdsCache } from "@/app/components/Stories/HomeStoriesRow";
 import { refreshReelFeed } from "@/lib/reels/reelFeedRefresh";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
+import { ReelRailsProvider } from "@/lib/reels/reelRails";
 import { invalidateRecommendationCache } from "@/app/components/GroupRecommendations/recommendation-engine";
 import { useScreenReady } from "@/lib/useScreenReady";
 
@@ -101,6 +102,10 @@ const pageWrap: CSSProperties = {
             }
             return refreshRef.current();
           }}>
+            {/* El feed de reels se pide UNA vez para toda la pantalla. Lo usan
+                el rail de arriba y todas sus apariciones intercaladas entre las
+                publicaciones, cada una con un trozo distinto. */}
+            <ReelRailsProvider uid={effectiveUid || null}>
             <HomeStoriesRow currentUserId={effectiveUid} />
 
             {/* Compositor: bajo las historias y sobre los posts. Publica en el
@@ -113,6 +118,7 @@ const pageWrap: CSSProperties = {
             />
 
             <HomePostsFeed currentUserId={effectiveUid} refreshRef={refreshRef} />
+            </ReelRailsProvider>
           </RefreshableArea>
         </div>
       </div>

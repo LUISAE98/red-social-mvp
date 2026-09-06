@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Taal en valuta"
   },
   "feed": {
+    "discoverExperiences": "Ontdek nieuwe ervaringen",
     "pinned": "Vastgezet",
     "processing": "Verwerken…",
     "errorLoadFlames": "De vlammen konden niet worden geladen.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Zet Vibra op je beginscherm",
     "body": "Hij opent als app, en alleen zo krijg je meldingen op de iPhone.",
-    "step1": "Tik op Deel",
-    "step2": "Scroll omlaag en kies deze",
-    "safariOnly": "Het moet via Safari",
+    "step1": "Open Safari",
+    "step2": "Tik op de drie puntjes, rechtsonder",
+    "step3": "Kies Deel",
+    "step4": "Scroll omlaag en kies Zet op beginscherm",
+    "shareLabel": "Deel",
     "addToHomeScreen": "Zet op beginscherm",
     "later": "Nu niet"
   },

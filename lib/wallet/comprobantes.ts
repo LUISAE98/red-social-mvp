@@ -9,6 +9,8 @@
 
 import {
   collection,
+  doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -142,4 +144,114 @@ export function suscribirComprobantesMensuales(
       ),
     (e) => onError?.(e)
   );
+}
+
+/**
+ * Un comprobante de retiro concreto, para la vista imprimible.
+ *
+ * Se lee de una vez en vez de reusar la suscripción de la lista: la vista de impresión no
+ * necesita actualizarse en vivo, y un `onSnapshot` abierto mientras el navegador imprime es
+ * pedir que el documento cambie a media hoja.
+ */
+export async function leerComprobanteRetiro(
+  uid: string,
+  id: string
+): Promise<ComprobanteRetiroDoc | null> {
+  const snap = await getDoc(doc(db, "users", uid, "comprobantesRetiro", id));
+  if (!snap.exists()) return null;
+  const x = snap.data() as Record<string, unknown>;
+  return {
+    id: snap.id,
+    currency: String(x.currency ?? "USD"),
+    neto: num(x.neto),
+    acreditado: numOnulo(x.acreditado),
+    monedaAcreditada: texto(x.monedaAcreditada),
+    tipoCambio: numOnulo(x.tipoCambio),
+    route: texto(x.route),
+    payoutCountry: texto(x.payoutCountry),
+    cuentaLast4: texto(x.cuentaLast4),
+    referencia: texto(x.referencia),
+    pagadoEn: fecha(x.pagadoEn),
+  };
+}
+
+/** Un comprobante mensual concreto. El id es el periodo, `YYYY-MM`. */
+export async function leerComprobanteMensual(
+  uid: string,
+  periodo: string
+): Promise<ComprobanteMensualDoc | null> {
+  const snap = await getDoc(doc(db, "users", uid, "payoutStatements", periodo));
+  if (!snap.exists()) return null;
+  const x = snap.data() as Record<string, unknown>;
+  return {
+    id: snap.id,
+    currency: String(x.currency ?? "USD"),
+    ventas: num(x.ventas),
+    base: num(x.base),
+    participacion: num(x.participacion),
+    comision: num(x.comision),
+    ivaComision: num(x.ivaComision),
+    isrRetenido: num(x.isrRetenido),
+    ivaRetenido: num(x.ivaRetenido),
+    neto: num(x.neto),
+  };
+}
+
+/**
+ * Recibo del comprador EXTRANJERO.
+ *
+ * ⚠️ Vive en el árbol del COMPRADOR, no del creador, aunque comparta este archivo: es el mismo
+ * tipo de documento —constancia de un pago, sin valor fiscal mexicano— y separarlo en otro
+ * módulo solo por a quién pertenece duplicaría los mismos ayudantes.
+ */
+export type ReciboDoc = {
+  id: string;
+  creatorId: string;
+  type: string;
+  buyerCountry: string;
+  /** Lo que vio y pagó, en su moneda. */
+  pagado: number | null;
+  monedaPagada: string | null;
+  total: number;
+  currency: string;
+  base: number;
+  impuesto: number;
+  fecha: Date | null;
+};
+
+function aRecibo(id: string, x: Record<string, unknown>): ReciboDoc {
+  return {
+    id,
+    creatorId: String(x.creatorId ?? ""),
+    type: String(x.type ?? ""),
+    buyerCountry: String(x.buyerCountry ?? ""),
+    pagado: numOnulo(x.pagado),
+    monedaPagada: texto(x.monedaPagada),
+    total: num(x.total),
+    currency: String(x.currency ?? "USD"),
+    base: num(x.base),
+    impuesto: num(x.impuesto),
+    fecha: fecha(x.fecha),
+  };
+}
+
+/** Los recibos del comprador, del más reciente al más viejo. */
+export function suscribirRecibos(
+  uid: string,
+  cb: (rows: ReciboDoc[]) => void,
+  onError?: (e: unknown) => void
+): () => void {
+  const q = query(collection(db, "users", uid, "recibos"), orderBy("fecha", "desc"), fsLimit(50));
+  return onSnapshot(
+    q,
+    (snap) => cb(snap.docs.map((d) => aRecibo(d.id, d.data() as Record<string, unknown>))),
+    (e) => onError?.(e)
+  );
+}
+
+/** Un recibo concreto, para la vista imprimible. */
+export async function leerRecibo(uid: string, id: string): Promise<ReciboDoc | null> {
+  const snap = await getDoc(doc(db, "users", uid, "recibos", id));
+  if (!snap.exists()) return null;
+  return aRecibo(snap.id, snap.data() as Record<string, unknown>);
 }

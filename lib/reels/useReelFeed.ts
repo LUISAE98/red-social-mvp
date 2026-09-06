@@ -112,7 +112,21 @@ async function fetchViewedMap(uid: string): Promise<Map<string, number>> {
   return map;
 }
 
-export function useReelFeed(uid: string | null | undefined, esAnonimo = false) {
+export function useReelFeed(
+  uid: string | null | undefined,
+  esAnonimo = false,
+  /**
+   * Con `false` el feed no se arma: ni consultas, ni escuchas, ni ranking.
+   *
+   * Lo usa `ReelRailsProvider` en las pantallas donde el rail de reels PUEDE
+   * salir pero todavia no hay publicaciones suficientes para hospedar uno. Sin
+   * esto, entrar a cualquier perfil pagaba el feed entero por si acaso.
+   *
+   * Es una pausa, no un desmontaje: el proveedor sigue en su sitio con el mismo
+   * arbol debajo, asi que al activarse no se remonta nada de lo que ya se ve.
+   */
+  activo = true
+) {
   // Quien mira es un INVITADO. Sin cuenta de verdad, o con una firmada al vuelo
   // en Vibra Express.
   const esInvitado = !uid || esAnonimo;
@@ -226,7 +240,7 @@ export function useReelFeed(uid: string | null | undefined, esAnonimo = false) {
     // delante la pasarela que vive dentro. En Vibra Express eso pasaba justo en
     // el peor momento: al entrar con un correo que ya tenía cuenta, en mitad del
     // cobro. El feed puede esperar unos segundos; una compra a medias, no.
-    if (frenado) return;
+    if (frenado || !activo) return;
 
     let cancelled = false;
 
@@ -334,7 +348,7 @@ export function useReelFeed(uid: string | null | undefined, esAnonimo = false) {
     return () => {
       cancelled = true;
     };
-  }, [viewerUid, arrange, generation, frenado, esInvitado]);
+  }, [viewerUid, arrange, generation, frenado, esInvitado, activo]);
 
   // Los lives entran y salen solos mientras el feed está abierto.
   //
@@ -349,7 +363,7 @@ export function useReelFeed(uid: string | null | undefined, esAnonimo = false) {
     // borrar el panel donde vive una compra abierta. Frenar solo la carga
     // dejaba esta puerta abierta: al cambiar de sesión, la suscripción se
     // rehacía y escribía por su cuenta.
-    if (frenado) return;
+    if (frenado || !activo) return;
     return subscribeReelLives({ uid: viewerUid }, (lives) => {
       livesRef.current = lives;
       const enCurso = new Set(lives.map((l) => l.key));
@@ -361,7 +375,7 @@ export function useReelFeed(uid: string | null | undefined, esAnonimo = false) {
         return next.length === prev.items.length ? prev : { ...prev, items: next };
       });
     });
-  }, [viewerUid, frenado]);
+  }, [viewerUid, frenado, activo]);
 
   /**
    * Pide más hasta CONSEGUIR algo nuevo, no hasta pedir una vez.

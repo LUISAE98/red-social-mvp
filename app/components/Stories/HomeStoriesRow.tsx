@@ -28,21 +28,25 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { recordStoryView } from "@/lib/stories/storyService";
-import { useReelFeed } from "@/lib/reels/useReelFeed";
+import { useReelRails, useReelRailSlice } from "@/lib/reels/reelRails";
 import type { StoryDoc } from "@/lib/stories/types";
 import HomeStoryCarouselDesktop, { type CarouselGroup } from "./HomeStoryCarouselDesktop";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
-import { RAIL_CARD_W, RAIL_GAP } from "@/app/components/GroupRecommendations/GroupRecommendationsRail.parts";
 import { useDragScroll } from "@/lib/hooks/useDragScroll";
 import { CACHE_TTL } from "@/lib/cache/ttl";
 
-// Las medidas se IMPORTAN del rail de recomendaciones en vez de copiarse. Los
-// dos rails viven pegados en el home y tienen que leerse como el mismo sistema;
-// con números duplicados, tocar uno los separa sin que nadie se entere.
+// Las medidas eran las del rail de recomendaciones, importadas de él para que
+// los dos rails del home se leyeran como el mismo sistema. Ya no: este rail
+// tiene ahora su propio ritmo —tarjetas más chicas, más separadas y con las
+// esquinas redondeadas— y seguir importando números que ya no se comparten solo
+// escondería la diferencia. Si algún día se quiere volver a igualarlos, hay que
+// mover TAMBIÉN el de recomendaciones, no reconectar este.
 /** Cuántas tarjetas deben caber como mínimo, en cualquier laptop. */
-const MIN_VISIBLE = 4;
-/** Tope de ancho: el del rail de recomendaciones. */
-const CARD_MAX_W = RAIL_CARD_W;
+const MIN_VISIBLE = 5;
+/** Tope de ancho de la tarjeta. */
+const CARD_MAX_W = 168;
+/** Separación entre historias. */
+const RAIL_GAP = 12;
 /**
  * Proporción de la tarjeta: la misma que tienen las historias cuando se enlistan
  * en una búsqueda, 9:16.
@@ -62,17 +66,16 @@ const CARD_RATIO = "9 / 16";
  */
 const CARD_WIDTH = `min(${CARD_MAX_W}px, calc((100% - ${RAIL_GAP * (MIN_VISIBLE - 1)}px) / ${MIN_VISIBLE}))`;
 /**
- * Radio de las tarjetas: ninguno.
+ * Radio de las tarjetas.
  *
- * Esquinas cuadradas, como en el listado de búsqueda —donde el comentario lo
- * llama estilo "mantel"—. Las esquinas redondeadas recortaban imagen en las
- * cuatro puntas de cada reel.
+ * Estuvo en 0 —esquinas cuadradas, estilo "mantel", como el listado de
+ * búsqueda— porque pegadas de dos en dos las esquinas redondeadas dejaban un
+ * rombo de fondo entre cada par. Con la separación de ahora las tarjetas ya no
+ * se tocan, así que el redondeo se lee como tal y no como un hueco.
  */
-const CARD_RADIUS = 0;
-/** Cuánto se funde cada orilla del rail. */
-const EDGE_FADE = 28;
+const CARD_RADIUS = 14;
 /**
- * Avatar del creador junto a su nombre, dentro de la tarjeta.
+ * Avatar del creador, dentro de la tarjeta.
  *
  * Con 16px no cabía un aro que se distinguiera: el anillo mide unos 3px y a ese
  * tamaño se leía como un borde sucio en vez de como la marca de que hay algo que
@@ -110,6 +113,22 @@ type LiveEntity = { entityId: string; entityType: "profile" | "group" };
 
 type Props = {
   currentUserId: string;
+  /**
+   * `home` es la aparición de arriba del todo: la que además lleva los aros de
+   * quien está transmitiendo en vivo y la que se anuncia vacía si no hay nada.
+   *
+   * `intercalado` son las apariciones de en medio del feed —home, perfiles y
+   * comunidades—. Esas van SIN lives: los aros son la portada de la pantalla, no
+   * algo que deba repetirse cada pocas publicaciones, y cada tira de aros abre
+   * dos escuchas permanentes a Firestore. Si el trozo que le toca viene vacío,
+   * no se pinta nada en vez de anunciar el hueco.
+   */
+  variant?: "home" | "intercalado";
+  /**
+   * Qué trozo del feed compartido enseña este rail. Dos apariciones con índices
+   * distintos nunca enseñan lo mismo. Ver `useReelRailSlice`.
+   */
+  railIndex?: number;
 };
 
 const fontStack = "inherit";
@@ -130,13 +149,51 @@ function resolveThumb(story: StoryDoc): string | null {
   return story.thumbnailUrl ?? null;
 }
 
-export default function HomeStoriesRow({ currentUserId }: Props) {
+/**
+ * Título de la sección, encima de la tira.
+ *
+ * Va tanto en el esqueleto como en el rail ya cargado: si solo estuviera en uno,
+ * al llegar las historias aparecería de golpe y empujaría la tira hacia abajo.
+ *
+ * El aire lateral es el mismo `14` del rail para que arranque a plomo con la
+ * primera tarjeta.
+ */
+function TituloRail() {
+  const tFeed = useTranslations("feed");
+
+  return (
+    <h2
+      style={{
+        margin: "0 0 10px",
+        padding: "0 14px",
+        fontSize: 15,
+        // Ligero a propósito: el título rotula la sección, no compite con ella.
+        fontWeight: 500,
+        lineHeight: 1.2,
+        color: "#fff",
+      }}
+    >
+      {tFeed("discoverExperiences")}
+    </h2>
+  );
+}
+
+export default function HomeStoriesRow({
+  currentUserId,
+  variant = "home",
+  railIndex = 0,
+}: Props) {
   const tCommon = useTranslations("common");
+  const esPortada = variant === "home";
 
   const [mounted, setMounted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  // Misma fuente, mismo orden y misma cuota que el reel de celular.
-  const { stories, ready, loadMore } = useReelFeed(currentUserId);
+  // Misma fuente, mismo orden y misma cuota que el reel de celular, pero pedida
+  // UNA vez por pantalla: el feed vive en `ReelRailsProvider` y aquí solo se
+  // recoge el trozo que le toca a esta aparición. Así da igual cuántos rails se
+  // intercalen, que consultas se hace una sola.
+  const { loadMore } = useReelRails();
+  const { stories, ready } = useReelRailSlice(railIndex);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const dragScroll = useDragScroll(scrollerRef);
 
@@ -179,6 +236,9 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
 
   // ── Ids de seguidos y comunidades, solo para los aros de en vivo ──────────
   useEffect(() => {
+    // Solo la portada lleva lives. Un rail intercalado que abriera estas
+    // escuchas multiplicaria el trabajo por cada aparicion.
+    if (!esPortada) return;
     if (!currentUserId) return;
     let cancelled = false;
     (async () => {
@@ -213,10 +273,13 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [currentUserId]);
+  }, [currentUserId, esPortada]);
 
   // ── En vivo: perfiles seguidos ────────────────────────────────────────────
   useEffect(() => {
+    // Solo la portada lleva lives. Un rail intercalado que abriera estas
+    // escuchas multiplicaria el trabajo por cada aparicion.
+    if (!esPortada) return;
     const others = creatorIds.filter((id) => id !== currentUserId);
     if (others.length === 0) return;
     const localMap = new Map<string, string>();
@@ -231,10 +294,13 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
       }),
     );
     return () => unsubs.forEach((u) => u());
-  }, [creatorIds, currentUserId]);
+  }, [creatorIds, currentUserId, esPortada]);
 
   // ── En vivo: comunidades donde soy miembro ────────────────────────────────
   useEffect(() => {
+    // Solo la portada lleva lives. Un rail intercalado que abriera estas
+    // escuchas multiplicaria el trabajo por cada aparicion.
+    if (!esPortada) return;
     if (groupIds.length === 0) return;
     const localMap = new Map<string, string>();
     const unsubs = chunk(groupIds, 30).map((batch) =>
@@ -248,7 +314,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
       }),
     );
     return () => unsubs.forEach((u) => u());
-  }, [groupIds]);
+  }, [groupIds, esPortada]);
 
   // ── Nombre y foto de quien hace falta (creadores de historias + en vivo) ──
   useEffect(() => {
@@ -368,20 +434,6 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
             padding: 0 14px 6px;
             margin-bottom: 14px;
             overflow: hidden;
-            mask-image: linear-gradient(
-              to right,
-              transparent 0,
-              #000 ${EDGE_FADE}px,
-              #000 calc(100% - ${EDGE_FADE}px),
-              transparent 100%
-            );
-            -webkit-mask-image: linear-gradient(
-              to right,
-              transparent 0,
-              #000 ${EDGE_FADE}px,
-              #000 calc(100% - ${EDGE_FADE}px),
-              transparent 100%
-            );
           }
           /* La caja la define la TARJETA, no la miniatura de dentro: mismas
              medidas, mismo radio y mismo fondo que la real. Así lo que se pinta
@@ -396,27 +448,17 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
             background: #141420;
           }
           /* El autor va DENTRO de la tarjeta, igual que en las reales, para que
-             al llegar el contenido no se mueva nada de sitio. */
+             al llegar el contenido no se mueva nada de sitio. Mismo rincón y
+             mismo padding de 8 que allí; ni banda ni degradado, porque la
+             tarjeta real tampoco los lleva ya. */
           .skelFoot {
             position: absolute;
             inset-inline-start: 0;
-            inset-inline-end: 0;
             bottom: 0;
             display: flex;
             align-items: center;
-            gap: 6px;
-            /* El mismo padding y el mismo degradado que la tarjeta real. Con
-               8px planos el avatar y el nombre nacían 10px más abajo y daban un
-               salto al llegar el contenido, que es justo lo que un skeleton
-               tiene que evitar. */
-            padding: 18px 8px 8px;
+            padding: 8px;
             box-sizing: border-box;
-            background: linear-gradient(
-              to top,
-              rgba(0, 0, 0, 0.78) 0%,
-              rgba(0, 0, 0, 0.45) 45%,
-              rgba(0, 0, 0, 0) 100%
-            );
           }
           /* Rellena la tarjeta entera. El tamaño ya lo pone .skelCard, que es
              quien lo comparte con la tarjeta real. */
@@ -426,7 +468,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
             display: block;
           }
           /* Sobre el bloque de la miniatura hace falta más contraste que el
-             relleno base, o el avatar y el nombre no se distinguen de él. */
+             relleno base, o el avatar no se distingue de él. */
           .skelAvatar {
             width: ${AVATAR_SIZE}px;
             height: ${AVATAR_SIZE}px;
@@ -434,20 +476,14 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
             flex-shrink: 0;
             background: rgba(255, 255, 255, 0.22);
           }
-          .skelName {
-            height: 9px;
-            border-radius: 6px;
-            width: 62%;
-            background: rgba(255, 255, 255, 0.22);
-          }
         `}</style>
+        <TituloRail />
         <div className="skelRail" aria-hidden="true">
           {[0, 1, 2, 3, 4].map((i) => (
             <div key={i} className="skelCard">
               <div className="vb-skel skelMedia" />
               <div className="skelFoot">
                 <div className="skelAvatar" />
-                <div className="skelName" />
               </div>
             </div>
           ))}
@@ -457,6 +493,11 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   }
 
   if (ready && stories.length === 0 && liveEntities.length === 0) {
+    // Intercalado en medio del feed, un rail sin material no se anuncia: se va
+    // sin dejar hueco. Anunciar el vacío es cosa de la portada, que es la única
+    // aparición que el usuario fue a buscar.
+    if (!esPortada) return null;
+
     return (
       <>
         {/* En laptop no se anuncia el vacío: ni el texto NI el hueco que ocupaba.
@@ -493,6 +534,8 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
         }
       `}</style>
 
+      <TituloRail />
+
       <div
         ref={scrollerRef}
         onScroll={handleRailScroll}
@@ -511,11 +554,6 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
           // Arrastrando no debe seleccionarse el nombre de las tarjetas.
           userSelect: "none",
           WebkitUserSelect: "none",
-          // Las orillas se funden en vez de cortarse en seco. Es una MÁSCARA, no
-          // un degradado encima: así funciona sobre cualquier fondo y no hay que
-          // repintar nada cuando el fondo del home cambie.
-          maskImage: `linear-gradient(to right, transparent 0, #000 ${EDGE_FADE}px, #000 calc(100% - ${EDGE_FADE}px), transparent 100%)`,
-          WebkitMaskImage: `linear-gradient(to right, transparent 0, #000 ${EDGE_FADE}px, #000 calc(100% - ${EDGE_FADE}px), transparent 100%)`,
         }}
       >
         {liveEntities.map(({ entityId, entityType }) => {
@@ -615,22 +653,21 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                 </span>
               )}
 
-              {/* Autor DENTRO de la tarjeta. Encima va un degradado a negro: sin
-                  él, un nombre claro sobre una miniatura clara no se lee. */}
+              {/* Autor DENTRO de la tarjeta, y solo el avatar.
+                  Antes iba el nombre al lado, y por eso debajo había un
+                  degradado a negro de lado a lado: un nombre claro sobre una
+                  miniatura clara no se lee. Sin nombre esa banda sobraba —ancho
+                  entero para un círculo pequeño—, así que el contraste lo da
+                  ahora una sombra pegada al propio avatar. */}
               <span
                 style={{
                   position: "absolute",
                   insetInlineStart: 0,
-                  insetInlineEnd: 0,
                   bottom: 0,
                   display: "flex",
                   alignItems: "center",
-                  gap: 6,
-                  padding: "18px 8px 8px",
-                  background:
-                    "linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.45) 45%, rgba(0,0,0,0) 100%)",
-                  minWidth: 0,
-                  boxSizing: "border-box",
+                  padding: 8,
+                  filter: "drop-shadow(0 1px 4px rgba(0, 0, 0, 0.65))",
                 }}
               >
                 {/* El aro sale de LiveRingAvatar, que ya resuelve solo cuál toca:
@@ -650,23 +687,6 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                     displayName={name}
                     size={AVATAR_SIZE}
                   />
-                </span>
-                <span
-                  style={{
-                    color: "#fff",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    lineHeight: 1.3,
-                    letterSpacing: "-0.01em",
-                    fontFamily: fontStack,
-                    minWidth: 0,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    textAlign: "start",
-                  }}
-                >
-                  {name}
                 </span>
               </span>
             </div>

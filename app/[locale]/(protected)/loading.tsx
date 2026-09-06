@@ -1,5 +1,3 @@
-import { PostSkeleton } from "@/app/components/PostSkeleton/PostSkeleton";
-
 /**
  * Fallback de navegación del área autenticada.
  *
@@ -13,19 +11,21 @@ import { PostSkeleton } from "@/app/components/PostSkeleton/PostSkeleton";
  * reemplaza el contenido. Esa permanencia del nav es justo lo que hace que se
  * lea como una app y no como una web recargando.
  *
- * Es el fallback COMPARTIDO de las hijas que no traen el suyo. Por eso dibuja
- * posts: la raíz es el feed, y guardados y el detalle de una publicación tienen
- * la misma forma. Las secciones con otra silueta —perfil, mensajes, avisos,
- * wallet, menú, reels— traen su propio `loading.tsx` al lado de su ruta.
+ * 🚨 ESTE FALLBACK NO DIBUJA FORMAS, Y NO PUEDE VOLVER A DIBUJARLAS.
+ *
+ * Se dispara para TODAS las hijas del segmento, no solo para el feed. Cuando
+ * pintaba tres tarjetas de publicación, entrar a un perfil se veía así: primero
+ * tres posts falsos, luego la cabecera del perfil, luego el contenido. Dos
+ * esqueletos seguidos con siluetas distintas, y el primero mintiendo sobre lo
+ * que venía. Cualquier forma que se ponga aquí va a ser la equivocada en la
+ * mayoría de las rutas.
+ *
+ * Así que aquí solo se reserva el alto de la pantalla: el cambio se nota —el
+ * contenido anterior desaparece en el acto— y el único esqueleto con forma que
+ * llega a verse es el de la ruta destino, que sí sabe lo que viene. Cada ruta
+ * pone su silueta en su propio `loading.tsx` (o en su cliente, como hace el
+ * feed con `PostSkeletonList`).
  */
 export default function Loading() {
-  return (
-    <main style={{ minHeight: "var(--vb-alto-pantalla)", width: "100%" }}>
-      <div style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <PostSkeleton key={i} />
-        ))}
-      </div>
-    </main>
-  );
+  return <main style={{ minHeight: "var(--vb-alto-pantalla)", width: "100%" }} aria-hidden="true" />;
 }

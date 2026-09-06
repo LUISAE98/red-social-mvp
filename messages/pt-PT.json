@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Idioma e moeda"
   },
   "feed": {
+    "discoverExperiences": "Descobre novas experiências",
     "pinned": "Fixada",
     "processing": "A processar...",
     "errorLoadFlames": "Não foi possível carregar as chamas.",
@@ -2636,10 +2637,12 @@
   "iosInstallPrompt": {
     "title": "Adiciona o Vibra ao ecrã principal",
     "body": "Abre como app, e é a única forma de receberes avisos no iPhone.",
-    "step1": "Toca em Partilhar",
-    "step2": "Desce e escolhe esta",
-    "safariOnly": "Tem de ser pelo Safari",
-    "addToHomeScreen": "Adicionar ao ecrã principal",
+    "step1": "Abre o Safari",
+    "step2": "Toca nos três pontos, em baixo à direita",
+    "step3": "Escolhe Partilhar",
+    "step4": "Desce e escolhe Adicionar ao ecrã principal",
+    "shareLabel": "Partilhar",
+    "addToHomeScreen": "Ao ecrã principal",
     "later": "Agora não"
   },
   "notifications": {

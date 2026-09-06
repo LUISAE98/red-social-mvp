@@ -92,16 +92,10 @@ function mesMx(): string {
   return `${l.getUTCFullYear()}-${String(l.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-/** El día mexicano de hoy. México es UTC-6 fijo desde que quitaron el horario de verano. */
-function hoyMx(): string {
-  const l = new Date(Date.now() - 6 * 3_600_000);
-  return `${l.getUTCFullYear()}-${String(l.getUTCMonth() + 1).padStart(2, "0")}-${String(
-    l.getUTCDate()
-  ).padStart(2, "0")}`;
-}
+
 
 export default function AdminFacturacionPage() {
-  const [dia, setDia] = useState(hoyMx);
+  const [dia, setDia] = useState(mesMx);
   const [phase, setPhase] = useState<Phase>("idle");
   const [result, setResult] = useState<ResumenDelDia | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +107,11 @@ export default function AdminFacturacionPage() {
   const [seenSeco, setSeenSeco] = useState<string | null>(null);
   const secoListo = seenSeco === dia;
 
-  const diaValido = useMemo(() => /^\d{4}-\d{2}-\d{2}$/.test(dia), [dia]);
+  /*
+   * Acepta MES, que es la cadencia desde el 2026-09-05, y también día, para poder reprocesar
+   * los comprobantes que se emitieron con la cadencia diaria anterior.
+   */
+  const diaValido = useMemo(() => /^[0-9]{4}-[0-9]{2}(-[0-9]{2})?$/.test(dia), [dia]);
 
   const { toast, showToast } = useVibraToast();
   useEffect(() => {
@@ -195,8 +193,8 @@ export default function AdminFacturacionPage() {
       <section className="card">
         <span className="badge">Factura global</span>
         <p className="desc">
-          Emite la factura global de un día para los creadores que vendieron. Es lo mismo
-          que hace el proceso automático cada madrugada, disparado a mano.
+          Emite la factura global de un mes para los creadores que vendieron. Es lo mismo
+          que hace el proceso automático el día 1, disparado a mano.
         </p>
 
         <div className="warn">
@@ -205,12 +203,12 @@ export default function AdminFacturacionPage() {
         </div>
 
         <label className="label" htmlFor="dia">
-          Día a facturar
+          Mes a facturar
         </label>
         <input
           id="dia"
           className="input"
-          type="date"
+          type="month"
           value={dia}
           disabled={corriendo}
           onChange={(e) => setDia(e.target.value)}

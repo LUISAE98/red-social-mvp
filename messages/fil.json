@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Wika at pera"
   },
   "feed": {
+    "discoverExperiences": "Tuklasin ang mga bagong karanasan",
     "pinned": "Naka-pin",
     "processing": "Pinoproseso...",
     "errorLoadFlames": "Hindi na-load ang mga apoy.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Idagdag ang Vibra sa home screen",
     "body": "Bubukas ito tulad ng app, at ito lang ang paraan para makatanggap ng abiso sa iPhone.",
-    "step1": "I-tap ang Share",
-    "step2": "Mag-scroll pababa at piliin ito",
-    "safariOnly": "Kailangang mula sa Safari",
+    "step1": "Buksan ang Safari",
+    "step2": "I-tap ang tatlong tuldok sa ibaba kanan",
+    "step3": "Piliin ang Share",
+    "step4": "Mag-scroll at piliin ang Add to Home Screen",
+    "shareLabel": "Share",
     "addToHomeScreen": "Add to Home Screen",
     "later": "Hindi ngayon"
   },

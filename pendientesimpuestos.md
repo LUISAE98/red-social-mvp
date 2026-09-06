@@ -237,17 +237,33 @@ era justo lo que hacía incumplir a la global:
 
 | Documento | Cadencia | Por qué |
 |---|---|---|
-| Comisión y constancia de retenciones | **Mensual** | Son periódicas por naturaleza. A diario darían mil comprobantes al mes por creador |
-| **Factura global** | **Diaria** | Su plazo son 24 h desde el cierre de las operaciones |
+| Comisión y constancia de retenciones | **Mensual** | Son periódicas por naturaleza |
+| **Factura global** | **Mensual** desde el 2026-09-05 | 24 h desde el cierre **del mes**. Fue diaria entre el 02 y el 05 de septiembre |
 
 Así que la global salió a `runGlobalInvoice.ts` con su propio cron, **a la 01:00 de Ciudad de
 México sobre el día natural anterior**. El comprobante sale dentro de la primera hora tras el
 cierre, y las 23 restantes son margen para reintentos, no para holgazanear.
 
-⚠️ **Quincenal no habría bastado.** La clave `03` de `c_Periodicidad` es válida desde 2022,
-pero la periodicidad dice **qué agrupa** el comprobante, no **cuándo se emite**. Lo que cumple
-el plazo es emitir a diario. En el cuerpo del CFDI la periodicidad pasó de `04` a **`01`**, y
-`months` sigue siendo el mes en el que cae el día, que es lo que espera el Anexo 20.
+🚨 **CORRECCIÓN (2026-09-05): lo que decía aquí era FALSO.**
+
+Decía que «la periodicidad dice qué agrupa, no cuándo se emite» y que «lo que cumple el plazo es
+emitir a diario». **No es cierto.** La regla 2.7.1.21 dice que el comprobante se arma con el
+cierre del periodo que elijas —diario, semanal, quincenal, mensual o bimestral— y se timbra
+dentro de las 24 horas siguientes a **ESE** cierre.
+
+O sea que **mensual siempre fue válido**. El incumplimiento real no era la periodicidad, era que
+el cron corría **el día 5 del mes siguiente**: unas 120 horas tarde. Bastaba con correrlo el día
+1 sobre el mes cerrado.
+
+Se eligió diario, que **también cumple** y por eso no hay nada roto. Pero la decisión se tomó
+sobre una premisa equivocada, y tiene un coste que entonces no se vio: con la global diaria, una
+venta entra en un CFDI timbrado en menos de 24 horas, así que **cada factura que pida un
+comprador después obliga a cancelar y reexpedir la global** (motivo 04). Con la global mensual,
+quien pida su factura dentro del mes la recibe limpia, sin cancelar nada.
+
+👉 **Está sobre la mesa volver a mensual.** El código ya entiende los dos formatos
+(`rangoDelPeriodo` acepta `YYYY-MM` y `YYYY-MM-DD`) y `periodicity` solo cambia de `day` a
+`month`. Ver la discusión del punto 5 en la lista de 39.
 
 | Pieza | Dónde |
 |---|---|
@@ -1562,6 +1578,130 @@ meses y uno de diciembre tres.
 Ya estaba en la cancelación mensual desde el paso 2 y se deja documentada como la regla general:
 **el candado solo se suelta cuando Facturapi devuelve `canceled`**. Si queda esperando al receptor,
 el registro se marca y no se libera. La global no la necesita, porque va al RFC genérico.
+
+## 🖨️ Los PDF de nuestros documentos: vista imprimible ✅ (2026-09-05)
+
+Puntos 12 y 13. Son los dos que **no** genera Facturapi, porque no son CFDI.
+
+### Por qué NO se genera el PDF en el servidor
+
+El proyecto no tiene ninguna librería de PDF, ni en el frontend ni en el backend.
+
+| Alternativa | Por qué se descartó |
+|---|---|
+| **Puppeteer** en una Cloud Function | Cientos de megas de contenedor y arranques en frío de segundos, por un documento que se baja unas pocas veces al año |
+| **pdfkit** | Evita el navegador, pero obliga a maquetar en coordenadas: cada cambio de diseño sería código |
+| ✅ **Vista imprimible** | Cero dependencias. El navegador guarda un PDF de verdad con «Imprimir → Guardar como PDF», y el diseño se toca en CSS |
+
+CLAUDE.md pide no introducir dependencias sin justificación, y aquí no la hay.
+
+### Cómo quedó
+
+| Pieza | Dónde |
+|---|---|
+| La vista | 🆕 `app/[locale]/(protected)/comprobante/[tipo]/[id]/page.tsx` |
+| Lecturas puntuales | `lib/wallet/comprobantes.ts` — `leerComprobanteRetiro`, `leerComprobanteMensual` |
+| El enlace | `ComprobantesDelCreador.tsx`, una tarjeta por comprobante |
+
+⚠️ **Va FUERA del layout de la wallet a propósito.** Aquel trae subnav, onboarding y contexto, y
+todo eso acabaría en la hoja impresa.
+
+🚨 **El pie dice que NO es un CFDI**, y no es decoración: un creador que lleve esto a su contador
+tiene que saber que no sirve para deducir en México.
+
+Se lee de una vez y no con suscripción: un `onSnapshot` abierto mientras el navegador imprime es
+pedir que el documento cambie a media hoja.
+
+🌐 20 claves nuevas en `es` y `en`. Los otros 45 idiomas caen al inglés.
+
+## 🚫 No se factura lo que no se ha entregado ✅ (Luis, 2026-09-05, opción C)
+
+### El problema que había
+
+La regla estaba decidida desde el principio —«la factura se pide cuando el servicio se entregó»—
+pero **el código no la aplicaba, y no podía**: el espejo de compras del comprador solo guardaba
+`paid | refunded | rejected`. Lo decía explícito: *«el comprador ya pagó tanto en `pending` como
+en `earned`; solo distinguimos devuelto/rechazado»*. Razonable para su lista, insuficiente para
+facturar.
+
+Así que hoy se podía facturar una **sesión que todavía no había ocurrido**. Si luego se cancela,
+hay que cancelar un CFDI timbrado — y por encima de 1 000 pesos **el comprador tiene que aceptar
+la cancelación**, o el comprobante se queda vivo.
+
+### Cómo quedó
+
+El espejo gana un campo `pendienteEntrega`, y **no hay lista de servicios que mantener**: el
+ledger ya los distingue solo. Los que se cobran y entregan a la vez nunca pasan por `pending`, así
+que salen siempre en `false`.
+
+| Capa | Cambio |
+|---|---|
+| `wallet/buyerPurchases.ts` | Escribe `pendienteEntrega` desde el estado del ledger |
+| `facturacion/globalInvoice.ts` | `compraLibre` y `compraReclamablePorNominativa` lo rechazan |
+| `lib/experiences/useAllPurchases.ts` | El tipo lo conoce |
+| `PurchasesTodoList.tsx` | No lo ofrece como seleccionable |
+| 🆕 11 pruebas | `compraFacturable.pure.test.ts` |
+
+🚨 **La guarda de verdad está en el BACKEND.** El filtro de la lista existe para que el comprador
+no seleccione algo y se lleve un error sin entender por qué, pero quien decide es `compraLibre`.
+
+⚠️ **Vale también para la GLOBAL, no solo para la factura del comprador.** Meter en la global una
+sesión que aún no ocurre tiene el mismo problema, y encima el CFDI es del creador. La venta
+entrará en la global del mes en que se entregue.
+
+🔒 **Las compras anteriores al cambio se tratan como entregadas.** No traen el campo, y
+considerarlas pendientes las dejaría fuera de toda factura para siempre — peor que el problema
+que se arregla. Hay una prueba que lo fija.
+
+### Punto 5 descartado
+
+❌ **No se añade botón de facturar en «Ver detalles»** (Luis). Se factura solo desde la lista de
+experiencias, con la selección múltiple que ya existe.
+
+## 🔄 La global vuelve a MENSUAL (Luis, 2026-09-05)
+
+### Por qué se cambia
+
+La cadencia diaria cumplía la regla, pero se eligió sobre una premisa falsa —ver la corrección en
+§A1— y costaba caro:
+
+| | Diaria | Mensual |
+|---|---|---|
+| CFDI al año por creador | ~365 | **12** |
+| Cuándo entra una venta a un comprobante | En menos de 24 h | Al cerrar el mes |
+| Comprador pide factura después | **Cancelar y reexpedir** la global | Limpio, sin cancelar |
+| Venta devuelta a los pocos días | **Cancelar y reexpedir** | Se excluye, nunca se facturó |
+
+El argumento decisivo no es el ahorro de comprobantes: es que **elimina la mayor parte de las
+cancelaciones**, y cada cancelación es un acto fiscal irreversible sobre un documento timbrado.
+
+### Qué se tocó
+
+| Pieza | Cambio |
+|---|---|
+| `runGlobalInvoice.ts` | Cron `0 1 1 * *` sobre el mes cerrado; nuevo `mesAnterior` |
+| `globalInvoice.ts` | `periodicity` de `day` a **`month`** |
+| `cancelacionGlobal.ts` | La guarda de plazo entiende `YYYY-MM` además de `YYYY-MM-DD` |
+| `creatorMonthlyDocs.ts` | `partesEnMexico` exportada |
+| Panel de administración | Selector de día → de **mes** |
+| 🆕 11 pruebas | `cadenciaGlobal.pure.test.ts` |
+
+### 🔒 Lo que NO se rompió, a propósito
+
+Los comprobantes emitidos con la cadencia diaria **siguen existiendo** con periodo `YYYY-MM-DD`.
+Todo lo que recibe un periodo acepta los dos formatos, o la global `2026-08-31` que ya está
+timbrada se habría vuelto inalcanzable — no se podría reprocesar, liberar ni cancelar.
+
+### 🐛 Dos bugs de expresión regular, el mismo por dos vías
+
+1. **Uno que ya estaba**: `liberarVentasAtascadas` validaba con `/^d{4}-d{2}-d{2}$/`, **sin las
+   barras invertidas**. Eso solo casa con el texto literal `dddd-dd-dd`, así que la función
+   rechazaba cualquier fecha real que se le pasara.
+2. **Uno que provoqué al arreglar el anterior**: al escribir el archivo con un script, las barras
+   se perdieron otra vez y la validación nueva nació igual de rota. Lo cazaron las pruebas.
+
+👉 Por eso `periodoValido` usa **clases de caracteres** (`[0-9]`) en vez de `d`: una barra
+perdida al editar es justo el fallo que esta función existe para evitar, y así no puede repetirse.
 
 ## 🚨 Los PDF de los CFDI NO se diseñan: los genera Facturapi (2026-09-05)
 

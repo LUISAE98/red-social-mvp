@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Ngôn ngữ và tiền tệ"
   },
   "feed": {
+    "discoverExperiences": "Khám phá trải nghiệm mới",
     "pinned": "Đã ghim",
     "processing": "Đang xử lý...",
     "errorLoadFlames": "Không tải được ngọn lửa.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Thêm Vibra vào màn hình chính",
     "body": "Nó mở như một ứng dụng, và đây là cách duy nhất để nhận thông báo trên iPhone.",
-    "step1": "Chạm Chia sẻ",
-    "step2": "Kéo xuống và chọn mục này",
-    "safariOnly": "Phải làm từ Safari",
+    "step1": "Mở Safari",
+    "step2": "Chạm ba chấm ở góc dưới bên phải",
+    "step3": "Chọn Chia sẻ",
+    "step4": "Kéo xuống và chọn Thêm vào MH chính",
+    "shareLabel": "Chia sẻ",
     "addToHomeScreen": "Thêm vào MH chính",
     "later": "Để sau"
   },

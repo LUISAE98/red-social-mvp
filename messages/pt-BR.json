@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Idioma e moeda"
   },
   "feed": {
+    "discoverExperiences": "Descubra novas experiências",
     "pinned": "Fixado",
     "processing": "Processando...",
     "errorLoadFlames": "Não foi possível carregar as chamas.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Adicione o Vibra à tela de início",
     "body": "Ele abre como app, e é o único jeito de receber avisos no iPhone.",
-    "step1": "Toque em Compartilhar",
-    "step2": "Role para baixo e escolha esta",
-    "safariOnly": "Precisa ser pelo Safari",
+    "step1": "Abra o Safari",
+    "step2": "Toque nos três pontos, embaixo à direita",
+    "step3": "Escolha Compartilhar",
+    "step4": "Role e escolha Adicionar à Tela de Início",
+    "shareLabel": "Compartilhar",
     "addToHomeScreen": "Adicionar à Tela de Início",
     "later": "Agora não"
   },

@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Jazyk a mena"
   },
   "feed": {
+    "discoverExperiences": "Objav nové zážitky",
     "pinned": "Pripnuté",
     "processing": "Spracúva sa...",
     "errorLoadFlames": "Plamene sa nepodarilo načítať.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Pridaj Vibru na plochu",
     "body": "Otvára sa ako aplikácia a je to jediný spôsob, ako dostávať upozornenia na iPhone.",
-    "step1": "Ťukni na Zdieľať",
-    "step2": "Zjdi nižšie a vyber túto možnosť",
-    "safariOnly": "Musí to byť zo Safari",
+    "step1": "Otvor Safari",
+    "step2": "Ťukni na tri bodky vpravo dole",
+    "step3": "Vyber Zdieľať",
+    "step4": "Zjdi nižšie a vyber Pridať na plochu",
+    "shareLabel": "Zdieľať",
     "addToHomeScreen": "Pridať na plochu",
     "later": "Teraz nie"
   },

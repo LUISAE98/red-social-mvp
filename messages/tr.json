@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Dil ve para birimi"
   },
   "feed": {
+    "discoverExperiences": "Yeni deneyimler keşfet",
     "pinned": "Sabitlendi",
     "processing": "İşleniyor...",
     "errorLoadFlames": "Alevler yüklenemedi.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Vibra'yı ana ekrana ekle",
     "body": "Uygulama gibi açılır ve iPhone'da bildirim almanın tek yolu budur.",
-    "step1": "Paylaş'a dokun",
-    "step2": "Aşağı in ve bunu seç",
-    "safariOnly": "Safari'den yapılmalı",
+    "step1": "Safari'yi aç",
+    "step2": "Sağ alttaki üç noktaya dokun",
+    "step3": "Paylaş'ı seç",
+    "step4": "Aşağı in ve Ana Ekrana Ekle'yi seç",
+    "shareLabel": "Paylaş",
     "addToHomeScreen": "Ana Ekrana Ekle",
     "later": "Şimdi değil"
   },

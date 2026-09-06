@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Nyelv és pénznem"
   },
   "feed": {
+    "discoverExperiences": "Fedezz fel új élményeket",
     "pinned": "Rögzítve",
     "processing": "Feldolgozás…",
     "errorLoadFlames": "A lángokat nem sikerült betölteni.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Add hozzá a Vibrát a kezdőképernyőhöz",
     "body": "Alkalmazásként nyílik meg, és iPhone-on csak így érkeznek értesítések.",
-    "step1": "Koppints a Megosztásra",
-    "step2": "Görgess le és válaszd ezt",
-    "safariOnly": "Safariból kell csinálni",
+    "step1": "Nyisd meg a Safarit",
+    "step2": "Koppints a három pontra, jobbra lent",
+    "step3": "Válaszd a Megosztást",
+    "step4": "Görgess le és válaszd a Főképernyőhöz adást",
+    "shareLabel": "Megosztás",
     "addToHomeScreen": "Főképernyőhöz adás",
     "later": "Most nem"
   },

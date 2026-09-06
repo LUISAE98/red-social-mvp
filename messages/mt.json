@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Lingwa u munita"
   },
   "feed": {
+    "discoverExperiences": "Skopri esperjenzi ġodda",
     "pinned": "Imwaħħal",
     "processing": "Qed jiġi pproċessat...",
     "errorLoadFlames": "Il-fjammi ma setgħux jitgħabbew.",
@@ -2636,10 +2637,12 @@
   "iosInstallPrompt": {
     "title": "Żid Vibra mal-iskrin prinċipali",
     "body": "Tinfetaħ bħal app, u hija l-unika mod biex tirċievi notifiki fuq l-iPhone.",
-    "step1": "Agħfas Ixxerja",
-    "step2": "Niżżel u agħżel din",
-    "safariOnly": "Irid ikun minn Safari",
-    "addToHomeScreen": "Żid mal-Iskrin Prinċipali",
+    "step1": "Iftaħ Safari",
+    "step2": "Agħfas it-tliet tikek, isfel lemin",
+    "step3": "Agħżel Ixxerja",
+    "step4": "Niżżel u agħżel Żid mal-Iskrin Prinċipali",
+    "shareLabel": "Ixxerja",
+    "addToHomeScreen": "Mal-Iskrin Prinċipali",
     "later": "Mhux issa"
   },
   "notifications": {

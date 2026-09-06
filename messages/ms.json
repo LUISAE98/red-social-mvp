@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Bahasa dan mata wang"
   },
   "feed": {
+    "discoverExperiences": "Terokai pengalaman baharu",
     "pinned": "Disemat",
     "processing": "Memproses...",
     "errorLoadFlames": "Api tidak dapat dimuatkan.",
@@ -2636,10 +2637,12 @@
   "iosInstallPrompt": {
     "title": "Tambah Vibra ke skrin utama",
     "body": "Ia dibuka seperti apl, dan inilah satu-satunya cara menerima pemberitahuan di iPhone.",
-    "step1": "Ketik Kongsi",
-    "step2": "Tatal ke bawah dan pilih ini",
-    "safariOnly": "Ia mesti dari Safari",
-    "addToHomeScreen": "Tambah ke Skrin Utama",
+    "step1": "Buka Safari",
+    "step2": "Ketik tiga titik di bawah kanan",
+    "step3": "Pilih Kongsi",
+    "step4": "Tatal dan pilih Tambah ke Skrin Utama",
+    "shareLabel": "Kongsi",
+    "addToHomeScreen": "Ke Skrin Utama",
     "later": "Bukan sekarang"
   },
   "notifications": {

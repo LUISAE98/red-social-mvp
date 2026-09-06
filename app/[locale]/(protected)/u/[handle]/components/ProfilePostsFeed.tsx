@@ -37,8 +37,10 @@ import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "@/app/group
 import MediaGallery, { type GalleryTile } from "@/app/groups/[groupId]/components/posts/MediaGallery";
 import { useMediaSlideReservedHeight } from "@/app/groups/[groupId]/components/posts/useMediaSlideReservedHeight";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
+import HomeStoriesRow from "@/app/components/Stories/HomeStoriesRow";
+import { ReelRailsProvider } from "@/lib/reels/reelRails";
+import { buildRailPlan, type HuecoRail } from "@/lib/feed/railInterleave";
 import {
-  buildRandomRecommendationSlots,
   getFeedRailSeed,
 } from "@/app/components/GroupRecommendations/recommendation-engine";
 import DonationFeedBanner from "@/app/components/DonationFeedBanner/DonationFeedBanner";
@@ -943,25 +945,23 @@ const shellStyle: CSSProperties = {
   // no se recalculan, así el rail no salta de altura.
   const railSeed = useMemo(() => getFeedRailSeed(), []);
 
-  const recommendationSlots = useMemo(() => {
-    if (!viewerUid || posts.length === 0) {
-      return new Set<number>();
-    }
-    return buildRandomRecommendationSlots(posts.length, railSeed);
+  // Los huecos se los reparten los dos rails, turnándose. Ver railInterleave.
+  const railPlan = useMemo(() => {
+    if (!viewerUid || posts.length === 0) return new Map<number, HuecoRail>();
+    return buildRailPlan(posts.length, railSeed);
   }, [viewerUid, posts.length, railSeed]);
 
-  // Orden de cada rail dentro del feed, para que no repita contenido.
-  const recommendationSlotIndex = useMemo(() => {
-    const map = new Map<number, number>();
-    Array.from(recommendationSlots)
-      .sort((a, b) => a - b)
-      .forEach((pos, i) => map.set(pos, i));
-    return map;
-  }, [recommendationSlots]);
+  const hasInlineRecommendation = useMemo(
+    () => [...railPlan.values()].some((h) => h.tipo === "recomendaciones"),
+    [railPlan]
+  );
 
-  const hasInlineRecommendation = useMemo(() => {
-    return recommendationSlots.size > 0;
-  }, [recommendationSlots]);
+  // Sin ningún hueco de reels no se pide el feed de reels. Un perfil con tres
+  // publicaciones no debe pagar una consulta por un rail que no va a salir.
+  const hayHuecoDeReels = useMemo(
+    () => [...railPlan.values()].some((h) => h.tipo === "reels"),
+    [railPlan]
+  );
 
   // Reserva de altura (galería más alta) para que el slide no salte de altura.
   // Se llama ANTES del early return de abajo para no romper el orden de hooks.
@@ -992,6 +992,10 @@ const shellStyle: CSSProperties = {
         : -1;
 
   return (
+    // El feed de reels se pide UNA vez para todo el listado, y solo si de verdad
+    // hay algún hueco donde meter un rail. Todas las apariciones intercaladas
+    // comparten esa consulta: montar más rails no cuesta ninguna más.
+    <ReelRailsProvider uid={viewerUid ?? null} activo={hayHuecoDeReels}>
     <section style={shellStyle}>
       <VibraToast toast={feedToast} />
 
@@ -1082,8 +1086,7 @@ const shellStyle: CSSProperties = {
         const canDeletePost =
           viewerUid === post.authorId || post.canModerateGroupAuthor === true;
 
-        const shouldRenderRecommendations =
-          !searchActive && recommendationSlots.has(index + 1);
+        const huecoRail = searchActive ? undefined : railPlan.get(index + 1);
         const shouldAttachInfiniteScrollTarget =
           !searchActive && hasMore && index === infiniteScrollTriggerIndex;
 
@@ -1129,13 +1132,25 @@ const shellStyle: CSSProperties = {
             />
             </PostReveal>
 
-            {shouldRenderRecommendations && viewerUid && !isEmbed && (
+            {huecoRail?.tipo === "recomendaciones" && viewerUid && !isEmbed && (
               <div style={recommendationWrapperStyle}>
                 <GroupRecommendationsRail
                   currentUserId={viewerUid}
                   context="profile"
                   suppressOnboarding
-                  railIndex={recommendationSlotIndex.get(index + 1) ?? 0}
+                  railIndex={huecoRail.indice}
+                />
+              </div>
+            )}
+
+            {huecoRail?.tipo === "reels" && viewerUid && !isEmbed && (
+              <div style={recommendationWrapperStyle}>
+                {/* Aquí no hay rail de portada que esquivar, así que el índice
+                    va tal cual: la primera aparición ya es la primera. */}
+                <HomeStoriesRow
+                  currentUserId={viewerUid}
+                  variant="intercalado"
+                  railIndex={huecoRail.indice}
                 />
               </div>
             )}
@@ -1212,5 +1227,6 @@ const shellStyle: CSSProperties = {
         </div>
       )}
     </section>
+    </ReelRailsProvider>
   );
 }

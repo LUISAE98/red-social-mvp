@@ -50,7 +50,16 @@ import {
 } from "@/lib/discovery/viewSignal";
 import { extractContentKeywords } from "@/lib/search/normalize";
 export const STORAGE_KEY_PREFIX = "red-social-mvp:group-recommendations:";
-export const RANDOM_SLOT_OPTIONS = [6, 10, 15] as const;
+/**
+ * Cada cuántas publicaciones cae un rail, al azar entre estas tres.
+ *
+ * Estaba en 6, 10 y 15, cuando el único rail era el de recomendaciones. Ahora
+ * los huecos se los reparten DOS rails que se van turnando —recomendaciones y
+ * reels—, así que cada tipo saldría a la mitad de frecuencia con los números de
+ * antes. Apretando a 4, 6 y 9, cada tipo vuelve a aparecer más o menos cada 8,
+ * 12 o 18 publicaciones, que es la cadencia que tenía el de recomendaciones.
+ */
+export const RANDOM_SLOT_OPTIONS = [4, 6, 9] as const;
 export const MIN_ONBOARDING_CATEGORIES = 1; // J: any selection is enough to start recommendations
 export const MAX_CATEGORY_QUERY_SIZE = 10;
 export const MAX_RECOMMENDATIONS = 18;

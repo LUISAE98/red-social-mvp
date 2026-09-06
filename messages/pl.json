@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Język i waluta"
   },
   "feed": {
+    "discoverExperiences": "Odkryj nowe doświadczenia",
     "pinned": "Przypięte",
     "processing": "Przetwarzanie…",
     "errorLoadFlames": "Nie udało się wczytać płomieni.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Dodaj Vibrę do ekranu głównego",
     "body": "Otwiera się jak aplikacja i tylko tak dostaniesz powiadomienia na iPhonie.",
-    "step1": "Dotknij Udostępnij",
-    "step2": "Przewiń w dół i wybierz to",
-    "safariOnly": "Musi to być z Safari",
+    "step1": "Otwórz Safari",
+    "step2": "Dotknij trzech kropek, na dole po prawej",
+    "step3": "Wybierz Udostępnij",
+    "step4": "Przewiń i wybierz Do ekranu początkowego",
+    "shareLabel": "Udostępnij",
     "addToHomeScreen": "Do ekranu początkowego",
     "later": "Nie teraz"
   },

@@ -28,10 +28,11 @@ import { PostSkeleton, PostSkeletonList } from "@/app/components/PostSkeleton/Po
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import {
-  buildRandomRecommendationSlots,
   fetchDiscoveryPostsForUser,
   getFeedRailSeed,
 } from "@/app/components/GroupRecommendations/recommendation-engine";
+import { buildRailPlan, type HuecoRail } from "@/lib/feed/railInterleave";
+import HomeStoriesRow from "@/app/components/Stories/HomeStoriesRow";
 import {
   patchPostInAllFeedCaches,
   registerPostFeedCacheListener,
@@ -814,26 +815,18 @@ const shellStyle: CSSProperties = {
   // solo se agregan nuevos más abajo.
   const railSeed = useMemo(() => getFeedRailSeed(), []);
 
-  const recommendationSlots = useMemo(() => {
-    if (!currentUserId || posts.length === 0) {
-      return new Set<number>();
-    }
-    return buildRandomRecommendationSlots(posts.length, railSeed);
+  // Qué rail va detrás de cada publicación. Los huecos se los reparten los dos
+  // rails turnándose —recomendaciones, reels, recomendaciones…—, para que el
+  // feed no encadene dos iguales y se lea con más variedad.
+  const railPlan = useMemo(() => {
+    if (!currentUserId || posts.length === 0) return new Map<number, HuecoRail>();
+    return buildRailPlan(posts.length, railSeed);
   }, [currentUserId, posts.length, railSeed]);
 
-  // Orden de cada rail dentro del feed (0, 1, 2…), para que cada aparición
-  // muestre contenido distinto.
-  const recommendationSlotIndex = useMemo(() => {
-    const map = new Map<number, number>();
-    Array.from(recommendationSlots)
-      .sort((a, b) => a - b)
-      .forEach((pos, i) => map.set(pos, i));
-    return map;
-  }, [recommendationSlots]);
-
-  const hasInlineRecommendation = useMemo(() => {
-    return recommendationSlots.size > 0;
-  }, [recommendationSlots]);
+  const hasInlineRecommendation = useMemo(
+    () => [...railPlan.values()].some((h) => h.tipo === "recomendaciones"),
+    [railPlan]
+  );
 
   // Slots donde inyectar posts de descubrimiento (uno cada ~4 posts), evitando
   // chocar con los rails de recomendación y los posts ya presentes en el feed.
@@ -852,7 +845,7 @@ const shellStyle: CSSProperties = {
       if (
         position >= 2 &&
         (position - 2) % 3 === 0 &&
-        !recommendationSlots.has(position)
+        !railPlan.has(position)
       ) {
         map.set(i, available[cursor]);
         cursor += 1;
@@ -863,7 +856,7 @@ const shellStyle: CSSProperties = {
       map.set(posts.length - 1, available[0]);
     }
     return map;
-  }, [discoveryPosts, posts, recommendationSlots]);
+  }, [discoveryPosts, posts, railPlan]);
 
   // Ocultar / reportar / bloquear un post lo remueve del feed al instante (de
   // ambas listas: base y descubrimiento) y alimenta el algoritmo con la señal
@@ -971,7 +964,7 @@ return (
         currentUserId === post.authorId ||
         post.canModerateGroupAuthor === true;
 
-      const shouldRenderRecommendations = recommendationSlots.has(index + 1);
+      const huecoRail = railPlan.get(index + 1);
       const discoveryForSlot = discoverySlotMap.get(index);
       const shouldAttachInfiniteScrollTarget =
         hasMore && index === infiniteScrollTriggerIndex;
@@ -1024,13 +1017,26 @@ return (
           </PostImpressionObserver>
           </PostReveal>
 
-          {shouldRenderRecommendations && (
+          {huecoRail?.tipo === "recomendaciones" && (
             <div style={recommendationWrapperStyle}>
               <GroupRecommendationsRail
                 currentUserId={currentUserId}
                 context="home"
                 suppressOnboarding
-                railIndex={recommendationSlotIndex.get(index + 1) ?? 0}
+                railIndex={huecoRail.indice}
+              />
+            </div>
+          )}
+
+          {huecoRail?.tipo === "reels" && (
+            <div style={recommendationWrapperStyle}>
+              {/* +1 porque el índice 0 se lo lleva el rail de arriba del home:
+                  sin el desplazamiento, la primera aparición intercalada
+                  repetiría exactamente las historias de la portada. */}
+              <HomeStoriesRow
+                currentUserId={currentUserId}
+                variant="intercalado"
+                railIndex={huecoRail.indice + 1}
               />
             </div>
           )}

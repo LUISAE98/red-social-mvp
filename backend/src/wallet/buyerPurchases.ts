@@ -16,6 +16,7 @@
  */
 
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { guardarRecibo, leTocaRecibo } from "../facturacion/reciboComprador";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { SETTLEMENT_CURRENCY } from "./ledger";
@@ -78,6 +79,22 @@ export const mirrorLedgerToBuyerPurchase = onDocumentWritten(
         creatorId: d.creatorId ?? event.params.creatorId,
         type: d.type ?? null,
         status: buyerStatusFromLedger(d.status),
+        /**
+         * 🧾 ¿El servicio está todavía por entregarse?
+         *
+         * 🚨 NO SE FACTURA LO QUE NO SE HA ENTREGADO (Luis, 2026-09-05). Una sesión pagada y no
+         *    celebrada puede cancelarse, y entonces habría que cancelar un CFDI ya timbrado —
+         *    que por encima de 1 000 pesos exige que el comprador ACEPTE la cancelación.
+         *
+         * ⚠️ Va como campo APARTE y no dentro de `status`. Para el comprador «pagado» es pagado
+         *    en los dos casos, y cambiar `status` reescribiría lo que ve en su lista. Aquí solo
+         *    se añade el matiz que hacía falta para facturar.
+         *
+         * 👉 No hay lista de servicios diferidos que mantener: el ledger ya los distingue solo.
+         *    Los que se ganan al pagar nunca pasan por `pending`, así que este campo sale
+         *    siempre en `false` para ellos.
+         */
+        pendienteEntrega: d.status === "pending",
         grossAmount: typeof d.grossAmount === "number" ? d.grossAmount : 0,
         currency: typeof d.currency === "string" ? d.currency : SETTLEMENT_CURRENCY,
         sourceType: d.sourceType ?? null,
@@ -87,6 +104,13 @@ export const mirrorLedgerToBuyerPurchase = onDocumentWritten(
         liveId: d.liveId ?? null,
         postId: d.postId ?? null,
         taxAmount: typeof d.taxAmount === "number" ? d.taxAmount : 0,
+        /**
+         * 🌍 País fiscal del comprador, ya resuelto por el backend.
+         *
+         * Viaja al espejo porque es lo que decide si le toca **recibo**: el CFDI es un documento
+         * mexicano y el comprador de fuera se quedaba sin ningún papel. Ver `reciboComprador.ts`.
+         */
+        taxCountry: typeof d.taxCountry === "string" ? d.taxCountry : null,
         /**
          * 🧾 Los pesos congelados de la venta. Viaja al espejo porque es desde AQUÍ desde donde
          * se factura: `generateBuyerInvoice` lee las compras del comprador, y la factura global
@@ -108,6 +132,29 @@ export const mirrorLedgerToBuyerPurchase = onDocumentWritten(
       },
       { merge: true }
     );
+
+    /*
+     * 🧾 El recibo del comprador EXTRANJERO.
+     *
+     * Va después del espejo y con el fallo tragado: el espejo es lo que sostiene su pantalla de
+     * compras, y no poder documentar el recibo no puede hacer que su compra desaparezca.
+     *
+     * Se lee el cobro para sacar lo que VIO en su moneda, que es la única cifra que puede
+     * cotejar contra su banco.
+     */
+    const espejo = (await ref.get()).data() ?? {};
+    if (leTocaRecibo(espejo)) {
+      const cobroSnap = await db
+        .collection("paymentIntents")
+        .doc(event.params.entryId)
+        .get()
+        .catch(() => null);
+      await guardarRecibo({
+        purchaseId: event.params.entryId,
+        compra: espejo,
+        cobro: cobroSnap?.exists ? cobroSnap.data() : null,
+      });
+    }
 
     logger.debug("buyer_purchase_mirrored", {
       buyerId,

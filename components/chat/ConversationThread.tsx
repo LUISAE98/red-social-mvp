@@ -2,7 +2,7 @@
 
 import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 
-import { BlurFade, TextButton, IconButton } from "@/components/ui";
+import { TextButton, IconButton } from "@/components/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -3478,13 +3478,14 @@ export default function ConversationThread({
           pointerEvents: "none",
         }}
       >
-        <BlurFade
-          side="bottom"
-          size={composerHeight + 26}
-          fade={40}
-          blur={22}
-          veil="rgba(11,11,13,0.68)"
-        />
+        {/* Aquí iba un `BlurFade` que difuminaba la franja de abajo, por detrás
+            del campo de escritura. Se quitó por decisión de Luis (2026-09-05):
+            en el hilo ensuciaba justo la zona donde están los últimos mensajes,
+            que es la que más se mira. El compositor ya se despega bastante con
+            su propio fondo, sin necesidad de emborronar lo que hay detrás.
+
+            Si algún día vuelve, que sea con un velo mucho más corto: el problema
+            no era el desenfoque en sí, era cuánto subía. */}
 
         {/* El texto del error se fue al toast; aquí solo queda el "Reintentar",
             que es una acción y no un aviso: el texto ya volvió al campo, así que

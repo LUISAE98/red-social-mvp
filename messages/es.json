@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Idioma y moneda"
   },
   "feed": {
+    "discoverExperiences": "Descubre nuevas experiencias",
     "pinned": "Fijado",
     "processing": "Procesando...",
     "errorLoadFlames": "No se pudieron cargar las flamitas.",
@@ -1739,7 +1740,21 @@
     "receiptsSales": "Ventas",
     "receiptsCommission": "Comisión",
     "receiptsIsr": "ISR retenido",
-    "receiptsVat": "IVA retenido"
+    "receiptsVat": "IVA retenido",
+    "receiptsLoading": "Cargando el comprobante…",
+    "receiptsNotFound": "No encontramos ese comprobante.",
+    "receiptsDate": "Fecha de pago",
+    "receiptsSent": "Enviado",
+    "receiptsRate": "Tipo de cambio",
+    "receiptsBase": "Ventas del periodo",
+    "receiptsCommissionVat": "Impuesto de la comisión",
+    "receiptsNet": "Neto",
+    "receiptsPrint": "Imprimir o guardar como PDF",
+    "receiptsNotCfdi": "Este documento no es un CFDI y no sirve para deducir en México. Es la constancia de lo que Vibra te pagó y de cómo se calculó.",
+    "receiptsPayment": "Recibo de pago",
+    "receiptsPaid": "Pagaste",
+    "receiptsLocalTax": "Impuesto de tu país",
+    "receiptsTotal": "Total"
   },
   "services": {
     "confirmLabel": "Confirmar",
@@ -2647,10 +2662,12 @@
   "iosInstallPrompt": {
     "title": "Añade Vibra a tu pantalla de inicio",
     "body": "Se abre como app, y es la única forma de recibir avisos en iPhone.",
-    "step1": "Toca Compartir",
-    "step2": "Baja y elige esta opción",
-    "safariOnly": "Tiene que ser desde Safari",
-    "addToHomeScreen": "Añadir a pantalla de inicio",
+    "step1": "Entra a Safari",
+    "step2": "Toca los tres puntos, abajo a la derecha",
+    "step3": "Elige Compartir",
+    "step4": "Baja y elige Agregar a Inicio",
+    "shareLabel": "Compartir",
+    "addToHomeScreen": "Agregar a Inicio",
     "later": "Ahora no"
   },
   "notifications": {

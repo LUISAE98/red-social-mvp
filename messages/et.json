@@ -965,6 +965,7 @@
     "languageAndCurrencyLabel": "Keel ja valuuta"
   },
   "feed": {
+    "discoverExperiences": "Avasta uusi elamusi",
     "pinned": "Kinnitatud",
     "processing": "Töötlen...",
     "errorLoadFlames": "Leeke ei õnnestunud laadida.",
@@ -2636,9 +2637,11 @@
   "iosInstallPrompt": {
     "title": "Lisa Vibra avaekraanile",
     "body": "See avaneb rakendusena ja on ainus viis saada iPhone'is teavitusi.",
-    "step1": "Puuduta Jaga",
-    "step2": "Keri alla ja vali see",
-    "safariOnly": "See peab olema Safarist",
+    "step1": "Ava Safari",
+    "step2": "Puuduta all paremal kolme punkti",
+    "step3": "Vali Jaga",
+    "step4": "Keri alla ja vali Lisa avaekraanile",
+    "shareLabel": "Jaga",
     "addToHomeScreen": "Lisa avaekraanile",
     "later": "Mitte praegu"
   },
