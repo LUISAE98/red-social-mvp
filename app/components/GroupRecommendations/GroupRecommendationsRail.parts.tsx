@@ -702,7 +702,7 @@ export function GroupCategoryPill({
     <button
       type="button"
       onClick={onToggle}
-      className="vibCatCard"
+      className="vibCatCard vibra-pop"
       style={{
         position: "relative",
         display: "flex",

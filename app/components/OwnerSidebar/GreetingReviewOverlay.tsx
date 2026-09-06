@@ -2103,14 +2103,14 @@ export default function GreetingReviewOverlay({
           display: "flex", alignItems: "center", justifyContent: "center", gap: 36,
           pointerEvents: "none",
         }}>
-          <button
+          <button className="vibra-pop"
             type="button"
             onClick={(e) => { e.stopPropagation(); const v = playbackVideoRef.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10); showVPChrome(); scheduleVPChromeHide(); }}
             style={{ ...vpBtnStyle, pointerEvents: "auto" }}
           >
             <VideoSkipBackIcon size={38} />
           </button>
-          <button
+          <button className="vibra-pop"
             type="button"
             onClick={(e) => { e.stopPropagation(); handleVPPlayPause(); }}
             aria-label={vpPlaying ? tCommon("pause") : tCommon("play")}
@@ -2118,7 +2118,7 @@ export default function GreetingReviewOverlay({
           >
             {vpPlaying ? <VideoPauseIcon size={46} /> : <VideoPlayIcon size={46} />}
           </button>
-          <button
+          <button className="vibra-pop"
             type="button"
             onClick={(e) => { e.stopPropagation(); const v = playbackVideoRef.current; if (v) v.currentTime = Math.min(v.duration, v.currentTime + 10); showVPChrome(); scheduleVPChromeHide(); }}
             style={{ ...vpBtnStyle, pointerEvents: "auto" }}
@@ -2465,7 +2465,7 @@ export default function GreetingReviewOverlay({
             <>
               {/* La flecha que sube y baja la hoja, justo encima del rojo. */}
               {!sampleMode && (
-              <button
+              <button className="vibra-pop"
                 type="button"
                 onClick={() => setMobileInfoOpen((prev) => !prev)}
                 aria-expanded={mobileInfoOpen}
@@ -2676,7 +2676,7 @@ export default function GreetingReviewOverlay({
             </div>
           </div>
 
-          <button
+          <button className="vibra-pop"
             type="button"
             onClick={() => setMobileInfoOpen((prev) => !prev)}
             aria-expanded={mobileInfoOpen}

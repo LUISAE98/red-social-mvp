@@ -1820,7 +1820,7 @@ const previewUrl = media.url;
               pointerEvents: "none",
             }}
           >
-            <button
+            <button className="vibra-pop"
               type="button"
               onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10); }}
               onClick={(e) => { e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10); }}
@@ -1831,7 +1831,7 @@ const previewUrl = media.url;
             <IconButton label={videoPlaying ? tPosts("pauseVideo") : tPosts("playVideo")} size="sm" tone="bare" shape="square" style={{ pointerEvents: "auto", boxShadow: "none" }} onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleVideoPlayPause(); }} onClick={(e) => { e.stopPropagation(); handleVideoPlayPause(); }}>
               {videoPlaying ? <VideoPauseIcon size={44} /> : <VideoPlayIcon size={44} />}
             </IconButton>
-            <button
+            <button className="vibra-pop"
               type="button"
               onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.min(v.duration, v.currentTime + 10); }}
               onClick={(e) => { e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.min(v.duration, v.currentTime + 10); }}
@@ -1961,7 +1961,7 @@ const previewUrl = media.url;
             }}
           >
             <div style={actionGroupStyle}>
-              <button
+              <button className="vibra-pop"
                 type="button"
                 onClick={onToggleFlame}
                 aria-pressed={viewerHasFlamed}
@@ -1974,6 +1974,7 @@ const previewUrl = media.url;
               </button>
               <button
                 type="button"
+                className="vibra-pop"
                 onClick={onOpenFlames}
                 disabled={!onOpenFlames || likesCount === 0}
                 aria-label={tPosts("viewFlameUsers")}
@@ -1987,12 +1988,24 @@ const previewUrl = media.url;
               </button>
             </div>
 
-            <IconButton label={tPosts("viewComments")} size="sm" tone="bare" shape="square" style={{ gap: 6, fontWeight: 700, boxShadow: "none" }} onClick={onOpenComments}>
+            {/* Mismo molde que el contador de flamitas de al lado, a proposito.
+                Antes era un IconButton, y ese primitivo fija fontSize al TAMANO
+                DEL ICONO (16px en sm), asi que el numero de comentarios salia a
+                16 mientras el de flamitas iba a 13: esa era la diferencia de
+                fuente entre el visor y la tarjeta. De paso arregla la caja, que
+                era de 32x32 con el icono y el numero desbordandola. */}
+            <button
+              type="button"
+              className="vibra-pop"
+              onClick={onOpenComments}
+              aria-label={tPosts("viewComments")}
+              style={actionButtonStyle}
+            >
               <span aria-hidden="true">
                 <VibraCommentIcon size={20} color="rgba(255,255,255,0.88)" />
               </span>
               <span>{commentsCount}</span>
-            </IconButton>
+            </button>
 
             <div style={{ marginInlineStart: "auto", display: "flex", alignItems: "center", gap: 14 }}>
               <PostSaveButton
@@ -2076,7 +2089,7 @@ const previewUrl = media.url;
               </span>
             </div>
             {([0.5, 1, 1.5, 2] as const).map((rate) => (
-              <button
+              <button className="vibra-pop"
                 key={rate}
                 type="button"
                 onClick={() => { setVideoPlaybackRate(rate); setMobileSpeedMenuOpen(false); }}
@@ -2256,7 +2269,7 @@ const previewUrl = media.url;
                   {/* IZQUIERDA: PiP · AirPlay */}
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                     {hayPip && (
-                    <button
+                    <button className="vibra-pop"
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -2276,6 +2289,7 @@ const previewUrl = media.url;
                     {typeof window !== "undefined" && "WebKitPlaybackTargetAvailabilityEvent" in window && (
                       <button
                         type="button"
+                        className="vibra-pop"
                         onClick={(e) => {
                           e.stopPropagation();
                           const v = videoRef.current as HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
@@ -2289,14 +2303,14 @@ const previewUrl = media.url;
                   </div>
                   {/* DERECHA: Expand · Mute */}
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    <button
+                    <button className="vibra-pop"
                       type="button"
                       onClick={(e) => { e.stopPropagation(); void handleDesktopFullscreen(); }}
                       style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}
                     >
                       {desktopFullscreenActive ? <VideoCompressIcon size={20} /> : <VideoExpandIcon size={20} />}
                     </button>
-                    <button
+                    <button className="vibra-pop"
                       type="button"
                       onClick={(e) => { e.stopPropagation(); setVideoMuted(m => !m); }}
                       style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}
@@ -2313,7 +2327,7 @@ const previewUrl = media.url;
                   gap: 50,
                   pointerEvents: "none",
                 }}>
-                  <button
+                  <button className="vibra-pop"
                     type="button"
                     onClick={(e) => { e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10); }}
                     style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto" }}
@@ -2323,7 +2337,7 @@ const previewUrl = media.url;
                   <IconButton label={videoPlaying ? tCommon("pause") : tCommon("play")} size="sm" tone="bare" shape="square" style={{ pointerEvents: "auto" }} onClick={(e) => { e.stopPropagation(); handleVideoPlayPause(); }}>
                     {videoPlaying ? <VideoPauseIcon size={36} /> : <VideoPlayIcon size={36} />}
                   </IconButton>
-                  <button
+                  <button className="vibra-pop"
                     type="button"
                     onClick={(e) => { e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.min(v.duration, v.currentTime + 10); }}
                     style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto" }}
@@ -2690,7 +2704,7 @@ const previewUrl = media.url;
               }}
             >
               <div style={actionGroupStyle}>
-<button
+<button className="vibra-pop"
   type="button"
   onClick={onToggleFlame}
   aria-pressed={viewerHasFlamed}

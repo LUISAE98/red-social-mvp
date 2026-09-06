@@ -131,8 +131,7 @@ export default function ProfileSocialActions({
 
       {showMessageButton && (
         <div style={styles.buttonsRow}>
-          <button
-            type="button"
+          <button type="button"
             onClick={handleOpenChat}
             style={styles.messageButton}
           >

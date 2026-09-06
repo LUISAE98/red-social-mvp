@@ -1835,7 +1835,7 @@ export function WalletFilterMenu<T extends string>({
               {options.map((option, index) => {
                 const isSelected = pending.includes(option.value);
                 return (
-                  <button
+                  <button className="vibra-pop"
                     key={option.value}
                     type="button"
                     role="menuitem"
@@ -1981,7 +1981,7 @@ export function WalletFilterMenu<T extends string>({
 
       <button
         type="button"
-        className="filterButton"
+        className="filterButton vibra-pop"
         onClick={openMenu}
         aria-haspopup="menu"
         aria-expanded={open}

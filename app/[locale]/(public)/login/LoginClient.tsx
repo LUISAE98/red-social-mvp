@@ -1096,8 +1096,7 @@ marginBottom: 6,
   {t("submit")}
 </button>
 
-<button
-  type="button"
+<button type="button"
   disabled={loading}
   onClick={handleGoogleLogin}
   style={{

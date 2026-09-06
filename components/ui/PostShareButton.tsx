@@ -87,6 +87,9 @@ export default function PostShareButton({ postId }: PostShareButtonProps) {
         onClick={handleShare}
         aria-label={copied ? tCommon("linkCopied") : tCommon("sharePost")}
         title={copied ? tCommon("linkCopied") : tCommon("sharePost")}
+        // No pasa por `IconButton` porque lleva su propia caja de 20px, así
+        // que la clase del pop se pone a mano.
+        className="vibra-pop"
         style={buttonStyle}
       >
         <VibraShareIcon size={20} color="#a855f7" />

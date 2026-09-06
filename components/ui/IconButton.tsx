@@ -13,7 +13,9 @@ import React, { forwardRef } from "react";
  * problema no se puede repetir en código nuevo.
  *
  * El hover, el active y el anillo de foco vienen de `.vibra-btn` (globals.css),
- * igual que en `Button` y `TextButton`.
+ * igual que en `Button` y `TextButton`. El pop al pulsar viene de `.vibra-pop`, que
+ * dispara un listener delegado en `app/layout.tsx`, y lo hereda todo el que
+ * use este primitivo.
  */
 
 export type IconButtonSize = "sm" | "md" | "lg";
@@ -92,7 +94,9 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       disabled={disabled}
       aria-label={label}
       title={sinTitulo ? undefined : label}
-      className={className ? `vibra-btn ${className}` : "vibra-btn"}
+      // `vibra-pop` por defecto: es un botón que solo lleva un dibujo, y ceder
+      // bajo el dedo es lo único que se le nota al pulsarlo.
+      className={className ? `vibra-btn vibra-pop ${className}` : "vibra-btn vibra-pop"}
       style={composedStyle}
       {...rest}
     >

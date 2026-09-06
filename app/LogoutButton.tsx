@@ -84,7 +84,7 @@ async function handleLogout() {
           disabled={loading}
           aria-label={loading ? tCommon("loggingOut") : tCommon("logout")}
           title={loading ? tCommon("loggingOut") : tCommon("logout")}
-          className={className}
+          className={className ? className + " vibra-pop" : "vibra-pop"}
           type="button"
           style={{
             border: "none",

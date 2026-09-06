@@ -1433,7 +1433,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         }}>
           <button
             type="button"
-            className="lvm-vod-btn"
+            className="lvm-vod-btn vibra-pop"
             onClick={(e) => { e.stopPropagation(); handleSkip(-10); }}
             style={{ ...btnBase, pointerEvents: "auto" }}
           >
@@ -1441,7 +1441,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           </button>
           <button
             type="button"
-            className="lvm-vod-btn"
+            className="lvm-vod-btn vibra-pop"
             onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}
             style={{ ...btnBase, pointerEvents: "auto" }}
           >
@@ -1451,7 +1451,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           </button>
           <button
             type="button"
-            className="lvm-vod-btn"
+            className="lvm-vod-btn vibra-pop"
             onClick={(e) => { e.stopPropagation(); handleSkip(10); }}
             style={{ ...btnBase, pointerEvents: "auto" }}
           >
@@ -1954,7 +1954,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return null; // Reemplazado por renderDvrControls
     if (!isLive || !hzControlsVisible || !dvrAvailable || isEnded) return null;
     return (
-      <button
+      <button className="vibra-pop"
         type="button"
         onClick={(e) => {
           e.stopPropagation();
@@ -2087,19 +2087,19 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           gap: isDesktop ? 50 : 36,
           pointerEvents: "none",
         }}>
-          <button type="button" className="lvm-vod-btn"
+          <button type="button" className="lvm-vod-btn vibra-pop"
             onClick={(e) => { e.stopPropagation(); handleSkip(-10); }}
             style={{ ...btnBase, pointerEvents: "auto" }}>
             <VideoSkipBackIcon size={skipSz} color="#fff" />
           </button>
-          <button type="button" className="lvm-vod-btn"
+          <button type="button" className="lvm-vod-btn vibra-pop"
             onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}
             style={{ ...btnBase, pointerEvents: "auto" }}>
             {vodPlaying
               ? <VideoPauseIcon size={playSz} color="#fff" />
               : <VideoPlayIcon size={playSz} color="#fff" />}
           </button>
-          <button type="button" className="lvm-vod-btn"
+          <button type="button" className="lvm-vod-btn vibra-pop"
             onClick={(e) => { e.stopPropagation(); handleSkip(10); }}
             style={{ ...btnBase, pointerEvents: "auto" }}>
             <VideoSkipForwardIcon size={skipSz} color="#fff" />
@@ -2341,7 +2341,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               </button>
             )}
             {/* Like debajo del botón Seguir/Gestionar (lo empuja hacia abajo, no a la izquierda) */}
-            <button
+            <button className="vibra-pop"
               onClick={handleToggleLike}
               aria-label="Me gusta"
               style={{

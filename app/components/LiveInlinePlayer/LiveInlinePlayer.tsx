@@ -703,7 +703,7 @@ export default function LiveInlinePlayer({
       )}
 
       {/* Botón mute/unmute */}
-      <button
+      <button className="vibra-pop"
         type="button"
         onClick={(e) => {
           e.stopPropagation();

@@ -2196,7 +2196,7 @@ const avatarNode = (
                       onClick={() => setCoverSearchOpen(true)}
                       aria-label={tCommon("searchInThisCommunity")}
                       title={tCommon("searchInThisCommunity")}
-                      className="cover-corner-muted"
+                      className="cover-corner-muted vibra-pop"
                       style={{ ...groupRoundIconButtonStyle, color: "#fff", cursor: "pointer" }}
                     >
                       <GroupCoverLupaIcon />
@@ -2685,7 +2685,7 @@ const avatarNode = (
                     onClick={() => setCoverSearchOpen(true)}
                     aria-label={tCommon("searchInThisCommunity")}
                     title={tCommon("searchInThisCommunity")}
-                    className="cover-corner-muted"
+                    className="cover-corner-muted vibra-pop"
                     style={{ ...groupRoundIconButtonStyle, color: "#fff", cursor: "pointer" }}
                   >
                     <GroupCoverLupaIcon />

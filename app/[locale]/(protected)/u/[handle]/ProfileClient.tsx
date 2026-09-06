@@ -2158,7 +2158,7 @@ const res = (await createExclusiveSessionRequest({
         onClick={() => setCoverSearchOpen(true)}
         aria-label={tCommon("searchInThisProfile")}
         title={tCommon("searchInThisProfile")}
-        className="cover-corner-muted"
+        className="cover-corner-muted vibra-pop"
         style={{ ...COVER_CIRCLE_BTN_STYLE, color: "#fff" }}
       >
         <CoverSearchLupaIcon />
@@ -2220,7 +2220,7 @@ const res = (await createExclusiveSessionRequest({
         onClick={() => setCoverSearchOpen(true)}
         aria-label={tCommon("searchInThisProfile")}
         title={tCommon("searchInThisProfile")}
-        className="cover-corner-muted"
+        className="cover-corner-muted vibra-pop"
         style={{ ...COVER_CIRCLE_BTN_STYLE, color: "#fff" }}
       >
         <CoverSearchLupaIcon />

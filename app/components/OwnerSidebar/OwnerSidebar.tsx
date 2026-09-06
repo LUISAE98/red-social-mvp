@@ -2808,8 +2808,7 @@ newPostsCounts={newPostsCounts}
             router={router}
           />
         ) : (
-          <button
-            type="button"
+          <button type="button"
             onClick={() => router.push("/experiencias")}
             style={{
               display: "flex",

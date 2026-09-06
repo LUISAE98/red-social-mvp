@@ -17,8 +17,10 @@
  */
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 import { useReelFeed } from "./useReelFeed";
 import type { StoryDoc } from "@/lib/stories/types";
+
 
 type ValorRails = {
   stories: StoryDoc[];
@@ -48,7 +50,15 @@ export function ReelRailsProvider({
   activo?: boolean;
   children: ReactNode;
 }) {
-  const { stories, ready, loadMore } = useReelFeed(uid, false, activo);
+  // En celular estos rails no se pintan nunca —ese contenido vive en la pestaña
+  // de reels, a pantalla completa—, así que ahí tampoco se pide el feed.
+  //
+  // Este corte va en JS y el del propio rail en CSS, y las dos cosas son
+  // correctas: aquí no se dibuja nada, solo se decide si pedir datos, así que
+  // equivocarse un fotograma no mueve el layout de nadie. En el rail sí dibuja,
+  // y por eso allí tiene que ser CSS.
+  const punteroFino = useMediaQuery("(pointer: fine)");
+  const { stories, ready, loadMore } = useReelFeed(uid, false, activo && punteroFino);
 
   const valor = useMemo<ValorRails>(
     () => ({ stories, ready, loadMore }),

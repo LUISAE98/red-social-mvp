@@ -27,8 +27,7 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, su
   const label = type === "saludo" ? tCommon("storySaludos") : tCommon("storyConsejos");
 
   return (
-    <button
-      type="button"
+    <button type="button"
       onClick={onClick}
       aria-label={empty ? tCommon("storyAddStories") : tCommon("storyViewLabel", { label })}
       style={{

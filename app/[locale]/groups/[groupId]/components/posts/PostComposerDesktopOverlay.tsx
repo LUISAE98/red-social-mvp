@@ -453,7 +453,7 @@ style={{
     </IconButton>
 
     {onLiveClick && !isEditMode && (
-      <button
+      <button className="vibra-pop"
         type="button"
         onClick={onLiveClick}
         disabled={creating}
@@ -483,8 +483,7 @@ style={{
 
   <div>
     {premiumComposer.canEnablePremium && !isEditMode ? (
-      <button
-        type="button"
+      <button type="button"
         onClick={premiumComposer.togglePremiumEnabled}
         disabled={creating || isPreparingImages}
         style={{

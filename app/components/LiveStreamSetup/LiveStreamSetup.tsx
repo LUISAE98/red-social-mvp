@@ -304,8 +304,7 @@ export default function LiveStreamSetup({
               {tLive("setupHowToBroadcast")}
             </p>
 
-            <button
-              type="button"
+            <button type="button"
               onClick={() => handleSelectMode("direct")}
               style={{
                 width: "100%", display: "flex", alignItems: "center", gap: 14,
@@ -336,8 +335,7 @@ export default function LiveStreamSetup({
               </svg>
             </button>
 
-            <button
-              type="button"
+            <button type="button"
               onClick={() => handleSelectMode("rtmp")}
               style={{
                 width: "100%", display: "flex", alignItems: "center", gap: 14,

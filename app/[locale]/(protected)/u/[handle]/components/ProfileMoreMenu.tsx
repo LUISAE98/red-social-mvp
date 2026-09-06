@@ -148,7 +148,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onBlockSuccess,
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((v) => !v)}
         disabled={loading}
-        className={buttonClassName}
+        className={[buttonClassName, "vibra-pop"].join(" ")}
         style={{
           background: "none",
           border: "none",

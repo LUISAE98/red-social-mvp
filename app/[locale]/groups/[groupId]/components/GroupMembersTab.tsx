@@ -1122,6 +1122,7 @@ export default function GroupMembersTab({
                           prev === member.resolvedUid ? null : member.resolvedUid
                         )
                       }
+                      className="vibra-pop"
                       aria-haspopup="menu"
                       aria-expanded={menuOpen}
                       aria-label={tGroups("openActionsFor", { name: displayName })}

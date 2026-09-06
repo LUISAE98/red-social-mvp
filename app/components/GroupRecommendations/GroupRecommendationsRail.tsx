@@ -1212,8 +1212,7 @@ export default function GroupRecommendationsRail({
                   }}
                 >
                   {railPageClamped > 0 && (
-                    <button
-                      type="button"
+                    <button type="button"
                       onClick={handleRailBack}
                       style={railTextButtonStyle}
                     >
@@ -1222,8 +1221,7 @@ export default function GroupRecommendationsRail({
                     </button>
                   )}
                   {railPageClamped < railPageCount - 1 && (
-                    <button
-                      type="button"
+                    <button type="button"
                       onClick={handleRailMore}
                       style={{ ...railTextButtonStyle, marginInlineStart: "auto" }}
                     >

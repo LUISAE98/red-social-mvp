@@ -1636,8 +1636,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
               {/* Submenú: Rechazados */}
               {rejectedOnlyRows.length > 0 && (
               <div>
-                <button
-                  type="button"
+                <button type="button"
                   onClick={() => setRejectedSubOpen((v) => (v === "rejected" ? null : "rejected"))}
                   aria-expanded={rejectedSubOpen === "rejected"}
                   style={submenuHeaderStyle}
@@ -1661,8 +1660,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
               {/* Submenú: En devolución */}
               {refundOnlyRows.length > 0 && (
               <div>
-                <button
-                  type="button"
+                <button type="button"
                   onClick={() => setRejectedSubOpen((v) => (v === "refund" ? null : "refund"))}
                   aria-expanded={rejectedSubOpen === "refund"}
                   style={submenuHeaderStyle}
@@ -1717,8 +1715,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           }}
         >
           {!activeSection && (
-          <button
-            type="button"
+          <button type="button"
             onClick={() => {
               setDeliveredSectionOpen((v) => !v);
               setOpenSectionKey(null);
@@ -1797,8 +1794,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
               {/* Submenú: Sesiones */}
               {deliveredSessions.length > 0 && (
               <div>
-                <button
-                  type="button"
+                <button type="button"
                   onClick={() => setDeliveredSubOpen((v) => (v === "sessions" ? null : "sessions"))}
                   aria-expanded={deliveredSubOpen === "sessions"}
                   style={submenuHeaderStyle}
@@ -1822,8 +1818,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
               {/* Submenú: Saludos y consejos */}
               {deliveredGreetings.length > 0 && (
               <div>
-                <button
-                  type="button"
+                <button type="button"
                   onClick={() => setDeliveredSubOpen((v) => (v === "greetings" ? null : "greetings"))}
                   aria-expanded={deliveredSubOpen === "greetings"}
                   style={submenuHeaderStyle}

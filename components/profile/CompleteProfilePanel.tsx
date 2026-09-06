@@ -249,8 +249,7 @@ export default function CompleteProfilePanel({
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 13 }}>
             {/* Portada + foto de perfil (mismo acomodo/estilo que crear cuenta). */}
             <div style={{ position: "relative", width: "100%", marginBottom: 78 }}>
-              <button
-                type="button"
+              <button type="button"
                 onClick={() => coverInputRef.current?.click()}
                 aria-label={coverPreview ? t("coverChange") : t("coverAdd")}
                 style={{
@@ -283,7 +282,7 @@ export default function CompleteProfilePanel({
                 )}
               </button>
 
-              <button
+              <button className="vibra-pop"
                 type="button"
                 onClick={() => avatarInputRef.current?.click()}
                 aria-label={avatarPreview ? t("photoChange") : t("photoAdd")}

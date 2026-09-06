@@ -658,6 +658,53 @@ body::-webkit-scrollbar-button {
 .vibra-btn:not(:disabled):active {
   filter: brightness(0.94);
 }
+/* ── Pop al pulsar ────────────────────────────────────────────────────────
+   Un icono suelto no tiene relleno ni borde que se puedan oscurecer, así que
+   el `brightness` de `.vibra-btn` casi no se ve en él. Lo que sí se nota es
+   que ceda bajo el dedo.
+
+   ⚠️ Va en su PROPIA clase y no en `.vibra-btn` a propósito: escalar un botón
+   de texto ancho —"Crear comunidad" y compañía— se lee como que la pantalla
+   entera tiembla. Esto es para los controles que son solo un dibujo.
+
+   Sirve para cualquier etiqueta, no solo `<button>`: en la cabecera de laptop
+   varios iconos son `<Link>`. El selector lleva `[data-pop]`, que ya sube la
+   especificidad lo justo para ganarle a las utilidades de Tailwind.
+
+   ⚠️ Esto NO puede colgar de `:active`, que es como estaba y por eso no se veía
+   nada. `:active` solo vive mientras el dedo sigue apoyado: un clic normal dura
+   unos 40ms, así que la bajada ni terminaba y el icono volvía desde un 0.97
+   imperceptible. El pop tiene que dispararse y correr SOLO, sin depender de
+   cuánto dure el gesto. El corazón de los mensajes se ve justamente porque lo
+   mueve un estado que persiste, no el dedo.
+
+   El atributo `data-pop` lo enciende `usePopAlPulsar` y lo apaga cuando la
+   animación termina. Alterna entre dos nombres —de ahí las dos reglas con
+   fotogramas idénticos— porque volver a pulsar durante la animación solo la
+   reinicia si CAMBIA el `animation-name`; con un único nombre, el segundo toque
+   de un doble toque no haría nada. */
+@keyframes vibraPopA {
+  /* La bajada acelera y el regreso rebota. Al revés —bajada lenta, vuelta
+     seca— se siente como un botón que responde tarde. */
+  0%   { transform: scale(1);    animation-timing-function: var(--ease-in); }
+  38%  { transform: scale(0.84); animation-timing-function: var(--ease-spring); }
+  100% { transform: scale(1); }
+}
+@keyframes vibraPopB {
+  0%   { transform: scale(1);    animation-timing-function: var(--ease-in); }
+  38%  { transform: scale(0.84); animation-timing-function: var(--ease-spring); }
+  100% { transform: scale(1); }
+}
+.vibra-pop[data-pop="a"]:not(:disabled) {
+  animation: vibraPopA var(--duration-slow, 400ms) both;
+}
+.vibra-pop[data-pop="b"]:not(:disabled) {
+  animation: vibraPopB var(--duration-slow, 400ms) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vibra-pop[data-pop]:not(:disabled) { animation: none; }
+}
+
 .vibra-btn:focus-visible,
 .vibra-field:focus-visible {
   outline: 2px solid var(--brand);
@@ -791,5 +838,25 @@ body::-webkit-scrollbar-button {
   .vb-skel::after {
     animation: none;
     opacity: 0;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Rail de reels ("Descubre nuevas experiencias").
+
+   El corte escritorio/celular vive AQUÍ, en CSS, y no en JS. Es deliberado: el
+   rail devolvía null hasta que un efecto confirmaba que el puntero era fino, así
+   que el primer pintado no ocupaba nada y al hidratar aparecía de golpe con sus
+   ~340px. Cualquier rail por encima del viewport empujaba hacia abajo lo que el
+   usuario estaba leyendo, y con varios rails intercalados por feed eso pasaba
+   varias veces por pantalla.
+
+   Con el corte en CSS el hueco es el correcto desde el primer fotograma: en
+   laptop el rail ocupa su sitio antes incluso de hidratar, y en celular no ocupa
+   nada nunca. El navegador no tiene nada que recolocar.
+   ───────────────────────────────────────────────────────────────────────────── */
+@media (pointer: coarse) {
+  .vbReelRail {
+    display: none;
   }
 }

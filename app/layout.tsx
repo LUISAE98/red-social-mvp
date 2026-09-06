@@ -394,6 +394,41 @@ export default async function RootLayout({
                   img.style.visibility = 'hidden';
                 }
               }, true);
+
+              /* Pop al pulsar de los botones de icono. Los fotogramas viven en
+                 .vibra-pop (globals.css); aquí solo se enciende y se apaga el
+                 atributo que los dispara.
+
+                 Va DELEGADO en el documento, no en cada componente, por dos
+                 razones. Son 126 controles repartidos en 57 archivos, y con
+                 estado de React cada toque re-renderizaría el componente que lo
+                 contiene: en una tarjeta de publicación eso es carísimo para un
+                 efecto de 400ms. Y así alcanza también a lo que se pinta en
+                 portales, que es donde viven casi todos los paneles.
+
+                 El valor alterna entre 'a' y 'b' porque el navegador solo
+                 reinicia una animación si cambia el animation-name. Sin eso, el
+                 segundo toque de un doble toque no haría nada, justo en guardar
+                 y en la flamita, que son los que más se martillean. */
+              document.addEventListener('pointerdown', function(e) {
+                var el = e.target && e.target.closest ? e.target.closest('.vibra-pop') : null;
+                if (!el || el.disabled) return;
+                el.setAttribute('data-pop', el.getAttribute('data-pop') === 'a' ? 'b' : 'a');
+              }, true);
+
+              /* Teclado: al activar con Enter o espacio no hay pointerdown, y
+                 el click sintético que llega trae detail 0. */
+              document.addEventListener('click', function(e) {
+                if (e.detail !== 0) return;
+                var el = e.target && e.target.closest ? e.target.closest('.vibra-pop') : null;
+                if (!el || el.disabled) return;
+                el.setAttribute('data-pop', el.getAttribute('data-pop') === 'a' ? 'b' : 'a');
+              }, true);
+
+              document.addEventListener('animationend', function(e) {
+                if (e.animationName !== 'vibraPopA' && e.animationName !== 'vibraPopB') return;
+                if (e.target && e.target.removeAttribute) e.target.removeAttribute('data-pop');
+              }, true);
             `,
           }}
         />

@@ -382,7 +382,7 @@ export default function SearchDateFilterMenu({ fromDate, toDate, onApply }: Prop
 
       <button
         type="button"
-        className="dateFilterButton"
+        className="dateFilterButton vibra-pop"
         onClick={openMenu}
         aria-haspopup="menu"
         aria-expanded={open}

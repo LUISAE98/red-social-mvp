@@ -654,7 +654,7 @@ export default function PostComposerMobileOverlay({
                 </IconButton>
 
                 {onLiveClick && !isEditMode && (
-                  <button
+                  <button className="vibra-pop"
                     type="button"
                     onClick={onLiveClick}
                     disabled={creating}
@@ -684,8 +684,7 @@ export default function PostComposerMobileOverlay({
 
               <div>
                 {premiumComposer.canEnablePremium && !isEditMode ? (
-                  <button
-                    type="button"
+                  <button type="button"
                     onClick={premiumComposer.togglePremiumEnabled}
                     disabled={creating || isPreparingImages}
                     style={{

@@ -2806,7 +2806,7 @@ style={{
             )}
             {shouldShowActionsMenu && (
               <div style={{ position: "relative" }}>
-                <button
+                <button className="vibra-pop"
                   ref={menuButtonRef}
                   type="button"
                   onClick={() => setMenuOpen((prev) => !prev)}
@@ -3080,8 +3080,7 @@ style={{
 
       {/* Botón "Abrir centro de control" — overlay top-center, solo para el creador del live activo */}
       {currentUserId === post.authorId && isLivePlayer && (
-        <button
-          type="button"
+        <button type="button"
           onClick={() => setLiveCreatorOpen(true)}
           style={{
             position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", zIndex: 4,
@@ -3468,8 +3467,7 @@ style={{
           desbloquear post premium): va arriba del título y recorre el resto hacia abajo.
           En laptop el botón sigue dentro del card overlay de la portada. */}
       {isMobile && post.requiresPayment === true && !liveAccessBlocked && !(isOwnPost || isOwner) && !hasLiveTicketAccess && !memberHasFreeAccess && (
-        <button
-          type="button"
+        <button type="button"
           onClick={() => { if (!ensureSignedInToPay()) return; livePaidRef.current = false; setLivePayOpen(true); }}
           aria-label={tPosts("liveTicketRequiredTitle")}
           style={{
@@ -3813,7 +3811,7 @@ cursor: isMobile ? "pointer" : "default",
 
 
 {isMobile && (
-  <button
+  <button className="vibra-pop"
     type="button"
     onClick={() => openMediaViewer(videoThumbnailUrl || videoPlaybackUrl)}
     aria-label={tPosts("playVideo")}
@@ -4602,8 +4600,7 @@ padding: "0 0 2px 0",
   </div>
 )}
 {isMobile && premiumState.isBlocked && (isVideoPost || hasMediaGrid || liveVodReady) && (
-  <button
-    type="button"
+  <button type="button"
     onClick={() => { if (ensureSignedInToPay()) setPaymentPanelOpen(true); }}
     aria-label={tFeed("unlockPremiumContent")}
     style={{
@@ -4781,18 +4778,18 @@ padding: "0 0 2px 0",
         gap: 2,
       }}
     >
-<IconButton label={ optimisticViewerHasFlamed ? tPosts("removeFlameFromPost") : "Dar flamita a la publicación" } size="sm" tone="bare" shape="square" style={{ placeItems: "center", transform: optimisticViewerHasFlamed ? "scale(1.04)" : "scale(1)", touchAction: "manipulation" }} onClick={handleToggleFlame} aria-pressed={optimisticViewerHasFlamed}>
+<IconButton label={ optimisticViewerHasFlamed ? tPosts("removeFlameFromPost") : "Dar flamita a la publicación" } size="sm" tone="bare" shape="square" style={{ placeItems: "center", touchAction: "manipulation" }} onClick={handleToggleFlame} aria-pressed={optimisticViewerHasFlamed}>
   <span aria-hidden="true" style={flameIconStyle}>
     <VibraFlameIcon active={optimisticViewerHasFlamed} size={22} premium={post.premium?.enabled === true} />
   </span>
 </IconButton>
 
-      <TextButton tone="mute" size="md" style={{ fontFamily: fontStack }} onClick={handleOpenFlamesPanel} aria-label={tPosts("viewFlameUsers")}>
+      <TextButton tone="mute" size="md" className="vibra-pop" style={{ fontFamily: fontStack }} onClick={handleOpenFlamesPanel} aria-label={tPosts("viewFlameUsers")}>
        {optimisticLikesCount}
       </TextButton>
     </div>
 
-    <TextButton tone="mute" size="md" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: fontStack }} onClick={isMobile ? handleOpenCommentsPanel : handleToggleCommentsDesktop} disabled={loadingComments} aria-label={tGroups("openComments")}>
+    <TextButton tone="mute" size="md" className="vibra-pop" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: fontStack }} onClick={isMobile ? handleOpenCommentsPanel : handleToggleCommentsDesktop} disabled={loadingComments} aria-label={tGroups("openComments")}>
 <span aria-hidden="true">
   <VibraCommentIcon size={18} color="rgba(255,255,255,0.88)" />
 </span>

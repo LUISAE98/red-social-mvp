@@ -44,6 +44,10 @@ export default function PostSaveButton({
       aria-label={saved ? tPosts("unsave") : tPosts("save")}
       title={saved ? tPosts("unsave") : tPosts("save")}
       className={[
+        // `vibra-pop` cede bajo el dedo, como el resto de iconos del producto.
+        // Este botón no pasa por `IconButton` —lleva el número al lado—, así que
+        // la clase se pone a mano.
+        "vibra-pop",
         "inline-flex items-center gap-1 border-0 bg-transparent p-0 text-xs font-semibold transition",
         "focus:outline-none",
         "disabled:cursor-not-allowed disabled:opacity-60",

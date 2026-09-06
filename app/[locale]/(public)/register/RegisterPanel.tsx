@@ -558,8 +558,7 @@ export default function RegisterPanel({
         {/* Portada + foto de perfil (acomodo tipo Crear comunidad; estilo
             placeholder: fondo translúcido sin borde). Ambos opcionales. */}
         <div style={{ position: "relative", width: "100%", marginBottom: 66 }}>
-          <button
-            type="button"
+          <button type="button"
             onClick={() => coverInputRef.current?.click()}
             aria-label={coverPreview ? tCP("coverChange") : tCP("coverAdd")}
             style={{
@@ -592,7 +591,7 @@ export default function RegisterPanel({
             )}
           </button>
 
-          <button
+          <button className="vibra-pop"
             type="button"
             onClick={() => avatarInputRef.current?.click()}
             aria-label={avatarPreview ? t("photoChange") : t("photoAdd")}

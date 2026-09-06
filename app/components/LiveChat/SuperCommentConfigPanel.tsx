@@ -460,7 +460,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
             <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", textAlign: "center", letterSpacing: "-0.02em" }}>
               {tLive("superComments")}
             </span>
-            <button
+            <button className="vibra-pop"
               type="button"
               onClick={onClose}
               style={{ border: "none", background: "none", color: "#fff", cursor: "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4 }}

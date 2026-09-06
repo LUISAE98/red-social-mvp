@@ -289,7 +289,7 @@ export default function LiveChatViewer({
             {(onLike || onFollow) && (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 8 }}>
                 {onLike ? (
-                  <button
+                  <button className="vibra-pop"
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onLike(); }}
                     aria-label={tChat("like")}
@@ -602,7 +602,7 @@ function Avatar({ url, name, size, ringColor }: { url?: string | null; name: str
 function BillButton({ onClick }: { onClick: () => void }) {
   const tLive = useTranslations("live");
   return (
-    <button
+    <button className="vibra-pop"
       type="button"
       onClick={onClick}
       title={tLive("superComment")}

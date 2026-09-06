@@ -1959,7 +1959,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             animation: "scOverlaySlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
           }}>
             {/* Tache cierre */}
-            <button
+            <button className="vibra-pop"
               type="button"
               onClick={handleCloseSCOverlay}
               style={{

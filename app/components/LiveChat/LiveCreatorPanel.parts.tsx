@@ -472,7 +472,7 @@ export const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit
   }, [hlsUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const muteBtn = (size: number, bottom: number, right: number, bordered: boolean) => (
-    <button
+    <button className="vibra-pop"
       type="button"
       onClick={() => setMuted((m) => !m)}
       title={muted ? tCommon("unmuteLabel") : tCommon("muteLabel")}
@@ -611,7 +611,7 @@ export const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit
           }} />
 
           {/* Mute — esquina superior derecha, respeta safe area */}
-          <button type="button" className="vp-vod-btn"
+          <button type="button" className="vp-vod-btn vibra-pop"
             onClick={(e) => {
               e.stopPropagation();
               const v = videoRef.current;
@@ -647,19 +647,19 @@ export const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit
             display: "flex", alignItems: "center", justifyContent: "center",
             gap: 32, pointerEvents: "none",
           }}>
-            <button type="button" className="vp-vod-btn"
+            <button type="button" className="vp-vod-btn vibra-pop"
               onClick={(e) => { e.stopPropagation(); handleSkip(-10); }}
               style={{ ...btnBase, pointerEvents: "auto" }}>
               <VideoSkipBackIcon size={32} color="#fff" />
             </button>
-            <button type="button" className="vp-vod-btn"
+            <button type="button" className="vp-vod-btn vibra-pop"
               onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}
               style={{ ...btnBase, pointerEvents: "auto" }}>
               {vodPlaying
                 ? <VideoPauseIcon size={38} color="#fff" />
                 : <VideoPlayIcon size={38} color="#fff" />}
             </button>
-            <button type="button" className="vp-vod-btn"
+            <button type="button" className="vp-vod-btn vibra-pop"
               onClick={(e) => { e.stopPropagation(); handleSkip(10); }}
               style={{ ...btnBase, pointerEvents: "auto" }}>
               <VideoSkipForwardIcon size={32} color="#fff" />

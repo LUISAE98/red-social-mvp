@@ -252,8 +252,7 @@ export function PremiumPostPanel({
       )}
 
       {state.isBlocked && !isMobile && (
-        <button
-          type="button"
+        <button type="button"
           onClick={onOpenPayment}
           aria-label={tPosts("premiumUnlockAriaLabel")}
           style={{
@@ -452,7 +451,7 @@ export function LiveTicketPanel({
       )}
 
       {!isMobile && !isAuthor && !isPaid && !isMemberFree && (
-        <button
+        <button className="vibra-pop"
           type="button"
           onClick={onBuyTicket}
           style={{

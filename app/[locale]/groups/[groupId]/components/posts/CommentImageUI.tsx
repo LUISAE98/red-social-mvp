@@ -586,7 +586,7 @@ export function CommentImageLightbox({
         ) : null}
       </div>
 
-      <button
+      <button className="vibra-pop"
         type="button"
         onClick={(e) => {
           e.stopPropagation();

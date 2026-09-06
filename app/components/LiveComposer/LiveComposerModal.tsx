@@ -716,8 +716,7 @@ export default function LiveComposerModal({
         onChange={handleCoverFileChange}
       />
       <label style={labelStyle}>{tLive("composerCoverLabel")}</label>
-      <button
-        type="button"
+      <button type="button"
         onClick={handleCoverClick}
         disabled={saving}
         aria-label={coverPreviewUrl ? tLive("changeCover") : tLive("addCover")}

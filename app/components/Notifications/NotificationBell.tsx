@@ -247,7 +247,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
         aria-label={t("title")}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className={["desktopActionIcon", "notifBellBtn", active ? "desktopActionIconActive" : ""]
+        className={["desktopActionIcon", "notifBellBtn", "vibra-pop", active ? "desktopActionIconActive" : ""]
           .filter(Boolean)
           .join(" ")}
         onClick={() => setOpen((v) => !v)}

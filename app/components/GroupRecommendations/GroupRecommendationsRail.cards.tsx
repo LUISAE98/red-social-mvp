@@ -611,8 +611,7 @@ export function LiveRecommendationCard({
         </div>
 
         {/* Clickable body — opens viewer */}
-        <button
-          type="button"
+        <button type="button"
           onClick={onOpenViewer}
           style={{
             position: "absolute",

@@ -483,7 +483,7 @@ export default function AdminLayout({
               />
               <button
                 type="button"
-                className="previewNavButton"
+                className="previewNavButton vibra-pop"
                 onClick={handleNavNavigate}
                 title="Navegar"
               >

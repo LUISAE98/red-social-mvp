@@ -550,7 +550,7 @@ function RoomContent({
       <div style={styles.controls}>
 
         {/* Mic */}
-        <button
+        <button className="vibra-pop"
           type="button"
           onClick={toggleMic}
           aria-label={isMicrophoneEnabled ? "Silenciar micrófono" : tLive("micUnmute")}
@@ -561,7 +561,7 @@ function RoomContent({
         </button>
 
         {/* Cámara */}
-        <button
+        <button className="vibra-pop"
           type="button"
           onClick={toggleCamera}
           aria-label={isCameraEnabled ? "Apagar cámara" : tLive("camOn")}
@@ -574,7 +574,7 @@ function RoomContent({
         {/* Compartir pantalla — solo el creador y solo donde funciona de verdad
             (escritorio con getDisplayMedia). En iPhone/iPad no se renderiza. */}
         {canShareScreen && (
-          <button
+          <button className="vibra-pop"
             type="button"
             onClick={toggleScreenShare}
             aria-label={isSharingScreen ? tLive("stopScreenShare") : tLive("screenShare")}
@@ -590,7 +590,7 @@ function RoomContent({
 
         {/* Terminar sesión */}
         {onEndCallRequest ? (
-          <button
+          <button className="vibra-pop"
             type="button"
             onClick={onEndCallRequest}
             disabled={isEnding}

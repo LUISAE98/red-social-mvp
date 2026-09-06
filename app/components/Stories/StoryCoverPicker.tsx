@@ -536,7 +536,7 @@ export default function StoryCoverPicker({
               >
                 <div style={ringWrap}>
                   <AvatarRing foto={FOTO} variante={isCustomSelected ? "vibra" : "apagado"} />
-                  <button
+                  <button className="vibra-pop"
                     type="button"
                     disabled={uploading || saving}
                     onClick={() => fileInputRef.current?.click()}

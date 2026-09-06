@@ -288,7 +288,7 @@ function MediaTile({
       {tile.isLocked && <span style={lockedScrimStyle} aria-hidden="true" />}
 
       {tile.isLocked && (
-        <span className="vibra-media-crown" aria-hidden="true">
+        <span className="vibra-media-crown vibra-pop" aria-hidden="true">
           <VibraNavigationIcon type="premiumCrown" size={44} />
         </span>
       )}

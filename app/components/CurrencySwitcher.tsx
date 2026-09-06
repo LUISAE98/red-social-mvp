@@ -110,7 +110,7 @@ function CurrencyOverlay({
             {items.map((it, i) => {
               const active = it.code === currency;
               return (
-                <button
+                <button className="vibra-pop"
                   key={it.code}
                   type="button"
                   role="menuitem"

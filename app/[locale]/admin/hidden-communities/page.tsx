@@ -196,8 +196,7 @@ export default function HiddenCommunitiesPage() {
             {tAdmin("hiddenCommunitiesSubtitle")}
           </p>
         </div>
-        <button
-          onClick={() => setEnrichKey((k) => k + 1)}
+        <button onClick={() => setEnrichKey((k) => k + 1)}
           disabled={enriching}
           title={tAdmin("refreshCounters")}
           style={{

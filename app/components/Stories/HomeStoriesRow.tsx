@@ -194,6 +194,27 @@ function TituloRail() {
   );
 }
 
+/**
+ * Envoltorio de TODAS las salidas del rail.
+ *
+ * 🚨 El corte escritorio/celular va en CSS y NO en JS. Es la razón de que este
+ * componente exista.
+ *
+ * Antes el rail devolvía `null` hasta que un efecto confirmaba que el puntero
+ * era fino. O sea: primer pintado con cero de alto, y al hidratar aparecía de
+ * golpe con sus ~340px. Cualquier rail que quedara POR ENCIMA del viewport
+ * empujaba hacia abajo todo lo que el usuario estaba leyendo, y el scroll daba
+ * un salto. Con varios rails intercalados por feed, eso pasaba varias veces.
+ *
+ * Con el corte en CSS el hueco es el correcto desde el primer fotograma: en
+ * laptop el rail ocupa su sitio antes incluso de hidratar, y en celular no
+ * ocupa nada nunca. El navegador ya no tiene nada que recolocar.
+ */
+function EnvoltorioRail({ children }: { children: React.ReactNode }) {
+  // La clase la define globals.css, con el porqué. No devolver null desde aquí.
+  return <div className="vbReelRail">{children}</div>;
+}
+
 export default function HomeStoriesRow({
   currentUserId,
   variant = "home",
@@ -202,8 +223,6 @@ export default function HomeStoriesRow({
   const tCommon = useTranslations("common");
   const esPortada = variant === "home";
 
-  const [mounted, setMounted] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
   // Misma fuente, mismo orden y misma cuota que el reel de celular, pero pedida
   // UNA vez por pantalla: el feed vive en `ReelRailsProvider` y aquí solo se
   // recoge el trozo que le toca a esta aparición. Así da igual cuántos rails se
@@ -233,22 +252,6 @@ export default function HomeStoriesRow({
   const [openAt, setOpenAt] = useState<number | null>(null);
 
   const fetchedInfoKeys = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
-
-  // El servidor no sabe si el puntero es fino, así que la decisión se toma tras
-  // montar y el render se gatea con `mounted` para no romper la hidratación.
-  useEffect(() => {
-    const mql = window.matchMedia("(pointer: fine)");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsDesktop(mql.matches);
-    const h = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mql.addEventListener("change", h);
-    return () => mql.removeEventListener("change", h);
-  }, []);
 
   // ── Ids de seguidos y comunidades, solo para los aros de en vivo ──────────
   useEffect(() => {
@@ -434,15 +437,13 @@ export default function HomeStoriesRow({
       .map((id) => ({ entityId: id, entityType: "group" as const })),
   ];
 
-  if (!mounted || !isDesktop) return null;
-
   // Mientras carga se pinta el esqueleto, no un hueco: así el rail ocupa desde
   // el primer instante y el home no da un salto cuando llegan las historias.
   // Base canónica `.vb-skel` + `vbSkelWave` de vibra_style.md, sin repetir la
   // animación con valores propios.
   if (!ready && liveEntities.length === 0) {
     return (
-      <>
+      <EnvoltorioRail>
         <style jsx>{`
           .skelRail {
             display: flex;
@@ -504,7 +505,7 @@ export default function HomeStoriesRow({
             </div>
           ))}
         </div>
-      </>
+      </EnvoltorioRail>
     );
   }
 
@@ -515,7 +516,7 @@ export default function HomeStoriesRow({
     if (!esPortada) return null;
 
     return (
-      <>
+      <EnvoltorioRail>
         {/* En laptop no se anuncia el vacío: ni el texto NI el hueco que ocupaba.
             Se esconde con `display: none` y no devolviendo null en JS a
             propósito — el punto de corte se queda en CSS, así que el primer
@@ -535,12 +536,12 @@ export default function HomeStoriesRow({
         <div className="vbReelsEmpty" style={{ fontFamily: fontStack }}>
           {tCommon("noReelsYet")}
         </div>
-      </>
+      </EnvoltorioRail>
     );
   }
 
   return (
-    <>
+    <EnvoltorioRail>
       <style>{`
         .storiesRail::-webkit-scrollbar { display: none; }
         .storiesRail img { -webkit-user-drag: none; user-drag: none; }
@@ -718,6 +719,6 @@ export default function HomeStoriesRow({
           onStoryViewed={handleStoryViewed}
         />
       )}
-    </>
+    </EnvoltorioRail>
   );
 }

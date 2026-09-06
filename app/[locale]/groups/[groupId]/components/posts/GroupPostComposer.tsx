@@ -983,7 +983,7 @@ const launcherButtonStyle: CSSProperties = {
                     : tPosts("shareInCommunityPlaceholder")}
               </button>
 
-              <button
+              <button className="vibra-pop"
                 type="button"
                 onClick={handleOpenComposerOverlay}
                 disabled={creating || isPreparingImages}
@@ -1037,7 +1037,7 @@ const launcherButtonStyle: CSSProperties = {
                 <VibraSendIcon size={24} style={{ transform: "none" }} />
               </button>
 
-              <button
+              <button className="vibra-pop"
                 type="button"
                 onClick={handleOpenMediaPicker}
                 disabled={creating || isPreparingImages}
@@ -1061,7 +1061,7 @@ const launcherButtonStyle: CSSProperties = {
               </button>
 
               {onLiveClick && !isEditMode && (
-                <button
+                <button className="vibra-pop"
                   type="button"
                   onClick={onLiveClick}
                   disabled={creating}

@@ -252,7 +252,7 @@ export default function ProfileSubnav({
                   : "none",
               }}
             >
-              <span style={itemInner} className="subnav-item-inner">
+              <span style={itemInner} className="subnav-item-inner vibra-pop">
                 <span className="subnav-icon-wrap profileSubnavIconSized">
                   <VibraSubnavIcon
                     type={tab.iconType}

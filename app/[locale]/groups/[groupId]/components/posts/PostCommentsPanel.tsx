@@ -618,7 +618,7 @@ export default function PostCommentsPanel({
                   creatingComment ||
                   (commentText.trim().length === 0 && !commentImageFile);
                 return (
-                  <button
+                  <button className="vibra-pop"
                     type="button"
                     onClick={() => {
                       if (commentText.trim().length > 0 || commentImageFile) onCreateComment();
@@ -1021,7 +1021,7 @@ export default function PostCommentsPanel({
                 creatingComment ||
                 (commentText.trim().length === 0 && !commentImageFile);
               return (
-                <button
+                <button className="vibra-pop"
                   type="button"
                   onClick={onCreateComment}
                   disabled={disabled}

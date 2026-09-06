@@ -985,7 +985,9 @@ export default function ReelStorySlide({
                   reader.seekFromPoint(e.clientX, e.clientY, readerTextRef.current);
                 }}
                 style={{
-                  margin: "4px 18px 14px",
+                  // Abajo solo lo justo: el aire que separa el texto de los
+                  // botones lo pone ya el relleno de la fila de botones.
+                  margin: "4px 18px 6px",
                   color: "rgba(255,255,255,0.94)",
                   fontSize: compact ? 13 : 15,
                   fontFamily: FONT,
@@ -1015,9 +1017,15 @@ export default function ReelStorySlide({
               silencio y compartir. */}
           {likeUid && (
             // Con el contexto abierto la flamita se aparta: ese panel es para
-            // leer, y un icono encima compitiendo por atencion sobra. Se va y
-            // vuelve con un fundido, sin moverse de sitio — reservar su hueco
-            // evita que los botones den un salto al abrir y cerrar.
+            // leer, y un icono encima compitiendo por atencion sobra.
+            //
+            // Antes se iba con un fundido pero CONSERVABA su alto, para que los
+            // botones no dieran un salto. Ese hueco reservado era la mitad del
+            // aire que se veia entre el texto y los botones. Ahora la fila se
+            // pliega de verdad, y no hay salto igual: la pila esta anclada
+            // abajo, asi que quitar una fila de ENCIMA de los botones no los
+            // mueve — solo baja lo que hay arriba, que es justo lo que se
+            // quiere. El plegado va animado con el mismo tiempo que el fundido.
             <div
               style={{
                 display: "flex",
@@ -1025,10 +1033,13 @@ export default function ReelStorySlide({
                 // Sin separacion propia: el hueco lo pone el margen del numero,
                 // que ya descuenta la caja del icono.
                 gap: 0,
-                padding: "0 14px 6px",
+                padding: contextOpen ? "0 14px" : "0 14px 6px",
+                height: contextOpen ? 0 : undefined,
+                overflow: contextOpen ? "hidden" : undefined,
                 opacity: contextOpen ? 0 : 1,
                 transform: contextOpen ? "translateY(4px)" : "none",
-                transition: "opacity 220ms ease, transform 220ms ease",
+                transition:
+                  "opacity 220ms ease, transform 220ms ease, height 220ms ease, padding 220ms ease",
                 pointerEvents: contextOpen ? "none" : undefined,
               }}
               aria-hidden={contextOpen}

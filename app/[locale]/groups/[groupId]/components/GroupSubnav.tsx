@@ -236,7 +236,7 @@ export default function GroupSubnav({
                   : "none",
               }}
             >
-              <span style={itemInner} className="group-subnav-item-inner">
+              <span style={itemInner} className="group-subnav-item-inner vibra-pop">
                 <span className="group-subnav-icon-wrap groupSubnavIconSized">
                   <VibraSubnavIcon
                     type={tab.iconType}

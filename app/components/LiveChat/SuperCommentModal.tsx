@@ -425,8 +425,7 @@ export default function SuperCommentModal({
                     {/* Saldo a favor INLINE: sin ir a la pasarela. Mezclable con tarjeta. */}
                     {!isGuest && creditBalance > 0 && (
                       <div style={{ margin: "0 0 10px" }}>
-                        <button
-                          type="button"
+                        <button type="button"
                           onClick={() => { setUseCredit((v) => !v); setDirectError(null); }}
                           style={{
                             display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "start",
@@ -465,7 +464,7 @@ export default function SuperCommentModal({
                               ? c.brand.charAt(0).toUpperCase() + c.brand.slice(1)
                               : "Tarjeta";
                           return (
-                            <button
+                            <button className="vibra-pop"
                               key={c.id}
                               type="button"
                               onClick={() => { setSelectedCardId(c.id); setDirectError(null); }}

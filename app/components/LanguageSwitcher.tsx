@@ -109,7 +109,7 @@ function LangOverlay({
           {LOCALES.map((locale, i) => {
             const active = locale.code === currentLocale;
             return (
-              <button
+              <button className="vibra-pop"
                 key={locale.code}
                 type="button"
                 role="menuitem"

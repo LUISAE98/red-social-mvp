@@ -464,7 +464,7 @@ export default function DonationFeedBanner({
   ) : null;
 
   const muteIconBanner = (
-    <button type="button" aria-label={muted ? tCommon("unmuteAriaLabel") : tCommon("muteAriaLabel")}
+    <button className="vibra-pop" type="button" aria-label={muted ? tCommon("unmuteAriaLabel") : tCommon("muteAriaLabel")}
       onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
       style={{ position: "absolute", bottom: 6, insetInlineEnd: 6, zIndex: 3, background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.9)", WebkitTapHighlightColor: "transparent" }}
     >

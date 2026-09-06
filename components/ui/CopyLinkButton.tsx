@@ -170,7 +170,9 @@ const copiedCircleStyle: CSSProperties = {
 
       <button
         type="button"
-        className={className}
+        // El pop solo cuando es de verdad un icono. En su modo con texto
+        // escalaría una fila entera, que es justo lo que no queremos.
+        className={[className, iconOnly ? "vibra-pop" : ""].filter(Boolean).join(" ") || undefined}
         onClick={handleCopy}
         disabled={disabled}
         title={resolvedTitle}

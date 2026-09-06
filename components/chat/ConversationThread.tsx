@@ -2852,7 +2852,7 @@ export default function ConversationThread({
             alignItems: "center",
           }}
         >
-          <button
+          <button className="vibra-pop"
             type="button"
             /**
              * Se manda desde el DEDO, no desde el clic, y con `preventDefault`.
@@ -2921,7 +2921,7 @@ export default function ConversationThread({
             data-collapsed={composerFocused ? "" : undefined}
             style={{ height: INPUT_MIN_HEIGHT }}
           >
-            <button
+            <button className="vibra-pop"
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={sending || !canWrite}

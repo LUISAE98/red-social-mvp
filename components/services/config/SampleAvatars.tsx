@@ -153,7 +153,7 @@ export default function SampleAvatars({
           })}
 
           {canAdd && (
-            <button
+            <button className="vibra-pop"
               type="button"
               onClick={onAdd}
               aria-label={tServices("addSampleAriaLabel")}

@@ -944,7 +944,7 @@ export default function StripePaymentModal({
     const active = selectedMethod === kind;
     return (
       <div key={kind} style={rowDivider}>
-        <button type="button" onClick={() => toggleMethod(kind)} style={rowButton}>
+        <button className="vibra-pop" type="button" onClick={() => toggleMethod(kind)} style={rowButton}>
           {cardIcon(active)}
           <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "start" }}>{title}</span>
           {radio(active)}
@@ -964,7 +964,7 @@ export default function StripePaymentModal({
     const brandLabel = card.brandName ? card.brandName : card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : "Tarjeta";
     return (
       <div key={id} style={rowDivider}>
-        <button type="button" onClick={() => toggleMethod(id)} style={rowButton}>
+        <button className="vibra-pop" type="button" onClick={() => toggleMethod(id)} style={rowButton}>
           {cardIcon(active)}
           <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "start" }}>{brandLabel} ···· {card.lastFour ?? "••••"}</span>
           {radio(active)}
