@@ -1931,7 +1931,7 @@ function renderBlurredMediaBackdrop(
 
   if (mediaType === "video") {
     return (
-      <video
+      <video controlsList="noremoteplayback"
         src={sourceUrl}
         muted
         playsInline
@@ -2461,7 +2461,7 @@ const rootVideoShellAspectRatio =
   }, [isVideoReady, videoPlaybackUrl]);
 
   // Set up HLS.js (required for Chrome — HLS .m3u8 is not natively supported).
-  // Safari supports HLS natively via <video src>, so we skip hls.js there.
+  // Safari supports HLS natively via <video controlsList="noremoteplayback" src>, so we skip hls.js there.
   // Runs when the video shell is in viewport range (shouldLoadFeedVideo = true).
   useEffect(() => {
     const video = videoRef.current;
@@ -3755,7 +3755,7 @@ style={{
 )}
 
 {shouldLoadFeedVideo && (
-  <video
+  <video controlsList="noremoteplayback"
     ref={(el) => {
       videoRef.current = el;
       // ⚠️ React vuelve a llamar a este callback en CADA render. Sin la guarda,

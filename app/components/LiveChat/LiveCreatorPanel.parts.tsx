@@ -719,7 +719,7 @@ export const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit
   if (fill) {
     return (
       <div style={{ position: "relative", width: "100%", height: "100%" }}>
-        <video
+        <video controlsList="noremoteplayback"
           ref={videoRef}
           autoPlay={autoPlay} muted={autoPlay ? muted : vodMuted} playsInline
           style={{ width: "100%", height: "100%", objectFit: objectFit, display: "block" }}
@@ -734,7 +734,7 @@ export const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit
   // compact mode: self-contained with aspectRatio 16/9
   return (
     <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", maxHeight: 220, background: "#000", overflow: "hidden" }}>
-      <video
+      <video controlsList="noremoteplayback"
         ref={videoRef}
         autoPlay={autoPlay} muted={autoPlay ? muted : vodMuted} playsInline
         style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}

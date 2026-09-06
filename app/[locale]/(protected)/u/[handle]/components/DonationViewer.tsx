@@ -253,7 +253,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
       <>
         {/* Video — src managed imperatively by HLS effect */}
         {videoSrc ? (
-          <video
+          <video controlsList="noremoteplayback"
             ref={videoRef}
             loop
             playsInline

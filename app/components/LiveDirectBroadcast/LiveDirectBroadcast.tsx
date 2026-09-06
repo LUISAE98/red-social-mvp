@@ -314,7 +314,7 @@ export default function LiveDirectBroadcast({
       const video = hiddenVideoRef.current;
       if (video) {
         video.srcObject = fresh;
-        // El sistema deja el <video> pausado tras la interrupción y no lo
+        // El sistema deja el <video controlsList="noremoteplayback"> pausado tras la interrupción y no lo
         // reanuda solo; sin este play() el canvas seguiría pintando negro.
         await video.play().catch(() => {});
       }
@@ -747,7 +747,7 @@ export default function LiveDirectBroadcast({
 
       {/* Preview: video element con objectFit nativo (funciona en iOS, canvas no) */}
       <div style={{ flex: 1, position: "relative", background: "#000", minHeight: 0 }}>
-        <video
+        <video controlsList="noremoteplayback"
           ref={hiddenVideoRef}
           autoPlay
           muted

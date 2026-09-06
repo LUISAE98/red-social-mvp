@@ -203,7 +203,7 @@ function StoryCard({
       {thumb ? <StoryThumb src={thumb} /> : null}
 
       {showVideo && story.muxPlaybackId ? (
-        <video
+        <video controlsList="noremoteplayback"
           src={`https://stream.mux.com/${story.muxPlaybackId}/low.mp4`}
           muted
           autoPlay

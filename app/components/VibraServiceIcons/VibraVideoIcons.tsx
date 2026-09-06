@@ -129,8 +129,12 @@ export function VideoPipIcon({ size = 20, color = "currentColor", strokeWidth = 
 export function VideoAirPlayIcon({ size = 20, color = "currentColor", strokeWidth = 2 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2" />
-      <polygon points="12 15 17 21 7 21 12 15" fill={color} stroke="none" />
+      {/* La pantalla va de x=3 a x=21, centrada en 12, que es donde apunta el
+          triangulo. Antes iba de 1 a 19 —centro 10— y el triangulo salia dos
+          pixeles descuadrado; ademas la base de 7 a 17 se desbordaba por la
+          derecha del hueco de la pantalla, que acababa en 15. */}
+      <path d="M6 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1" />
+      <path d="M12 15.2 17.2 21H6.8L12 15.2Z" fill={color} stroke="none" />
     </svg>
   );
 }

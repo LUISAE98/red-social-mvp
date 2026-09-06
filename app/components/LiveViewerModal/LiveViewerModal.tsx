@@ -1898,7 +1898,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {isEnded ? tLive("broadcastHasFinished") : tLive("streamNotStarted")}
           </div>
         )}
-        <video
+        <video controlsList="noremoteplayback"
           ref={videoRef}
           muted={muted}
           playsInline

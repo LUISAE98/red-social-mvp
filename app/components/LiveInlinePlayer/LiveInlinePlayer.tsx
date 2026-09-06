@@ -646,7 +646,7 @@ export default function LiveInlinePlayer({
       )}
 
       {/* Video element */}
-      <video
+      <video controlsList="noremoteplayback"
         ref={videoRef}
         muted={muted}
         playsInline

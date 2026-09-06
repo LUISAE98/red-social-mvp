@@ -125,7 +125,7 @@ function GreetingEgressInner() {
   return (
     <div translate="no" className="notranslate" style={{ position: "absolute", inset: 0, background: "#000" }}>
       {src ? (
-        <video
+        <video controlsList="noremoteplayback"
           ref={videoRef}
           src={src}
           preload="auto"

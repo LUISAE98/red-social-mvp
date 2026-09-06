@@ -117,7 +117,7 @@ export default function PremiumVideoTeaser({ hlsUrl, directUrl, thumbnailUrl }: 
         />
       )}
       {src && (
-        <video
+        <video controlsList="noremoteplayback"
           ref={videoRef}
           muted
           playsInline

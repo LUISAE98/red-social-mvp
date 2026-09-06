@@ -224,7 +224,7 @@ export default function GreetingReviewOverlay({
   const [confirmRejectOpen, setConfirmRejectOpen] = useState(false);
   const [rejecting, setRejecting] = useState(false);
 
-  // La cámara ya está dando imagen. Sirve para no enseñar el <video> mientras
+  // La cámara ya está dando imagen. Sirve para no enseñar el <video controlsList="noremoteplayback"> mientras
   // el navegador abre el dispositivo, que es cuando se ve el rectángulo negro.
   const [cameraReady, setCameraReady] = useState(false);
 
@@ -2216,7 +2216,7 @@ export default function GreetingReviewOverlay({
         background: "#000", overflow: "hidden", fontFamily: fontStack,
       }}>
         {/* ── Cámara a pantalla completa ─────────────────────────────────── */}
-        <video
+        <video controlsList="noremoteplayback"
           ref={videoRef}
           autoPlay muted playsInline
           disablePictureInPicture
@@ -2237,7 +2237,7 @@ export default function GreetingReviewOverlay({
             pointerEvents: (recordPhase === "done" && !uploadSucceeded) ? "auto" : "none",
             transition: `opacity ${VIDEO_FADE_MS}ms ease`,
           }}>
-            <video
+            <video controlsList="noremoteplayback"
               ref={playbackVideoRef}
               src={recordedBlobUrl}
               playsInline
@@ -2596,7 +2596,7 @@ export default function GreetingReviewOverlay({
       >
         {viewMp4Url ? (
           <div style={{ position: "absolute", inset: 0 }}>
-            <video
+            <video controlsList="noremoteplayback"
               ref={playbackVideoRef}
               src={viewMp4Url}
               poster={viewThumbnailUrl ?? undefined}
@@ -3447,7 +3447,7 @@ export default function GreetingReviewOverlay({
                     // árabe y hebreo se vaya al otro lado con la ficha.
                     justifyContent: esVertical ? "flex-end" : "center",
                   }}>
-                    <video
+                    <video controlsList="noremoteplayback"
                       ref={playbackVideoRef}
                       src={viewMp4Url}
                       poster={viewThumbnailUrl ?? undefined}
@@ -3489,7 +3489,7 @@ export default function GreetingReviewOverlay({
                   {/* Cámara en vivo. Se superpone con la grabación en lugar de
                       alternarse con display, que es lo que producía el corte
                       seco. Solo se muestra cuando ya hay imagen que enseñar. */}
-                  <video
+                  <video controlsList="noremoteplayback"
                     ref={videoRef}
                     autoPlay muted playsInline
                     disablePictureInPicture
@@ -3516,7 +3516,7 @@ export default function GreetingReviewOverlay({
                       pointerEvents: (recordPhase === "done" && !uploadSucceeded) ? "auto" : "none",
                       transition: `opacity ${VIDEO_FADE_MS}ms ease`,
                     }}>
-                    <video
+                    <video controlsList="noremoteplayback"
                       ref={playbackVideoRef}
                       src={recordedBlobUrl}
                       playsInline

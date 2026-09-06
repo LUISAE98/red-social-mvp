@@ -412,7 +412,7 @@ export default function DonationFeedBanner({
           <div style={{ position: "fixed", inset: 0, zIndex: 99997, background: "rgba(0,0,0,0.85)" }} onClick={handleClose} />
           {/* Viewer video at 99998 */}
           <div style={panelStyle}>
-            <video ref={viewerVideoRef} playsInline loop style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+            <video controlsList="noremoteplayback" ref={viewerVideoRef} playsInline loop style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
           </div>
           {/* Controls at 99999 — above the video */}
           <div style={{ ...panelStyle, zIndex: 99999, background: "transparent", pointerEvents: "none" }}>
@@ -439,7 +439,7 @@ export default function DonationFeedBanner({
         <div style={{ position: "fixed", inset: 0, zIndex: 99997, background: "#000", opacity: op } as React.CSSProperties} />
         {/* Viewer video */}
         <div style={mobileVideoStyle}>
-          <video ref={viewerVideoRef} playsInline loop style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+          <video controlsList="noremoteplayback" ref={viewerVideoRef} playsInline loop style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
         </div>
         {/* Controls */}
         <div
@@ -616,7 +616,7 @@ export default function DonationFeedBanner({
               )}
               {hlsUrl && (
                 <div style={{ position: "relative", width: "52%", aspectRatio: `${dims?.w ?? 9} / ${dims?.h ?? 16}`, borderRadius: 10, overflow: "hidden", background: "#000", marginTop: 10, marginBottom: 10 }}>
-                  <video ref={videoCallbackRef} playsInline autoPlay loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  <video controlsList="noremoteplayback" ref={videoCallbackRef} playsInline autoPlay loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                   {loadingSpinner}
                   {muteIconBanner}
                 </div>
@@ -639,7 +639,7 @@ export default function DonationFeedBanner({
 
           {hlsUrl && (
             <div className="dbv-video-wrap portrait" style={{ width: videoWidthInline, aspectRatio }}>
-              <video ref={videoCallbackRef} playsInline autoPlay loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <video controlsList="noremoteplayback" ref={videoCallbackRef} playsInline autoPlay loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               {loadingSpinner}
               {muteIconBanner}
             </div>
@@ -707,7 +707,7 @@ export default function DonationFeedBanner({
             {/* Landscape video — 80% width, below the description */}
             {hlsUrl && (
               <div style={{ position: "relative", width: "80%", aspectRatio: `${dims?.w ?? 16} / ${dims?.h ?? 9}`, borderRadius: 10, overflow: "hidden", background: "#000", marginTop: 10, marginBottom: 10 }}>
-                <video ref={videoCallbackRef} playsInline autoPlay loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                <video controlsList="noremoteplayback" ref={videoCallbackRef} playsInline autoPlay loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 {loadingSpinner}
                 {muteIconBanner}
               </div>

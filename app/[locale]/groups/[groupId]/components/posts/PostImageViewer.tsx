@@ -55,7 +55,7 @@ const VIEWER_OVERLAY_Z = 2147480000;
  * toda la plataforma.
  *
  * El video sigue reproduciéndose: mientras corre la animación el elemento
- * `<video>` sigue vivo, y al terminar `handleMobileClose` lo devuelve a su hueco
+ * `<video controlsList="noremoteplayback">` sigue vivo, y al terminar `handleMobileClose` lo devuelve a su hueco
  * del feed con la posición intacta.
  */
 const MOBILE_CLOSE_MS = 240;
@@ -1277,8 +1277,8 @@ const previewUrl = media.url;
     return computeContentClipPath(snap === 0 ? 0 : cH, snap === 0 ? null : ar, sideInset);
   }
 
-  // For iOS Safari: clip-path on a parent doesn't clip <video> (GPU compositing layer).
-  // Apply clip-path directly to the <video> element, adjusted for safe-area-inset-top
+  // For iOS Safari: clip-path on a parent doesn't clip <video controlsList="noremoteplayback"> (GPU compositing layer).
+  // Apply clip-path directly to the <video controlsList="noremoteplayback"> element, adjusted for safe-area-inset-top
   // since the video sits inside a div that starts below the safe area.
   function getMobileVideoDirectClipPath(snap: 0 | 1 | 2, ar: number | null): string {
     if (snap === 0 || typeof window === "undefined") return "inset(0 0 0 0 round 0px)";
@@ -1326,7 +1326,7 @@ const previewUrl = media.url;
                 />
               ) : null}
 
-              <video
+              <video controlsList="noremoteplayback"
                 ref={videoRef}
                 src={currentVideoSrc}
                 poster={currentVideoPoster}
@@ -2161,7 +2161,7 @@ const previewUrl = media.url;
                 }}
               />
             ) : currentVideoSrc ? (
-              <video
+              <video controlsList="noremoteplayback"
                 ref={videoRef}
                 src={currentVideoSrc}
                 poster={currentVideoPoster}

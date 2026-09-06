@@ -633,7 +633,7 @@ export default function ReelStorySlide({
   return (
     <>
       {videoUrl && (
-        <video
+        <video controlsList="noremoteplayback"
           ref={videoRef}
           src={videoUrl}
           poster={thumbUrl ?? undefined}

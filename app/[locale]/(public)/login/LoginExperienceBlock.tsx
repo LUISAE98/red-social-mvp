@@ -317,7 +317,7 @@ export default function LoginExperienceBlock({
             va en negro hasta que hay video, y los primeros ya vienen cargados
             desde el splash. */}
         <div className="expBlockMedia">
-          <video
+          <video controlsList="noremoteplayback"
             ref={videoRef}
             // El video NO se descarga hasta que el bloque se ve por primera
             // vez. Con cinco cards en la página, cargarlos todos de entrada
