@@ -18,6 +18,7 @@
 // USD→MXN con la tasa vigente.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { liberarDeGlobal } from "./cancelacionGlobal";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import {
@@ -61,7 +62,20 @@ type MotivoNoFacturable =
   | "ya_en_global";
 
 export const generateBuyerInvoice = onCall(
-  { region: REGION, cors: true, secrets: [facturapiTestKey, facturapiUserKey] },
+  {
+    region: REGION,
+    cors: true,
+    secrets: [facturapiTestKey, facturapiUserKey],
+    /**
+     * ⚠️ 120 s, no los 60 por defecto.
+     *
+     * Desde que la liberación de la global es automática, esta función puede encadenar TRES
+     * llamadas a Facturapi —cancelar la global, reexpedirla y emitir la nominativa— y cada una
+     * tarda lo suyo. Con el plazo por defecto, una petición legítima se cortaría a la mitad,
+     * justo en el punto donde peor está: global cancelada y nada reexpedido.
+     */
+    timeoutSeconds: 120,
+  },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -123,12 +137,46 @@ export const generateBuyerInvoice = onCall(
        */
       if (p.globalInvoice) {
         const estado = (p.globalInvoice as { estado?: string }).estado;
-        throw new HttpsError(
-          "failed-precondition",
-          estado === "emitiendo"
-            ? "Estamos documentando una de estas compras en este momento, vuelve a intentarlo en unos minutos."
-            : "Una de estas compras ya quedó incluida en la factura global del creador. Todavía puedes tener tu factura, pero hay que emitirla a mano, escríbenos y la preparamos."
-        );
+        /*
+         * `emitiendo` dura segundos: la global de ese creador se está timbrando ahora mismo.
+         * Intentar cancelarla a media emisión es la forma más rápida de dejar dos CFDI vivos.
+         */
+        if (estado === "emitiendo") {
+          throw new HttpsError(
+            "failed-precondition",
+            "Estamos documentando una de estas compras en este momento, vuelve a intentarlo en unos minutos."
+          );
+        }
+        /**
+         * 🔄 SE LIBERA SOLA, sin que nadie tenga que intervenir (2026-09-06).
+         *
+         * Antes esto rechazaba y le decía al comprador que escribiera. El argumento era que
+         * cancelar un CFDI del creador debía decidirlo una persona — y dejó de sostenerse
+         * cuando la global pasó a MENSUAL: quien pide su factura dentro del mes no cancela
+         * nada, así que este camino es ya la excepción, no la norma.
+         *
+         * Lo que protege no es que haya un humano dando clic: es el ORDEN —cancelar y luego
+         * reexpedir—, el rastro en `cancelacionesGlobales` y la guarda de plazo. Todo eso ya
+         * está y se ejercitó de verdad. Hacer esperar días al comprador por su factura no lo
+         * protegía de nada.
+         *
+         * ⚠️ Si la global está fuera de plazo, `liberarDeGlobal` LANZA con un mensaje que
+         *    explica que ya no se puede cancelar y que la vía es una nota de crédito. Ese
+         *    mensaje llega tal cual al comprador, que es lo correcto: es la verdad y le dice
+         *    qué pedir.
+         */
+        await liberarDeGlobal({
+          buyerId: uid,
+          purchaseId: pid,
+          pedidoPor: uid,
+          causa: "nominativa",
+        });
+        /*
+         * El documento cambió: ya no tiene `globalInvoice` y sí `nominativaEnCurso.liberada`.
+         * Se relee para que las comprobaciones de abajo trabajen sobre lo que hay ahora.
+         */
+        const tras = await db.doc(`users/${uid}/purchases/${pid}`).get();
+        Object.assign(p, tras.data() ?? {});
       }
       /**
        * Otra petición de factura va por delante con esta compra. Los dos casos se cuentan

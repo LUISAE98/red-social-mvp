@@ -620,6 +620,33 @@ export function subscribeToConversation(
 }
 
 /**
+ * La última página de un hilo, de una sola lectura y SIN suscribirse.
+ *
+ * Existe para sembrar el caché del aparato de los hilos que aún no se han
+ * abierto: sin esto, el buscador de la bandeja solo encuentra dentro de las
+ * conversaciones que ya visitaste, que es justo lo que no se entiende desde
+ * fuera. Se paga una vez por hilo y por aparato, porque lo guardado no caduca.
+ */
+export async function fetchLatestMessages(
+  conversationId: string,
+  pageSize = CONVERSATION_PAGE_SIZE
+): Promise<MessageWithId[]> {
+  const q = query(
+    messagesCol(conversationId),
+    orderBy("createdAt", "desc"),
+    fsLimit(pageSize)
+  );
+
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => ({
+      id: d.id,
+      ...(d.data({ serverTimestamps: "estimate" }) as MessageDoc),
+    }))
+    .reverse();
+}
+
+/**
  * Trae la página anterior a `oldestCreatedAt`. Lectura de una sola vez a
  * propósito: el historial antiguo no cambia, así que suscribirse a él sería
  * pagar para siempre por datos inmutables.

@@ -12,7 +12,14 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
 
-export type TipoDocumento = "factura" | "notaCredito" | "comision" | "retenciones";
+/** ⚠️ Tiene que coincidir con el del backend, en `facturacion/descargarDocumento.ts`. */
+export type TipoDocumento =
+  | "factura"
+  | "notaCredito"
+  /** Los tres del creador. La `global` es SU factura, firmada con SU sello. */
+  | "global"
+  | "comision"
+  | "retenciones";
 
 type Respuesta = { formato: string; mime: string; base64: string };
 

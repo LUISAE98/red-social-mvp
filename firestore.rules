@@ -521,6 +521,20 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Los comprobantes MENSUALES del creador: su factura global, el CFDI de comisión que Vibra
+    // le emite y su constancia de retenciones. Los escribe solo el backend.
+    //
+    // 🚨 El dueño se identifica por un CAMPO, no por la ruta, así que la consulta TIENE que
+    //    fijar `creatorId` con `==` o Firestore deniega la lectura entera. Es la trampa de
+    //    `allow list`: solo ve los campos fijados con igualdad.
+    //
+    // Sin esto el creador no podía ver ninguno de sus tres CFDI — justo los que su contador le
+    // pide.
+    match /creatorMonthlyDocs/{docId} {
+      allow get, list: if signedIn() && resource.data.creatorId == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
     match /users/{uid}/comprobantesRetiro/{withdrawalId} {
       allow get, list: if signedIn() && request.auth.uid == uid;
       allow create, update, delete: if false;

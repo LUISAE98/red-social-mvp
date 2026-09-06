@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { guardarMensajes, leerMensajesGuardados } from "./messageCache";
 import {
   fetchOlderMessages,
   markConversationRead,
@@ -75,14 +76,34 @@ export function useConversation(
 
     setLoading(true);
 
+    /**
+     * Lo guardado en el aparato se pinta ANTES de que conteste Firestore.
+     *
+     * `cancelado` corta la carrera: si la suscripción llega primero —o si te
+     * sales del hilo mientras se lee el disco— lo de la caché ya no vale y
+     * escribirlo encima sería retroceder a una versión vieja.
+     */
+    let cancelado = false;
+    let llegoLaRed = false;
+
+    void leerMensajesGuardados(conversationId).then((guardados) => {
+      if (cancelado || llegoLaRed || guardados.length === 0) return;
+      setLive(guardados);
+      setLoading(false);
+    });
+
     const unsub = subscribeToConversation(
       conversationId,
       (next) => {
+        llegoLaRed = true;
         setLive(next);
         setLoading(false);
         setError(null);
         // Menos de una página completa ⇒ no hay historial anterior que pedir.
         if (next.length < CONVERSATION_PAGE_SIZE) setHasMore(false);
+        // Al disco, sin caducidad. Un mensaje editado o borrado vuelve a pasar
+        // por aquí, así que la copia guardada se corrige sola.
+        void guardarMensajes(conversationId, next);
       },
       (err) => {
         setError(err);
@@ -90,7 +111,10 @@ export function useConversation(
       }
     );
 
-    return () => unsub();
+    return () => {
+      cancelado = true;
+      unsub();
+    };
   }, [conversationId]);
 
   // Historial paginado + última página en vivo, en orden de lectura.
@@ -180,7 +204,13 @@ export function useConversation(
         oldest.id
       );
       if (page.length < CONVERSATION_PAGE_SIZE) setHasMore(false);
-      if (page.length) setOlder((prev) => [...page, ...prev]);
+      if (page.length) {
+        setOlder((prev) => [...page, ...prev]);
+        // El historial que se baja al subir por el hilo también se queda en el
+        // aparato. Es lo que hace que la segunda vez no cueste nada, y lo que
+        // mete los mensajes viejos en el alcance del buscador.
+        void guardarMensajes(conversationId, page);
+      }
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {

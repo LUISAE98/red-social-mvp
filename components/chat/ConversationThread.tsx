@@ -324,7 +324,25 @@ function SwipeReplyCue() {
  * falla más de lo que parece, y el compositor es lo que más se toca del chat.
  * Cuadra con el relleno: 20 de línea + 14 + 14.
  */
+/**
+ * Cuánto sobresale del globo el corazón de me gusta en táctil.
+ *
+ * 4,5 de aire contra el globo + los 17 que mide el icono. Cuadra con el
+ * botón de laptop, que mide 26 y va pegado al globo: su dibujo ocupa
+ * exactamente de 4,5 a 21,5 hacia fuera.
+ */
+const CORAZON_FUERA = 21.5;
+
 const INPUT_MIN_HEIGHT = 48;
+/**
+ * El mismo campo, más bajo en el dock de laptop. Los 48 se eligieron para un
+ * pulgar en marcha; con ratón esa holgura no compra nada y el campo se ve
+ * inflado dentro de un panel que ya es estrecho.
+ *
+ * ⚠️ La cuenta del relleno tiene que seguir cuadrando EXACTO con el alto, o el
+ * texto cae descentrado: 20 de línea + 11 + 11 = 42.
+ */
+const INPUT_MIN_HEIGHT_DOCK = 42;
 const INPUT_MAX_HEIGHT = 132;
 
 /**
@@ -455,6 +473,12 @@ export default function ConversationThread({
   pointerActions?: boolean;
   onConversationCreated?: (conversationId: string) => void;
 }) {
+  // `pointerActions` es la señal de "esto es el dock de laptop": lo pasa solo
+  // `ChatDock`, y la pantalla completa del móvil no. Se reutiliza en vez de
+  // preguntar otra vez por media query, que daría la misma respuesta más tarde
+  // y con un fotograma de campo alto por medio.
+  const altoCampo = pointerActions ? INPUT_MIN_HEIGHT_DOCK : INPUT_MIN_HEIGHT;
+
   const tChat = useTranslations("chat");
   const tCommon = useTranslations("common");
   const locale = useLocale();
@@ -1948,9 +1972,20 @@ export default function ConversationThread({
                   data-on={hayCorazon ? "" : undefined}
                   style={{
                     position: "absolute",
-                    // 4,5 px + medio icono = 13 px afuera, que es exactamente
-                    // donde cae el centro del botón de pasar el cursor.
-                    ...(mine ? { insetInlineStart: -4.5 } : { insetInlineEnd: -4.5 }),
+                    /* Se coloca el BORDE del icono, no su centro — que es justo
+                       donde estaba el fallo: con -4,5 el corazón caía 4 px DENTRO
+                       del globo y se encimaba con el texto.
+
+                       La cuenta correcta, para caer donde con puntero cae el
+                       corazón de pasar el cursor: ese botón mide 26 y va pegado
+                       al globo, así que su icono de 17 empieza a 4,5 del borde y
+                       acaba a 21,5. Aquí no hay botón, solo el icono, así que su
+                       borde exterior va a 4,5 + 17 = 21,5.
+
+                       Resultado: centro a 13 px del globo, idéntico a laptop. */
+                    ...(mine
+                      ? { insetInlineStart: -CORAZON_FUERA }
+                      : { insetInlineEnd: -CORAZON_FUERA }),
                   }}
                 >
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="#ff3040">
@@ -2791,7 +2826,7 @@ export default function ConversationThread({
           style={{
             width: "100%",
             boxSizing: "border-box",
-            minHeight: INPUT_MIN_HEIGHT,
+            minHeight: altoCampo,
             maxHeight: INPUT_MAX_HEIGHT,
             // El relleno derecho deja hueco para la flecha de enviar, que es lo
             // único que queda DENTRO del campo. La foto se salió a la derecha.
@@ -2799,7 +2834,7 @@ export default function ConversationThread({
             // Las medidas cuadran EXACTO con `minHeight`: 20 de línea + 14 y 14
             // de relleno = 48. Con un interlineado en múltiplo (1.5 sobre 13px
             // daba 19.5) sobraba medio píxel y el texto caía descentrado.
-            padding: "14px 42px 14px 14px",
+            padding: `${(altoCampo - 20) / 2}px 42px ${(altoCampo - 20) / 2}px 14px`,
             borderRadius: 14,
             border: "none",
             // Translúcido + desenfoque: los mensajes se ven pasar por detrás
@@ -2826,7 +2861,7 @@ export default function ConversationThread({
             bottom: 0,
             // Alto igual al mínimo del campo: con una línea queda centrada, y al
             // crecer el campo se queda junto a la última línea.
-            height: INPUT_MIN_HEIGHT,
+            height: altoCampo,
             display: "flex",
             alignItems: "center",
           }}
@@ -2898,7 +2933,7 @@ export default function ConversationThread({
           <div
             className="vibra-chat-attach"
             data-collapsed={composerFocused ? "" : undefined}
-            style={{ height: INPUT_MIN_HEIGHT }}
+            style={{ height: altoCampo }}
           >
             <button className="vibra-pop"
               type="button"

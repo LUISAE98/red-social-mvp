@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import type { Comment, CommentImage, CommentMention, CommentReply, Post, PostPremium } from "@/lib/posts/types";
@@ -97,6 +98,10 @@ export default function PublicPostPageClient({
   post,
 }: PublicPostPageClientProps) {
   const router = useRouter();
+  // Esta pantalla llevaba dos textos en español fijo, y es pública, la ve
+  // cualquiera que abra el enlace de una publicación y en su propio idioma.
+  const tPosts = useTranslations("posts");
+  const tFeed = useTranslations("feed");
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(
     auth.currentUser?.uid ?? null
@@ -332,7 +337,7 @@ export default function PublicPostPageClient({
 
   async function handleToggleFlame() {
     if (!currentUserId) {
-      requireLogin("Inicia sesión para dar flamita.");
+      requireLogin(tPosts("loginToFlame"));
       return;
     }
 
@@ -357,7 +362,7 @@ export default function PublicPostPageClient({
     } catch (e: unknown) {
       setViewerHasFlamed(previousViewerHasFlamed);
       setLikesCount(previousLikesCount);
-      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
+      setInlineError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateFlame"));
     } finally {
       setFlameBusy(false);
     }

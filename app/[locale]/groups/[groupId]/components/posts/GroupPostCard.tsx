@@ -4778,7 +4778,7 @@ padding: "0 0 2px 0",
         gap: 2,
       }}
     >
-<IconButton label={ optimisticViewerHasFlamed ? tPosts("removeFlameFromPost") : "Dar flamita a la publicación" } size="sm" tone="bare" shape="square" style={{ placeItems: "center", touchAction: "manipulation" }} onClick={handleToggleFlame} aria-pressed={optimisticViewerHasFlamed}>
+<IconButton label={ optimisticViewerHasFlamed ? tPosts("removeFlameFromPost") : tPosts("addFlameToPost") } size="sm" tone="bare" shape="square" style={{ placeItems: "center", touchAction: "manipulation" }} onClick={handleToggleFlame} aria-pressed={optimisticViewerHasFlamed}>
   <span aria-hidden="true" style={flameIconStyle}>
     <VibraFlameIcon active={optimisticViewerHasFlamed} size={22} premium={post.premium?.enabled === true} />
   </span>

@@ -1579,6 +1579,54 @@ Ya estaba en la cancelación mensual desde el paso 2 y se deja documentada como 
 **el candado solo se suelta cuando Facturapi devuelve `canceled`**. Si queda esperando al receptor,
 el registro se marca y no se libera. La global no la necesita, porque va al RFC genérico.
 
+## 🗂️ El feed único de documentos del creador ✅ (2026-09-06)
+
+### 🔴 El hueco que lo motivó
+
+El comprador veía sus **tres** documentos; el creador **solo dos de cinco**. No podía ver ni bajar
+ninguno de sus CFDI —la factura global, el de comisión y la constancia— que son justo **los tres
+que su contador le pide**. Estaban en `creatorMonthlyDocs`, sin regla de lectura y sin pantalla.
+
+| Para | Documentos | Visibles antes | Ahora |
+|---|---|---|---|
+| Comprador | 3 | 3 | 3 |
+| **Creador** | 5 | **2** | **5** |
+
+### Qué se hizo
+
+| Pieza | Cambio |
+|---|---|
+| `firestore.rules` | Lectura de `creatorMonthlyDocs` para su dueño |
+| `firestore.indexes.json` | `creatorId` + `createdAt` |
+| `descargarDocumento.ts` | Admite el tipo `global` |
+| `lib/wallet/comprobantes.ts` | `suscribirCfdiMensuales` |
+| `ComprobantesDelCreador.tsx` | Grupo «Documentos fiscales», **primero** |
+| 12 claves nuevas | `es` y `en` |
+
+### 🚨 Dos trampas que costaron una corrección cada una
+
+1. **La global la firma el CREADOR, no Vibra.** Al añadir el tipo `global` lo mandé con la llave
+   de Vibra y habría devuelto «no existe» — y sería cierto, no existe en su organización. Ahora
+   se resuelve la organización del creador desde su perfil fiscal.
+2. **La regla identifica al dueño por un CAMPO, no por la ruta.** La consulta TIENE que fijar
+   `creatorId` con `==` o Firestore deniega la lectura entera, no solo los documentos ajenos.
+
+### La explicación no es adorno
+
+Cada documento lleva una línea que dice **qué es y por qué le importa**:
+
+| Documento | Qué se le dice |
+|---|---|
+| Factura global | «Es tuya y tu contador la necesita para tu declaración» |
+| CFDI de comisión | «Es un gasto tuyo y **puedes deducirlo**» |
+| Constancia | «Ya se enteró al SAT a tu nombre. Con esto **lo acreditas**» |
+| Liquidación | «No es una factura mexicana» |
+
+Un creador que ve «constancia de retenciones» a secas no sabe si es algo que le cobraron, algo
+que puede deducir o algo que tiene que declarar — y son tres cosas distintas según el documento.
+
+Y un mes sin timbrar **lo dice**, en vez de ofrecer un botón que va a fallar.
+
 ## 📥 La descarga de los CFDI por el comprador ✅ (2026-09-05)
 
 Cierra el punto 7. El comprador ya puede bajarse el PDF de su factura y de cada nota de crédito

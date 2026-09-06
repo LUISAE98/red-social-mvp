@@ -120,6 +120,7 @@ export default function GroupPostsFeed({
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
   const tProfile = useTranslations("profile");
+  const tFeed = useTranslations("feed");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1035,7 +1036,7 @@ const uploadedVideoCovers =
         } as Post["counts"],
       });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
+      setError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateFlame"));
       throw e;
     }
   }

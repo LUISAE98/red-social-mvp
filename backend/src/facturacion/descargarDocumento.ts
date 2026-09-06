@@ -40,7 +40,13 @@ if (admin.apps.length === 0) {
 const db = admin.firestore();
 
 /** Qué documento se pide. Cada uno vive en un sitio y lo firma una organización distinta. */
-export type TipoDocumento = "factura" | "notaCredito" | "comision" | "retenciones";
+export type TipoDocumento =
+  | "factura"
+  | "notaCredito"
+  /** Los tres del creador. La `global` es SU factura, la que emite a público en general. */
+  | "global"
+  | "comision"
+  | "retenciones";
 
 export type Formato = "pdf" | "xml";
 
@@ -75,13 +81,21 @@ async function resolver(params: {
      * 🚨 La emitió el CREADOR con su propia organización, así que hay que firmar con su llave.
      *    Con la de Vibra, Facturapi contestaría que el documento no existe — y sería cierto, no
      *    existe en la organización de Vibra.
+     *
+     * ⚠️ SALVO que no traiga `facturapiOrgId`. Las facturas anteriores al cambio al modelo de
+     *
+     *    intermediación se timbraron en la organización de Vibra. Exigirlo las dejaría sin
+     *    poder descargarse para siempre, y son facturas válidas. Portado de
+     *    `downloadBuyerInvoice`, que ya lo hacía bien.
      */
     const orgId = String(snap.get("facturapiOrgId") ?? "").trim();
-    if (!orgId) throw new HttpsError("failed-precondition", "El comprobante no dice quién lo emitió.");
+    const auth: FacturapiAuth = orgId
+      ? { orgKey: await getOrganizationTestKey(orgId) }
+      : "secret";
 
     return {
       path: `/invoices/${String(snap.get("facturapiInvoiceId") ?? referencia)}`,
-      auth: { orgKey: await getOrganizationTestKey(orgId) },
+      auth,
     };
   }
 
@@ -104,6 +118,23 @@ async function resolver(params: {
 
   // La constancia es una RETENCIÓN y vive en otro endpoint. Pedirla en `/invoices` da 404.
   const base = tipo === "retenciones" ? "retentions" : "invoices";
+
+  /**
+   * 🚨 LA GLOBAL LA FIRMA EL CREADOR, los otros dos VIBRA.
+   *
+   * La factura global es del creador: la emite él a «público en general», con su propio sello y
+   * en SU organización de Facturapi. La comisión y la constancia las emite Vibra. Pedir la
+   * global con la llave de Vibra devuelve «no existe», y sería cierto: no existe ahí.
+   */
+  if (tipo === "global") {
+    const fiscal = await db.doc(`creatorTaxProfiles/${creatorId}`).get();
+    const orgId = String(fiscal.get("facturapiOrgId") ?? "").trim();
+    if (!orgId) {
+      throw new HttpsError("failed-precondition", "El creador no tiene organización de facturación.");
+    }
+    return { path: `/${base}/${folio}`, auth: { orgKey: await getOrganizationTestKey(orgId) } };
+  }
+
   return { path: `/${base}/${folio}`, auth: "secret" };
 }
 
@@ -126,7 +157,7 @@ export const descargarDocumentoFiscal = onCall(
     const formato = (String(data.formato ?? "pdf") === "xml" ? "xml" : "pdf") as Formato;
     const buyerId = String(data.buyerId ?? "").trim() || undefined;
 
-    if (!["factura", "notaCredito", "comision", "retenciones"].includes(tipo)) {
+    if (!["factura", "notaCredito", "global", "comision", "retenciones"].includes(tipo)) {
       throw new HttpsError("invalid-argument", "Tipo de documento desconocido.");
     }
     if (!referencia) throw new HttpsError("invalid-argument", "Falta la referencia del documento.");

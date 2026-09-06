@@ -37,9 +37,15 @@ type Props = {
   /** Hilos abiertos en pestañas: pueden ser varios a la vez. */
   activeConversationIds?: string[];
   isMobile?: boolean;
+  /**
+   * Medida exacta del avatar, cuando `isMobile` no alcanza a decidirla.
+   * La usa la página de mensajes, que es ancha en los dos aparatos y aun así
+   * quiere números distintos.
+   */
+  avatarSize?: number;
 };
 
-type TimestampLike = { toDate?: () => Date } | null | undefined;
+export type TimestampLike = { toDate?: () => Date } | null | undefined;
 
 function toDate(value: TimestampLike): Date | null {
   if (!value || typeof value.toDate !== "function") return null;
@@ -51,7 +57,7 @@ function toDate(value: TimestampLike): Date | null {
  * Hora corta para hoy, día y mes para lo anterior. Es lo que espera cualquiera
  * que haya usado un chat, y evita traer una librería de fechas.
  */
-function formatConversationTime(value: TimestampLike, locale: string): string {
+export function formatConversationTime(value: TimestampLike, locale: string): string {
   const date = toDate(value);
   if (!date) return "";
 
@@ -82,6 +88,12 @@ function formatConversationTime(value: TimestampLike, locale: string): string {
  * salto justo al llegar los datos.
  */
 export const CHAT_AVATAR_ANCHO = 52;
+/**
+ * El mismo listado en laptop, un 15% más chico (52 → 44). La fila sigue
+ * teniendo el ancho de la columna, pero a la distancia de un monitor un
+ * avatar de 52 pesa más de lo que aporta.
+ */
+export const CHAT_AVATAR_ANCHO_LAPTOP = 44;
 export const CHAT_AVATAR_ESTRECHO = 36;
 
 export default function ConversationList({
@@ -93,10 +105,16 @@ export default function ConversationList({
   onOpenConversation,
   activeConversationIds,
   isMobile = false,
+  avatarSize,
 }: Props) {
   const tChat = useTranslations("chat");
   const tCommon = useTranslations("common");
   const locale = useLocale();
+
+  // 🚨 UNA sola cuenta para el hueco de carga y para la fila real. Separarlas
+  // es lo que hace que la lista salte justo al llegar los datos.
+  const ladoAvatar =
+    avatarSize ?? (isMobile ? CHAT_AVATAR_ANCHO : CHAT_AVATAR_ESTRECHO);
 
   if (loading) {
     return (
@@ -104,7 +122,7 @@ export default function ConversationList({
         {/* El hueco de carga mide lo MISMO que la fila real. Si no, la lista
             da un salto al llegar los datos. */}
         <ConversationListSkeleton
-          avatarSize={isMobile ? CHAT_AVATAR_ANCHO : CHAT_AVATAR_ESTRECHO}
+          avatarSize={ladoAvatar}
         />
       </div>
     );
@@ -236,7 +254,7 @@ export default function ConversationList({
                   // ancho de la pantalla entera y el avatar se quedaba menudo.
                   // En la barra de laptop la columna es estrecha y 36 sigue
                   // siendo lo que cabe.
-                  size={isMobile ? CHAT_AVATAR_ANCHO : CHAT_AVATAR_ESTRECHO}
+                  size={ladoAvatar}
                 />
 
                 {/* Rejilla de dos por dos, y no dos renglones con la hora

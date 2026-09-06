@@ -13,6 +13,7 @@ import {
   getDoc,
   onSnapshot,
   orderBy,
+  where,
   query,
   limit as fsLimit,
 } from "firebase/firestore";
@@ -254,4 +255,56 @@ export async function leerRecibo(uid: string, id: string): Promise<ReciboDoc | n
   const snap = await getDoc(doc(db, "users", uid, "recibos", id));
   if (!snap.exists()) return null;
   return aRecibo(snap.id, snap.data() as Record<string, unknown>);
+}
+
+/**
+ * Los CFDI mensuales del creador: su factura global, la comisión que Vibra le cobra y su
+ * constancia de retenciones.
+ *
+ * 🚨 Hasta el 2026-09-06 el creador NO PODÍA VER NINGUNO. Estaban en `creatorMonthlyDocs`, sin
+ *    regla de lectura y sin pantalla — justo los tres papeles que su contador le pide.
+ *
+ * ⚠️ La consulta TIENE que fijar `creatorId` con `==`. La regla identifica al dueño por un CAMPO,
+ *    no por la ruta, y `allow list` en Firestore solo ve los campos fijados con igualdad: sin ese
+ *    filtro se deniega la consulta entera, no solo los documentos ajenos.
+ */
+export type CfdiMensualDoc = {
+  id: string;
+  tipo: "global" | "comision" | "retenciones" | "liquidacion";
+  periodo: string;
+  /** `null` si el mes se calculó con el timbrado apagado. Sin folio no hay PDF que bajar. */
+  facturapiId: string | null;
+  uuid: string | null;
+  timbrado: boolean;
+};
+
+export function suscribirCfdiMensuales(
+  uid: string,
+  cb: (rows: CfdiMensualDoc[]) => void,
+  onError?: (e: unknown) => void
+): () => void {
+  const q = query(
+    collection(db, "creatorMonthlyDocs"),
+    where("creatorId", "==", uid),
+    orderBy("createdAt", "desc"),
+    fsLimit(60)
+  );
+  return onSnapshot(
+    q,
+    (snap) =>
+      cb(
+        snap.docs.map((d) => {
+          const x = d.data() as Record<string, unknown>;
+          return {
+            id: d.id,
+            tipo: (texto(x.tipo) ?? "comision") as CfdiMensualDoc["tipo"],
+            periodo: texto(x.periodo) ?? "",
+            facturapiId: texto(x.facturapiId),
+            uuid: texto(x.uuid),
+            timbrado: x.timbrado === true,
+          };
+        })
+      ),
+    (e) => onError?.(e)
+  );
 }
