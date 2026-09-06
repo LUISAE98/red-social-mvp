@@ -56,6 +56,10 @@ export { default as VibraAvatarFallback } from "./VibraAvatarFallback";
 export { default as MenuLinesIcon } from "./MenuLinesIcon";
 export type { MenuLinesIconProps } from "./MenuLinesIcon";
 
+// Un bloque que se pliega hasta su altura real. Anima pixeles y no fracciones,
+// que es lo que hacia temblar los acordeones en Safari.
+export { default as Collapsible } from "./Collapsible";
+
 // Desenfoque progresivo para cabeceras y pies flotantes: el contenido se
 // disuelve al pasar por debajo, sin el canto duro de un `backdrop-filter` suelto.
 export { default as BlurFade } from "./BlurFade";

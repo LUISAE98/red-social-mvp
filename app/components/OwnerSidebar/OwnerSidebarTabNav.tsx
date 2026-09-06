@@ -5,6 +5,7 @@ import Image from "next/image";
 import type { CSSProperties, ReactNode } from "react";
 import type { TopView } from "./OwnerSidebar";
 import { SidebarFollowingIcon } from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
+import Collapsible from "@/components/ui/Collapsible";
 
 type Props = {
   /** Sección desplegada, o null si todas están cerradas. */
@@ -157,23 +158,13 @@ export default function OwnerSidebarTabNav({
               />
             </button>
 
-            {/* Contenido de la sección: se despliega hacia abajo bajo su pestaña.
-                grid-template-rows 0fr→1fr anima hasta la altura real del contenido,
-                sin tope fijo que recorte listas largas. */}
+            {/* Contenido de la seccion, plegado por el primitivo compartido:
+                mide su alto real y lo anima en pixeles, sin tope que recorte
+                una lista larga. */}
             {content != null && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateRows: active ? "1fr" : "0fr",
-                  opacity: active ? 1 : 0,
-                  transition:
-                    "grid-template-rows 380ms cubic-bezier(0.4,0,0.2,1), opacity 240ms ease",
-                }}
-              >
-                <div style={{ overflow: "hidden" }}>
-                  <div style={{ paddingTop: 6 }}>{content}</div>
-                </div>
-              </div>
+              <Collapsible open={active} duration={380}>
+                <div style={{ paddingTop: 6 }}>{content}</div>
+              </Collapsible>
             )}
           </div>
         );

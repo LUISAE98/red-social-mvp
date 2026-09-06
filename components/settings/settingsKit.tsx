@@ -3,6 +3,8 @@
 import React from "react";
 import type { CSSProperties } from "react";
 
+import Collapsible from "@/components/ui/Collapsible";
+
 /**
  * El lenguaje visual de una pantalla de configuración de Vibra.
  *
@@ -168,7 +170,7 @@ export function SettingsSection({
         padding: 6,
       }}
     >
-      <button
+      <button className="vibra-pop"
         type="button"
         onClick={fija ? undefined : onToggle}
         // Fija no es un control, ni se puede pulsar ni anuncia estado plegable.
@@ -242,21 +244,17 @@ export function SettingsSection({
         )}
       </button>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateRows: desplegada ? "1fr" : "0fr",
-          opacity: desplegada ? 1 : 0,
-          transition:
-            "grid-template-rows 380ms cubic-bezier(0.4,0,0.2,1), opacity 240ms ease",
-        }}
-      >
-        <div style={{ overflow: "hidden" }}>
-          {/* Relleno lateral propio: sin él, el contenido queda pegado al borde
-              de la tarjeta y se lee apretado. */}
+      {/* Fija no se anima: esta siempre abierta, y envolverla en el plegable
+          solo la haria medirse para nada. */}
+      {fija ? (
+        <div style={{ padding: "0 6px 6px" }}>{children}</div>
+      ) : (
+        <Collapsible open={abierta} duration={380}>
+          {/* Relleno lateral propio: sin el, el contenido queda pegado al
+              borde de la tarjeta y se lee apretado. */}
           <div style={{ padding: "0 6px 6px" }}>{children}</div>
-        </div>
-      </div>
+        </Collapsible>
+      )}
     </div>
   );
 }

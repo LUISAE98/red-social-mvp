@@ -30,6 +30,7 @@ import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import FollowStateButton from "@/components/profile/FollowStateButton";
 import RailHeader from "./RailHeader";
+import Collapsible from "@/components/ui/Collapsible";
 import { useDragScroll } from "@/lib/hooks/useDragScroll";
 
 /** Compara ignorando mayúsculas y acentos: "Diseno" encuentra "Diseño". */
@@ -537,31 +538,10 @@ export default function CommunityRail({
       />
 
 
-      {/* Plegado: 0fr→1fr anima hasta la altura real del contenido, sin tope
-          fijo que lo recorte. Mismo patrón que el resto del sidebar. La tira
-          interior conserva su overflow-x, así que el scroll horizontal sigue
-          funcionando dentro del contenedor que se abre y cierra. */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateRows: !collapsible || open ? "1fr" : "0fr",
-          opacity: !collapsible || open ? 1 : 0,
-          transition:
-            "grid-template-rows 380ms cubic-bezier(0.4, 0, 0.2, 1), opacity 240ms ease",
-          // ⚠️ El temblor al abrir y cerrar era el ANCLAJE DE SCROLL del
-          // navegador. Cuando algo por encima del punto de mira cambia de alto,
-          // Chrome corrige el scroll para que lo que estabas mirando no se mueva.
-          // Con una altura animándose eso pasa en CADA fotograma, así que el
-          // menú entero daba tirones mientras durara la transición. Apagarlo en
-          // el contenedor que se anima es la cura: aquí el usuario está mirando
-          // la tira que se despliega, no lo que hay debajo.
-          overflowAnchor: "none",
-          // Aísla el repintado del subárbol para que el navegador no tenga que
-          // rehacer el resto del menú en cada fotograma.
-          contain: "paint",
-        }}
-      >
-        <div style={{ overflow: "hidden", minWidth: 0 }}>
+      {/* El plegado lo resuelve el primitivo compartido, que mide el alto y
+          lo anima en pixeles. La tira interior conserva su overflow-x, asi
+          que el scroll horizontal sigue funcionando dentro. */}
+      <Collapsible open={!collapsible || open} duration={380}>
       <div
         ref={scrollerRef}
         className="communityRailScroller"
@@ -667,8 +647,7 @@ export default function CommunityRail({
           );
         })}
       </div>
-        </div>
-      </div>
+      </Collapsible>
 
       {/* Lista completa. VibraResponsivePanel ya resuelve las dos formas que
           pediste: panel centrado en laptop y pestaña deslizable desde abajo en
