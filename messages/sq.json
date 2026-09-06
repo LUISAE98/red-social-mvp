@@ -2639,10 +2639,10 @@
     "body": "Hapet si aplikacion dhe është e vetmja mënyrë për të marrë njoftime në iPhone.",
     "step1": "Hap Safari",
     "step2": "Prek tre pikat, poshtë djathtas",
-    "step3": "Zgjidh Ndaj",
-    "step4": "Zbrit dhe zgjidh Shto në ekranin bazë",
+    "step3": "Zgjidh “Ndaj”",
+    "step4": "Zbrit dhe zgjidh “Shto në ekranin bazë”",
     "shareLabel": "Ndaj",
-    "addToHomeScreen": "Në ekranin bazë",
+    "addToHomeScreen": "Shto në ekranin bazë",
     "later": "Jo tani"
   },
   "notifications": {

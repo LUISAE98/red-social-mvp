@@ -2639,10 +2639,10 @@
     "body": "Terbuka seperti aplikasi, dan hanya begini kamu bisa menerima notifikasi di iPhone.",
     "step1": "Buka Safari",
     "step2": "Ketuk tiga titik di kanan bawah",
-    "step3": "Pilih Bagikan",
-    "step4": "Gulir dan pilih Tambahkan ke Layar Utama",
+    "step3": "Pilih “Bagikan”",
+    "step4": "Gulir dan pilih “Tambahkan ke Layar Utama”",
     "shareLabel": "Bagikan",
-    "addToHomeScreen": "Ke Layar Utama",
+    "addToHomeScreen": "Tambahkan ke Layar Utama",
     "later": "Nanti saja"
   },
   "notifications": {

@@ -217,6 +217,30 @@ export async function emitirNotaDeCredito(params: {
   const nota = res.data;
   const acumulado = round2(yaAcreditado + base);
 
+  /**
+   * 🚨 SE REGISTRA COMO DOCUMENTO DEL COMPRADOR, no solo en la compra.
+   *
+   * `users/{buyerId}/invoices` no es «las facturas»: es **los comprobantes fiscales emitidos a
+   * este comprador**, y una nota de crédito lo es. Sin este registro, `descargarDocumentoFiscal`
+   * no sabría de quién es ni con qué llave pedirla, y el comprador no podría bajarse el PDF de
+   * su propia devolución.
+   */
+  await db.collection("users").doc(buyerId).collection("invoices").doc(nota.id).set({
+    buyerId,
+    issuerCreatorId: creatorId,
+    facturapiOrgId: orgId,
+    facturapiInvoiceId: nota.id,
+    uuid: nota.uuid ?? null,
+    /** `E` de egreso: es lo que distingue una nota de crédito de una factura. */
+    tipo: "E",
+    relacionadaCon: uuidOriginal,
+    total: base,
+    currency: "MXN",
+    status: "valid",
+    purchaseIds: [purchaseId],
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
   await compraRef.set(
     {
       notasCredito: {

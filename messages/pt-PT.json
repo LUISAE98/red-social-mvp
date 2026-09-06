@@ -2639,10 +2639,10 @@
     "body": "Abre como app, e é a única forma de receberes avisos no iPhone.",
     "step1": "Abre o Safari",
     "step2": "Toca nos três pontos, em baixo à direita",
-    "step3": "Escolhe Partilhar",
-    "step4": "Desce e escolhe Adicionar ao ecrã principal",
+    "step3": "Escolhe “Partilhar”",
+    "step4": "Desce e escolhe “Adicionar ao ecrã principal”",
     "shareLabel": "Partilhar",
-    "addToHomeScreen": "Ao ecrã principal",
+    "addToHomeScreen": "Adicionar ao ecrã principal",
     "later": "Agora não"
   },
   "notifications": {

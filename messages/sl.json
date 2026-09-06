@@ -2639,10 +2639,10 @@
     "body": "Odpre se kot aplikacija in je edini način za prejemanje obvestil na iPhonu.",
     "step1": "Odpri Safari",
     "step2": "Tapni tri pike spodaj desno",
-    "step3": "Izberi Deli",
-    "step4": "Podrsaj navzdol in izberi Dodaj na začetni zaslon",
+    "step3": "Izberi “Deli”",
+    "step4": "Podrsaj navzdol in izberi “Dodaj na začetni zaslon”",
     "shareLabel": "Deli",
-    "addToHomeScreen": "Na začetni zaslon",
+    "addToHomeScreen": "Dodaj na začetni zaslon",
     "later": "Ne zdaj"
   },
   "notifications": {

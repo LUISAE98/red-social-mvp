@@ -2639,8 +2639,8 @@
     "body": "會像 App 一樣開啟，也是在 iPhone 收到通知的唯一方式。",
     "step1": "開啟 Safari",
     "step2": "點右下角的三個點",
-    "step3": "選擇分享",
-    "step4": "往下滑並選擇加入主畫面",
+    "step3": "選擇「分享」",
+    "step4": "往下滑並選擇「加入主畫面」",
     "shareLabel": "分享",
     "addToHomeScreen": "加入主畫面",
     "later": "現在不要"

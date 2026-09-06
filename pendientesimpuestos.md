@@ -1579,6 +1579,65 @@ Ya estaba en la cancelación mensual desde el paso 2 y se deja documentada como 
 **el candado solo se suelta cuando Facturapi devuelve `canceled`**. Si queda esperando al receptor,
 el registro se marca y no se libera. La global no la necesita, porque va al RFC genérico.
 
+## 📥 La descarga de los CFDI por el comprador ✅ (2026-09-05)
+
+Cierra el punto 7. El comprador ya puede bajarse el PDF de su factura y de cada nota de crédito
+desde su lista de compras.
+
+### 🚨 Un hueco propio que apareció al conectarlo
+
+`emitirNotaDeCredito` guardaba la nota **solo en la compra**, no en
+`users/{buyerId}/invoices`. Con eso, `descargarDocumentoFiscal` no sabía de quién era ni con qué
+llave pedirla, y el comprador **no habría podido bajar el PDF de su propia devolución**.
+
+Corregido: la nota se registra también ahí. Esa colección no es «las facturas», es **los
+comprobantes fiscales emitidos a este comprador**, y una nota de crédito lo es.
+
+### Detalles que evitan sustos
+
+| Pieza | Por qué |
+|---|---|
+| Puede haber **VARIAS** notas por compra | Una devolución parcial no agota la compra: el creador puede emitir más hasta cubrir el total. Por eso se listan, no se asume una |
+| El botón tiene **estado y error a la vista** | Bajar un PDF pasa por un callable, la red y Facturapi. Un botón mudo deja al comprador dándole clic sin saber si pasó algo |
+| La URL del objeto **se revoca siempre** | Incluso si falla el clic. Sin eso, cada descarga retiene el archivo entero en memoria hasta recargar |
+
+## 🌍 B8 · Recibo para el comprador extranjero ✅ (2026-09-05)
+
+Puntos 4 y 16. El comprador de fuera pagaba, recibía su servicio y **no se llevaba ningún papel**:
+ni de lo que pagó, ni en qué moneda, ni del impuesto de su país que sí le cobramos. El CFDI es un
+documento mexicano y a él no le aplica.
+
+| Pieza | Dónde |
+|---|---|
+| El recibo | 🆕 `backend/src/facturacion/reciboComprador.ts` |
+| El disparo | `wallet/buyerPurchases.ts`, al espejar la compra |
+| Regla de Firestore | `users/{uid}/recibos/{purchaseId}`, lectura del dueño |
+| Vista imprimible | La misma ruta, con `tipo = recibo` |
+| El enlace | Una línea en cada compra de «Mis experiencias» |
+| 10 pruebas | `reciboComprador.pure.test.ts` |
+
+### 🚨 Solo al comprador de FUERA, y es deliberado
+
+Al mexicano **no** se le genera. Su venta la ampara un CFDI —la global del creador, o su propia
+factura si la pide— y darle además un papel que se le parece pero no vale fiscalmente lo invita a
+presentarlo en su declaración. **Un documento que confunde es peor que ninguno.**
+
+Y sin país fiscal resuelto tampoco: suponerlo llenaría de recibos a compradores mexicanos.
+
+### Lo que dice, y en qué orden
+
+Primero y destacado, **lo que VIO y pagó en SU moneda**. Es la única cifra que puede cotejar
+contra su banco; el importe en dólares de la liquidación no le dice nada porque nunca lo vio.
+
+⚠️ El impuesto que aparece es el de **su país**, no IVA mexicano. Una venta a comprador de fuera
+es exportación a tasa 0%, así que el IVA mexicano de esa operación es cero por definición.
+
+### Un dato que faltaba en el espejo
+
+`taxCountry` no viajaba del ledger al espejo de la compra. Sin él no se puede saber a quién le
+toca recibo, así que se añadió. Es también lo que permite que la lista del comprador enseñe el
+enlace solo a quien corresponde.
+
 ## 🖨️ Los PDF de nuestros documentos: vista imprimible ✅ (2026-09-05)
 
 Puntos 12 y 13. Son los dos que **no** genera Facturapi, porque no son CFDI.
@@ -1804,7 +1863,7 @@ cobro tenga pantalla propia.
 |---|---|---|
 | 1 | Motivo 04, sacar una venta de la global | ✅ **Ejercitado y verificado** |
 | 2 | Cancelar comprobantes mensuales | ✅ **Desplegado**, sin probar con un CFDI real |
-| 3 | **Notas de crédito** (Bloque 6) | ✅ **Backend y panel** el 2026-09-05 · ⬜ falta la tarjeta del comprador, que va con el PDF |
+| 3 | **Notas de crédito** (Bloque 6) | ✅ **COMPLETO** el 2026-09-05: backend, panel y descarga del PDF por el comprador |
 | 4 | Sacar de la global por devolución | ✅ **HECHO** el 2026-09-05 · con motivo **02**, no 01 |
 | 5 | Guardas de plazo y de aceptación | ✅ Hecho |
 

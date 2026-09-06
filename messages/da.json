@@ -2639,8 +2639,8 @@
     "body": "Den åbner som en app, og det er den eneste måde at få notifikationer på iPhone.",
     "step1": "Åbn Safari",
     "step2": "Tryk på de tre prikker nederst til højre",
-    "step3": "Vælg Del",
-    "step4": "Rul ned og vælg Føj til hjemmeskærm",
+    "step3": "Vælg “Del”",
+    "step4": "Rul ned og vælg “Føj til hjemmeskærm”",
     "shareLabel": "Del",
     "addToHomeScreen": "Føj til hjemmeskærm",
     "later": "Ikke nu"

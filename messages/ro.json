@@ -2639,10 +2639,10 @@
     "body": "Se deschide ca aplicație și e singurul mod de a primi notificări pe iPhone.",
     "step1": "Deschide Safari",
     "step2": "Atinge cele trei puncte, jos în dreapta",
-    "step3": "Alege Partajează",
-    "step4": "Derulează și alege Adaugă la ecranul principal",
+    "step3": "Alege “Partajează”",
+    "step4": "Derulează și alege “Adaugă la ecranul principal”",
     "shareLabel": "Partajează",
-    "addToHomeScreen": "La ecranul principal",
+    "addToHomeScreen": "Adaugă la ecranul principal",
     "later": "Nu acum"
   },
   "notifications": {

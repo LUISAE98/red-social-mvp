@@ -41,6 +41,16 @@ export type PurchaseData = {
    */
   taxCountry?: string | null;
   invoiceId?: string | null;
+  /**
+   * 🧾 Las notas de crédito emitidas sobre esta compra.
+   *
+   * Puede haber VARIAS: una devolución parcial no agota la compra, así que el creador puede
+   * emitir más hasta cubrir el total. Por eso es una lista y no un solo id.
+   */
+  notasCredito?: {
+    acumulado?: number;
+    emitidas?: Array<{ facturapiId?: string; uuid?: string | null; base?: number }>;
+  } | null;
   // Devolución: destino del reembolso + monto devuelto (para "· Devuelto en crédito/tarjeta").
   refundDestination?: "credit" | "card";
   refundedAmount?: number;

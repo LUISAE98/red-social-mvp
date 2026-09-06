@@ -222,7 +222,7 @@ export default function PanelModal({
           </div>
         </div>
 
-        {children ? <div style={{ padding: "12px 18px 0" }}>{children}</div> : null}
+        {children ? <div style={{ padding: "14px 18px 0" }}>{children}</div> : null}
 
         <div
           style={{
@@ -230,7 +230,10 @@ export default function PanelModal({
             gap: 8,
             justifyContent: "flex-end",
             alignItems: "center",
-            padding: "14px 18px 16px",
+            // Más aire abajo que arriba: el borde inferior de una tarjeta pide
+            // algo más de margen que el hueco entre dos bloques de contenido, o
+            // los botones se leen como pegados al canto.
+            padding: "20px 18px 20px",
           }}
         >
           <button

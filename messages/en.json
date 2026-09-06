@@ -1754,7 +1754,9 @@
     "receiptsPayment": "Payment receipt",
     "receiptsPaid": "You paid",
     "receiptsLocalTax": "Tax in your country",
-    "receiptsTotal": "Total"
+    "receiptsTotal": "Total",
+    "receiptsInvoicePdf": "Invoice PDF",
+    "receiptsCreditNotePdf": "Credit note PDF"
   },
   "services": {
     "confirmLabel": "Confirm",
@@ -2664,8 +2666,8 @@
     "body": "It opens like an app, and it is the only way to get notifications on iPhone.",
     "step1": "Open Safari",
     "step2": "Tap the three dots, bottom right",
-    "step3": "Choose Share",
-    "step4": "Scroll down and choose Add to Home Screen",
+    "step3": "Choose “Share”",
+    "step4": "Scroll down and choose “Add to Home Screen”",
     "shareLabel": "Share",
     "addToHomeScreen": "Add to Home Screen",
     "later": "Not now"

@@ -10,6 +10,7 @@ import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_USD } from "@/lib/currency/catal
 import { TextButton } from "@/components/ui";
 import { useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { descargarDocumentoFiscal } from "@/lib/facturacion/descargarDocumento";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { formatCurrency } from "@/lib/currency/format";
 import {
@@ -234,6 +235,11 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
          */
         const pais = String(d.taxCountry ?? "").toUpperCase();
         const tieneRecibo = !refunded && pais !== "" && pais !== "MX";
+        /*
+         * 🧾 El PDF de su CFDI, que lo genera Facturapi. Puede haber varias notas de crédito:
+         *    una devolución parcial no agota la compra.
+         */
+        const notas = d.notasCredito?.emitidas ?? [];
         // Devuelto: a crédito (saldo a favor) o a la tarjeta (rechazo antes de cobrar).
         const returnedToCredit = d.refundDestination === "credit";
         const returnedToCard = d.refundDestination === "card";
@@ -360,6 +366,34 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
                       {tWallet("receiptsPayment")}
                     </a>
                   )}
+                  {invoiced && d.invoiceId && uid && (
+                    <Bajar
+                      texto={tWallet("receiptsInvoicePdf")}
+                      onBajar={() =>
+                        descargarDocumentoFiscal({
+                          tipo: "factura",
+                          referencia: d.invoiceId as string,
+                          buyerId: uid,
+                        })
+                      }
+                    />
+                  )}
+                  {uid &&
+                    notas.map((nc) =>
+                      nc.facturapiId ? (
+                        <Bajar
+                          key={nc.facturapiId}
+                          texto={tWallet("receiptsCreditNotePdf")}
+                          onBajar={() =>
+                            descargarDocumentoFiscal({
+                              tipo: "notaCredito",
+                              referencia: nc.facturapiId as string,
+                              buyerId: uid,
+                            })
+                          }
+                        />
+                      ) : null
+                    )}
                 </>
               )}
             </div>
@@ -376,5 +410,44 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
         onConfirm={handleGenerate}
       />
     </div>
+  );
+}
+
+
+/**
+ * Botón de descarga de un CFDI.
+ *
+ * 🚨 Con estado propio y con el error a la vista. Bajar un PDF pasa por un callable, la red y
+ *    Facturapi: puede tardar segundos y puede fallar. Un botón mudo deja al comprador dándole
+ *    clic sin saber si pasó algo.
+ */
+function Bajar({ texto, onBajar }: { texto: string; onBajar: () => Promise<void> }) {
+  const [estado, setEstado] = useState<"listo" | "bajando" | "error">("listo");
+  return (
+    <button
+      type="button"
+      disabled={estado === "bajando"}
+      onClick={async () => {
+        setEstado("bajando");
+        try {
+          await onBajar();
+          setEstado("listo");
+        } catch {
+          setEstado("error");
+        }
+      }}
+      style={{
+        background: "none",
+        border: "none",
+        padding: 0,
+        cursor: estado === "bajando" ? "default" : "pointer",
+        fontSize: 10,
+        fontWeight: 600,
+        color: estado === "error" ? "#f87171" : "#a855f7",
+        opacity: estado === "bajando" ? 0.5 : 1,
+      }}
+    >
+      {texto}
+    </button>
   );
 }

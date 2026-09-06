@@ -21,6 +21,7 @@ import { useTranslations } from "next-intl";
 import { usePwaInstalled } from "@/lib/hooks/usePwaInstalled";
 import { usePwaInstallPrompt } from "@/lib/hooks/usePwaInstallPrompt";
 import { aplazar, puedePreguntar, CADENCIA_INSTALAR } from "@/lib/pwa/aplazarAviso";
+import { PRIORIDAD, useTurnoDeAviso } from "@/lib/pwa/turnoDeAvisos";
 import PanelModal from "./PanelModal";
 
 /** Cuándo se pospuso por última vez. Vuelve cada 6 h hasta que se instale. */
@@ -44,11 +45,14 @@ export default function InstallAppPrompt() {
    * evita de un plumazo las dos trampas: leer el navegador en el servidor, y
    * enseñarle el aviso un fotograma a quien ya tiene la app puesta.
    */
-  const visible =
+  const quiereSalir =
     !cerrado &&
     instalada === false &&
     puedeInstalar &&
     puedePreguntar(CLAVE_APLAZADO, CADENCIA_INSTALAR);
+
+  // Manda sobre el de avisos: si los dos quisieran salir, este va primero.
+  const visible = useTurnoDeAviso("instalar", PRIORIDAD.instalar, quiereSalir);
 
   function noAhora() {
     aplazar(CLAVE_APLAZADO);

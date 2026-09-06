@@ -2639,10 +2639,10 @@
     "body": "Ji atsidaro kaip programėlė ir tai vienintelis būdas gauti pranešimus iPhone.",
     "step1": "Atidaryk Safari",
     "step2": "Bakstelėk tris taškus apačioje dešinėje",
-    "step3": "Pasirink Bendrinti",
-    "step4": "Slink žemyn ir pasirink Įtraukti į pradžios ekraną",
+    "step3": "Pasirink “Bendrinti”",
+    "step4": "Slink žemyn ir pasirink “Įtraukti į pradžios ekraną”",
     "shareLabel": "Bendrinti",
-    "addToHomeScreen": "Į pradžios ekraną",
+    "addToHomeScreen": "Įtraukti į pradžios ekraną",
     "later": "Ne dabar"
   },
   "notifications": {

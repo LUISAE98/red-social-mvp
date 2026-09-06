@@ -1754,7 +1754,9 @@
     "receiptsPayment": "Recibo de pago",
     "receiptsPaid": "Pagaste",
     "receiptsLocalTax": "Impuesto de tu país",
-    "receiptsTotal": "Total"
+    "receiptsTotal": "Total",
+    "receiptsInvoicePdf": "Factura PDF",
+    "receiptsCreditNotePdf": "Nota de crédito PDF"
   },
   "services": {
     "confirmLabel": "Confirmar",
@@ -2664,8 +2666,8 @@
     "body": "Se abre como app, y es la única forma de recibir avisos en iPhone.",
     "step1": "Entra a Safari",
     "step2": "Toca los tres puntos, abajo a la derecha",
-    "step3": "Elige Compartir",
-    "step4": "Baja y elige Agregar a Inicio",
+    "step3": "Elige “Compartir”",
+    "step4": "Baja y elige “Agregar a Inicio”",
     "shareLabel": "Compartir",
     "addToHomeScreen": "Agregar a Inicio",
     "later": "Ahora no"

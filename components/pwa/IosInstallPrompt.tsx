@@ -22,6 +22,7 @@ import { useTranslations } from "next-intl";
 
 import { usePwaInstalled } from "@/lib/hooks/usePwaInstalled";
 import { aplazar, puedePreguntar, CADENCIA_INSTRUCTIVO } from "@/lib/pwa/aplazarAviso";
+import { PRIORIDAD, useTurnoDeAviso } from "@/lib/pwa/turnoDeAvisos";
 import PanelModal from "./PanelModal";
 
 /** Clave propia: posponer este aviso no calla al de Android, ni al revés. */
@@ -177,11 +178,14 @@ export default function IosInstallPrompt() {
    * evita de un plumazo las dos trampas: leer el navegador en el servidor, y
    * enseñarle el instructivo un fotograma a quien ya tiene la app puesta.
    */
-  const visible =
+  const quiereSalir =
     !cerrado &&
     instalada === false &&
     plataforma === "ios" &&
     puedePreguntar(CLAVE_APLAZADO, CADENCIA_INSTRUCTIVO);
+
+  // Mismo turno que el de Android: nunca coinciden, pero comparten prioridad.
+  const visible = useTurnoDeAviso("instalar-ios", PRIORIDAD.instalar, quiereSalir);
 
   function noAhora() {
     aplazar(CLAVE_APLAZADO);
@@ -213,8 +217,8 @@ export default function IosInstallPrompt() {
           Los dibujos son SVG y no recortes de captura a propósito: una captura
           se queda en un idioma, en un tamaño y en una versión de iOS, y además
           arrastraría lo que hubiera en la pantalla de quien la tomó. */}
-      <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 18 }}>
-        <li style={{ display: "grid", gap: 6 }}>
+      <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 24 }}>
+        <li style={{ display: "grid", gap: 10 }}>
           <span style={ESTILO_PASO}>
             <Paso n={1} />
             {t("step1")}
@@ -234,7 +238,7 @@ export default function IosInstallPrompt() {
           </div>
         </li>
 
-        <li style={{ display: "grid", gap: 6 }}>
+        <li style={{ display: "grid", gap: 10 }}>
           <span style={ESTILO_PASO}>
             <Paso n={2} />
             {t("step2")}
@@ -302,7 +306,7 @@ export default function IosInstallPrompt() {
           </div>
         </li>
 
-        <li style={{ display: "grid", gap: 6 }}>
+        <li style={{ display: "grid", gap: 10 }}>
           <span style={ESTILO_PASO}>
             <Paso n={3} />
             {t("step3")}
@@ -325,7 +329,7 @@ export default function IosInstallPrompt() {
           </div>
         </li>
 
-        <li style={{ display: "grid", gap: 6 }}>
+        <li style={{ display: "grid", gap: 10 }}>
           <span style={ESTILO_PASO}>
             <Paso n={4} />
             {t("step4")}

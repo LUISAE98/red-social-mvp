@@ -2639,8 +2639,8 @@
     "body": "Alkalmazásként nyílik meg, és iPhone-on csak így érkeznek értesítések.",
     "step1": "Nyisd meg a Safarit",
     "step2": "Koppints a három pontra, jobbra lent",
-    "step3": "Válaszd a Megosztást",
-    "step4": "Görgess le és válaszd a Főképernyőhöz adást",
+    "step3": "Válaszd a “Megosztás”t",
+    "step4": "Görgess le és válaszd a “Főképernyőhöz adás”t",
     "shareLabel": "Megosztás",
     "addToHomeScreen": "Főképernyőhöz adás",
     "later": "Most nem"

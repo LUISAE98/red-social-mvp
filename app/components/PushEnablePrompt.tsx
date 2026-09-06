@@ -13,6 +13,7 @@ import { useAuth } from "@/app/providers";
 import { usePushNotifications } from "@/lib/hooks/usePushNotifications";
 import { hasLocalPushToken } from "@/lib/push/fcm";
 import PanelModal from "@/components/pwa/PanelModal";
+import { PRIORIDAD, useTurnoDeAviso } from "@/lib/pwa/turnoDeAvisos";
 
 const DISMISS_KEY = "vibra:pushPromptDismissed";
 
@@ -74,7 +75,17 @@ export default function PushEnablePrompt() {
     setShow(false);
   }
 
-  if (!show) return null;
+  /**
+   * Cede el paso al de instalar.
+   *
+   * Los dos son modales a pantalla completa: si salieran juntos habría dos
+   * velos y dos descartes seguidos. Este no se pierde, vuelve en la siguiente
+   * visita — y para entonces la pregunta de instalar ya estará resuelta, que
+   * en iPhone es además el requisito para que los avisos funcionen.
+   */
+  const enTurno = useTurnoDeAviso("notificaciones", PRIORIDAD.notificaciones, show);
+
+  if (!enTurno) return null;
 
   return (
     <PanelModal

@@ -2639,10 +2639,10 @@
     "body": "Tā atveras kā lietotne, un tas ir vienīgais veids, kā saņemt paziņojumus iPhone.",
     "step1": "Atver Safari",
     "step2": "Pieskaries trim punktiem apakšā pa labi",
-    "step3": "Izvēlies Kopīgot",
-    "step4": "Ritini lejup un izvēlies Pievienot sākuma ekrānam",
+    "step3": "Izvēlies “Kopīgot”",
+    "step4": "Ritini lejup un izvēlies “Pievienot sākuma ekrānam”",
     "shareLabel": "Kopīgot",
-    "addToHomeScreen": "Sākuma ekrānam",
+    "addToHomeScreen": "Pievienot sākuma ekrānam",
     "later": "Ne tagad"
   },
   "notifications": {

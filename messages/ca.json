@@ -2639,10 +2639,10 @@
     "body": "S'obre com una app i és l'única manera de rebre avisos a l'iPhone.",
     "step1": "Obre Safari",
     "step2": "Toca els tres punts, a baix a la dreta",
-    "step3": "Tria Comparteix",
-    "step4": "Baixa i tria Afegeix a la pantalla d'inici",
+    "step3": "Tria “Comparteix”",
+    "step4": "Baixa i tria “Afegeix a la pantalla d'inici”",
     "shareLabel": "Comparteix",
-    "addToHomeScreen": "A la pantalla d'inici",
+    "addToHomeScreen": "Afegeix a la pantalla d'inici",
     "later": "Ara no"
   },
   "notifications": {

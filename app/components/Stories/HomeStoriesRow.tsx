@@ -167,10 +167,26 @@ function TituloRail() {
         margin: "0 0 10px",
         padding: "0 14px",
         fontSize: 15,
-        // Ligero a propósito: el título rotula la sección, no compite con ella.
-        fontWeight: 500,
+        /**
+         * 🚨 EL BLANCO MANDA SOBRE EL GROSOR. No bajar de 600.
+         *
+         * Estuvo en 700 y se pidió más ligero, así que pasó a 500. Pero a 500 y
+         * 15px sobre negro puro los trazos no llegan a cubrir el pixel entero, y
+         * el suavizado del navegador rellena esos bordes con grises: el título
+         * SE VEÍA apagado aunque el color fuera #fff. Se probó a compensarlo sin
+         * tocar el peso —suavizado forzado y una sombra de medio pixel del mismo
+         * blanco— y no bastó.
+         *
+         * 600 es el punto donde el texto se lee blanco sólido de verdad, y sigue
+         * siendo bastante más ligero que el 700 del que venía.
+         */
+        fontWeight: 600,
         lineHeight: 1.2,
-        color: "#fff",
+        color: "#ffffff",
+        // Quitan el tintado que WebKit y Gecko aplican al texto claro sobre
+        // fondo oscuro. No cambian el grosor, solo cómo se pinta el borde.
+        WebkitFontSmoothing: "antialiased",
+        MozOsxFontSmoothing: "grayscale",
       }}
     >
       {tFeed("discoverExperiences")}
