@@ -230,6 +230,32 @@ html::-webkit-scrollbar-thumb {
   background: transparent;
 }
 
+/* En celular la barra de la pagina se va del todo.
+
+   En un movil el indicador es una superposicion que no ocupa sitio, asi que
+   quitarlo no mueve nada de la maquetacion, y el propio gesto ya dice de sobra
+   donde estas. En laptop se queda: alli no hay gesto y la barra es la unica
+   pista de cuanto falta por bajar.
+
+   640px es el corte de telefono de la app (BREAKPOINTS.mobile, el que usa
+   useIsMobile). Por debajo de ese ancho lo que se ve ya es la maquetacion de
+   celular, tambien si es una ventana de laptop encogida. */
+@media (max-width: 640px) {
+  html {
+    /* Sin barra no hay hueco que reservar, y el gutter dejaria una franja
+       muerta a la derecha. */
+    scrollbar-gutter: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  html::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
 /* NOTA: antes había un `body::after` que pintaba una franja negra fija de altura
    `env(safe-area-inset-bottom)` en el fondo. Se ELIMINÓ: era una segunda capa de
    safe-area que, al ser negro sólido con position:fixed, se transparentaba bajo los
