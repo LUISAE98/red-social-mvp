@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { BlurFade } from "@/components/ui";
+import { BOTON_ACCION_FORMA } from "@/components/ui";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useVisualViewport } from "@/lib/hooks/useVisualViewport";
 import { useTranslations } from "next-intl";
@@ -492,11 +493,14 @@ const s = {
     border: "1px solid rgba(255,255,255,0.12)",
     display: "grid", gap: 6,
   } as CSSProperties,
+  // Forma y letra del boton de seguir del perfil, la misma que ya llevan
+  // publicar, editar y monetizar. El color lo pone cada servicio; la letra
+  // siempre blanca.
   primaryBtn: {
-    width: "100%", height: 42, borderRadius: 5, border: "none",
-    background: "#a855f7", color: "rgba(255,255,255,0.98)",
-    fontSize: 15, fontWeight: 500, fontFamily: "inherit",
-    cursor: "pointer", letterSpacing: "-0.02em",
+    ...BOTON_ACCION_FORMA,
+    width: "100%",
+    background: "#a855f7", color: "#fff",
+    cursor: "pointer",
     display: "flex", alignItems: "center", justifyContent: "center",
     whiteSpace: "nowrap",
   } as CSSProperties,
@@ -820,7 +824,10 @@ export default function CreatorServiceModals({
     const remaining = maxLen - params.message.length;
     const hasTerms = typeof params.termsAccepted === "boolean";
     const isDisabled = params.submitting || (hasTerms && !params.termsAccepted);
-    const btnBg = params.accentGradient ?? "#a855f7";
+    // 🚨 SOLIDO, NO DEGRADADO. El degradado terminaba en un tono claro y la
+    // letra blanca se perdia justo en esa mitad del boton. Se queda el color
+    // del servicio, el mismo que llevan sus iconos dentro del panel.
+    const btnBg = params.accentColor ?? "#a855f7";
 
     return (
       <Panel

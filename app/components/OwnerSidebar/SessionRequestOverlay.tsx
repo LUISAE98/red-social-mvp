@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { GlassEdge, IconButton } from "@/components/ui";
+import { BOTON_ACCION_FORMA, GlassEdge, IconButton } from "@/components/ui";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
@@ -452,16 +452,13 @@ export default function SessionRequestOverlay({
               onClick={() => { if (!acceptExpanded) { setAcceptExpanded(true); revealScheduleForm(); } }}
               disabled={acceptExpanded}
               style={{
+                ...BOTON_ACCION_FORMA,
                 flex: 1,
-                height: 36,
-                borderRadius: 6,
-                border: "none",
-                background: isExclusive
-                  ? "linear-gradient(100deg, #be185d, #f9a8d4)"
-                  : "linear-gradient(100deg, #1d4ed8, #38bdf8)",
+                // 🚨 SOLIDO. El degradado terminaba en rosa o azul claro y ahi la letra
+                // blanca se perdia. Cada servicio se queda con su color, el mismo que
+                // usan sus iconos y sus paneles de compra.
+                background: isExclusive ? "#ec4899" : "#3b82f6",
                 color: "#fff",
-                fontWeight: 600,
-                fontSize: 13,
                 cursor: acceptExpanded ? "default" : "pointer",
                 fontFamily: "inherit",
                 letterSpacing: "-0.01em",
@@ -578,16 +575,13 @@ export default function SessionRequestOverlay({
                 }}
                 disabled={busy}
                 style={{
+                  ...BOTON_ACCION_FORMA,
                   flex: 1,
-                  height: 36,
-                  borderRadius: 6,
-                  border: "none",
-                  background: isExclusive
-                    ? "linear-gradient(100deg, #be185d, #f9a8d4)"
-                    : "linear-gradient(100deg, #1d4ed8, #38bdf8)",
+                  // 🚨 SOLIDO. El degradado terminaba en rosa o azul claro y ahi la letra
+                  // blanca se perdia. Cada servicio se queda con su color, el mismo que
+                  // usan sus iconos y sus paneles de compra.
+                  background: isExclusive ? "#ec4899" : "#3b82f6",
                   color: "#fff",
-                  fontWeight: 600,
-                  fontSize: 13,
                   cursor: busy ? "not-allowed" : "pointer",
                   opacity: busy ? 0.7 : 1,
                   fontFamily: "inherit",
@@ -787,16 +781,13 @@ export default function SessionRequestOverlay({
           }}
           disabled={busy}
           style={{
+            ...BOTON_ACCION_FORMA,
             flex: 1,
-            height: 44,
-            borderRadius: 10,
-            border: "none",
-            background: isExclusive
-              ? "linear-gradient(100deg, #be185d, #f9a8d4)"
-              : "linear-gradient(100deg, #1d4ed8, #38bdf8)",
+            // 🚨 SOLIDO. El degradado terminaba en rosa o azul claro y ahi la letra
+            // blanca se perdia. Cada servicio se queda con su color, el mismo que
+            // usan sus iconos y sus paneles de compra.
+            background: isExclusive ? "#ec4899" : "#3b82f6",
             color: "#fff",
-            fontWeight: 600,
-            fontSize: 14,
             cursor: busy ? "not-allowed" : "pointer",
             opacity: busy ? 0.7 : 1,
             fontFamily: "inherit",

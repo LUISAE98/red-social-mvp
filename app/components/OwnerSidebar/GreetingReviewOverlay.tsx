@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { GlassEdge, IconButton } from "@/components/ui";
+import { BOTON_ACCION_FORMA, GlassEdge, IconButton } from "@/components/ui";
 import { Switch } from "@/components/services/config/serviceConfigKit";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import ConfirmPanel from "@/components/ui/ConfirmPanel";
@@ -3825,13 +3825,18 @@ export default function GreetingReviewOverlay({
               ) : (
                 <div style={{ display: "flex", gap: 8 }}>
                   <button type="button" onClick={handleGrabar} disabled={busy} style={{
-                    flex: 1, height: 36, borderRadius: 6,
-                    border: "none",
-                    background: busy ? "rgba(255,255,255,0.10)" : req.type === "consejo"
-                      ? "linear-gradient(100deg, #b45309, #fde047)"
-                      : "linear-gradient(100deg, #7c3aed, #c084fc)",
+                    ...BOTON_ACCION_FORMA,
+                    flex: 1,
+                    // 🚨 SOLIDO. El degradado acababa en amarillo claro y en esa mitad del
+                    // boton la letra blanca no se leia. El consejo se queda con su ambar
+                    // oscuro, que es el otro extremo del degradado que ya tenia.
+                    background: busy
+                      ? "rgba(255,255,255,0.10)"
+                      : req.type === "consejo"
+                        ? "#b45309"
+                        : "#a855f7",
                     color: "#fff",
-                    fontWeight: 700, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
+                    cursor: busy ? "not-allowed" : "pointer",
                     opacity: busy ? 0.7 : 1,
                     fontFamily: fontStack,
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
@@ -3933,13 +3938,18 @@ export default function GreetingReviewOverlay({
             ) : (
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={handleGrabar} disabled={busy} style={{
-                  flex: 1, height: 36, borderRadius: 6,
-                  border: "none",
-                  background: busy ? "rgba(255,255,255,0.10)" : req.type === "consejo"
-                    ? "linear-gradient(100deg, #b45309, #fde047)"
-                    : "linear-gradient(100deg, #7c3aed, #c084fc)",
+                  ...BOTON_ACCION_FORMA,
+                  flex: 1,
+                  // 🚨 SOLIDO. El degradado acababa en amarillo claro y en esa mitad del
+                  // boton la letra blanca no se leia. El consejo se queda con su ambar
+                  // oscuro, que es el otro extremo del degradado que ya tenia.
+                  background: busy
+                    ? "rgba(255,255,255,0.10)"
+                    : req.type === "consejo"
+                      ? "#b45309"
+                      : "#a855f7",
                   color: "#fff",
-                  fontWeight: 700, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
+                  cursor: busy ? "not-allowed" : "pointer",
                   opacity: busy ? 0.7 : 1,
                   fontFamily: fontStack,
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
