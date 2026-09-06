@@ -336,7 +336,7 @@ export default function ProfileFollowersOverlay({
         <div
           style={{
             position: "fixed",
-            bottom: "calc(0px - var(--vb-lienzo-extra))",
+            bottom: "calc(0px - var(--vb-anclaje-abajo))",
             insetInlineStart: 0,
             insetInlineEnd: 0,
             zIndex: 99981,

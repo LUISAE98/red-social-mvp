@@ -192,7 +192,7 @@ const removeMediaButtonStyle: CSSProperties = {
         top: 0,
         insetInlineStart: 0,
         insetInlineEnd: 0,
-        bottom: "calc(0px - var(--vb-lienzo-extra))",
+        bottom: "calc(0px - var(--vb-anclaje-abajo))",
         width: "100vw",
         height: "var(--vb-alto-pantalla)",
         zIndex: 999999,

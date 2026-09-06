@@ -607,7 +607,7 @@ export default function MobileBottomNav({
           position: fixed;
           inset-inline-start: 0;
           inset-inline-end: 0;
-          bottom: calc(0px - var(--vb-lienzo-extra));
+          bottom: calc(0px - var(--vb-anclaje-abajo));
           z-index: 9999;
           display: none;
           width: 100%;

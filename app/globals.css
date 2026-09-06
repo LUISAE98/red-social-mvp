@@ -54,13 +54,39 @@
      Se usa de dos formas:
        · `--vb-alto-pantalla`, aquí debajo, para todo lo que quiera medir la
          pantalla entera. Es lo que sustituye a `100dvh`.
-       · directamente, para lo que se ancle con `bottom`, que no se arregla
-         creciendo sino bajando: `bottom: calc(0px - var(--vb-lienzo-extra))`. */
+       · para lo que se ancle con `bottom`, que no se arregla creciendo sino
+         bajando, NO se usa esta sino `--vb-anclaje-abajo`, aquí debajo, que es
+         la misma resta pero con topes. Anclar contra esta directamente es lo
+         que mandaba el nav inferior a media pantalla. */
   --vb-lienzo-extra: 0px;
 
   /* El alto de la pantalla, para lo que deba llegar de borde a borde. Fuera de
      la app instalada es exactamente `100dvh` y no cambia nada. */
   --vb-alto-pantalla: calc(100dvh + var(--vb-lienzo-extra));
+
+  /* Lo mismo, pero ACOTADO, para lo que se ancla con `bottom`: el nav inferior,
+     el avisador, el muelle del chat y los paneles que se pegan abajo.
+     ─────────────────────────────────────────────────────────────────────────
+     La resta de arriba es correcta en reposo, pero NO es estable: iOS rehace la
+     cuenta del área de dibujo en cada transición —el splash al refrescar, abrir
+     un panel, cerrar el teclado— y tarda unos fotogramas en cuadrarla. Lo que se
+     pinte dentro de esa ventana sale mal Y SE QUEDA ASÍ (está medido y contado
+     en `docs/ios-pwa-viewport.md`).
+
+     Para lo que MIDE la pantalla eso da igual: sale un alto raro un instante y
+     se corrige. Para lo que se ANCLA abajo no, porque un valor absurdo lo manda
+     fuera de sitio y ahí se queda: el nav inferior aparecía a media pantalla.
+
+     Los dos extremos que hay que cerrar:
+       · por abajo, valores negativos —`lvh` nunca debería ser menor que `dvh`,
+         pero si iOS lo reporta al revés un fotograma, el ancla SUBE—;
+       · por arriba, el desplome de `dvh` con el teclado abierto: 874 contra 471
+         en las mediciones del documento, o sea 400px de resta cuando lo que hay
+         que compensar es la barra de estado, 62px.
+
+     El tope de 120px es holgado para cualquier barra de estado de iOS (la mayor
+     ronda los 59) y queda muy por debajo de cualquier desplome de teclado. */
+  --vb-anclaje-abajo: clamp(0px, var(--vb-lienzo-extra), 120px);
 
   /* Sentido de lectura, como NÚMERO, para las animaciones.
      Las propiedades lógicas (margin-inline-start y compañía) se voltean solas en

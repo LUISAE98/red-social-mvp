@@ -152,6 +152,8 @@ diferencia. En `app/globals.css`:
 :root {
   --vb-lienzo-extra: 0px;
   --vb-alto-pantalla: calc(100dvh + var(--vb-lienzo-extra));
+  /* La misma resta, con topes, para lo que se ancla con `bottom`. */
+  --vb-anclaje-abajo: clamp(0px, var(--vb-lienzo-extra), 120px);
 }
 
 /* 🚨 LOS DOS MODOS. Cubrir solo `standalone` costó un ciclo entero. */
@@ -169,7 +171,30 @@ Se aplica de tres formas, según cómo esté anclada cada superficie:
 | Anclaje | Antes | Ahora | Sitios |
 |---|---|---|---|
 | Por alto | `100dvh` | `var(--vb-alto-pantalla)` | 76 en 45 archivos |
-| Por abajo | `bottom: 0` | `bottom: calc(0px - var(--vb-lienzo-extra))` | 7 |
+| Por abajo | `bottom: 0` | `bottom: calc(0px - var(--vb-anclaje-abajo))` | 7 |
+
+### 🚨 Lo que se ancla abajo va ACOTADO, y lo que mide la pantalla no
+
+La resta es correcta en reposo, pero **no es estable**: como ya se cuenta más arriba, iOS
+rehace la cuenta del área de dibujo en cada transición y tarda unos fotogramas. Eso afecta
+distinto a las dos formas de usarla:
+
+* **Por alto** (`--vb-alto-pantalla`): sale un alto raro un instante y se corrige solo. Se
+  queda **sin topes**, porque ahí el valor grande es el correcto — con el teclado abierto, lo
+  que mide la pantalla entera sigue siendo el lienzo entero.
+* **Por abajo** (`--vb-anclaje-abajo`): un valor absurdo manda la superficie fuera de sitio
+  y **ahí se queda**. Le pasó al nav inferior, que aparecía a media pantalla en la app
+  instalada. Por eso va con `clamp`.
+
+Los dos extremos que cierra el `clamp`:
+
+* **Por abajo, negativos.** `lvh` nunca debería ser menor que `dvh`, pero si iOS lo reporta
+  al revés un solo fotograma, la resta se vuelve negativa y el ancla **sube**.
+* **Por arriba, el teclado.** Con el teclado abierto `dvh` se desploma a 471 contra los 874
+  de `lvh`: 400px de resta, cuando lo que hay que compensar es la barra de estado, 62px.
+
+El tope de 120px es holgado para cualquier barra de estado de iOS —la mayor ronda los 59— y
+queda muy por debajo de cualquier desplome de teclado.
 | Con `inset: 0` | *(nada)* | se le añade `height: var(--vb-alto-pantalla)` | 7 estructurales |
 
 En el tercer caso el elemento queda sobre-restringido —`top`, `bottom` y `height` a la vez— y

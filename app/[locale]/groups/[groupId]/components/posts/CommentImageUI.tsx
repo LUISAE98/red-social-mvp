@@ -208,7 +208,11 @@ export function CommentAttachButton({
         style={{ display: "none" }}
       />
       <IconButton label="Adjuntar imagen" size="sm" tone="bare" style={{ placeItems: "center" }} onClick={() => inputRef.current?.click()} disabled={disabled}>
-        <VibraPhotoIcon size={19} color="currentColor" />
+        {/* 24 y no 23 para igualar al avión de "Comentar", que es su vecino. El
+            número nominal no basta: ese avión dibuja unas 17 unidades de las 24
+            del lienzo y este glifo 16,2 con su trazo, así que al mismo número
+            saldría más chico. Se compara lo que se VE. */}
+        <VibraPhotoIcon size={24} color="currentColor" />
       </IconButton>
     </>
   );

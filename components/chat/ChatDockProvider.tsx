@@ -211,7 +211,7 @@ export default function ChatDockProvider({
           style={{
             position: "fixed",
             insetInlineEnd: DOCK_EDGE,
-            bottom: "calc(0px - var(--vb-lienzo-extra))",
+            bottom: "calc(0px - var(--vb-anclaje-abajo))",
             zIndex: 1200,
             display: "flex",
             // La más reciente queda pegada al borde derecho y las anteriores se
