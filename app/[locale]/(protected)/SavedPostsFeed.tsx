@@ -152,13 +152,30 @@ export default function SavedPostsFeed() {
     if (typeof window === "undefined") return;
 
     const measure = () => {
-      const tw = titleWrapRef.current;
       const sh = shellRef.current;
-      if (!tw || !sh) return;
-      const twRect = tw.getBoundingClientRect();
+      if (!sh) return;
       const shRect = sh.getBoundingClientRect();
+
+      // 🚨 SE MIDE EL ALTO DEL HEADER, NO LA POSICION DEL TITULO.
+      //
+      // Antes era `titulo.getBoundingClientRect().top + scrollY`. Esa cuenta
+      // depende del scroll y del transform de RefreshableArea, que es el padre
+      // del titulo: en cuanto el navegador devolvia un scroll intermedio —el
+      // rebote de iOS, el arrastre de recargar, el momentum— salia un `top`
+      // distinto, el subnav pegajoso cambiaba de sitio y la tapa negra de
+      // altura. Ese ir y venir es el temblor que se reporto.
+      //
+      // El alto del header es estable: no lo mueve el scroll, y el header vive
+      // fuera de RefreshableArea asi que ningun transform lo toca.
+      const header = document.querySelector<HTMLElement>(".header");
+      const altoHeader = header
+        ? Math.round(header.getBoundingClientRect().height)
+        : isMobile
+          ? 56
+          : 90;
+
       const next = {
-        top: Math.max(0, Math.round(twRect.top + window.scrollY)),
+        top: altoHeader,
         left: Math.round(shRect.left),
         width: Math.round(shRect.width),
       };
@@ -177,8 +194,13 @@ export default function SavedPostsFeed() {
     measure();
 
     const ro = new ResizeObserver(measure);
-    if (titleWrapRef.current) ro.observe(titleWrapRef.current);
     if (shellRef.current) ro.observe(shellRef.current);
+
+    // El header decide el `top`, asi que es lo que hay que vigilar. El titulo
+    // ya no entra: su alto no interviene y observarlo solo provocaba medidas
+    // de mas mientras el feed crecia.
+    const header = document.querySelector<HTMLElement>(".header");
+    if (header) ro.observe(header);
     window.addEventListener("resize", measure);
 
     return () => {

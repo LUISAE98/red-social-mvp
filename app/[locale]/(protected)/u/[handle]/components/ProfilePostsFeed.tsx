@@ -34,6 +34,7 @@ import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard
 import { PostSkeleton, PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "@/app/groups/[groupId]/components/posts/PostsMediaSubnav";
+import { useMediaTabAnchor } from "@/app/[locale]/groups/[groupId]/components/posts/useMediaTabAnchor";
 import MediaGallery, { type GalleryTile } from "@/app/groups/[groupId]/components/posts/MediaGallery";
 import { useMediaSlideReservedHeight } from "@/app/groups/[groupId]/components/posts/useMediaSlideReservedHeight";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
@@ -965,6 +966,13 @@ const shellStyle: CSSProperties = {
 
   // Reserva de altura (galería más alta) para que el slide no salte de altura.
   // Se llama ANTES del early return de abajo para no romper el orden de hooks.
+  // Ancla el scroll al subnav al cambiar de pestana, para que una galeria
+  // vacia no deje al navegador recortando el scroll de golpe.
+  const { anclaRef: mediaTabsRef, alCambiarPestana } = useMediaTabAnchor(
+    mediaTab,
+    setMediaTab
+  );
+
   const { contentRef: mediaSlideRef, minHeight: mediaSlideMinHeight } =
     useMediaSlideReservedHeight(!searchActive && !isEmbed && mediaTab !== "feed");
 
@@ -1000,12 +1008,28 @@ const shellStyle: CSSProperties = {
       <VibraToast toast={feedToast} />
 
       {showMediaTabs && (
-        <PostsMediaSubnav active={mediaTab} onChange={setMediaTab} />
+        <div ref={mediaTabsRef}>
+          <PostsMediaSubnav active={mediaTab} onChange={alCambiarPestana} />
+        </div>
       )}
 
       {belowMediaTabs}
 
-      <div style={{ overflow: "hidden", width: "100%", minWidth: 0, minHeight: mediaSlideMinHeight }}>
+      {/* Dos pisos, y hacen falta los dos. `mediaSlideMinHeight` es el de la
+          pestana saliente y dura lo que el deslizamiento; el de una pantalla
+          es permanente y evita que el documento se quede mas corto que el
+          viewport, que es cuando el navegador recorta el scroll de golpe. */}
+      <div
+        style={{
+          overflow: "hidden",
+          width: "100%",
+          minWidth: 0,
+          minHeight:
+            mediaSlideMinHeight !== undefined
+              ? `max(${mediaSlideMinHeight}px, var(--vb-alto-pantalla))`
+              : "var(--vb-alto-pantalla)",
+        }}
+      >
       <motion.div
         ref={mediaSlideRef}
         key={effectiveMediaTab}

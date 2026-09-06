@@ -49,6 +49,7 @@ import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import GroupPostComposer from "./GroupPostComposer";
 import { repartirAvance, type PublishProgress } from "./GroupPostComposer.parts";
 import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "./PostsMediaSubnav";
+import { useMediaTabAnchor } from "./useMediaTabAnchor";
 import MediaGallery, { clearMediaGalleryCache, type GalleryTile } from "./MediaGallery";
 import { useMediaSlideReservedHeight } from "./useMediaSlideReservedHeight";
 import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
@@ -1366,6 +1367,13 @@ const shellStyle: CSSProperties = {
   const showMediaTabs = !readOnly && !broadcastLiveOnly && !groupSearchActive;
   const effectiveMediaTab: MediaTabKey = showMediaTabs ? mediaTab : "feed";
   // Reserva de altura (galería más alta) para que el slide no salte de altura.
+  // Ancla el scroll al subnav al cambiar de pestana, para que una galeria
+  // vacia no deje al navegador recortando el scroll de golpe.
+  const { anclaRef: mediaTabsRef, alCambiarPestana } = useMediaTabAnchor(
+    mediaTab,
+    setMediaTab
+  );
+
   const { contentRef: mediaSlideRef, minHeight: mediaSlideMinHeight } =
     useMediaSlideReservedHeight(effectiveMediaTab !== "feed");
 
@@ -1449,12 +1457,28 @@ const shellStyle: CSSProperties = {
       <VibraToast toast={feedToast} />
 
       {showMediaTabs && (
-        <PostsMediaSubnav active={mediaTab} onChange={setMediaTab} />
+        <div ref={mediaTabsRef}>
+          <PostsMediaSubnav active={mediaTab} onChange={alCambiarPestana} />
+        </div>
       )}
 
       {belowMediaTabs}
 
-      <div style={{ overflow: "hidden", width: "100%", minWidth: 0, minHeight: mediaSlideMinHeight }}>
+      {/* Dos pisos, y hacen falta los dos. `mediaSlideMinHeight` es el de la
+          pestana saliente y dura lo que el deslizamiento; el de una pantalla
+          es permanente y evita que el documento se quede mas corto que el
+          viewport, que es cuando el navegador recorta el scroll de golpe. */}
+      <div
+        style={{
+          overflow: "hidden",
+          width: "100%",
+          minWidth: 0,
+          minHeight:
+            mediaSlideMinHeight !== undefined
+              ? `max(${mediaSlideMinHeight}px, var(--vb-alto-pantalla))`
+              : "var(--vb-alto-pantalla)",
+        }}
+      >
       <motion.div
         ref={mediaSlideRef}
         key={effectiveMediaTab}
