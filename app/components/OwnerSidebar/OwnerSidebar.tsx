@@ -2366,32 +2366,14 @@ return (
 
 /* Los tres rails iban pegados uno al otro: sus <section> no traen margen y
    el contenedor no ponia ninguno, asi que las tres cabeceras se leian como
-   una lista de tres renglones en vez de como tres tiras distintas. */
+   una lista de tres renglones en vez de como tres tiras distintas.
+
+   Los 10px son los mismos que separan inicio, guardados y mis experiencias en
+   el menu de laptop (.railSection). Se probo a partirlos con una raya y queda
+   peor: son tiras de avatares, no renglones de menu, y la linea las encajona. */
 .owner-sidebar-rails {
   display: grid;
-  gap: 12px;
-}
-
-/* Una raya entre tira y tira, la misma que separa las opciones de
-   configuracion: 1px al 10%, metida 6px por cada lado en vez de cruzar de
-   borde a borde. Va centrada en el hueco de 12px, y la ultima no lleva.
-
-   🚨 EL <section> LO PINTA CommunityRail, NO ESTE COMPONENTE. styled-jsx solo
-   pone su hash en lo que renderiza SU componente, asi que sin el :global la
-   regla no alcanzaria a los rails y fallaria en silencio, sin raya y sin
-   error. El hash se queda en el contenedor, que si es de aqui. */
-.owner-sidebar-rails > :global(section) {
-  position: relative;
-}
-
-.owner-sidebar-rails > :global(section:not(:last-child))::after {
-  content: "";
-  position: absolute;
-  inset-inline-start: 6px;
-  inset-inline-end: 6px;
-  bottom: -6px;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.1);
+  gap: 10px;
 }
 
 /* Cuenta nueva: sin seguidos ni comunidades los tres rails devuelven null y el
