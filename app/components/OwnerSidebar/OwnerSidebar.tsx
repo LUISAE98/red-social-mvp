@@ -2786,96 +2786,103 @@ newPostsCounts={newPostsCounts}
         devuelto) la sección se quedaría vacía y con ella se iría el aviso. Por
         eso ahí queda el renglón simple: sin nada que desplegar, pero con su
         número y su puerta a la página. */}
-    {hasPurchasedExperiences && experiencePreview.count > 0 ? (
-      <ExperiencesSidebarSection
-        title={tNav("myExperiences")}
-        icon={<VibraNavigationIcon type="experiences" size={21} />}
-        badgeCount={experiencesBadgeCount}
-        seeAllLabel={tNav("seeAllExperiences")}
-        onSeeAll={() => router.push("/experiencias")}
-        activeSection={experiencePreview.activeSection}
-        buyerPending={experiencePreview.buyerPending}
-        buyerDelivered={experiencePreview.buyerDelivered}
-        buyerMeetGreets={experiencePreview.buyerMeetGreets}
-        buyerExclusiveSessions={experiencePreview.buyerExclusiveSessions}
-        groupMetaMap={groupMetaMap}
-        userMiniMap={userMiniMap}
-        router={router}
-      />
-    ) : hasPurchasedExperiences ? (
-      <button
-        type="button"
-        onClick={() => router.push("/experiencias")}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 7,
-          width: "100%",
-          padding: "0 8px 6px",
-          minHeight: 34,
-          border: "none",
-          background: "transparent",
-          color: "rgba(255,255,255,0.74)",
-          fontFamily: "inherit",
-          fontWeight: 400,
-          cursor: "pointer",
-          textAlign: "start",
-          minWidth: 0,
-        }}
-      >
-        <span
-          aria-hidden="true"
-          style={{
-            width: 22,
-            minWidth: 22,
-            height: 22,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            color: "rgba(255,255,255,0.68)",
-            opacity: 0.82,
-          }}
-        >
-          <VibraNavigationIcon type="experiences" size={21} />
-        </span>
-
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {tNav("myExperiences")}
-        </span>
-
-        {/* Mismo globo que en el resto del menú y que en laptop. */}
-        {experiencesBadgeCount > 0 ? (
-          <span
+    {hasPurchasedExperiences ? (
+      // El hueco de arriba lo pone este envoltorio y no la seccion: sin el,
+      // Mis experiencias quedaba pegada a Comunidades que sigo. Son los
+      // mismos 10px que separan las tres tiras entre si.
+      <div style={{ marginTop: 10, minWidth: 0 }}>
+        {experiencePreview.count > 0 ? (
+          <ExperiencesSidebarSection
+            title={tNav("myExperiences")}
+            icon={<VibraNavigationIcon type="experiences" size={21} />}
+            badgeCount={experiencesBadgeCount}
+            seeAllLabel={tNav("seeAllExperiences")}
+            onSeeAll={() => router.push("/experiencias")}
+            activeSection={experiencePreview.activeSection}
+            buyerPending={experiencePreview.buyerPending}
+            buyerDelivered={experiencePreview.buyerDelivered}
+            buyerMeetGreets={experiencePreview.buyerMeetGreets}
+            buyerExclusiveSessions={experiencePreview.buyerExclusiveSessions}
+            groupMetaMap={groupMetaMap}
+            userMiniMap={userMiniMap}
+            router={router}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => router.push("/experiencias")}
             style={{
-              flexShrink: 0,
-              minWidth: 18,
-              height: 18,
-              padding: "0 5px",
-              borderRadius: 999,
-              background: "#a855f7",
-              color: "#fff",
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              fontSize: 10,
-              fontWeight: 700,
-              lineHeight: 1,
-              boxSizing: "border-box",
+              gap: 7,
+              width: "100%",
+              padding: "0 8px 6px",
+              minHeight: 34,
+              border: "none",
+              background: "transparent",
+              color: "rgba(255,255,255,0.74)",
+              fontFamily: "inherit",
+              fontWeight: 400,
+              cursor: "pointer",
+              textAlign: "start",
+              minWidth: 0,
             }}
           >
-            {experiencesBadgeCount > 99 ? "99+" : experiencesBadgeCount}
-          </span>
-        ) : null}
-      </button>
+            <span
+              aria-hidden="true"
+              style={{
+                width: 22,
+                minWidth: 22,
+                height: 22,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                color: "rgba(255,255,255,0.68)",
+                opacity: 0.82,
+              }}
+            >
+              <VibraNavigationIcon type="experiences" size={21} />
+            </span>
+
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {tNav("myExperiences")}
+            </span>
+
+            {/* Mismo globo que en el resto del menú y que en laptop. */}
+            {experiencesBadgeCount > 0 ? (
+              <span
+                style={{
+                  flexShrink: 0,
+                  minWidth: 18,
+                  height: 18,
+                  padding: "0 5px",
+                  borderRadius: 999,
+                  background: "#a855f7",
+                  color: "#fff",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  lineHeight: 1,
+                  boxSizing: "border-box",
+                }}
+              >
+                {experiencesBadgeCount > 99 ? "99+" : experiencesBadgeCount}
+              </span>
+            ) : null}
+          </button>
+        )}
+      </div>
     ) : null}
 
 
